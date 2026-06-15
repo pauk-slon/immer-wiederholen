@@ -6,4 +6,3 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
     volumes:
       - .:/app
-      - /app/.venv
