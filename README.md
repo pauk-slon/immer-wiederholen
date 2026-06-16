@@ -15,7 +15,7 @@ docker compose up
 Tests:
 
 ```bash
-docker compose run --rm bot pytest
+docker compose run --rm bot pytest .
 ```
 
 Linting and formatting:
