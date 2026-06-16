@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Final
 
-type Language = Literal["ru", "en"]
+from iwh.i18n import Language
 
 
 @dataclass(frozen=True)
@@ -31,3 +31,6 @@ EN: Final = Locale(
     cmd_wiederholen="Next exercise",
     cmd_language="Change language",
 )
+
+LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}
+DEFAULT_LANGUAGE: Final[Language] = "ru"

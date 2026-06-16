@@ -2,11 +2,10 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import get_args
 
 import yaml
 
-from iwh.locales import Language
+from iwh.i18n import Language, LANGUAGES
 
 
 @dataclass(frozen=True)
@@ -19,10 +18,9 @@ class Card:
     def __post_init__(self) -> None:
         if self.answer in self.distractors:
             raise ValueError(f"answer '{self.answer}' must not be in distractors")
-        valid = set(get_args(Language.__value__))
-        if set(self.explanation.keys()) != valid:
+        if set(self.explanation.keys()) != LANGUAGES:
             raise ValueError(
-                f"explanation must have keys {valid}, got {set(self.explanation.keys())}"
+                f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
             )
 
 
