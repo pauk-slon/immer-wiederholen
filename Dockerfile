@@ -31,8 +31,10 @@ COPY --from=build $VENV $VENV
 WORKDIR /app
 ENV UV_PROJECT_ENVIRONMENT=$VENV
 ENV PATH="$VENV/bin:$PATH"
-COPY . .
+COPY iwh/ iwh/
 RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=from=ghcr.io/astral-sh/uv:latest,source=/uv,target=/uv \
     /uv sync --frozen --no-dev
 CMD ["python", "-m", "iwh.bot"]
