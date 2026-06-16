@@ -8,8 +8,6 @@ import yaml
 
 from iwh.locales import Language
 
-type CardPicker = Callable[[], "Card"]
-
 
 @dataclass(frozen=True)
 class Card:
@@ -32,6 +30,9 @@ def load_cards(path: Path) -> list[Card]:
     with open(path) as f:
         items = yaml.safe_load(f)
     return [Card(**item) for item in items]
+
+
+type CardPicker = Callable[[], Card]
 
 
 def make_card_picker(cards: list[Card]) -> CardPicker:
