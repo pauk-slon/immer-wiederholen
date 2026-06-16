@@ -1,6 +1,4 @@
-import os
 import random
-from pathlib import Path
 from typing import Final, Any
 
 from aiogram import Dispatcher
@@ -17,9 +15,6 @@ from aiogram.types import (
 from iwh.cards import Card, CardPicker
 from iwh.i18n import Language, LANGUAGES
 from .l10n import DEFAULT_LANGUAGE, LOCALES
-
-TOKEN: Final = os.environ["BOT_TOKEN"]
-CARDS_PATH: Final = Path(os.environ.get("CARDS_PATH", "data/cards.yaml"))
 
 dp: Final = Dispatcher()
 
