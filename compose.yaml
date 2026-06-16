@@ -1,6 +1,8 @@
 services:
   bot:
-    build: .
+    build:
+      context: .
+      target: dev
     restart: unless-stopped
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
