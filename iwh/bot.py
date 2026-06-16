@@ -21,11 +21,10 @@ from iwh.locales import EN, RU, Language, Locale
 
 TOKEN: Final = os.environ["BOT_TOKEN"]
 CARDS_PATH: Final = Path(os.environ.get("CARDS_PATH", "data/cards.yaml"))
-
-dp: Final = Dispatcher()
-
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}
 DEFAULT_LANGUAGE: Final[Language] = "ru"
+
+dp: Final = Dispatcher()
 
 
 class UserState(StatesGroup):
