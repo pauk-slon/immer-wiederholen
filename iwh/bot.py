@@ -16,14 +16,13 @@ from aiogram.types import (
     Message,
 )
 
-from iwh.cards import Card, load_cards
+from iwh.cards import Card, CardPicker, load_cards, make_card_picker
 from iwh.locales import EN, RU, Language, Locale
 
 TOKEN: Final = os.environ["BOT_TOKEN"]
 CARDS_PATH: Final = Path(os.environ.get("CARDS_PATH", "data/cards.yaml"))
 
 dp: Final = Dispatcher()
-cards: list[Card] = []
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}
 DEFAULT_LANGUAGE: Final[Language] = "ru"
@@ -65,8 +64,10 @@ async def command_language(message: Message, state: FSMContext) -> None:
 
 
 @dp.message(Command("wiederholen"))
-async def command_wiederholen(message: Message, state: FSMContext) -> None:
-    card = random.choice(cards)
+async def command_wiederholen(
+    message: Message, state: FSMContext, card_picker: CardPicker
+) -> None:
+    card = card_picker()
     await state.set_state(UserState.answering)
     await state.update_data(answer=card.answer, explanation=card.explanation)
     await message.answer(card.question, reply_markup=make_keyboard(card))
@@ -93,7 +94,6 @@ async def handle_answer(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 async def main() -> None:
-    global cards
     cards = load_cards(CARDS_PATH)
     bot = Bot(token=TOKEN)
     for language_code, locale in LOCALES.items():
@@ -105,7 +105,7 @@ async def main() -> None:
             ],
             language_code=language_code,
         )
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, card_picker=make_card_picker(cards))
 
 
 if __name__ == "__main__":

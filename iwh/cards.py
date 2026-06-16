@@ -1,3 +1,5 @@
+import random
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import get_args
@@ -5,6 +7,8 @@ from typing import get_args
 import yaml
 
 from iwh.locales import Language
+
+type CardPicker = Callable[[], "Card"]
 
 
 @dataclass(frozen=True)
@@ -28,3 +32,7 @@ def load_cards(path: Path) -> list[Card]:
     with open(path) as f:
         items = yaml.safe_load(f)
     return [Card(**item) for item in items]
+
+
+def make_card_picker(cards: list[Card]) -> CardPicker:
+    return lambda: random.choice(cards)

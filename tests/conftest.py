@@ -57,7 +57,7 @@ def raw_update_factory(user_id: int, chat_id: int) -> RawUpdateFactory:
     return factory
 
 
-type FeedRawUpdate = Callable[[str], Awaitable[SendMessage]]
+type FeedRawUpdate = Callable[..., Awaitable[SendMessage]]
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def feed_raw_update(
     dispatcher: Dispatcher,
     raw_update_factory: RawUpdateFactory,
 ) -> FeedRawUpdate:
-    async def factory(text: str):
+    async def factory(text: str, **kwargs):
         mock_request = AsyncMock(
             return_value=Message(
                 message_id=2,
@@ -75,7 +75,7 @@ def feed_raw_update(
             ),
         )
         with patch.object(bot.session, "make_request", mock_request):
-            await dispatcher.feed_raw_update(bot, raw_update_factory(text))
+            await dispatcher.feed_raw_update(bot, raw_update_factory(text), **kwargs)
         mock_request.assert_called_once()
         return mock_request.call_args.args[1]
 
