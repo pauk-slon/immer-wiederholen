@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from iwh.i18n import Language, LANGUAGES
+from wiederholen.i18n import Language, LANGUAGES
 
 
 @dataclass(frozen=True)

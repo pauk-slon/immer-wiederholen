@@ -9,7 +9,7 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.methods import SendMessage
 from aiogram.types import Chat, Message
 
-from iwh.bot import dp as _dp
+from wiederholen.bot import dp as _dp
 
 
 @pytest.fixture

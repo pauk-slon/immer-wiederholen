@@ -2,9 +2,9 @@ import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
-from iwh.bot import UserState
-from iwh.bot.l10n import EN, RU
-from iwh.cards import Card
+from wiederholen.bot import UserState
+from wiederholen.bot.l10n import EN, RU
+from wiederholen.cards import Card
 
 from .conftest import FeedRawUpdate
 

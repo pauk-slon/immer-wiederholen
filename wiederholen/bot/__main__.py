@@ -8,7 +8,7 @@ from aiogram.types import BotCommand
 
 from . import dp
 from .l10n import LOCALES
-from iwh.cards import load_cards, make_card_picker
+from wiederholen.cards import load_cards, make_card_picker
 
 TOKEN: Final = os.environ["BOT_TOKEN"]
 CARDS_PATH: Final = Path(os.environ.get("CARDS_PATH", "data/cards.yaml"))
