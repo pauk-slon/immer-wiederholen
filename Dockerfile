@@ -37,4 +37,5 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=from=ghcr.io/astral-sh/uv:latest,source=/uv,target=/uv \
     /uv sync --frozen --no-dev
+USER nobody
 CMD ["python", "-m", "wiederholen.bot"]
