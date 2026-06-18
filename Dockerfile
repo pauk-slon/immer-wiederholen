@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen
 COPY . .
-CMD ["python", "-m", "iwh.bot"]
+CMD ["python", "-m", "wiederholen.bot"]
 
 FROM python:3.14-slim AS prod
 ARG VENV
@@ -31,10 +31,10 @@ COPY --from=build $VENV $VENV
 WORKDIR /app
 ENV UV_PROJECT_ENVIRONMENT=$VENV
 ENV PATH="$VENV/bin:$PATH"
-COPY iwh/ iwh/
+COPY wiederholen/ wiederholen/
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=from=ghcr.io/astral-sh/uv:latest,source=/uv,target=/uv \
     /uv sync --frozen --no-dev
-CMD ["python", "-m", "iwh.bot"]
+CMD ["python", "-m", "wiederholen.bot"]

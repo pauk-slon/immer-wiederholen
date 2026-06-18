@@ -12,8 +12,8 @@ from aiogram.types import (
     Message,
 )
 
-from iwh.cards import Card, CardPicker
-from iwh.i18n import Language, LANGUAGES
+from wiederholen.cards import Card, CardPicker
+from wiederholen.i18n import Language, LANGUAGES
 from .l10n import DEFAULT_LANGUAGE, LOCALES
 
 dp: Final = Dispatcher()

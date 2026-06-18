@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Final
 
-from iwh.i18n import Language
+from wiederholen.i18n import Language
 
 
 @dataclass(frozen=True)
