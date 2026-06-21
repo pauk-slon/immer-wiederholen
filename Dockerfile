@@ -18,11 +18,12 @@ COPY --from=build $VENV $VENV
 WORKDIR /app
 ENV UV_PROJECT_ENVIRONMENT=$VENV
 ENV PATH="$VENV/bin:$PATH"
+COPY pyproject.toml pyproject.toml
+COPY uv.lock uv.lock
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen
-COPY . .
+COPY wiederholen/ wiederholen/
+COPY tests/ tests/
 CMD ["python", "-m", "wiederholen.bot"]
 
 FROM python:3.14-slim AS prod
