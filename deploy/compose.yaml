@@ -1,0 +1,8 @@
+services:
+  bot:
+    image: ghcr.io/pauk-slon/immer-wiederholen:main
+    restart: unless-stopped
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+    volumes:
+      - ./data:/app/data
