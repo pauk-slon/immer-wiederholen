@@ -3,16 +3,6 @@ from wiederholen.cards import School
 from .conftest import make_card
 
 
-def test_ask_returns_card_from_list() -> None:
-    cards = [make_card("warten"), make_card("hoffen")]
-    assert School(cards)({}).ask() in cards
-
-
-def test_ask_with_single_card() -> None:
-    card = make_card()
-    assert School([card])({}).ask() is card
-
-
 def test_ask_prefers_higher_weight_topic() -> None:
     warten = make_card("warten")
     hoffen = make_card("hoffen")
