@@ -11,6 +11,17 @@ from aiogram.methods import SendMessage
 from aiogram.types import Chat, Message
 
 from wiederholen.bot import dp as _dp
+from wiederholen.cards import Card
+
+
+def make_card(topic: str = "warten", answer: str = "auf") -> Card:
+    return Card(
+        question=f"Ich ___ {topic}.",
+        topic=topic,
+        distractors=["für", "an", "um"],
+        answer=answer,
+        explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
+    )
 
 
 @pytest.fixture

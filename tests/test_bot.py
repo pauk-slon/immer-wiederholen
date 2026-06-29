@@ -1,52 +1,41 @@
 import dataclasses
 
-import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
 from wiederholen.bot import UserState
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.cards import Card, School
+from wiederholen.cards import School
 
-from .conftest import FeedCallbackQuery, FeedRawUpdate
+from .conftest import FeedCallbackQuery, FeedRawUpdate, make_card
 
 
 class TestWiederholenCommand:
-    @pytest.fixture
-    def card(self) -> Card:
-        return Card(
-            question="Ich warte ___ den Bus.",
-            topic="warten",
-            distractors=["für", "von", "bei"],
-            answer="auf",
-            explanation={"ru": "warten auf + Akk", "en": "warten auf + Acc"},
-        )
-
     async def test_sends_card_question(
         self,
-        card: Card,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
+        card = make_card()
         send_message = await feed_raw_update("/wiederholen", school=School([card]))
 
         assert send_message.text == card.question
 
     async def test_sets_answering_state(
         self,
-        card: Card,
         state: FSMContext,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
+        card = make_card()
         await feed_raw_update("/wiederholen", school=School([card]))
 
         assert await state.get_state() == UserState.answering
 
     async def test_saves_shown_card(
         self,
-        card: Card,
         state: FSMContext,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
+        card = make_card()
         await feed_raw_update("/wiederholen", school=School([card]))
 
         data = await state.get_data()
@@ -54,9 +43,9 @@ class TestWiederholenCommand:
 
     async def test_keyboard_contains_all_options(
         self,
-        card: Card,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
+        card = make_card()
         send_message = await feed_raw_update("/wiederholen", school=School([card]))
 
         assert isinstance(send_message.reply_markup, InlineKeyboardMarkup)
@@ -67,24 +56,16 @@ class TestWiederholenCommand:
 
 
 class TestHandleAnswer:
-    @pytest.fixture
-    def card(self) -> Card:
-        return Card(
-            question="Ich warte ___ den Bus.",
-            topic="warten",
-            distractors=["für", "an", "um"],
-            answer="auf",
-            explanation={"ru": "warten auf + Akk", "en": "warten auf + Acc"},
-        )
-
     async def test_correct_answer_shows_success_text(
         self,
-        card: Card,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
+        card = make_card()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_card=dataclasses.asdict(card), card_picker_state={})
+        await state.update_data(
+            shown_card=dataclasses.asdict(card), card_picker_state={}
+        )
 
         edit_message = await feed_callback_query(card.answer, school=School([card]))
 
@@ -93,14 +74,18 @@ class TestHandleAnswer:
 
     async def test_wrong_answer_shows_correct_answer(
         self,
-        card: Card,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
+        card = make_card()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_card=dataclasses.asdict(card), card_picker_state={})
+        await state.update_data(
+            shown_card=dataclasses.asdict(card), card_picker_state={}
+        )
 
-        edit_message = await feed_callback_query(card.distractors[0], school=School([card]))
+        edit_message = await feed_callback_query(
+            card.distractors[0], school=School([card])
+        )
 
         assert card.answer in edit_message.text
         assert card.explanation["ru"] in edit_message.text

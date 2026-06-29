@@ -1,14 +1,6 @@
-from wiederholen.cards import Card, School
+from wiederholen.cards import School
 
-
-def make_card(topic: str = "warten", answer: str = "auf") -> Card:
-    return Card(
-        question=f"Ich ___ {topic}.",
-        topic=topic,
-        distractors=["für", "an", "um"],
-        answer=answer,
-        explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
-    )
+from .conftest import make_card
 
 
 def test_ask_returns_card_from_list() -> None:
