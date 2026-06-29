@@ -1,3 +1,4 @@
+import dataclasses
 import random
 from typing import Final, Any
 
@@ -12,7 +13,7 @@ from aiogram.types import (
     Message,
 )
 
-from wiederholen.cards import Card, CardPicker
+from wiederholen.cards import Card, School
 from wiederholen.i18n import Language, LANGUAGES
 from .l10n import DEFAULT_LANGUAGE, LOCALES
 
@@ -56,26 +57,42 @@ async def command_language(message: Message, state: FSMContext) -> None:
 async def command_wiederholen(
     message: Message,
     state: FSMContext,
-    card_picker: CardPicker,
+    school: School,
 ) -> None:
-    card = card_picker()
+    data = await state.get_data()
+    journal = data.get("journal", {})
+    teacher = school(journal)
+    card = teacher.ask()
     await state.set_state(UserState.answering)
-    await state.update_data(answer=card.answer, explanation=card.explanation)
+    await state.update_data(
+        shown_card=dataclasses.asdict(card),
+        journal=journal,
+    )
     await message.answer(card.question, reply_markup=_make_keyboard(card))
 
 
 @dp.callback_query(UserState.answering)
-async def handle_answer(callback: CallbackQuery, state: FSMContext) -> None:
+async def handle_answer(
+    callback: CallbackQuery,
+    state: FSMContext,
+    school: School,
+) -> None:
+    if callback.data is None:
+        await callback.answer()
+        return
     state_data = await state.get_data()
     await state.clear()
     language = _get_language(state_data)
-    await state.update_data(language=language)
-    explanation = state_data["explanation"][language]
+    shown_card = Card(**state_data["shown_card"])
+    journal = state_data.get("journal", {})
     locale = LOCALES[language]
-    if callback.data == state_data["answer"]:
+    explanation = shown_card.explanation[language]
+    teacher = school(journal)
+    if teacher.check(shown_card, callback.data):
         text = f"{locale.correct}\n\n{explanation}"
     else:
-        text = f"{locale.wrong.format(answer=state_data['answer'])}\n\n{explanation}"
+        text = f"{locale.wrong.format(answer=shown_card.answer)}\n\n{explanation}"
+    await state.update_data(language=language, journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(text)
     await callback.answer()
