@@ -1,5 +1,6 @@
 from collections.abc import Awaitable, Callable
 import datetime
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -58,6 +59,39 @@ def raw_update_factory(user_id: int, chat_id: int) -> RawUpdateFactory:
 
 
 type FeedRawUpdate = Callable[..., Awaitable[SendMessage]]
+type FeedCallbackQuery = Callable[..., Awaitable[Any]]
+
+
+@pytest.fixture
+def feed_callback_query(
+    bot: Bot,
+    dispatcher: Dispatcher,
+    user_id: int,
+    chat_id: int,
+) -> FeedCallbackQuery:
+    async def factory(data: str, **kwargs) -> Any:
+        raw_update = {
+            "update_id": 2,
+            "callback_query": {
+                "id": "test_callback_id",
+                "from": {"id": user_id, "is_bot": False, "first_name": "Test"},
+                "message": {
+                    "message_id": 1,
+                    "date": datetime.datetime.now(),
+                    "chat": {"id": chat_id, "type": "private"},
+                    "from": {"id": 123, "is_bot": True, "first_name": "Bot"},
+                    "text": "question",
+                },
+                "chat_instance": "test",
+                "data": data,
+            },
+        }
+        mock_request = AsyncMock(return_value=True)
+        with patch.object(bot.session, "make_request", mock_request):
+            await dispatcher.feed_raw_update(bot, raw_update, **kwargs)
+        return mock_request.call_args_list[0].args[1]
+
+    return factory
 
 
 @pytest.fixture

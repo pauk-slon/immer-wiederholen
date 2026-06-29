@@ -1,3 +1,4 @@
+import dataclasses
 import random
 from typing import Final, Any
 
@@ -12,7 +13,7 @@ from aiogram.types import (
     Message,
 )
 
-from wiederholen.cards import Card, CardPicker
+from wiederholen.cards import Card, School
 from wiederholen.i18n import Language, LANGUAGES
 from .l10n import DEFAULT_LANGUAGE, LOCALES
 
@@ -56,26 +57,42 @@ async def command_language(message: Message, state: FSMContext) -> None:
 async def command_wiederholen(
     message: Message,
     state: FSMContext,
-    card_picker: CardPicker,
+    school: School,
 ) -> None:
-    card = card_picker()
+    data = await state.get_data()
+    picker_state = data.get("card_picker_state", {})
+    teacher = school(picker_state)
+    card = teacher.ask()
     await state.set_state(UserState.answering)
-    await state.update_data(answer=card.answer, explanation=card.explanation)
+    await state.update_data(
+        shown_card=dataclasses.asdict(card),
+        card_picker_state=picker_state,
+    )
     await message.answer(card.question, reply_markup=_make_keyboard(card))
 
 
 @dp.callback_query(UserState.answering)
-async def handle_answer(callback: CallbackQuery, state: FSMContext) -> None:
+async def handle_answer(
+    callback: CallbackQuery,
+    state: FSMContext,
+    school: School,
+) -> None:
+    if callback.data is None:
+        await callback.answer()
+        return
     state_data = await state.get_data()
     await state.clear()
     language = _get_language(state_data)
-    await state.update_data(language=language)
-    explanation = state_data["explanation"][language]
+    shown_card = Card(**state_data["shown_card"])
+    picker_state = state_data.get("card_picker_state", {})
     locale = LOCALES[language]
-    if callback.data == state_data["answer"]:
+    explanation = shown_card.explanation[language]
+    teacher = school(picker_state)
+    if teacher.check(shown_card, callback.data):
         text = f"{locale.correct}\n\n{explanation}"
     else:
-        text = f"{locale.wrong.format(answer=state_data['answer'])}\n\n{explanation}"
+        text = f"{locale.wrong.format(answer=shown_card.answer)}\n\n{explanation}"
+    await state.update_data(language=language, card_picker_state=picker_state)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(text)
     await callback.answer()

@@ -8,14 +8,14 @@ from aiogram.types import BotCommand
 
 from . import dp
 from .l10n import LOCALES
-from wiederholen.cards import load_cards, make_card_picker
+from wiederholen.cards import load_cards, School
 
 TOKEN: Final = os.environ["BOT_TOKEN"]
 CARDS_PATH: Final = Path(os.environ.get("CARDS_PATH", "data/cards.yaml"))
 
 
 async def main() -> None:
-    cards = load_cards(CARDS_PATH)
+    school = School(load_cards(CARDS_PATH))
     bot = Bot(token=TOKEN)
     for language_code, locale in LOCALES.items():
         await bot.set_my_commands(
@@ -26,7 +26,7 @@ async def main() -> None:
             ],
             language_code=language_code,
         )
-    await dp.start_polling(bot, card_picker=make_card_picker(cards))
+    await dp.start_polling(bot, school=school)
 
 
 asyncio.run(main())
