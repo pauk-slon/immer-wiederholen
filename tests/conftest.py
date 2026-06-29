@@ -69,7 +69,6 @@ def raw_update_factory(user_id: int, chat_id: int) -> RawUpdateFactory:
     return factory
 
 
-type FeedRawUpdate = Callable[..., Awaitable[SendMessage]]
 type FeedCallbackQuery = Callable[..., Awaitable[Any]]
 
 
@@ -103,6 +102,9 @@ def feed_callback_query(
         return mock_request.call_args_list[0].args[1]
 
     return factory
+
+
+type FeedRawUpdate = Callable[..., Awaitable[SendMessage]]
 
 
 @pytest.fixture
