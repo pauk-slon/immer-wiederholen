@@ -60,13 +60,13 @@ async def command_wiederholen(
     school: School,
 ) -> None:
     data = await state.get_data()
-    picker_state = data.get("card_picker_state", {})
-    teacher = school(picker_state)
+    journal = data.get("journal", {})
+    teacher = school(journal)
     card = teacher.ask()
     await state.set_state(UserState.answering)
     await state.update_data(
         shown_card=dataclasses.asdict(card),
-        card_picker_state=picker_state,
+        journal=journal,
     )
     await message.answer(card.question, reply_markup=_make_keyboard(card))
 
@@ -84,15 +84,15 @@ async def handle_answer(
     await state.clear()
     language = _get_language(state_data)
     shown_card = Card(**state_data["shown_card"])
-    picker_state = state_data.get("card_picker_state", {})
+    journal = state_data.get("journal", {})
     locale = LOCALES[language]
     explanation = shown_card.explanation[language]
-    teacher = school(picker_state)
+    teacher = school(journal)
     if teacher.check(shown_card, callback.data):
         text = f"{locale.correct}\n\n{explanation}"
     else:
         text = f"{locale.wrong.format(answer=shown_card.answer)}\n\n{explanation}"
-    await state.update_data(language=language, card_picker_state=picker_state)
+    await state.update_data(language=language, journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(text)
     await callback.answer()

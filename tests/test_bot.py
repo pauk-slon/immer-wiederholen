@@ -63,9 +63,7 @@ class TestHandleAnswer:
     ) -> None:
         card = make_card()
         await state.set_state(UserState.answering)
-        await state.update_data(
-            shown_card=dataclasses.asdict(card), card_picker_state={}
-        )
+        await state.update_data(shown_card=dataclasses.asdict(card), journal={})
 
         edit_message = await feed_callback_query(card.answer, school=School([card]))
 
@@ -79,9 +77,7 @@ class TestHandleAnswer:
     ) -> None:
         card = make_card()
         await state.set_state(UserState.answering)
-        await state.update_data(
-            shown_card=dataclasses.asdict(card), card_picker_state={}
-        )
+        await state.update_data(shown_card=dataclasses.asdict(card), journal={})
 
         edit_message = await feed_callback_query(
             card.distractors[0], school=School([card])
