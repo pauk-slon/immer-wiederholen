@@ -4,10 +4,9 @@ from .conftest import make_card
 
 
 def test_ask_prefers_higher_weight_topic() -> None:
-    warten = make_card("warten")
-    hoffen = make_card("hoffen")
+    cards = [make_card("warten"), make_card("hoffen")]
     state = {"topic_weights": {"warten": 1000.0, "hoffen": 1.0}}
-    teacher = School([warten, hoffen])(state)
+    teacher = School(cards)(state)
     counts: dict[str, int] = {"warten": 0, "hoffen": 0}
     for _ in range(200):
         counts[teacher.ask().topic] += 1
