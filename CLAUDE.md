@@ -14,6 +14,8 @@ Each card has `question`, `topic`, `answer`, `distractors` (list of 3), and `exp
 
 `topic` — глагол в инфинитиве, которому посвящена карточка (например `"sprechen"`, `"sich freuen"`). Рефлексивные глаголы включают `sich`. Карточки с одним глаголом но разными предлогами (`sprechen mit`, `sprechen über`) имеют одинаковый `topic: "sprechen"` — это намеренно, чтобы при ошибке показывались все формы глагола.
 
+Sanity check: substituting the answer into the question must produce a natural German sentence; substituting any distractor must not produce a grammatically valid one.
+
 Two card types:
 
 **Preposition only** — answer is a single word. Distractors are other plausible prepositions.
