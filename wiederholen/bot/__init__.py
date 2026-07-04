@@ -103,9 +103,16 @@ async def handle_answer(
             journal=journal,
             shown_exercise=state_data["shown_exercise"],
         )
-        await callback.message.answer(
-            locale.recall_prompt.format(recall=shown_exercise.recall)
+        hint = (
+            shown_exercise.recall_hint.get(language) if shown_exercise.recall_hint else None
         )
+        recall_text = locale.recall_prompt.format(recall=shown_exercise.recall)
+        if hint:
+            await callback.message.answer(
+                f"{recall_text}\n<i>{hint}</i>", parse_mode="HTML"
+            )
+        else:
+            await callback.message.answer(recall_text)
     else:
         await state.update_data(language=language, journal=journal)
 

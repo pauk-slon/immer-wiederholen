@@ -19,6 +19,7 @@ def make_exercise(
     answer: str = "auf",
     recall: str | None = None,
     recall_answer: list[str] | None = None,
+    recall_hint: dict | None = None,
 ) -> Exercise:
     return Exercise(
         question=f"Ich ___ {topic}.",
@@ -28,6 +29,7 @@ def make_exercise(
         explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
         recall=recall,
         recall_answer=recall_answer,
+        recall_hint=recall_hint,
     )
 
 
@@ -106,7 +108,7 @@ def feed_callback_query(
         mock_request = AsyncMock(return_value=True)
         with patch.object(bot.session, "make_request", mock_request):
             await dispatcher.feed_raw_update(bot, raw_update, **kwargs)
-        return mock_request.call_args_list[0].args[1]
+        return [call.args[1] for call in mock_request.call_args_list]
 
     return factory
 
