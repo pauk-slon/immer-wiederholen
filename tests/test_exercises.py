@@ -1,4 +1,4 @@
-from wiederholen.exercises import Mark, School
+from wiederholen.exercises import Mark, RecallMode, School
 
 from .conftest import make_exercise
 
@@ -34,26 +34,30 @@ def test_topic_weight_not_below_one() -> None:
     assert state["topic_weights"]["warten"] == 1.0
 
 
-def test_check_returns_correct_mark_on_right_answer() -> None:
+def test_check_returns_none_recall_without_recall_field() -> None:
     exercise = make_exercise(answer="auf")
     assert School([exercise])({}).check_answer(exercise, "auf") == Mark(
-        correct=True, show_recall=False
+        correct=True, recall=RecallMode.none
     )
 
 
-def test_check_returns_correct_mark_on_wrong_answer() -> None:
-    exercise = make_exercise(answer="auf")
-    assert School([exercise])({}).check_answer(exercise, "für") == Mark(
-        correct=False, show_recall=False
-    )
-
-
-def test_check_sets_show_recall_when_exercise_has_recall() -> None:
+def test_check_returns_required_recall_on_wrong_answer_with_recall() -> None:
     exercise = make_exercise(
         answer="auf",
         recall="Ich ___ (der Bus).",
         recall_answer=["Ich warte auf den Bus."],
     )
     assert School([exercise])({}).check_answer(exercise, "für") == Mark(
-        correct=False, show_recall=True
+        correct=False, recall=RecallMode.required
+    )
+
+
+def test_check_returns_optional_recall_on_correct_answer_with_recall() -> None:
+    exercise = make_exercise(
+        answer="auf",
+        recall="Ich ___ (der Bus).",
+        recall_answer=["Ich warte auf den Bus."],
+    )
+    assert School([exercise])({}).check_answer(exercise, "auf") == Mark(
+        correct=True, recall=RecallMode.optional
     )

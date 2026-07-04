@@ -14,6 +14,7 @@ class Locale:
     recall_wrong: str
     cmd_start: str
     cmd_wiederholen: str
+    btn_recall: str
     cmd_language: str
 
 
@@ -26,6 +27,7 @@ RU: Final = Locale(
     recall_wrong="✗ Неправильно. Правильный вариант:\n{answer}",
     cmd_start="Начать",
     cmd_wiederholen="Следующее задание",
+    btn_recall="Закрепить",
     cmd_language="Сменить язык",
 )
 
@@ -38,6 +40,7 @@ EN: Final = Locale(
     recall_wrong="✗ Wrong. Correct answer:\n{answer}",
     cmd_start="Start",
     cmd_wiederholen="Next exercise",
+    btn_recall="Drill",
     cmd_language="Change language",
 )
 

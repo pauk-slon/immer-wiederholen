@@ -1,6 +1,7 @@
 import random
 from collections.abc import Sequence
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 import yaml
@@ -40,10 +41,16 @@ class Exercise:
             )
 
 
+class RecallMode(Enum):
+    none = "none"
+    optional = "optional"
+    required = "required"
+
+
 @dataclass(frozen=True)
 class Mark:
     correct: bool
-    show_recall: bool
+    recall: RecallMode
 
 
 def load_exercises(path: Path) -> list[Exercise]:
@@ -80,10 +87,13 @@ class Teacher:
         else:
             topic_weights[exercise.topic] = current * self.WEIGHT_ON_WRONG
         self._journal["topic_weights"] = topic_weights
-        return Mark(
-            correct=correct,
-            show_recall=not correct and exercise.recall is not None,
-        )
+        if exercise.recall is None:
+            recall = RecallMode.none
+        elif correct:
+            recall = RecallMode.optional
+        else:
+            recall = RecallMode.required
+        return Mark(correct=correct, recall=recall)
 
     def check_recall(self, exercise: Exercise, text: str) -> bool:
         if exercise.recall_answer is None:

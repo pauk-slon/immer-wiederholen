@@ -13,13 +13,14 @@ from aiogram.types import (
     Message,
 )
 
-from wiederholen.exercises import Exercise, School
+from wiederholen.exercises import Exercise, RecallMode, School
 from wiederholen.i18n import Language, LANGUAGES
 from .l10n import DEFAULT_LANGUAGE, LOCALES, Locale
 
 dp: Final = Dispatcher()
 
 NEXT_EXERCISE: Final = "__next__"
+RECALL: Final = "__recall__"
 
 
 class UserState(StatesGroup):
@@ -52,6 +53,44 @@ def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def _make_recall_buttons(locale: Locale) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=locale.btn_recall, callback_data=RECALL),
+                InlineKeyboardButton(
+                    text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE
+                ),
+            ]
+        ]
+    )
+
+
+async def _start_recall(
+    state: FSMContext,
+    language: Language,
+    journal: dict,
+    shown_exercise_dict: dict,
+    shown_exercise: Exercise,
+    message: Message,
+    locale: Locale,
+) -> None:
+    await state.set_state(UserState.recalling)
+    await state.update_data(
+        language=language,
+        journal=journal,
+        shown_exercise=shown_exercise_dict,
+    )
+    hint = (
+        shown_exercise.recall_hint.get(language) if shown_exercise.recall_hint else None
+    )
+    recall_text = locale.recall_prompt.format(recall=shown_exercise.recall)
+    if hint:
+        await message.answer(f"{recall_text}\n<i>{hint}</i>", parse_mode="HTML")
+    else:
+        await message.answer(recall_text)
 
 
 @dp.message(Command("start"))
@@ -109,30 +148,30 @@ async def handle_answer(
     else:
         text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
     if isinstance(callback.message, Message):
-        reply_markup = None if mark.show_recall else _make_next_button(locale)
+        if mark.recall == RecallMode.optional:
+            reply_markup = _make_recall_buttons(locale)
+        elif mark.recall == RecallMode.none:
+            reply_markup = _make_next_button(locale)
+        else:
+            reply_markup = None
         await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
-    if mark.show_recall and isinstance(callback.message, Message):
-        await state.set_state(UserState.recalling)
+    if mark.recall == RecallMode.required and isinstance(callback.message, Message):
+        await _start_recall(
+            state,
+            language,
+            journal,
+            state_data["shown_exercise"],
+            shown_exercise,
+            callback.message,
+            locale,
+        )
+    else:
         await state.update_data(
             language=language,
             journal=journal,
             shown_exercise=state_data["shown_exercise"],
         )
-        hint = (
-            shown_exercise.recall_hint.get(language)
-            if shown_exercise.recall_hint
-            else None
-        )
-        recall_text = locale.recall_prompt.format(recall=shown_exercise.recall)
-        if hint:
-            await callback.message.answer(
-                f"{recall_text}\n<i>{hint}</i>", parse_mode="HTML"
-            )
-        else:
-            await callback.message.answer(recall_text)
-    else:
-        await state.update_data(language=language, journal=journal)
 
 
 @dp.message(UserState.recalling)
@@ -174,5 +213,29 @@ async def handle_next_exercise(
     if isinstance(callback.message, Message):
         await callback.message.edit_text(
             exercise.question, reply_markup=_make_keyboard(exercise)
+        )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == RECALL)
+async def handle_recall_request(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    state_data = await state.get_data()
+    language = _get_language(state_data)
+    journal = state_data.get("journal", {})
+    shown_exercise = Exercise(**state_data["shown_exercise"])
+    locale = LOCALES[language]
+    if isinstance(callback.message, Message):
+        await callback.message.edit_reply_markup(reply_markup=None)
+        await _start_recall(
+            state,
+            language,
+            journal,
+            state_data["shown_exercise"],
+            shown_exercise,
+            callback.message,
+            locale,
         )
     await callback.answer()

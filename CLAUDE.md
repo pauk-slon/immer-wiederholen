@@ -49,7 +49,7 @@ Special cases:
 
 After the multiple-choice step, the bot asks the user to reconstruct a short phrase from memory.
 
-`recall` — a minimal phrase built from the question's vocabulary: strip adverbs, time expressions, and extra clauses, keep only subject + verb + preposition + noun (+ separable prefix / reflexive pronoun if needed). Show the noun hint in nominative in parentheses. Always one `___` blank regardless of whether the answer is one or two words.
+`recall` — a minimal phrase built from the question's vocabulary: strip adverbs, time expressions, and extra clauses, keep only subject + verb + preposition + noun (+ separable prefix / reflexive pronoun if needed). Show the noun hint in nominative in parentheses — omit the hint when no article is needed (mass nouns, proper nouns). Always one `___` blank regardless of whether the answer is one or two words.
 
 Example:
 - Question: `"Ich warte schon eine Stunde ___ den Bus."`

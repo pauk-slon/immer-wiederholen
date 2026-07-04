@@ -3,7 +3,7 @@ import dataclasses
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
-from wiederholen.bot import NEXT_EXERCISE, UserState
+from wiederholen.bot import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import EN, RU
 from wiederholen.exercises import Exercise, School
 
@@ -303,6 +303,48 @@ class TestNextExerciseButton:
             for btn in row
         ]
         assert NEXT_EXERCISE in buttons
+
+    async def test_practice_button_appears_after_correct_answer_with_recall(
+        self,
+        state: FSMContext,
+        feed_callback_query: FeedCallbackQuery,
+    ) -> None:
+        exercise = make_exercise(
+            recall="Ich ___ (der Bus).",
+            recall_answer=["Ich warte auf den Bus."],
+        )
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+
+        requests = await feed_callback_query(exercise.answer, school=School([exercise]))
+
+        edit_message = requests[0]
+        assert isinstance(edit_message.reply_markup, InlineKeyboardMarkup)
+        buttons = [
+            btn.callback_data
+            for row in edit_message.reply_markup.inline_keyboard
+            for btn in row
+        ]
+        assert buttons == [RECALL, NEXT_EXERCISE]
+
+    async def test_clicking_practice_starts_recall(
+        self,
+        state: FSMContext,
+        feed_callback_query: FeedCallbackQuery,
+    ) -> None:
+        exercise = make_exercise(
+            recall="Ich ___ (der Bus).",
+            recall_answer=["Ich warte auf den Bus."],
+        )
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+
+        await feed_callback_query(exercise.answer, school=School([exercise]))
+        requests = await feed_callback_query(RECALL, school=School([exercise]))
+        recall_message = requests[1]
+
+        assert exercise.recall in recall_message.text
+        assert await state.get_state() == UserState.recalling
 
     async def test_clicking_shows_new_exercise(
         self,
