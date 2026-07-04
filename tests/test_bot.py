@@ -325,8 +325,7 @@ class TestNextExerciseButton:
             for row in edit_message.reply_markup.inline_keyboard
             for btn in row
         ]
-        assert RECALL in buttons
-        assert NEXT_EXERCISE in buttons
+        assert buttons == [RECALL, NEXT_EXERCISE]
 
     async def test_clicking_practice_starts_recall(
         self,
