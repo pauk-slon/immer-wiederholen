@@ -11,16 +11,16 @@ from aiogram.methods import SendMessage
 from aiogram.types import Chat, Message
 
 from wiederholen.bot import dp as _dp
-from wiederholen.cards import Card
+from wiederholen.exercises import Exercise
 
 
-def make_card(
+def make_exercise(
     topic: str = "warten",
     answer: str = "auf",
     recall: str | None = None,
     recall_answer: list[str] | None = None,
-) -> Card:
-    return Card(
+) -> Exercise:
+    return Exercise(
         question=f"Ich ___ {topic}.",
         topic=topic,
         distractors=["für", "an", "um"],

@@ -8,14 +8,14 @@ from aiogram.types import BotCommand
 
 from . import dp
 from .l10n import LOCALES
-from wiederholen.cards import load_cards, School
+from wiederholen.exercises import load_exercises, School
 
 TOKEN: Final = os.environ["BOT_TOKEN"]
-CARDS_PATH: Final = Path(os.environ.get("CARDS_PATH", "data/cards.yaml"))
+EXERCISES_PATH: Final = Path(os.environ.get("EXERCISES_PATH", "data/exercises.yaml"))
 
 
 async def main() -> None:
-    school = School(load_cards(CARDS_PATH))
+    school = School(load_exercises(EXERCISES_PATH))
     bot = Bot(token=TOKEN)
     for language_code, locale in LOCALES.items():
         await bot.set_my_commands(
