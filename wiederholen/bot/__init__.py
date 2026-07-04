@@ -103,19 +103,16 @@ async def handle_answer(
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
     teacher = school(journal)
-    correct = teacher.check_answer(shown_exercise, callback.data)
-    if correct:
+    mark = teacher.check_answer(shown_exercise, callback.data)
+    if mark.correct:
         text = f"{locale.correct}\n\n{explanation}"
     else:
         text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
-    show_recall = (
-        not correct and shown_exercise.recall and isinstance(callback.message, Message)
-    )
     if isinstance(callback.message, Message):
-        reply_markup = None if show_recall else _make_next_button(locale)
+        reply_markup = None if mark.show_recall else _make_next_button(locale)
         await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
-    if show_recall and isinstance(callback.message, Message):
+    if mark.show_recall and isinstance(callback.message, Message):
         await state.set_state(UserState.recalling)
         await state.update_data(
             language=language,
