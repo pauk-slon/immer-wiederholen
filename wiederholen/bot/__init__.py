@@ -44,9 +44,13 @@ def _make_keyboard(exercise: Exercise) -> InlineKeyboardMarkup:
 
 def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        inline_keyboard=[[
-            InlineKeyboardButton(text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE)
-        ]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE
+                )
+            ]
+        ]
     )
 
 
@@ -104,7 +108,9 @@ async def handle_answer(
         text = f"{locale.correct}\n\n{explanation}"
     else:
         text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
-    show_recall = not correct and shown_exercise.recall and isinstance(callback.message, Message)
+    show_recall = (
+        not correct and shown_exercise.recall and isinstance(callback.message, Message)
+    )
     if isinstance(callback.message, Message):
         reply_markup = None if show_recall else _make_next_button(locale)
         await callback.message.edit_text(text, reply_markup=reply_markup)
@@ -160,7 +166,6 @@ async def handle_next_exercise(
     school: School,
 ) -> None:
     state_data = await state.get_data()
-    language = _get_language(state_data)
     journal = state_data.get("journal", {})
     teacher = school(journal)
     exercise = teacher.ask()
