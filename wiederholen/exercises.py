@@ -16,7 +16,7 @@ class Exercise:
     distractors: list[str]
     answer: str
     explanation: dict[Language, str]
-    recall: str | None = None
+    recall_question: str | None = None
     recall_answer: list[str] | None = None
     recall_hint: dict[Language, str] | None = None
 
@@ -27,7 +27,7 @@ class Exercise:
             raise ValueError(
                 f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
             )
-        if (self.recall is None) != (self.recall_answer is None):
+        if (self.recall_question is None) != (self.recall_answer is None):
             raise ValueError(
                 "recall and recall_answer must both be set or both be None"
             )
@@ -87,7 +87,7 @@ class Teacher:
         else:
             topic_weights[exercise.topic] = current * self.WEIGHT_ON_WRONG
         self._journal["topic_weights"] = topic_weights
-        if exercise.recall is None:
+        if exercise.recall_question is None:
             recall = RecallMode.none
         elif correct:
             recall = RecallMode.optional

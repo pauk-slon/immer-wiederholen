@@ -44,7 +44,7 @@ def test_check_returns_none_recall_without_recall_field() -> None:
 def test_check_returns_required_recall_on_wrong_answer_with_recall() -> None:
     exercise = make_exercise(
         answer="auf",
-        recall="Ich ___ (der Bus).",
+        recall_question="Ich ___ (der Bus).",
         recall_answer=["Ich warte auf den Bus."],
     )
     assert School([exercise])({}).check_answer(exercise, "für") == Mark(
@@ -55,7 +55,7 @@ def test_check_returns_required_recall_on_wrong_answer_with_recall() -> None:
 def test_check_returns_optional_recall_on_correct_answer_with_recall() -> None:
     exercise = make_exercise(
         answer="auf",
-        recall="Ich ___ (der Bus).",
+        recall_question="Ich ___ (der Bus).",
         recall_answer=["Ich warte auf den Bus."],
     )
     assert School([exercise])({}).check_answer(exercise, "auf") == Mark(

@@ -17,8 +17,8 @@ Each exercise has the following fields. Use `___` for blanks in `question` and `
 - `answer` — correct answer (preposition or preposition + article)
 - `distractors` — list of 3 wrong options
 - `explanation` — dict with `ru` and `en` keys
-- `recall` — short phrase for the recall step (optional)
-- `recall_answer` — list of accepted full sentences for the recall step (optional, required if `recall` is set)
+- `recall_question` — short phrase for the recall step (optional)
+- `recall_answer` — list of accepted full sentences for the recall step (optional, required if `recall_question` is set)
 - `recall_hint` — dict with `ru` and `en` keys: translation of the noun shown in italics below the recall prompt (optional)
 
 `topic` — verb in infinitive that the exercise is about (e.g. `"sprechen"`, `"sich freuen"`). Reflexive verbs include `sich`. Exercises for the same verb but different prepositions (`sprechen mit`, `sprechen über`) share the same `topic: "sprechen"` — intentionally, so that all forms of the verb are shown together when the user makes a mistake.
@@ -45,15 +45,15 @@ Special cases:
 - `sich freuen`: use `"auf das"` ↔ `"über das"` as a distractor — common confusion between the two constructions
 - `sich streiten über`: use `"um das"` — `sich streiten um` is a real expression, making it a plausible mistake
 
-## Recall (`recall` / `recall_answer`)
+## Recall (`recall_question` / `recall_answer`)
 
 After the multiple-choice step, the bot asks the user to reconstruct a short phrase from memory.
 
-`recall` — a minimal phrase built from the question's vocabulary: strip adverbs, time expressions, and extra clauses, keep only subject + verb + preposition + noun (+ separable prefix / reflexive pronoun if needed). Show the noun hint in nominative in parentheses — omit the hint when no article is needed (mass nouns, proper nouns). Always one `___` blank regardless of whether the answer is one or two words.
+`recall_question` — a minimal phrase built from the question's vocabulary: strip adverbs, time expressions, and extra clauses, keep only subject + verb + preposition + noun (+ separable prefix / reflexive pronoun if needed). Show the noun hint in nominative in parentheses — omit the hint when no article is needed (mass nouns, proper nouns). Always one `___` blank regardless of whether the answer is one or two words.
 
 Example:
 - Question: `"Ich warte schon eine Stunde ___ den Bus."`
-- Recall:   `"Ich warte ___ (der Bus)."`
+- recall_question: `"Ich warte ___ (der Bus)."`
 
 `recall_answer` — list of accepted full sentences (always a list, even if one item; multiple entries for cases where several phrasings are equally valid).
 
