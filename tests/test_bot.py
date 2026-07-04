@@ -187,7 +187,9 @@ class TestHandleRecall:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_callback_query(exercise.answer, school=School([exercise]))
+        requests = await feed_callback_query(
+            exercise.distractors[0], school=School([exercise])
+        )
         recall_message = requests[2]
 
         assert exercise.recall in recall_message.text
@@ -207,7 +209,7 @@ class TestHandleRecall:
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         assert exercise.recall_answer is not None
-        await feed_callback_query(exercise.answer, school=School([exercise]))
+        await feed_callback_query(exercise.distractors[0], school=School([exercise]))
         send_message = await feed_raw_update(
             exercise.recall_answer[0], school=School([exercise])
         )
