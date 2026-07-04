@@ -16,29 +16,29 @@ def test_ask_prefers_higher_weight_topic() -> None:
 def test_wrong_answer_doubles_topic_weight() -> None:
     card = make_card("warten", answer="auf")
     state: dict = {}
-    School([card])(state).check(card, "für")
+    School([card])(state).check_answer(card, "für")
     assert state["topic_weights"]["warten"] == 2.0
 
 
 def test_correct_answer_halves_topic_weight() -> None:
     card = make_card("warten", answer="auf")
     state = {"topic_weights": {"warten": 4.0}}
-    School([card])(state).check(card, "auf")
+    School([card])(state).check_answer(card, "auf")
     assert state["topic_weights"]["warten"] == 2.0
 
 
 def test_topic_weight_not_below_one() -> None:
     card = make_card("warten", answer="auf")
     state = {"topic_weights": {"warten": 1.0}}
-    School([card])(state).check(card, "auf")
+    School([card])(state).check_answer(card, "auf")
     assert state["topic_weights"]["warten"] == 1.0
 
 
 def test_check_returns_true_on_correct_answer() -> None:
     card = make_card(answer="auf")
-    assert School([card])({}).check(card, "auf") is True
+    assert School([card])({}).check_answer(card, "auf") is True
 
 
 def test_check_returns_false_on_wrong_answer() -> None:
     card = make_card(answer="auf")
-    assert School([card])({}).check(card, "für") is False
+    assert School([card])({}).check_answer(card, "für") is False

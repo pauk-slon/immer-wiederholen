@@ -22,6 +22,7 @@ dp: Final = Dispatcher()
 
 class UserState(StatesGroup):
     answering = State()
+    recalling = State()
 
 
 def _get_language(state: dict[str, Any]) -> Language:
@@ -88,11 +89,41 @@ async def handle_answer(
     locale = LOCALES[language]
     explanation = shown_card.explanation[language]
     teacher = school(journal)
-    if teacher.check(shown_card, callback.data):
+    if teacher.check_answer(shown_card, callback.data):
         text = f"{locale.correct}\n\n{explanation}"
     else:
         text = f"{locale.wrong.format(answer=shown_card.answer)}\n\n{explanation}"
-    await state.update_data(language=language, journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(text)
     await callback.answer()
+    if shown_card.recall and isinstance(callback.message, Message):
+        await state.set_state(UserState.recalling)
+        await state.update_data(
+            language=language,
+            journal=journal,
+            shown_card=state_data["shown_card"],
+        )
+        await callback.message.answer(
+            locale.recall_prompt.format(recall=shown_card.recall)
+        )
+    else:
+        await state.update_data(language=language, journal=journal)
+
+
+@dp.message(UserState.recalling)
+async def handle_recall(message: Message, state: FSMContext, school: School) -> None:
+    state_data = await state.get_data()
+    await state.clear()
+    language = _get_language(state_data)
+    journal = state_data.get("journal", {})
+    shown_card = Card(**state_data["shown_card"])
+    await state.update_data(language=language, journal=journal)
+    locale = LOCALES[language]
+    teacher = school(journal)
+    if teacher.check_recall(shown_card, message.text or ""):
+        await message.answer(locale.recall_correct)
+    else:
+        assert shown_card.recall_answer is not None
+        await message.answer(
+            locale.recall_wrong.format(answer=shown_card.recall_answer[0])
+        )
