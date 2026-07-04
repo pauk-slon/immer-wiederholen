@@ -104,7 +104,7 @@ async def handle_answer(
             shown_exercise=state_data["shown_exercise"],
         )
         hint = (
-            shown_exercise.recall_hint[language] if shown_exercise.recall_hint else None
+            shown_exercise.recall_hint.get(language) if shown_exercise.recall_hint else None
         )
         recall_text = locale.recall_prompt.format(recall=shown_exercise.recall)
         if hint:

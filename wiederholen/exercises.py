@@ -32,9 +32,9 @@ class Exercise:
             )
         if self.recall_answer is not None and len(self.recall_answer) == 0:
             raise ValueError("recall_answer must not be empty")
-        if self.recall_hint is not None and set(self.recall_hint.keys()) != LANGUAGES:
+        if self.recall_hint is not None and not set(self.recall_hint.keys()).issubset(LANGUAGES):
             raise ValueError(
-                f"recall_hint must have keys {LANGUAGES}, got {set(self.recall_hint.keys())}"
+                f"recall_hint keys must be a subset of {LANGUAGES}, got {set(self.recall_hint.keys())}"
             )
 
 

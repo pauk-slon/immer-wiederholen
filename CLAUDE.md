@@ -57,11 +57,11 @@ Example:
 
 `recall_answer` — list of accepted full sentences (always a list, even if one item; multiple entries for cases where several phrasings are equally valid).
 
-`recall_hint` — translation of the noun shown in italics below the recall prompt, to help the user focus on the grammar rather than vocabulary. Use when the noun in `recall` may be unfamiliar. Format: `"die Rede — речь"` / `"die Rede — speech"`.
+`recall_hint` — translation of the noun shown in italics below the recall prompt, to help the user focus on the grammar rather than vocabulary. Use when the noun in `recall` may be unfamiliar. Format: `"die Rede — речь"` / `"die Rede — speech"`. Both `ru` and `en` keys are optional — omit a language if the word sounds similar to its translation (e.g. `die Katastrophe` needs no `en` hint).
 
 Vary the subject across exercises of the same topic to avoid identical recall prompts.
 
-Sanity check: the recall_answer must be a natural, everyday German sentence.
+Sanity check: the recall_answer must be a natural, everyday German sentence. Do not force an article where none is natural — e.g. `"Sie verzichtet auf Fleisch."` not `"Sie verzichtet auf das Fleisch."`
 
 ## Commands
 
