@@ -20,7 +20,7 @@ from .l10n import DEFAULT_LANGUAGE, LOCALES, Locale
 dp: Final = Dispatcher()
 
 NEXT_EXERCISE: Final = "__next__"
-RECALL: Final = "__practice__"
+RECALL: Final = "__recall__"
 
 
 class UserState(StatesGroup):
