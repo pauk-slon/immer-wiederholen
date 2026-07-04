@@ -55,8 +55,8 @@
   explanation:
     ru: "sich interessieren für + Akkusativ — интересоваться чем-то"
     en: "sich interessieren für + Akkusativ — to be interested in something"
-  recall: "Er interessiert sich ___ (die Musik)."
-  recall_answer: ["Er interessiert sich für die Musik."]
+  recall: "Er interessiert sich ___ Musik."
+  recall_answer: ["Er interessiert sich für Musik."]
 
 - question: "Kannst du mir ___ den Hausaufgaben helfen?"
   topic: "helfen"
@@ -333,8 +333,8 @@
   explanation:
     ru: "sich beschäftigen mit + Dativ — заниматься чем-то"
     en: "sich beschäftigen mit + Dativ — to occupy oneself with something"
-  recall: "Sie beschäftigt sich ___ (die Kunst)."
-  recall_answer: ["Sie beschäftigt sich mit der Kunst."]
+  recall: "Sie beschäftigt sich ___ Kunst."
+  recall_answer: ["Sie beschäftigt sich mit Kunst."]
 
 - question: "Ich bereite mich ___ die Prüfung vor."
   topic: "sich vorbereiten"
@@ -626,8 +626,8 @@
   explanation:
     ru: "sich interessieren für + Akkusativ — интересоваться чем-то"
     en: "sich interessieren für + Akkusativ — to be interested in something"
-  recall: "Sie interessiert sich ___ (die Geschichte)."
-  recall_answer: ["Sie interessiert sich für die Geschichte."]
+  recall: "Sie interessiert sich ___ Geschichte."
+  recall_answer: ["Sie interessiert sich für Geschichte."]
 
 - question: "Er hilft ihr ___ der Vorbereitung."
   topic: "helfen"
@@ -759,7 +759,7 @@
   explanation:
     ru: "bestehen aus + Dativ — состоять из чего-то"
     en: "bestehen aus + Dativ — to consist of something"
-  recall: "Das Haus besteht ___ (Holz und Stein)."
+  recall: "Das Haus besteht ___ Holz und Stein."
   recall_answer: ["Das Haus besteht aus Holz und Stein."]
 
 - question: "Im Gespräch geht es ___ Geld."
@@ -769,8 +769,8 @@
   explanation:
     ru: "es geht um + Akkusativ — речь идёт о чём-то"
     en: "es geht um + Akkusativ — it is about something"
-  recall: "Es geht ___ (das Geld)."
-  recall_answer: ["Es geht um das Geld."]
+  recall: "Es geht ___ Geld."
+  recall_answer: ["Es geht um Geld."]
 
 - question: "Er sorgt ___ seine kranke Mutter."
   topic: "sorgen"
@@ -1066,8 +1066,8 @@
   explanation:
     ru: "es geht um + Akkusativ — речь идёт о чём-то"
     en: "es geht um + Akkusativ — it is about something"
-  recall: "Es geht ___ (die Gerechtigkeit)."
-  recall_answer: ["Es geht um die Gerechtigkeit."]
+  recall: "Es geht ___ Gerechtigkeit."
+  recall_answer: ["Es geht um Gerechtigkeit."]
   recall_hint:
     ru: "die Gerechtigkeit — справедливость"
     en: "die Gerechtigkeit — justice"
@@ -1079,8 +1079,8 @@
   explanation:
     ru: "es geht um + Akkusativ — речь идёт о чём-то"
     en: "es geht um + Akkusativ — it is about something"
-  recall: "Es geht ___ (das Geld)."
-  recall_answer: ["Es geht um das Geld."]
+  recall: "Es geht ___ Geld."
+  recall_answer: ["Es geht um Geld."]
 
 # gehören
 - question: "Er gehört ___ den besten Ärzten der Stadt."
@@ -1286,8 +1286,8 @@
   explanation:
     ru: "sich beschäftigen mit + Dativ — заниматься чем-то"
     en: "sich beschäftigen mit + Dativ — to occupy oneself with something"
-  recall: "Er beschäftigt sich ___ (die Fotografie)."
-  recall_answer: ["Er beschäftigt sich mit der Fotografie."]
+  recall: "Er beschäftigt sich ___ Fotografie."
+  recall_answer: ["Er beschäftigt sich mit Fotografie."]
 
 # sich beklagen
 - question: "Sie beklagt sich ___ ___ Ergebnis."
@@ -1412,8 +1412,8 @@
   explanation:
     ru: "sich interessieren für + Akkusativ — интересоваться чем-то"
     en: "sich interessieren für + Akkusativ — to be interested in something"
-  recall: "Er interessiert sich ___ (die Musik)."
-  recall_answer: ["Er interessiert sich für die Musik."]
+  recall: "Er interessiert sich ___ Musik."
+  recall_answer: ["Er interessiert sich für Musik."]
 
 - question: "Das Kind interessiert sich ___ Tiere und Natur."
   topic: "sich interessieren"
@@ -1422,8 +1422,8 @@
   explanation:
     ru: "sich interessieren für + Akkusativ — интересоваться чем-то"
     en: "sich interessieren für + Akkusativ — to be interested in something"
-  recall: "Das Kind interessiert sich ___ (die Natur)."
-  recall_answer: ["Das Kind interessiert sich für die Natur."]
+  recall: "Das Kind interessiert sich ___ Tiere und Natur."
+  recall_answer: ["Das Kind interessiert sich für Tiere und Natur."]
 
 # sich kümmern
 - question: "Die Ärztin kümmert sich ___ ihre Patienten."
