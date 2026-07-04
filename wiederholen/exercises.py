@@ -40,6 +40,12 @@ class Exercise:
             )
 
 
+@dataclass(frozen=True)
+class Mark:
+    correct: bool
+    show_recall: bool
+
+
 def load_exercises(path: Path) -> list[Exercise]:
     with open(path) as f:
         items = yaml.safe_load(f)
@@ -63,7 +69,7 @@ class Teacher:
         ]
         return random.choices(self._exercises, weights=weights, k=1)[0]
 
-    def check_answer(self, exercise: Exercise, answer: str) -> bool:
+    def check_answer(self, exercise: Exercise, answer: str) -> Mark:
         correct = answer == exercise.answer
         topic_weights: dict[str, float] = self._journal.get("topic_weights", {})
         current = topic_weights.get(exercise.topic, self.WEIGHT_MIN)
@@ -74,7 +80,10 @@ class Teacher:
         else:
             topic_weights[exercise.topic] = current * self.WEIGHT_ON_WRONG
         self._journal["topic_weights"] = topic_weights
-        return correct
+        return Mark(
+            correct=correct,
+            show_recall=not correct and exercise.recall is not None,
+        )
 
     def check_recall(self, exercise: Exercise, text: str) -> bool:
         if exercise.recall_answer is None:
