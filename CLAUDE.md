@@ -17,10 +17,11 @@ Each exercise has the following fields. Use `___` for blanks in `question` and `
 - `answer` — correct answer (preposition or preposition + article)
 - `distractors` — list of 3 wrong options
 - `explanation` — dict with `ru` and `en` keys
-- `recall` — minimal phrase for the recall step (optional)
+- `recall` — short phrase for the recall step (optional)
 - `recall_answer` — list of accepted full sentences for the recall step (optional, required if `recall` is set)
+- `recall_hint` — dict with `ru` and `en` keys: translation of the noun shown in italics below the recall prompt (optional)
 
-`topic` — глагол в инфинитиве, которому посвящена карточка (например `"sprechen"`, `"sich freuen"`). Рефлексивные глаголы включают `sich`. Карточки с одним глаголом но разными предлогами (`sprechen mit`, `sprechen über`) имеют одинаковый `topic: "sprechen"` — это намеренно, чтобы при ошибке показывались все формы глагола.
+`topic` — verb in infinitive that the exercise is about (e.g. `"sprechen"`, `"sich freuen"`). Reflexive verbs include `sich`. Exercises for the same verb but different prepositions (`sprechen mit`, `sprechen über`) share the same `topic: "sprechen"` — intentionally, so that all forms of the verb are shown together when the user makes a mistake.
 
 Sanity check: substituting the answer into the question must produce a natural, everyday German sentence; substituting any distractor must not produce a grammatically valid one.
 
@@ -55,6 +56,8 @@ Example:
 - Recall:   `"Ich warte ___ (der Bus)."`
 
 `recall_answer` — list of accepted full sentences (always a list, even if one item; multiple entries for cases where several phrasings are equally valid).
+
+`recall_hint` — translation of the noun shown in italics below the recall prompt, to help the user focus on the grammar rather than vocabulary. Use when the noun in `recall` may be unfamiliar. Format: `"die Rede — речь"` / `"die Rede — speech"`.
 
 Vary the subject across exercises of the same topic to avoid identical recall prompts.
 

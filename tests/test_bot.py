@@ -65,12 +65,10 @@ class TestHandleAnswer:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        edit_message = await feed_callback_query(
-            exercise.answer, school=School([exercise])
-        )
+        requests = await feed_callback_query(exercise.answer, school=School([exercise]))
 
-        assert RU.correct in edit_message.text
-        assert exercise.explanation["ru"] in edit_message.text
+        assert RU.correct in requests[0].text
+        assert exercise.explanation["ru"] in requests[0].text
 
     async def test_wrong_answer_shows_correct_answer(
         self,
@@ -81,12 +79,12 @@ class TestHandleAnswer:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        edit_message = await feed_callback_query(
+        requests = await feed_callback_query(
             exercise.distractors[0], school=School([exercise])
         )
 
-        assert exercise.answer in edit_message.text
-        assert exercise.explanation["ru"] in edit_message.text
+        assert exercise.answer in requests[0].text
+        assert exercise.explanation["ru"] in requests[0].text
 
 
 class TestHandleRecall:
@@ -175,7 +173,27 @@ class TestHandleRecall:
 
         assert RU.recall_correct in send_message.text
 
-    async def test_recall_triggered_after_answering(
+    async def test_recall_prompt_sent_after_answering(
+        self,
+        state: FSMContext,
+        feed_callback_query: FeedCallbackQuery,
+        feed_raw_update: FeedRawUpdate,
+    ) -> None:
+        exercise = make_exercise(
+            recall="Ich ___ (die Rede).",
+            recall_answer=["Ich halte die Rede."],
+            recall_hint={"ru": "die Rede — речь", "en": "die Rede — speech"},
+        )
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+
+        requests = await feed_callback_query(exercise.answer, school=School([exercise]))
+        recall_message = requests[2]
+
+        assert exercise.recall in recall_message.text
+        assert "<i>die Rede — речь</i>" in recall_message.text
+
+    async def test_recall_accepted_after_answering(
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
