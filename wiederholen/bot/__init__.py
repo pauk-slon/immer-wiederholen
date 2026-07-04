@@ -89,14 +89,15 @@ async def handle_answer(
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
     teacher = school(journal)
-    if teacher.check_answer(shown_exercise, callback.data):
+    correct = teacher.check_answer(shown_exercise, callback.data)
+    if correct:
         text = f"{locale.correct}\n\n{explanation}"
     else:
         text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
     if isinstance(callback.message, Message):
         await callback.message.edit_text(text)
     await callback.answer()
-    if shown_exercise.recall and isinstance(callback.message, Message):
+    if not correct and shown_exercise.recall and isinstance(callback.message, Message):
         await state.set_state(UserState.recalling)
         await state.update_data(
             language=language,
@@ -104,7 +105,9 @@ async def handle_answer(
             shown_exercise=state_data["shown_exercise"],
         )
         hint = (
-            shown_exercise.recall_hint.get(language) if shown_exercise.recall_hint else None
+            shown_exercise.recall_hint.get(language)
+            if shown_exercise.recall_hint
+            else None
         )
         recall_text = locale.recall_prompt.format(recall=shown_exercise.recall)
         if hint:
