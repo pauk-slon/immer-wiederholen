@@ -331,16 +331,15 @@ class TestNextExerciseButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
-        feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
             recall="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
-        await state.update_data(
-            shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
-        )
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
+        await feed_callback_query(exercise.answer, school=School([exercise]))
         requests = await feed_callback_query(RECALL, school=School([exercise]))
         recall_message = requests[1]
 

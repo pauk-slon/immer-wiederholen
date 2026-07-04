@@ -152,7 +152,11 @@ async def handle_answer(
             callback.message, locale,
         )
     else:
-        await state.update_data(language=language, journal=journal)
+        await state.update_data(
+            language=language,
+            journal=journal,
+            shown_exercise=state_data["shown_exercise"],
+        )
 
 
 @dp.message(UserState.recalling)
