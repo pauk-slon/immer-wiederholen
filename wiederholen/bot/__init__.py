@@ -51,7 +51,7 @@ def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
     )
 
 
-def _make_practice_buttons(locale: Locale) -> InlineKeyboardMarkup:
+def _make_recall_buttons(locale: Locale) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[
             InlineKeyboardButton(text=locale.btn_recall, callback_data=RECALL),
@@ -139,7 +139,7 @@ async def handle_answer(
         text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
     if isinstance(callback.message, Message):
         if mark.recall == RecallMode.optional:
-            reply_markup = _make_practice_buttons(locale)
+            reply_markup = _make_recall_buttons(locale)
         elif mark.recall == RecallMode.none:
             reply_markup = _make_next_button(locale)
         else:
