@@ -1,4 +1,4 @@
-# Immer Wiederholen
+# Immer wiederholen!
 
 Telegram bot for memorizing foreign words using spaced repetition.
 
