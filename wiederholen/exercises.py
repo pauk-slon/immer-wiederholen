@@ -80,7 +80,10 @@ class Teacher:
         else:
             topic_weights[exercise.topic] = current * self.WEIGHT_ON_WRONG
         self._journal["topic_weights"] = topic_weights
-        return Mark(correct=correct, show_recall=not correct and exercise.recall is not None)
+        return Mark(
+            correct=correct,
+            show_recall=not correct and exercise.recall is not None,
+        )
 
     def check_recall(self, exercise: Exercise, text: str) -> bool:
         if exercise.recall_answer is None:
