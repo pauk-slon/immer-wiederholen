@@ -2,7 +2,7 @@ import dataclasses
 import random
 from typing import Final, Any
 
-from aiogram import Dispatcher
+from aiogram import Dispatcher, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -15,9 +15,11 @@ from aiogram.types import (
 
 from wiederholen.exercises import Exercise, School
 from wiederholen.i18n import Language, LANGUAGES
-from .l10n import DEFAULT_LANGUAGE, LOCALES
+from .l10n import DEFAULT_LANGUAGE, LOCALES, Locale
 
 dp: Final = Dispatcher()
+
+NEXT_EXERCISE: Final = "__next__"
 
 
 class UserState(StatesGroup):
@@ -37,6 +39,14 @@ def _make_keyboard(exercise: Exercise) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text=opt, callback_data=opt)] for opt in options
         ]
+    )
+
+
+def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[
+            InlineKeyboardButton(text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE)
+        ]]
     )
 
 
@@ -94,10 +104,12 @@ async def handle_answer(
         text = f"{locale.correct}\n\n{explanation}"
     else:
         text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
+    show_recall = not correct and shown_exercise.recall and isinstance(callback.message, Message)
     if isinstance(callback.message, Message):
-        await callback.message.edit_text(text)
+        reply_markup = None if show_recall else _make_next_button(locale)
+        await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
-    if not correct and shown_exercise.recall and isinstance(callback.message, Message):
+    if show_recall and isinstance(callback.message, Message):
         await state.set_state(UserState.recalling)
         await state.update_data(
             language=language,
@@ -130,10 +142,35 @@ async def handle_recall(message: Message, state: FSMContext, school: School) -> 
     await state.update_data(language=language, journal=journal)
     locale = LOCALES[language]
     teacher = school(journal)
+    next_button = _make_next_button(locale)
     if teacher.check_recall(shown_exercise, message.text or ""):
-        await message.answer(locale.recall_correct)
+        await message.answer(locale.recall_correct, reply_markup=next_button)
     else:
         assert shown_exercise.recall_answer is not None
         await message.answer(
-            locale.recall_wrong.format(answer=shown_exercise.recall_answer[0])
+            locale.recall_wrong.format(answer=shown_exercise.recall_answer[0]),
+            reply_markup=next_button,
         )
+
+
+@dp.callback_query(F.data == NEXT_EXERCISE)
+async def handle_next_exercise(
+    callback: CallbackQuery,
+    state: FSMContext,
+    school: School,
+) -> None:
+    state_data = await state.get_data()
+    language = _get_language(state_data)
+    journal = state_data.get("journal", {})
+    teacher = school(journal)
+    exercise = teacher.ask()
+    await state.set_state(UserState.answering)
+    await state.update_data(
+        shown_exercise=dataclasses.asdict(exercise),
+        journal=journal,
+    )
+    if isinstance(callback.message, Message):
+        await callback.message.edit_text(
+            exercise.question, reply_markup=_make_keyboard(exercise)
+        )
+    await callback.answer()
