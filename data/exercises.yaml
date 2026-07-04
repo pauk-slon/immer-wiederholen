@@ -145,7 +145,7 @@
   explanation:
     ru: "verzichten auf + Akkusativ — отказываться от чего-то"
     en: "verzichten auf + Akkusativ — to give up something"
-  recall: "Er verzichtet ___ (Zucker)."
+  recall: "Er verzichtet ___ Zucker."
   recall_answer: ["Er verzichtet auf Zucker."]
 
 - question: "Das hängt ___ der Stimmung ab."
