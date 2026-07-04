@@ -9,7 +9,7 @@ from wiederholen.i18n import Language, LANGUAGES
 
 
 @dataclass(frozen=True)
-class Card:
+class Exercise:
     question: str
     topic: str
     distractors: list[str]
@@ -33,10 +33,10 @@ class Card:
             raise ValueError("recall_answer must not be empty")
 
 
-def load_cards(path: Path) -> list[Card]:
+def load_exercises(path: Path) -> list[Exercise]:
     with open(path) as f:
         items = yaml.safe_load(f)
-    return [Card(**item) for item in items]
+    return [Exercise(**item) for item in items]
 
 
 class Teacher:
@@ -44,42 +44,43 @@ class Teacher:
     WEIGHT_ON_CORRECT: float = 0.5
     WEIGHT_MIN: float = 1.0
 
-    def __init__(self, cards: Sequence[Card], journal: dict) -> None:
-        self._cards = cards
+    def __init__(self, exercises: Sequence[Exercise], journal: dict) -> None:
+        self._exercises = exercises
         self._journal = journal
 
-    def ask(self) -> Card:
+    def ask(self) -> Exercise:
         topic_weights: dict[str, float] = self._journal.get("topic_weights", {})
         weights = [
-            topic_weights.get(card.topic, self.WEIGHT_MIN) for card in self._cards
+            topic_weights.get(exercise.topic, self.WEIGHT_MIN)
+            for exercise in self._exercises
         ]
-        return random.choices(self._cards, weights=weights, k=1)[0]
+        return random.choices(self._exercises, weights=weights, k=1)[0]
 
-    def check_answer(self, card: Card, answer: str) -> bool:
-        correct = answer == card.answer
+    def check_answer(self, exercise: Exercise, answer: str) -> bool:
+        correct = answer == exercise.answer
         topic_weights: dict[str, float] = self._journal.get("topic_weights", {})
-        current = topic_weights.get(card.topic, self.WEIGHT_MIN)
+        current = topic_weights.get(exercise.topic, self.WEIGHT_MIN)
         if correct:
-            topic_weights[card.topic] = max(
+            topic_weights[exercise.topic] = max(
                 self.WEIGHT_MIN, current * self.WEIGHT_ON_CORRECT
             )
         else:
-            topic_weights[card.topic] = current * self.WEIGHT_ON_WRONG
+            topic_weights[exercise.topic] = current * self.WEIGHT_ON_WRONG
         self._journal["topic_weights"] = topic_weights
         return correct
 
-    def check_recall(self, card: Card, text: str) -> bool:
-        if card.recall_answer is None:
+    def check_recall(self, exercise: Exercise, text: str) -> bool:
+        if exercise.recall_answer is None:
             return False
         normalized = " ".join(text.lower().split())
         return any(
-            normalized == " ".join(a.lower().split()) for a in card.recall_answer
+            normalized == " ".join(a.lower().split()) for a in exercise.recall_answer
         )
 
 
 class School:
-    def __init__(self, cards: Sequence[Card]) -> None:
-        self._cards = cards
+    def __init__(self, exercises: Sequence[Exercise]) -> None:
+        self._exercises = exercises
 
     def __call__(self, journal: dict) -> Teacher:
-        return Teacher(self._cards, journal)
+        return Teacher(self._exercises, journal)

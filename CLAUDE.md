@@ -1,16 +1,16 @@
 # immer-wiederholen
 
-Telegram bot for practicing German with multiple choice questions (aiogram, Python). Cards are loaded at startup from the path set by `CARDS_PATH` env var (default: `data/cards.yaml`). Bot commands: `/start`, `/wiederholen` (show a card with answer options), `/language` (toggle ru/en).
+Telegram bot for practicing German with multiple choice questions (aiogram, Python). Exercises are loaded at startup from the path set by `EXERCISES_PATH` env var (default: `data/exercises.yaml`). Bot commands: `/start`, `/wiederholen` (show a exercise with answer options), `/language` (toggle ru/en).
 
 ## Key modules
 
-- `wiederholen.cards` — card domain: `Card` dataclass, loading from YAML, random picking
+- `wiederholen.exercises` — exercise domain: `Exercise` dataclass, loading from YAML, random picking
 - `wiederholen.i18n` — supported languages (`Language` type, `LANGUAGES` set)
 - `wiederholen.bot` — Telegram bot implementation (aiogram)
 
-## Cards (`data/cards.yaml`)
+## Exercises (`data/exercises.yaml`)
 
-Each card has the following fields. Use `___` for blanks in `question` and `recall`.
+Each exercise has the following fields. Use `___` for blanks in `question` and `recall`.
 
 - `question` — sentence with a blank
 - `topic` — verb in infinitive
@@ -24,13 +24,13 @@ Each card has the following fields. Use `___` for blanks in `question` and `reca
 
 Sanity check: substituting the answer into the question must produce a natural, everyday German sentence; substituting any distractor must not produce a grammatically valid one.
 
-Two card types:
+Two exercise types:
 
 **Preposition only** — answer is a single word. Distractors are other plausible prepositions.
 
 **Preposition + article** — answer is a string like `"auf den"`. Use only for Wechselpräpositionen (an, auf, über, in, etc.) where the case is not fixed. Skip for prepositions with fixed case (mit, bei, für, um, nach, zu, aus, von).
 
-Distractor strategy for preposition + article cards — use a 2×2 grid (2 prepositions × 2 cases):
+Distractor strategy for preposition + article exercises — use a 2×2 grid (2 prepositions × 2 cases):
 - `[prep1][case1]` — correct answer
 - `[prep1][case2]` — correct preposition, wrong case → tests case
 - `[prep2][case1]` — wrong preposition, correct case → tests preposition
@@ -56,7 +56,7 @@ Example:
 
 `recall_answer` — list of accepted full sentences (always a list, even if one item; multiple entries for cases where several phrasings are equally valid).
 
-Vary the subject across cards of the same topic to avoid identical recall prompts.
+Vary the subject across exercises of the same topic to avoid identical recall prompts.
 
 Sanity check: the recall_answer must be a natural, everyday German sentence.
 

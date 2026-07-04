@@ -5,54 +5,54 @@ from aiogram.types import InlineKeyboardMarkup
 
 from wiederholen.bot import UserState
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.cards import Card, School
+from wiederholen.exercises import Exercise, School
 
-from .conftest import FeedCallbackQuery, FeedRawUpdate, make_card
+from .conftest import FeedCallbackQuery, FeedRawUpdate, make_exercise
 
 
 class TestWiederholenCommand:
-    async def test_sends_card_question(
+    async def test_sends_exercise_question(
         self,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        card = make_card()
-        send_message = await feed_raw_update("/wiederholen", school=School([card]))
+        exercise = make_exercise()
+        send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
 
-        assert send_message.text == card.question
+        assert send_message.text == exercise.question
 
     async def test_sets_answering_state(
         self,
         state: FSMContext,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        card = make_card()
-        await feed_raw_update("/wiederholen", school=School([card]))
+        exercise = make_exercise()
+        await feed_raw_update("/wiederholen", school=School([exercise]))
 
         assert await state.get_state() == UserState.answering
 
-    async def test_saves_shown_card(
+    async def test_saves_shown_exercise(
         self,
         state: FSMContext,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        card = make_card()
-        await feed_raw_update("/wiederholen", school=School([card]))
+        exercise = make_exercise()
+        await feed_raw_update("/wiederholen", school=School([exercise]))
 
         data = await state.get_data()
-        assert data["shown_card"] == dataclasses.asdict(card)
+        assert data["shown_exercise"] == dataclasses.asdict(exercise)
 
     async def test_keyboard_contains_all_options(
         self,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        card = make_card()
-        send_message = await feed_raw_update("/wiederholen", school=School([card]))
+        exercise = make_exercise()
+        send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
 
         assert isinstance(send_message.reply_markup, InlineKeyboardMarkup)
         buttons = [
             btn.text for row in send_message.reply_markup.inline_keyboard for btn in row
         ]
-        assert sorted(buttons) == sorted(card.distractors + [card.answer])
+        assert sorted(buttons) == sorted(exercise.distractors + [exercise.answer])
 
 
 class TestHandleAnswer:
@@ -61,30 +61,32 @@ class TestHandleAnswer:
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
-        card = make_card()
+        exercise = make_exercise()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_card=dataclasses.asdict(card), journal={})
+        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        edit_message = await feed_callback_query(card.answer, school=School([card]))
+        edit_message = await feed_callback_query(
+            exercise.answer, school=School([exercise])
+        )
 
         assert RU.correct in edit_message.text
-        assert card.explanation["ru"] in edit_message.text
+        assert exercise.explanation["ru"] in edit_message.text
 
     async def test_wrong_answer_shows_correct_answer(
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
-        card = make_card()
+        exercise = make_exercise()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_card=dataclasses.asdict(card), journal={})
+        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         edit_message = await feed_callback_query(
-            card.distractors[0], school=School([card])
+            exercise.distractors[0], school=School([exercise])
         )
 
-        assert card.answer in edit_message.text
-        assert card.explanation["ru"] in edit_message.text
+        assert exercise.answer in edit_message.text
+        assert exercise.explanation["ru"] in edit_message.text
 
 
 class TestHandleRecall:
@@ -93,17 +95,17 @@ class TestHandleRecall:
         state: FSMContext,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        card = make_card(
+        exercise = make_exercise(
             recall="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
-            shown_card=dataclasses.asdict(card), language="ru", journal={}
+            shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
         )
 
         send_message = await feed_raw_update(
-            "Ich warte auf den Bus.", school=School([card])
+            "Ich warte auf den Bus.", school=School([exercise])
         )
 
         assert RU.recall_correct in send_message.text
@@ -113,17 +115,17 @@ class TestHandleRecall:
         state: FSMContext,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        card = make_card(
+        exercise = make_exercise(
             recall="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
-            shown_card=dataclasses.asdict(card), language="ru", journal={}
+            shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
         )
 
         send_message = await feed_raw_update(
-            "Es hängt alles in der Situation ab.", school=School([card])
+            "Es hängt alles in der Situation ab.", school=School([exercise])
         )
 
         assert "Ich warte auf den Bus." in send_message.text
@@ -133,17 +135,17 @@ class TestHandleRecall:
         state: FSMContext,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        card = make_card(
+        exercise = make_exercise(
             recall="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
-            shown_card=dataclasses.asdict(card), language="ru", journal={}
+            shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
         )
 
         send_message = await feed_raw_update(
-            "ich warte  auf den bus.", school=School([card])
+            "ich warte  auf den bus.", school=School([exercise])
         )
 
         assert RU.recall_correct in send_message.text
@@ -153,7 +155,7 @@ class TestHandleRecall:
         state: FSMContext,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        card = Card(
+        exercise = Exercise(
             question="Ich warte ___ den Bus.",
             topic="warten",
             distractors=["für", "an", "um"],
@@ -164,11 +166,11 @@ class TestHandleRecall:
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
-            shown_card=dataclasses.asdict(card), language="ru", journal={}
+            shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
         )
 
         send_message = await feed_raw_update(
-            "Ich warte auf die Straßenbahn.", school=School([card])
+            "Ich warte auf die Straßenbahn.", school=School([exercise])
         )
 
         assert RU.recall_correct in send_message.text
@@ -179,17 +181,17 @@ class TestHandleRecall:
         feed_callback_query: FeedCallbackQuery,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        card = make_card(
+        exercise = make_exercise(
             recall="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.answering)
-        await state.update_data(shown_card=dataclasses.asdict(card), journal={})
+        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        assert card.recall_answer is not None
-        await feed_callback_query(card.answer, school=School([card]))
+        assert exercise.recall_answer is not None
+        await feed_callback_query(exercise.answer, school=School([exercise]))
         send_message = await feed_raw_update(
-            card.recall_answer[0], school=School([card])
+            exercise.recall_answer[0], school=School([exercise])
         )
 
         assert RU.recall_correct in send_message.text

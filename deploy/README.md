@@ -1,6 +1,6 @@
 # Deployment
 
-Copy this directory to the server and place your card database at `data/cards.yaml`.
+Copy this directory to the server and place your exercise database at `data/exercises.yaml`.
 
 Create `.env` from the example and fill in `BOT_TOKEN`:
 

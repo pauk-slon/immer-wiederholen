@@ -13,7 +13,7 @@ from aiogram.types import (
     Message,
 )
 
-from wiederholen.cards import Card, School
+from wiederholen.exercises import Exercise, School
 from wiederholen.i18n import Language, LANGUAGES
 from .l10n import DEFAULT_LANGUAGE, LOCALES
 
@@ -30,8 +30,8 @@ def _get_language(state: dict[str, Any]) -> Language:
     return raw_language if raw_language in LANGUAGES else DEFAULT_LANGUAGE
 
 
-def _make_keyboard(card: Card) -> InlineKeyboardMarkup:
-    options = list(card.distractors) + [card.answer]
+def _make_keyboard(exercise: Exercise) -> InlineKeyboardMarkup:
+    options = list(exercise.distractors) + [exercise.answer]
     random.shuffle(options)
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -63,13 +63,13 @@ async def command_wiederholen(
     data = await state.get_data()
     journal = data.get("journal", {})
     teacher = school(journal)
-    card = teacher.ask()
+    exercise = teacher.ask()
     await state.set_state(UserState.answering)
     await state.update_data(
-        shown_card=dataclasses.asdict(card),
+        shown_exercise=dataclasses.asdict(exercise),
         journal=journal,
     )
-    await message.answer(card.question, reply_markup=_make_keyboard(card))
+    await message.answer(exercise.question, reply_markup=_make_keyboard(exercise))
 
 
 @dp.callback_query(UserState.answering)
@@ -84,27 +84,27 @@ async def handle_answer(
     state_data = await state.get_data()
     await state.clear()
     language = _get_language(state_data)
-    shown_card = Card(**state_data["shown_card"])
+    shown_exercise = Exercise(**state_data["shown_exercise"])
     journal = state_data.get("journal", {})
     locale = LOCALES[language]
-    explanation = shown_card.explanation[language]
+    explanation = shown_exercise.explanation[language]
     teacher = school(journal)
-    if teacher.check_answer(shown_card, callback.data):
+    if teacher.check_answer(shown_exercise, callback.data):
         text = f"{locale.correct}\n\n{explanation}"
     else:
-        text = f"{locale.wrong.format(answer=shown_card.answer)}\n\n{explanation}"
+        text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
     if isinstance(callback.message, Message):
         await callback.message.edit_text(text)
     await callback.answer()
-    if shown_card.recall and isinstance(callback.message, Message):
+    if shown_exercise.recall and isinstance(callback.message, Message):
         await state.set_state(UserState.recalling)
         await state.update_data(
             language=language,
             journal=journal,
-            shown_card=state_data["shown_card"],
+            shown_exercise=state_data["shown_exercise"],
         )
         await callback.message.answer(
-            locale.recall_prompt.format(recall=shown_card.recall)
+            locale.recall_prompt.format(recall=shown_exercise.recall)
         )
     else:
         await state.update_data(language=language, journal=journal)
@@ -116,14 +116,14 @@ async def handle_recall(message: Message, state: FSMContext, school: School) -> 
     await state.clear()
     language = _get_language(state_data)
     journal = state_data.get("journal", {})
-    shown_card = Card(**state_data["shown_card"])
+    shown_exercise = Exercise(**state_data["shown_exercise"])
     await state.update_data(language=language, journal=journal)
     locale = LOCALES[language]
     teacher = school(journal)
-    if teacher.check_recall(shown_card, message.text or ""):
+    if teacher.check_recall(shown_exercise, message.text or ""):
         await message.answer(locale.recall_correct)
     else:
-        assert shown_card.recall_answer is not None
+        assert shown_exercise.recall_answer is not None
         await message.answer(
-            locale.recall_wrong.format(answer=shown_card.recall_answer[0])
+            locale.recall_wrong.format(answer=shown_exercise.recall_answer[0])
         )
