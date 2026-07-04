@@ -10,11 +10,19 @@ Telegram bot for practicing German with multiple choice questions (aiogram, Pyth
 
 ## Cards (`data/cards.yaml`)
 
-Each card has `question`, `topic`, `answer`, `distractors` (list of 3), and `explanation` (`ru`/`en`). Use `___` for blanks.
+Each card has the following fields. Use `___` for blanks in `question` and `recall`.
+
+- `question` — sentence with a blank
+- `topic` — verb in infinitive
+- `answer` — correct answer (preposition or preposition + article)
+- `distractors` — list of 3 wrong options
+- `explanation` — dict with `ru` and `en` keys
+- `recall` — minimal phrase for the recall step (optional)
+- `recall_answer` — list of accepted full sentences for the recall step (optional, required if `recall` is set)
 
 `topic` — глагол в инфинитиве, которому посвящена карточка (например `"sprechen"`, `"sich freuen"`). Рефлексивные глаголы включают `sich`. Карточки с одним глаголом но разными предлогами (`sprechen mit`, `sprechen über`) имеют одинаковый `topic: "sprechen"` — это намеренно, чтобы при ошибке показывались все формы глагола.
 
-Sanity check: substituting the answer into the question must produce a natural German sentence; substituting any distractor must not produce a grammatically valid one.
+Sanity check: substituting the answer into the question must produce a natural, everyday German sentence; substituting any distractor must not produce a grammatically valid one.
 
 Two card types:
 
@@ -35,6 +43,22 @@ Case compatibility rule: all distractors must be compatible with the case visibl
 Special cases:
 - `sich freuen`: use `"auf das"` ↔ `"über das"` as a distractor — common confusion between the two constructions
 - `sich streiten über`: use `"um das"` — `sich streiten um` is a real expression, making it a plausible mistake
+
+## Recall (`recall` / `recall_answer`)
+
+After the multiple-choice step, the bot asks the user to reconstruct a short phrase from memory.
+
+`recall` — a minimal phrase built from the question's vocabulary: strip adverbs, time expressions, and extra clauses, keep only subject + verb + preposition + noun (+ separable prefix / reflexive pronoun if needed). Show the noun hint in nominative in parentheses. Always one `___` blank regardless of whether the answer is one or two words.
+
+Example:
+- Question: `"Ich warte schon eine Stunde ___ den Bus."`
+- Recall:   `"Ich warte ___ (der Bus)."`
+
+`recall_answer` — list of accepted full sentences (always a list, even if one item; multiple entries for cases where several phrasings are equally valid).
+
+Vary the subject across cards of the same topic to avoid identical recall prompts.
+
+Sanity check: the recall_answer must be a natural, everyday German sentence.
 
 ## Commands
 
