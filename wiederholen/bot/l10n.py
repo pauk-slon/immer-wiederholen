@@ -40,7 +40,7 @@ EN: Final = Locale(
     recall_wrong="✗ Wrong. Correct answer:\n{answer}",
     cmd_start="Start",
     cmd_wiederholen="Next exercise",
-    btn_recall="Practice",
+    btn_recall="Drill",
     cmd_language="Change language",
 )
 
