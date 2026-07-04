@@ -72,10 +72,12 @@ class Teacher:
     def check_recall(self, exercise: Exercise, text: str) -> bool:
         if exercise.recall_answer is None:
             return False
-        normalized = " ".join(text.lower().split())
-        return any(
-            normalized == " ".join(a.lower().split()) for a in exercise.recall_answer
-        )
+
+        def normalize(s: str) -> str:
+            return " ".join(s.lower().strip(".,!?").split())
+
+        normalized = normalize(text)
+        return any(normalize(a) == normalized for a in exercise.recall_answer)
 
 
 class School:
