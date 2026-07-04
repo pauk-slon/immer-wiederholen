@@ -54,7 +54,7 @@ def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
 def _make_practice_buttons(locale: Locale) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[
-            InlineKeyboardButton(text=locale.cmd_recall, callback_data=RECALL),
+            InlineKeyboardButton(text=locale.btn_recall, callback_data=RECALL),
             InlineKeyboardButton(text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE),
         ]]
     )
