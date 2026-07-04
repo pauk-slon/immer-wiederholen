@@ -199,7 +199,7 @@ async def handle_next_exercise(
 
 
 @dp.callback_query(F.data == RECALL)
-async def handle_practice(
+async def handle_recall_request(
     callback: CallbackQuery,
     state: FSMContext,
 ) -> None:
