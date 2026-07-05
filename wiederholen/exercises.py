@@ -103,8 +103,7 @@ class Teacher:
         return Mark(correct=correct, recall=recall_mode)
 
     def check_recall(self, exercise: Exercise, text: str) -> bool:
-        if exercise.recall is None:
-            return False
+        assert exercise.recall is not None
 
         def normalize(s: str) -> str:
             return " ".join(s.lower().strip(".,!?").split())
