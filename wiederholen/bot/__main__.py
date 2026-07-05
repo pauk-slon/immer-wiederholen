@@ -16,6 +16,13 @@ async def main() -> None:
     school = School(load_exercises(exercises_path))
     bot = Bot(token=token)
     for language_code, locale in LOCALES.items():
+        await bot.set_my_name(locale.bot_name, language_code=language_code)
+        await bot.set_my_description(
+            locale.bot_short_description, language_code=language_code
+        )
+        await bot.set_my_short_description(
+            locale.bot_short_description, language_code=language_code
+        )
         await bot.set_my_commands(
             [
                 BotCommand(command="start", description=locale.cmd_start),
