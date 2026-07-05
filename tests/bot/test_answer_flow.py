@@ -12,6 +12,19 @@ from tests.plugins.exercises import make_exercise
 
 
 class TestHandleAnswer:
+    async def test_none_callback_data_is_ignored(
+        self,
+        state: FSMContext,
+        feed_callback_query: FeedCallbackQuery,
+    ) -> None:
+        exercise = make_exercise()
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+
+        requests = await feed_callback_query(None, school=School([exercise]))
+
+        assert len(requests) == 1  # only callback.answer(), no message sent
+
     async def test_correct_answer_shows_success_text(
         self,
         state: FSMContext,

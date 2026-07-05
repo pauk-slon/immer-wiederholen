@@ -14,7 +14,7 @@ from wiederholen.bot import dp as _dp
 
 
 type RawUpdateFactory = Callable[[str], dict]
-type FeedCallbackQuery = Callable[..., Awaitable[Any]]
+type FeedCallbackQuery = Callable[..., Awaitable[list[Any]]]
 type FeedRawUpdate = Callable[..., Awaitable[SendMessage]]
 
 
@@ -67,7 +67,7 @@ def feed_callback_query(
     user_id: int,
     chat_id: int,
 ) -> FeedCallbackQuery:
-    async def factory(data: str, **kwargs) -> Any:
+    async def factory(data: str | None, **kwargs) -> list[Any]:
         raw_update = {
             "update_id": 2,
             "callback_query": {
