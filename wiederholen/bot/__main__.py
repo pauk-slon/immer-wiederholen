@@ -27,5 +27,5 @@ async def main() -> None:
     await dp.start_polling(bot, school=school)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     asyncio.run(main())
