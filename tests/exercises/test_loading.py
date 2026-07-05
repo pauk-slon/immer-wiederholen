@@ -1,29 +1,14 @@
-from contextlib import contextmanager, AbstractContextManager
+from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import Any, Generator, Callable
+from typing import Callable, Any
 
 import pytest
-import yaml
 
 from wiederholen.exercises import load_exercises
 
 from tests.plugins.exercises import make_exercise_data
 
-
 type TmpYamlFile = Callable[[Any], AbstractContextManager[Path]]
-
-
-@pytest.fixture
-def tmp_yaml_file(tmp_path: Path) -> TmpYamlFile:
-    @contextmanager
-    def factory(data: Any, *, filename: str = "data.yaml") -> Generator[Path]:
-        text = yaml.safe_dump(data)
-        yaml_file = tmp_path / filename
-        yaml_file.write_text(text)
-        yield yaml_file
-        yaml_file.unlink(missing_ok=True)
-
-    return factory
 
 
 class TestExerciseValidation:
