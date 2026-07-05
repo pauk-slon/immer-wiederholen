@@ -95,8 +95,7 @@ class TestHandleRecall:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall_question="Ich ___ (der Bus).",
-            recall_answer=["Ich warte auf den Bus."],
+            recall={"answer": ["Ich warte auf den Bus."]},
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
@@ -115,8 +114,7 @@ class TestHandleRecall:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall_question="Ich ___ (der Bus).",
-            recall_answer=["Ich warte auf den Bus."],
+            recall={"answer": ["Ich warte auf den Bus."]},
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
@@ -135,8 +133,7 @@ class TestHandleRecall:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall_question="Ich ___ (der Bus).",
-            recall_answer=["Ich warte auf den Bus."],
+            recall={"answer": ["Ich warte auf den Bus."]},
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
@@ -183,9 +180,7 @@ class TestHandleRecall:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall_question="Ich ___ (die Rede).",
-            recall_answer=["Ich halte die Rede."],
-            recall_hint={"ru": "die Rede — речь", "en": "die Rede — speech"},
+            recall={"hint": {"ru": "die Rede — речь", "en": "die Rede — speech"}},
         )
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
@@ -205,10 +200,7 @@ class TestHandleRecall:
         feed_callback_query: FeedCallbackQuery,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
-        exercise = make_exercise(
-            recall_question="Ich ___ (der Bus).",
-            recall_answer=["Ich warte auf den Bus."],
-        )
+        exercise = make_exercise(recall=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -247,7 +239,7 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
-        exercise = make_exercise()
+        exercise = make_exercise(recall=False)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -269,10 +261,7 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
-        exercise = make_exercise(
-            recall_question="Ich ___ (der Bus).",
-            recall_answer=["Ich warte auf den Bus."],
-        )
+        exercise = make_exercise(recall=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -288,8 +277,7 @@ class TestNextExerciseButton:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall_question="Ich ___ (der Bus).",
-            recall_answer=["Ich warte auf den Bus."],
+            recall={"answer": ["Ich warte auf den Bus."]},
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
@@ -313,10 +301,7 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
-        exercise = make_exercise(
-            recall_question="Ich ___ (der Bus).",
-            recall_answer=["Ich warte auf den Bus."],
-        )
+        exercise = make_exercise(recall=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -336,10 +321,7 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
-        exercise = make_exercise(
-            recall_question="Ich ___ (der Bus).",
-            recall_answer=["Ich warte auf den Bus."],
-        )
+        exercise = make_exercise(recall=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 

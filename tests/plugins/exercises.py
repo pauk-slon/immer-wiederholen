@@ -21,12 +21,16 @@ class ExerciseData(TypedDict):
     recall: NotRequired[RecallData]
 
 
+class RecallKwargs(TypedDict, total=False):
+    answer: list[str]
+    question: str
+    hint: dict[Language, str]
+
+
 class ExerciseDataKwargs(TypedDict, total=False):
     topic: str
     answer: str
-    recall_question: str
-    recall_answer: list[str]
-    recall_hint: dict[Language, str]
+    recall: bool | RecallKwargs
 
 
 def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
@@ -38,14 +42,14 @@ def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
         answer=kwargs.pop("answer", "auf"),
         explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
     )
-    recall_keys = {"recall_question", "recall_answer", "recall_hint"}
-    if kwargs.keys() & recall_keys:
+    if recall := kwargs.pop("recall", False):
+        recall_kwargs = {} if isinstance(recall, bool) else recall
         exercise_data["recall"] = RecallData(
-            question=kwargs.pop("recall_question", "Ich ___ (der Bus)."),
-            answer=kwargs.pop("recall_answer", ["Ich warte auf den Bus."]),
+            question=recall_kwargs.pop("question", "Ich ___ (der Bus)."),
+            answer=recall_kwargs.pop("answer", ["Ich warte auf den Bus."]),
         )
-        if "recall_hint" in kwargs:
-            exercise_data["recall"]["hint"] = kwargs.pop("recall_hint")
+        if "hint" in recall_kwargs:
+            exercise_data["recall"]["hint"] = recall_kwargs.pop("hint")
     return exercise_data
 
 
