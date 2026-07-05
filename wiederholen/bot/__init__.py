@@ -45,18 +45,26 @@ def _make_keyboard(exercise: Exercise) -> InlineKeyboardMarkup:
 
 def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        inline_keyboard=[[
-            InlineKeyboardButton(text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE)
-        ]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE
+                )
+            ]
+        ]
     )
 
 
 def _make_recall_buttons(locale: Locale) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        inline_keyboard=[[
-            InlineKeyboardButton(text=locale.btn_recall, callback_data=RECALL),
-            InlineKeyboardButton(text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE),
-        ]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=locale.btn_recall, callback_data=RECALL),
+                InlineKeyboardButton(
+                    text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE
+                ),
+            ]
+        ]
     )
 
 
@@ -76,7 +84,9 @@ async def _start_recall(
         journal=journal,
         shown_exercise=shown_exercise_dict,
     )
-    hint = shown_exercise.recall.hint.get(language) if shown_exercise.recall.hint else None
+    hint = (
+        shown_exercise.recall.hint.get(language) if shown_exercise.recall.hint else None
+    )
     recall_text = locale.recall_prompt.format(recall=shown_exercise.recall.question)
     if hint:
         await message.answer(f"{recall_text}\n<i>{hint}</i>", parse_mode="HTML")
@@ -149,9 +159,13 @@ async def handle_answer(
     await callback.answer()
     if mark.recall == RecallMode.required and isinstance(callback.message, Message):
         await _start_recall(
-            state, language, journal,
-            state_data["shown_exercise"], shown_exercise,
-            callback.message, locale,
+            state,
+            language,
+            journal,
+            state_data["shown_exercise"],
+            shown_exercise,
+            callback.message,
+            locale,
         )
     else:
         await state.update_data(
@@ -217,8 +231,12 @@ async def handle_recall_request(
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await _start_recall(
-            state, language, journal,
-            state_data["shown_exercise"], shown_exercise,
-            callback.message, locale,
+            state,
+            language,
+            journal,
+            state_data["shown_exercise"],
+            shown_exercise,
+            callback.message,
+            locale,
         )
     await callback.answer()
