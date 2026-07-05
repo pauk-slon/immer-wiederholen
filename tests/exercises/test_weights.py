@@ -3,13 +3,13 @@ from wiederholen.exercises import School
 from tests.plugins.exercises import make_exercise
 
 
-def test_ask_prefers_higher_weight_topic() -> None:
+def test_next_exercise_favors_high_weight_topic() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
     state = {"topic_weights": {"warten": 1000.0, "hoffen": 1.0}}
     teacher = School(exercises)(state)
     counts: dict[str, int] = {"warten": 0, "hoffen": 0}
     for _ in range(200):
-        counts[teacher.ask().topic] += 1
+        counts[teacher.next_exercise().topic] += 1
     assert counts["warten"] > counts["hoffen"]
 
 
