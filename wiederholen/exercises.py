@@ -26,10 +26,10 @@ class Recall:
 
 @dataclass(frozen=True)
 class Exercise:
-    question: str
     topic: str
-    distractors: list[str]
+    question: str
     answer: str
+    distractors: list[str]
     explanation: dict[Language, str]
     recall: Recall | None = None
 

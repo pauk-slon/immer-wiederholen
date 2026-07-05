@@ -7,7 +7,8 @@ from wiederholen.bot import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import EN, RU
 from wiederholen.exercises import Exercise, Recall, School
 
-from .conftest import FeedCallbackQuery, FeedRawUpdate, make_exercise
+from .plugins.aiogram import FeedCallbackQuery, FeedRawUpdate
+from .plugins.exercises import make_exercise
 
 
 class TestWiederholenCommand:
