@@ -10,15 +10,28 @@ from wiederholen.i18n import Language, LANGUAGES
 
 
 @dataclass(frozen=True)
+class Recall:
+    question: str
+    answer: list[str]
+    hint: dict[Language, str] | None = None
+
+    def __post_init__(self) -> None:
+        if len(self.answer) == 0:
+            raise ValueError("recall.answer must not be empty")
+        if self.hint is not None and not set(self.hint.keys()).issubset(LANGUAGES):
+            raise ValueError(
+                f"recall.hint keys must be a subset of {LANGUAGES}, got {set(self.hint.keys())}"
+            )
+
+
+@dataclass(frozen=True)
 class Exercise:
     question: str
     topic: str
     distractors: list[str]
     answer: str
     explanation: dict[Language, str]
-    recall: str | None = None
-    recall_answer: list[str] | None = None
-    recall_hint: dict[Language, str] | None = None
+    recall: Recall | None = None
 
     def __post_init__(self) -> None:
         if self.answer in self.distractors:
@@ -26,18 +39,6 @@ class Exercise:
         if set(self.explanation.keys()) != LANGUAGES:
             raise ValueError(
                 f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
-            )
-        if (self.recall is None) != (self.recall_answer is None):
-            raise ValueError(
-                "recall and recall_answer must both be set or both be None"
-            )
-        if self.recall_answer is not None and len(self.recall_answer) == 0:
-            raise ValueError("recall_answer must not be empty")
-        if self.recall_hint is not None and not set(self.recall_hint.keys()).issubset(
-            LANGUAGES
-        ):
-            raise ValueError(
-                f"recall_hint keys must be a subset of {LANGUAGES}, got {set(self.recall_hint.keys())}"
             )
 
 
@@ -53,10 +54,16 @@ class Mark:
     recall: RecallMode
 
 
+def _exercise_from_dict(d: dict) -> Exercise:
+    if d.get("recall") is not None:
+        d = {**d, "recall": Recall(**d["recall"])}
+    return Exercise(**d)
+
+
 def load_exercises(path: Path) -> list[Exercise]:
     with open(path) as f:
         items = yaml.safe_load(f)
-    return [Exercise(**item) for item in items]
+    return [_exercise_from_dict(item) for item in items]
 
 
 class Teacher:
@@ -88,22 +95,22 @@ class Teacher:
             topic_weights[exercise.topic] = current * self.WEIGHT_ON_WRONG
         self._journal["topic_weights"] = topic_weights
         if exercise.recall is None:
-            recall = RecallMode.none
+            recall_mode = RecallMode.none
         elif correct:
-            recall = RecallMode.optional
+            recall_mode = RecallMode.optional
         else:
-            recall = RecallMode.required
-        return Mark(correct=correct, recall=recall)
+            recall_mode = RecallMode.required
+        return Mark(correct=correct, recall=recall_mode)
 
     def check_recall(self, exercise: Exercise, text: str) -> bool:
-        if exercise.recall_answer is None:
+        if exercise.recall is None:
             return False
 
         def normalize(s: str) -> str:
             return " ".join(s.lower().strip(".,!?").split())
 
         normalized = normalize(text)
-        return any(normalize(a) == normalized for a in exercise.recall_answer)
+        return any(normalize(a) == normalized for a in exercise.recall.answer)
 
 
 class School:

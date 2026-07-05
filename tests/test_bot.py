@@ -5,7 +5,7 @@ from aiogram.types import InlineKeyboardMarkup
 
 from wiederholen.bot import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.exercises import Exercise, School
+from wiederholen.exercises import Exercise, Recall, School
 
 from .conftest import FeedCallbackQuery, FeedRawUpdate, make_exercise
 
@@ -94,7 +94,7 @@ class TestHandleRecall:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall="Ich ___ (der Bus).",
+            recall_question="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.recalling)
@@ -114,7 +114,7 @@ class TestHandleRecall:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall="Ich ___ (der Bus).",
+            recall_question="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.recalling)
@@ -134,7 +134,7 @@ class TestHandleRecall:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall="Ich ___ (der Bus).",
+            recall_question="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.recalling)
@@ -159,8 +159,10 @@ class TestHandleRecall:
             distractors=["für", "an", "um"],
             answer="auf",
             explanation={"ru": "warten auf + Akk", "en": "warten auf + Acc"},
-            recall="Ich warte ___ (der Bus).",
-            recall_answer=["Ich warte auf den Bus.", "Ich warte auf die Straßenbahn."],
+            recall=Recall(
+                question="Ich warte ___ (der Bus).",
+                answer=["Ich warte auf den Bus.", "Ich warte auf die Straßenbahn."],
+            ),
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
@@ -180,7 +182,7 @@ class TestHandleRecall:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall="Ich ___ (die Rede).",
+            recall_question="Ich ___ (die Rede).",
             recall_answer=["Ich halte die Rede."],
             recall_hint={"ru": "die Rede — речь", "en": "die Rede — speech"},
         )
@@ -192,7 +194,8 @@ class TestHandleRecall:
         )
         recall_message = requests[2]
 
-        assert exercise.recall in recall_message.text
+        assert exercise.recall is not None
+        assert exercise.recall.question in recall_message.text
         assert "<i>die Rede — речь</i>" in recall_message.text
 
     async def test_recall_accepted_after_answering(
@@ -202,16 +205,16 @@ class TestHandleRecall:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall="Ich ___ (der Bus).",
+            recall_question="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        assert exercise.recall_answer is not None
+        assert exercise.recall is not None
         await feed_callback_query(exercise.distractors[0], school=School([exercise]))
         send_message = await feed_raw_update(
-            exercise.recall_answer[0], school=School([exercise])
+            exercise.recall.answer[0], school=School([exercise])
         )
 
         assert RU.recall_correct in send_message.text
@@ -266,7 +269,7 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise(
-            recall="Ich ___ (der Bus).",
+            recall_question="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.answering)
@@ -284,7 +287,7 @@ class TestNextExerciseButton:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(
-            recall="Ich ___ (der Bus).",
+            recall_question="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.recalling)
@@ -310,7 +313,7 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise(
-            recall="Ich ___ (der Bus).",
+            recall_question="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.answering)
@@ -333,7 +336,7 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise(
-            recall="Ich ___ (der Bus).",
+            recall_question="Ich ___ (der Bus).",
             recall_answer=["Ich warte auf den Bus."],
         )
         await state.set_state(UserState.answering)
@@ -343,7 +346,8 @@ class TestNextExerciseButton:
         requests = await feed_callback_query(RECALL, school=School([exercise]))
         recall_message = requests[1]
 
-        assert exercise.recall in recall_message.text
+        assert exercise.recall is not None
+        assert exercise.recall.question in recall_message.text
         assert await state.get_state() == UserState.recalling
 
     async def test_clicking_shows_new_exercise(

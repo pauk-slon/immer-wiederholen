@@ -10,16 +10,17 @@ Telegram bot for practicing German with multiple choice questions (aiogram, Pyth
 
 ## Exercises (`data/exercises.yaml`)
 
-Each exercise has the following fields. Use `___` for blanks in `question` and `recall`.
+Each exercise has the following fields. Use `___` for blanks in `question` and `recall.question`.
 
 - `question` — sentence with a blank
 - `topic` — verb in infinitive
 - `answer` — correct answer (preposition or preposition + article)
 - `distractors` — list of 3 wrong options
 - `explanation` — dict with `ru` and `en` keys
-- `recall` — short phrase for the recall step (optional)
-- `recall_answer` — list of accepted full sentences for the recall step (optional, required if `recall` is set)
-- `recall_hint` — dict with `ru` and `en` keys: translation of the noun shown in italics below the recall prompt (optional)
+- `recall` — optional nested object with recall step data:
+  - `question` — short phrase for the recall step
+  - `answer` — list of accepted full sentences (required; always a list, even if one item)
+  - `hint` — dict with `ru` and `en` keys: translation of the noun shown in italics below the recall prompt (optional)
 
 `topic` — verb in infinitive that the exercise is about (e.g. `"sprechen"`, `"sich freuen"`). Reflexive verbs include `sich`. Exercises for the same verb but different prepositions (`sprechen mit`, `sprechen über`) share the same `topic: "sprechen"` — intentionally, so that all forms of the verb are shown together when the user makes a mistake.
 
@@ -45,23 +46,40 @@ Special cases:
 - `sich freuen`: use `"auf das"` ↔ `"über das"` as a distractor — common confusion between the two constructions
 - `sich streiten über`: use `"um das"` — `sich streiten um` is a real expression, making it a plausible mistake
 
-## Recall (`recall` / `recall_answer`)
+## Recall (`recall.question` / `recall.answer`)
 
 After the multiple-choice step, the bot asks the user to reconstruct a short phrase from memory.
 
-`recall` — a minimal phrase built from the question's vocabulary: strip adverbs, time expressions, and extra clauses, keep only subject + verb + preposition + noun (+ separable prefix / reflexive pronoun if needed). Show the noun hint in nominative in parentheses — omit the hint when no article is needed (mass nouns, proper nouns). Always one `___` blank regardless of whether the answer is one or two words.
+`recall.question` — a minimal phrase built from the question's vocabulary: strip adverbs, time expressions, and extra clauses, keep only subject + verb + preposition + noun (+ separable prefix / reflexive pronoun if needed). Show the noun hint in nominative in parentheses — omit the hint when no article is needed (mass nouns, proper nouns). Always one `___` blank regardless of whether the answer is one or two words.
 
 Example:
 - Question: `"Ich warte schon eine Stunde ___ den Bus."`
-- Recall:   `"Ich warte ___ (der Bus)."`
+- recall.question: `"Ich warte ___ (der Bus)."`
 
-`recall_answer` — list of accepted full sentences (always a list, even if one item; multiple entries for cases where several phrasings are equally valid).
+`recall.answer` — list of accepted full sentences (always a list, even if one item; multiple entries for cases where several phrasings are equally valid).
 
-`recall_hint` — translation of the noun shown in italics below the recall prompt, to help the user focus on the grammar rather than vocabulary. Use when the noun in `recall` may be unfamiliar. Format: `"die Rede — речь"` / `"die Rede — speech"`. Both `ru` and `en` keys are optional — omit a language if the word sounds similar to its translation (e.g. `die Katastrophe` needs no `en` hint).
+`recall.hint` — translation of the noun shown in italics below the recall prompt, to help the user focus on the grammar rather than vocabulary. Use when the noun in `recall.question` may be unfamiliar. Format: `"die Rede — речь"` / `"die Rede — speech"`. Both `ru` and `en` keys are optional — omit a language if the word sounds similar to its translation (e.g. `die Katastrophe` needs no `en` hint).
 
 Vary the subject across exercises of the same topic to avoid identical recall prompts.
 
-Sanity check: the recall_answer must be a natural, everyday German sentence. Do not force an article where none is natural — e.g. `"Sie verzichtet auf Fleisch."` not `"Sie verzichtet auf das Fleisch."`
+Sanity check: the recall.answer must be a natural, everyday German sentence. Do not force an article where none is natural — e.g. `"Sie verzichtet auf Fleisch."` not `"Sie verzichtet auf das Fleisch."`
+
+YAML example with recall:
+```yaml
+- question: "Ich warte schon eine Stunde ___ den Bus."
+  topic: warten
+  answer: auf
+  distractors: [für, an, um]
+  explanation:
+    ru: warten auf + Akk
+    en: warten auf + Acc
+  recall:
+    question: "Ich warte ___ (der Bus)."
+    answer:
+      - "Ich warte auf den Bus."
+    hint:
+      ru: "der Bus — автобус"
+```
 
 ## Commands
 
