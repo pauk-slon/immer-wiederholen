@@ -9,6 +9,9 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -16,5 +19,23 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ty check .
       - run: uv run pytest .
-      - run: uv run coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
+      - name: Coverage summary
         if: always()
+        run: uv run coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
+      - name: Coverage PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          marker="<!-- coverage-report -->"
+          body="${marker}
+          ## Coverage
+          $(uv run coverage report --format=markdown)"
+          comment_id=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq ".[] | select(.body | startswith(\"${marker}\")) | .id" 2>/dev/null | head -1)
+          if [[ "$comment_id" =~ ^[0-9]+$ ]]; then
+            gh api "repos/${{ github.repository }}/issues/comments/${comment_id}" \
+              -X PATCH --field body="${body}"
+          else
+            gh pr comment "${{ github.event.pull_request.number }}" --body "${body}"
+          fi
