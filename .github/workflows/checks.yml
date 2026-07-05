@@ -9,6 +9,8 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -28,8 +30,8 @@ jobs:
           body="${marker}
           $(uv run coverage report --format=markdown)"
           comment_id=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-            --jq ".[] | select(.body | startswith(\"${marker}\")) | .id" | head -1)
-          if [ -n "$comment_id" ]; then
+            --jq ".[] | select(.body | startswith(\"${marker}\")) | .id" 2>/dev/null | head -1)
+          if [[ "$comment_id" =~ ^[0-9]+$ ]]; then
             gh api "repos/${{ github.repository }}/issues/comments/${comment_id}" \
               -X PATCH --field body="${body}"
           else
