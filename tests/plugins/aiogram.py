@@ -19,8 +19,13 @@ type FeedRawUpdate = Callable[..., Awaitable[SendMessage]]
 
 
 @pytest.fixture
-def bot() -> Bot:
-    return Bot(token="1234567890:AAHHte3GRDo4KzHsY6U6xZTMSfI7xv3c_xY")
+def bot_token() -> str:
+    return "1234567890:AAHHte3GRDo4KzHsY6U6xZTMSfI7xv3c_xY"
+
+
+@pytest.fixture
+def bot(bot_token: str) -> Bot:
+    return Bot(token=bot_token)
 
 
 @pytest.fixture

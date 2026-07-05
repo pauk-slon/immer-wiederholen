@@ -1,7 +1,6 @@
 import asyncio
 import os
 from pathlib import Path
-from typing import Final
 
 from aiogram import Bot
 from aiogram.types import BotCommand
@@ -10,13 +9,12 @@ from . import dp
 from .l10n import LOCALES
 from wiederholen.exercises import load_exercises, School
 
-TOKEN: Final = os.environ["BOT_TOKEN"]
-EXERCISES_PATH: Final = Path(os.environ.get("EXERCISES_PATH", "data/exercises.yaml"))
-
 
 async def main() -> None:
-    school = School(load_exercises(EXERCISES_PATH))
-    bot = Bot(token=TOKEN)
+    token = os.environ["BOT_TOKEN"]
+    exercises_path = Path(os.environ.get("EXERCISES_PATH", "data/exercises.yaml"))
+    school = School(load_exercises(exercises_path))
+    bot = Bot(token=token)
     for language_code, locale in LOCALES.items():
         await bot.set_my_commands(
             [
@@ -29,4 +27,5 @@ async def main() -> None:
     await dp.start_polling(bot, school=school)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
