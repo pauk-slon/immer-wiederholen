@@ -1,6 +1,6 @@
 from wiederholen.exercises import Mark, RecallMode, School
 
-from .conftest import make_exercise
+from .plugins.exercises import make_exercise
 
 
 def test_ask_prefers_higher_weight_topic() -> None:
