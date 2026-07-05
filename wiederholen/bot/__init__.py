@@ -117,7 +117,7 @@ async def command_wiederholen(
     data = await state.get_data()
     journal = data.get("journal", {})
     teacher = school(journal)
-    exercise = teacher.ask()
+    exercise = teacher.next_exercise()
     await state.set_state(UserState.answering)
     await state.update_data(
         shown_exercise=dataclasses.asdict(exercise),
@@ -205,7 +205,7 @@ async def handle_next_exercise(
     state_data = await state.get_data()
     journal = state_data.get("journal", {})
     teacher = school(journal)
-    exercise = teacher.ask()
+    exercise = teacher.next_exercise()
     await state.set_state(UserState.answering)
     await state.update_data(
         shown_exercise=dataclasses.asdict(exercise),

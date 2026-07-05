@@ -75,7 +75,7 @@ class Teacher:
         self._exercises = exercises
         self._journal = journal
 
-    def ask(self) -> Exercise:
+    def next_exercise(self) -> Exercise:
         topic_weights: dict[str, float] = self._journal.get("topic_weights", {})
         weights = [
             topic_weights.get(exercise.topic, self.WEIGHT_MIN)
