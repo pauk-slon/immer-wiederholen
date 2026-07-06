@@ -1,9 +1,8 @@
 import dataclasses
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import ForceReply, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardRemove
 
-from aiogram.methods import EditMessageText
 from wiederholen.bot import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.exercises import School
@@ -12,27 +11,13 @@ from tests.plugins.aiogram import FeedCallbackQuery, FeedRawUpdate, FeedRawUpdat
 from tests.plugins.exercises import make_exercise
 
 
-async def test_correct_answer_edits_question_in_place(
-    state: FSMContext,
-    feed_raw_update_all: FeedRawUpdateAll,
-) -> None:
-    exercise = make_exercise(distractors=[])
-    await state.set_state(UserState.answering_input)
-    await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
-
-    requests = await feed_raw_update_all(
-        exercise.answer, reply_to_message_id=1, school=School([exercise])
-    )
-
-    assert any(isinstance(r, EditMessageText) for r in requests)
-
 
 async def test_correct_answer_shows_success_text(
     state: FSMContext,
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise(distractors=[])
-    await state.set_state(UserState.answering_input)
+    await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     send_message = await feed_raw_update(exercise.answer, school=School([exercise]))
@@ -46,7 +31,7 @@ async def test_wrong_answer_shows_correct_answer(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise(distractors=[])
-    await state.set_state(UserState.answering_input)
+    await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     send_message = await feed_raw_update("falsch", school=School([exercise]))
@@ -60,7 +45,7 @@ async def test_next_button_after_correct_answer(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise(distractors=[])
-    await state.set_state(UserState.answering_input)
+    await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     send_message = await feed_raw_update(exercise.answer, school=School([exercise]))
@@ -79,7 +64,7 @@ async def test_next_button_after_wrong_answer_without_recall(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise(distractors=[], recall=False)
-    await state.set_state(UserState.answering_input)
+    await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     send_message = await feed_raw_update("falsch", school=School([exercise]))
@@ -98,7 +83,7 @@ async def test_no_button_after_wrong_answer_with_recall(
     feed_raw_update_all: FeedRawUpdateAll,
 ) -> None:
     exercise = make_exercise(distractors=[], recall=True)
-    await state.set_state(UserState.answering_input)
+    await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     requests = await feed_raw_update_all("falsch", school=School([exercise]))
@@ -111,7 +96,7 @@ async def test_recall_prompt_sent_after_wrong_answer(
     feed_raw_update_all: FeedRawUpdateAll,
 ) -> None:
     exercise = make_exercise(distractors=[], recall=True)
-    await state.set_state(UserState.answering_input)
+    await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     requests = await feed_raw_update_all("falsch", school=School([exercise]))
@@ -131,11 +116,9 @@ async def test_next_button_leads_to_input_exercise(
 
     requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
 
-    send_message = next(
-        r for r in requests if hasattr(r, "text") and r.text == exercise.question
-    )
-    assert isinstance(send_message.reply_markup, ForceReply)
-    assert await state.get_state() == UserState.answering_input
+    send_message = next(r for r in requests if hasattr(r, "text") and r.text == exercise.question)
+    assert isinstance(send_message.reply_markup, ReplyKeyboardRemove)
+    assert await state.get_state() == UserState.answering
 
 
 async def test_recall_button_after_correct_answer_with_recall(
@@ -143,7 +126,7 @@ async def test_recall_button_after_correct_answer_with_recall(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise(distractors=[], recall=True)
-    await state.set_state(UserState.answering_input)
+    await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     send_message = await feed_raw_update(exercise.answer, school=School([exercise]))

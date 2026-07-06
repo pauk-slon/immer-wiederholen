@@ -3,7 +3,7 @@ import dataclasses
 import pytest
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import ForceReply, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from wiederholen.bot import UserState
 from wiederholen.bot.l10n import EN, RU
@@ -54,7 +54,7 @@ class TestWiederholenCommand:
         exercise = make_exercise()
         await feed_raw_update("/wiederholen", school=School([exercise]))
 
-        assert await state.get_state() == UserState.answering_choice
+        assert await state.get_state() == UserState.answering
 
     async def test_saves_shown_exercise(
         self,
@@ -67,37 +67,25 @@ class TestWiederholenCommand:
         data = await state.get_data()
         assert data["shown_exercise"] == dataclasses.asdict(exercise)
 
-    async def test_keyboard_contains_all_options(
+    async def test_reply_keyboard_contains_all_options(
         self,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise()
         send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
 
-        assert isinstance(send_message.reply_markup, InlineKeyboardMarkup)
-        buttons = [
-            btn.text for row in send_message.reply_markup.inline_keyboard for btn in row
-        ]
+        assert isinstance(send_message.reply_markup, ReplyKeyboardMarkup)
+        buttons = [btn.text for row in send_message.reply_markup.keyboard for btn in row]
         assert sorted(buttons) == sorted(exercise.distractors + [exercise.answer])
 
-    async def test_sets_typing_state_for_input_exercise(
-        self,
-        state: FSMContext,
-        feed_raw_update: FeedRawUpdate,
-    ) -> None:
-        exercise = make_exercise(distractors=[])
-        await feed_raw_update("/wiederholen", school=School([exercise]))
-
-        assert await state.get_state() == UserState.answering_input
-
-    async def test_force_reply_for_input_exercise(
+    async def test_reply_keyboard_remove_for_input_exercise(
         self,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(distractors=[])
         send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
 
-        assert isinstance(send_message.reply_markup, ForceReply)
+        assert isinstance(send_message.reply_markup, ReplyKeyboardRemove)
 
 
 class TestLanguageCommand:

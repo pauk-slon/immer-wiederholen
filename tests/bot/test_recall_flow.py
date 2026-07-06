@@ -6,7 +6,7 @@ from wiederholen.bot import UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.exercises import Exercise, Recall, School
 
-from tests.plugins.aiogram import FeedCallbackQuery, FeedRawUpdate
+from tests.plugins.aiogram import FeedRawUpdate, FeedRawUpdateAll
 from tests.plugins.exercises import make_exercise
 
 
@@ -96,19 +96,18 @@ async def test_accepts_any_of_multiple_answers(
 
 async def test_recall_prompt_sent_after_answering(
     state: FSMContext,
-    feed_callback_query: FeedCallbackQuery,
-    feed_raw_update: FeedRawUpdate,
+    feed_raw_update_all: FeedRawUpdateAll,
 ) -> None:
     exercise = make_exercise(
         recall={"hint": {"ru": "die Rede — речь", "en": "die Rede — speech"}},
     )
-    await state.set_state(UserState.answering_choice)
+    await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-    requests = await feed_callback_query(
+    requests = await feed_raw_update_all(
         exercise.distractors[0], school=School([exercise])
     )
-    recall_message = requests[2]
+    recall_message = requests[1]
 
     assert exercise.recall is not None
     assert exercise.recall.question in recall_message.text
@@ -117,15 +116,15 @@ async def test_recall_prompt_sent_after_answering(
 
 async def test_recall_accepted_after_answering(
     state: FSMContext,
-    feed_callback_query: FeedCallbackQuery,
+    feed_raw_update_all: FeedRawUpdateAll,
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise(recall=True)
-    await state.set_state(UserState.answering_choice)
+    await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     assert exercise.recall is not None
-    await feed_callback_query(exercise.distractors[0], school=School([exercise]))
+    await feed_raw_update_all(exercise.distractors[0], school=School([exercise]))
     send_message = await feed_raw_update(
         exercise.recall.answer[0], school=School([exercise])
     )

@@ -8,10 +8,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     CallbackQuery,
-    ForceReply,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    KeyboardButton,
     Message,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
 )
 
 from wiederholen.exercises import Exercise, RecallMode, School, _exercise_from_dict
@@ -25,8 +27,7 @@ RECALL: Final = "__recall__"
 
 
 class UserState(StatesGroup):
-    answering_choice = State()
-    answering_input = State()
+    answering = State()
     recalling = State()
 
 
@@ -35,13 +36,13 @@ def _get_language(state: dict[str, Any]) -> Language:
     return raw_language if raw_language in LANGUAGES else DEFAULT_LANGUAGE
 
 
-def _make_keyboard(exercise: Exercise) -> InlineKeyboardMarkup:
+def _make_reply_keyboard(exercise: Exercise) -> ReplyKeyboardMarkup:
     options = list(exercise.distractors) + [exercise.answer]
     random.shuffle(options)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=opt, callback_data=opt)] for opt in options
-        ]
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=opt)] for opt in options],
+        resize_keyboard=True,
+        one_time_keyboard=True,
     )
 
 
@@ -96,6 +97,12 @@ async def _start_recall(
         await message.answer(recall_text)
 
 
+def _show_exercise_kwargs(exercise: Exercise) -> dict:
+    if exercise.distractors:
+        return {"reply_markup": _make_reply_keyboard(exercise)}
+    return {"reply_markup": ReplyKeyboardRemove()}
+
+
 @dp.message(Command("start"))
 async def command_start(message: Message, state: FSMContext) -> None:
     language = _get_language(await state.get_data())
@@ -120,68 +127,13 @@ async def command_wiederholen(
     journal = data.get("journal", {})
     teacher = school(journal)
     exercise = teacher.next_exercise()
-    exercise_dict = dataclasses.asdict(exercise)
-    if exercise.distractors:
-        await state.set_state(UserState.answering_choice)
-        await state.update_data(shown_exercise=exercise_dict, journal=journal)
-        await message.answer(exercise.question, reply_markup=_make_keyboard(exercise))
-    else:
-        await state.set_state(UserState.answering_input)
-        await state.update_data(shown_exercise=exercise_dict, journal=journal)
-        await message.answer(exercise.question, reply_markup=ForceReply())
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal=journal)
+    await message.answer(exercise.question, **_show_exercise_kwargs(exercise))
 
 
-@dp.callback_query(UserState.answering_choice)
+@dp.message(UserState.answering)
 async def handle_answer(
-    callback: CallbackQuery,
-    state: FSMContext,
-    school: School,
-) -> None:
-    if callback.data is None:
-        await callback.answer()
-        return
-    state_data = await state.get_data()
-    await state.clear()
-    language = _get_language(state_data)
-    shown_exercise = _exercise_from_dict(state_data["shown_exercise"])
-    journal = state_data.get("journal", {})
-    locale = LOCALES[language]
-    explanation = shown_exercise.explanation[language]
-    teacher = school(journal)
-    mark = teacher.check_answer(shown_exercise, callback.data)
-    if mark.correct:
-        text = f"{locale.correct}\n\n{explanation}"
-    else:
-        text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
-    if isinstance(callback.message, Message):
-        if mark.recall == RecallMode.optional:
-            reply_markup = _make_recall_buttons(locale)
-        elif mark.recall == RecallMode.none:
-            reply_markup = _make_next_button(locale)
-        else:
-            reply_markup = None
-        await callback.message.edit_text(text, reply_markup=reply_markup)
-    await callback.answer()
-    if mark.recall == RecallMode.required and isinstance(callback.message, Message):
-        await _start_recall(
-            state,
-            language,
-            journal,
-            state_data["shown_exercise"],
-            shown_exercise,
-            callback.message,
-            locale,
-        )
-    else:
-        await state.update_data(
-            language=language,
-            journal=journal,
-            shown_exercise=state_data["shown_exercise"],
-        )
-
-
-@dp.message(UserState.answering_input)
-async def handle_typed_answer(
     message: Message,
     state: FSMContext,
     school: School,
@@ -205,10 +157,7 @@ async def handle_typed_answer(
         reply_markup = _make_next_button(locale)
     else:
         reply_markup = None
-    if isinstance(message.reply_to_message, Message):
-        await message.reply_to_message.edit_text(text, reply_markup=reply_markup)
-    else:
-        await message.answer(text, reply_markup=reply_markup)
+    await message.answer(text, reply_markup=reply_markup)
     if mark.recall == RecallMode.required:
         await _start_recall(
             state,
@@ -258,20 +207,11 @@ async def handle_next_exercise(
     journal = state_data.get("journal", {})
     teacher = school(journal)
     exercise = teacher.next_exercise()
-    exercise_dict = dataclasses.asdict(exercise)
-    if exercise.distractors:
-        await state.set_state(UserState.answering_choice)
-        await state.update_data(shown_exercise=exercise_dict, journal=journal)
-        if isinstance(callback.message, Message):
-            await callback.message.edit_text(
-                exercise.question, reply_markup=_make_keyboard(exercise)
-            )
-    else:
-        await state.set_state(UserState.answering_input)
-        await state.update_data(shown_exercise=exercise_dict, journal=journal)
-        if isinstance(callback.message, Message):
-            await callback.message.edit_reply_markup(reply_markup=None)
-            await callback.message.answer(exercise.question, reply_markup=ForceReply())
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal=journal)
+    if isinstance(callback.message, Message):
+        await callback.message.edit_reply_markup(reply_markup=None)
+        await callback.message.answer(exercise.question, **_show_exercise_kwargs(exercise))
     await callback.answer()
 
 

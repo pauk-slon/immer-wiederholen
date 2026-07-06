@@ -1,78 +1,64 @@
 import dataclasses
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from wiederholen.bot import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.exercises import School
 
-from tests.plugins.aiogram import FeedCallbackQuery, FeedRawUpdate
+from tests.plugins.aiogram import FeedCallbackQuery, FeedRawUpdate, FeedRawUpdateAll
 from tests.plugins.exercises import make_exercise
 
 
 class TestHandleAnswer:
-    async def test_none_callback_data_is_ignored(
-        self,
-        state: FSMContext,
-        feed_callback_query: FeedCallbackQuery,
-    ) -> None:
-        exercise = make_exercise()
-        await state.set_state(UserState.answering_choice)
-        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
-
-        requests = await feed_callback_query(None, school=School([exercise]))
-
-        assert len(requests) == 1  # only callback.answer(), no message sent
-
     async def test_correct_answer_shows_success_text(
         self,
         state: FSMContext,
-        feed_callback_query: FeedCallbackQuery,
+        feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise()
-        await state.set_state(UserState.answering_choice)
+        await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_callback_query(exercise.answer, school=School([exercise]))
+        send_message = await feed_raw_update(exercise.answer, school=School([exercise]))
 
-        assert RU.correct in requests[0].text
-        assert exercise.explanation["ru"] in requests[0].text
+        assert RU.correct in send_message.text
+        assert exercise.explanation["ru"] in send_message.text
 
     async def test_wrong_answer_shows_correct_answer(
         self,
         state: FSMContext,
-        feed_callback_query: FeedCallbackQuery,
+        feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise()
-        await state.set_state(UserState.answering_choice)
+        await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_callback_query(
+        send_message = await feed_raw_update(
             exercise.distractors[0], school=School([exercise])
         )
 
-        assert exercise.answer in requests[0].text
-        assert exercise.explanation["ru"] in requests[0].text
+        assert exercise.answer in send_message.text
+        assert exercise.explanation["ru"] in send_message.text
 
 
 class TestNextExerciseButton:
     async def test_appears_after_correct_answer(
         self,
         state: FSMContext,
-        feed_callback_query: FeedCallbackQuery,
+        feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise()
-        await state.set_state(UserState.answering_choice)
+        await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_callback_query(exercise.answer, school=School([exercise]))
+        send_message = await feed_raw_update(exercise.answer, school=School([exercise]))
 
-        edit_message = requests[0]
-        assert isinstance(edit_message.reply_markup, InlineKeyboardMarkup)
+        assert isinstance(send_message.reply_markup, InlineKeyboardMarkup)
         buttons = [
             btn.callback_data
-            for row in edit_message.reply_markup.inline_keyboard
+            for row in send_message.reply_markup.inline_keyboard
             for btn in row
         ]
         assert NEXT_EXERCISE in buttons
@@ -80,21 +66,20 @@ class TestNextExerciseButton:
     async def test_appears_after_wrong_answer_without_recall(
         self,
         state: FSMContext,
-        feed_callback_query: FeedCallbackQuery,
+        feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(recall=False)
-        await state.set_state(UserState.answering_choice)
+        await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_callback_query(
+        send_message = await feed_raw_update(
             exercise.distractors[0], school=School([exercise])
         )
 
-        edit_message = requests[0]
-        assert isinstance(edit_message.reply_markup, InlineKeyboardMarkup)
+        assert isinstance(send_message.reply_markup, InlineKeyboardMarkup)
         buttons = [
             btn.callback_data
-            for row in edit_message.reply_markup.inline_keyboard
+            for row in send_message.reply_markup.inline_keyboard
             for btn in row
         ]
         assert NEXT_EXERCISE in buttons
@@ -102,13 +87,13 @@ class TestNextExerciseButton:
     async def test_not_shown_after_wrong_answer_with_recall(
         self,
         state: FSMContext,
-        feed_callback_query: FeedCallbackQuery,
+        feed_raw_update_all: FeedRawUpdateAll,
     ) -> None:
         exercise = make_exercise(recall=True)
-        await state.set_state(UserState.answering_choice)
+        await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_callback_query(
+        requests = await feed_raw_update_all(
             exercise.distractors[0], school=School([exercise])
         )
 
@@ -142,19 +127,18 @@ class TestNextExerciseButton:
     async def test_practice_button_appears_after_correct_answer_with_recall(
         self,
         state: FSMContext,
-        feed_callback_query: FeedCallbackQuery,
+        feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(recall=True)
-        await state.set_state(UserState.answering_choice)
+        await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_callback_query(exercise.answer, school=School([exercise]))
+        send_message = await feed_raw_update(exercise.answer, school=School([exercise]))
 
-        edit_message = requests[0]
-        assert isinstance(edit_message.reply_markup, InlineKeyboardMarkup)
+        assert isinstance(send_message.reply_markup, InlineKeyboardMarkup)
         buttons = [
             btn.callback_data
-            for row in edit_message.reply_markup.inline_keyboard
+            for row in send_message.reply_markup.inline_keyboard
             for btn in row
         ]
         assert buttons == [RECALL, NEXT_EXERCISE]
@@ -162,13 +146,14 @@ class TestNextExerciseButton:
     async def test_clicking_practice_starts_recall(
         self,
         state: FSMContext,
+        feed_raw_update: FeedRawUpdate,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise(recall=True)
-        await state.set_state(UserState.answering_choice)
+        await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        await feed_callback_query(exercise.answer, school=School([exercise]))
+        await feed_raw_update(exercise.answer, school=School([exercise]))
         requests = await feed_callback_query(RECALL, school=School([exercise]))
         recall_message = requests[1]
 
@@ -186,5 +171,8 @@ class TestNextExerciseButton:
 
         requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
 
-        assert requests[0].text == exercise.question
-        assert await state.get_state() == UserState.answering_choice
+        send_message = next(
+            r for r in requests if hasattr(r, "text") and r.text == exercise.question
+        )
+        assert isinstance(send_message.reply_markup, ReplyKeyboardMarkup)
+        assert await state.get_state() == UserState.answering
