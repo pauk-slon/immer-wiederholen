@@ -15,7 +15,7 @@ from wiederholen.bot import dp as _dp
 type RawUpdateFactory = Callable[[str], dict]
 type FeedCallbackQuery = Callable[..., Awaitable[list[Any]]]
 type FeedRawUpdate = Callable[..., Awaitable[SendMessage]]
-type FeedRawUpdateMulti = Callable[..., Awaitable[list[Any]]]
+type FeedRawUpdateAll = Callable[..., Awaitable[list[Any]]]
 
 
 @pytest.fixture
@@ -98,26 +98,26 @@ def feed_callback_query(
 
 
 @pytest.fixture
-def feed_raw_update(feed_raw_update_multi: FeedRawUpdateMulti) -> FeedRawUpdate:
-    async def factory(text: str, **kwargs):
-        requests = await feed_raw_update_multi(text, **kwargs)
-        assert len(requests) == 1
-        return requests[0]
-
-    return factory
-
-
-@pytest.fixture
-def feed_raw_update_multi(
+def feed_raw_update_all(
     bot: Bot,
     dispatcher: Dispatcher,
     raw_update_factory: RawUpdateFactory,
-) -> FeedRawUpdateMulti:
+) -> FeedRawUpdateAll:
     async def factory(text: str, **kwargs) -> list[Any]:
         mock_request = AsyncMock(return_value=True)
         with patch.object(bot.session, "make_request", mock_request):
             await dispatcher.feed_raw_update(bot, raw_update_factory(text), **kwargs)
         return [call.args[1] for call in mock_request.call_args_list]
+
+    return factory
+
+
+@pytest.fixture
+def feed_raw_update(feed_raw_update_all: FeedRawUpdateAll) -> FeedRawUpdate:
+    async def factory(text: str, **kwargs):
+        requests = await feed_raw_update_all(text, **kwargs)
+        assert len(requests) == 1
+        return requests[0]
 
     return factory
 

@@ -7,7 +7,7 @@ from wiederholen.bot import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.exercises import School
 
-from tests.plugins.aiogram import FeedCallbackQuery, FeedRawUpdate, FeedRawUpdateMulti
+from tests.plugins.aiogram import FeedCallbackQuery, FeedRawUpdate, FeedRawUpdateAll
 from tests.plugins.exercises import make_exercise
 
 
@@ -81,26 +81,26 @@ class TestHandleTypedAnswer:
     async def test_no_button_after_wrong_answer_with_recall(
         self,
         state: FSMContext,
-        feed_raw_update_multi: FeedRawUpdateMulti,
+        feed_raw_update_all: FeedRawUpdateAll,
     ) -> None:
         exercise = make_exercise(distractors=[], recall=True)
         await state.set_state(UserState.typing)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_raw_update_multi("falsch", school=School([exercise]))
+        requests = await feed_raw_update_all("falsch", school=School([exercise]))
 
         assert requests[0].reply_markup is None
 
     async def test_recall_prompt_sent_after_wrong_answer(
         self,
         state: FSMContext,
-        feed_raw_update_multi: FeedRawUpdateMulti,
+        feed_raw_update_all: FeedRawUpdateAll,
     ) -> None:
         exercise = make_exercise(distractors=[], recall=True)
         await state.set_state(UserState.typing)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_raw_update_multi("falsch", school=School([exercise]))
+        requests = await feed_raw_update_all("falsch", school=School([exercise]))
 
         assert len(requests) == 2
         assert exercise.recall is not None
