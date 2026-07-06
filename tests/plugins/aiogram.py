@@ -109,7 +109,9 @@ def feed_raw_update_all(
     dispatcher: Dispatcher,
     raw_update_factory: RawUpdateFactory,
 ) -> FeedRawUpdateAll:
-    async def factory(text: str, *, reply_to_message_id: int | None = None, **kwargs) -> list[Any]:
+    async def factory(
+        text: str, *, reply_to_message_id: int | None = None, **kwargs
+    ) -> list[Any]:
         raw_update = raw_update_factory(text, reply_to_message_id=reply_to_message_id)
         mock_request = AsyncMock(return_value=True)
         with patch.object(bot.session, "make_request", mock_request):
