@@ -86,7 +86,7 @@ class Teacher:
         return random.choices(self._exercises, weights=weights, k=1)[0]
 
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
-        correct = answer == exercise.answer
+        correct = answer.strip().lower() == exercise.answer.strip().lower()
         topic_weights: dict[str, float] = self._journal.get("topic_weights", {})
         current = topic_weights.get(exercise.topic, self.WEIGHT_MIN)
         if correct:

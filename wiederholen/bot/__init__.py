@@ -215,7 +215,7 @@ async def handle_next_exercise(
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(exercise.question, **_show_exercise_kwargs(exercise))
+        await callback.message.answer(_format_question(exercise), **_show_exercise_kwargs(exercise))
     await callback.answer()
 
 
