@@ -18,7 +18,7 @@ class TestHandleAnswer:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise()
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         requests = await feed_callback_query(None, school=School([exercise]))
@@ -31,7 +31,7 @@ class TestHandleAnswer:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise()
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         requests = await feed_callback_query(exercise.answer, school=School([exercise]))
@@ -45,7 +45,7 @@ class TestHandleAnswer:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise()
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         requests = await feed_callback_query(
@@ -63,7 +63,7 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise()
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         requests = await feed_callback_query(exercise.answer, school=School([exercise]))
@@ -83,7 +83,7 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise(recall=False)
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         requests = await feed_callback_query(
@@ -105,7 +105,7 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise(recall=True)
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         requests = await feed_callback_query(
@@ -145,7 +145,7 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise(recall=True)
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         requests = await feed_callback_query(exercise.answer, school=School([exercise]))
@@ -165,7 +165,7 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise(recall=True)
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         await feed_callback_query(exercise.answer, school=School([exercise]))
@@ -187,4 +187,4 @@ class TestNextExerciseButton:
         requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
 
         assert requests[0].text == exercise.question
-        assert await state.get_state() == UserState.answering
+        assert await state.get_state() == UserState.answering_choice

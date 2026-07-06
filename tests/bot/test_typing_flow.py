@@ -18,7 +18,7 @@ class TestHandleTypedAnswer:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(distractors=[])
-        await state.set_state(UserState.typing)
+        await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         send_message = await feed_raw_update(exercise.answer, school=School([exercise]))
@@ -32,7 +32,7 @@ class TestHandleTypedAnswer:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(distractors=[])
-        await state.set_state(UserState.typing)
+        await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         send_message = await feed_raw_update("falsch", school=School([exercise]))
@@ -46,7 +46,7 @@ class TestHandleTypedAnswer:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(distractors=[])
-        await state.set_state(UserState.typing)
+        await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         send_message = await feed_raw_update(exercise.answer, school=School([exercise]))
@@ -65,7 +65,7 @@ class TestHandleTypedAnswer:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(distractors=[], recall=False)
-        await state.set_state(UserState.typing)
+        await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         send_message = await feed_raw_update("falsch", school=School([exercise]))
@@ -84,7 +84,7 @@ class TestHandleTypedAnswer:
         feed_raw_update_all: FeedRawUpdateAll,
     ) -> None:
         exercise = make_exercise(distractors=[], recall=True)
-        await state.set_state(UserState.typing)
+        await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         requests = await feed_raw_update_all("falsch", school=School([exercise]))
@@ -97,7 +97,7 @@ class TestHandleTypedAnswer:
         feed_raw_update_all: FeedRawUpdateAll,
     ) -> None:
         exercise = make_exercise(distractors=[], recall=True)
-        await state.set_state(UserState.typing)
+        await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         requests = await feed_raw_update_all("falsch", school=School([exercise]))
@@ -118,7 +118,7 @@ class TestHandleTypedAnswer:
         requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
 
         assert requests[0].text == exercise.question
-        assert await state.get_state() == UserState.typing
+        assert await state.get_state() == UserState.answering_input
 
     async def test_recall_button_after_correct_answer_with_recall(
         self,
@@ -126,7 +126,7 @@ class TestHandleTypedAnswer:
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(distractors=[], recall=True)
-        await state.set_state(UserState.typing)
+        await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
         send_message = await feed_raw_update(exercise.answer, school=School([exercise]))

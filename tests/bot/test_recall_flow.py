@@ -102,7 +102,7 @@ async def test_recall_prompt_sent_after_answering(
     exercise = make_exercise(
         recall={"hint": {"ru": "die Rede — речь", "en": "die Rede — speech"}},
     )
-    await state.set_state(UserState.answering)
+    await state.set_state(UserState.answering_choice)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     requests = await feed_callback_query(
@@ -121,7 +121,7 @@ async def test_recall_accepted_after_answering(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise(recall=True)
-    await state.set_state(UserState.answering)
+    await state.set_state(UserState.answering_choice)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     assert exercise.recall is not None

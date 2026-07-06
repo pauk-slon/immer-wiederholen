@@ -54,7 +54,7 @@ class TestWiederholenCommand:
         exercise = make_exercise()
         await feed_raw_update("/wiederholen", school=School([exercise]))
 
-        assert await state.get_state() == UserState.answering
+        assert await state.get_state() == UserState.answering_choice
 
     async def test_saves_shown_exercise(
         self,
@@ -88,7 +88,7 @@ class TestWiederholenCommand:
         exercise = make_exercise(distractors=[])
         await feed_raw_update("/wiederholen", school=School([exercise]))
 
-        assert await state.get_state() == UserState.typing
+        assert await state.get_state() == UserState.answering_input
 
     async def test_no_keyboard_for_input_exercise(
         self,

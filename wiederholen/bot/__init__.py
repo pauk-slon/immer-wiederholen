@@ -24,8 +24,8 @@ RECALL: Final = "__recall__"
 
 
 class UserState(StatesGroup):
-    answering = State()
-    typing = State()
+    answering_choice = State()
+    answering_input = State()
     recalling = State()
 
 
@@ -121,16 +121,16 @@ async def command_wiederholen(
     exercise = teacher.next_exercise()
     exercise_dict = dataclasses.asdict(exercise)
     if exercise.distractors:
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=exercise_dict, journal=journal)
         await message.answer(exercise.question, reply_markup=_make_keyboard(exercise))
     else:
-        await state.set_state(UserState.typing)
+        await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=exercise_dict, journal=journal)
         await message.answer(exercise.question)
 
 
-@dp.callback_query(UserState.answering)
+@dp.callback_query(UserState.answering_choice)
 async def handle_answer(
     callback: CallbackQuery,
     state: FSMContext,
@@ -179,7 +179,7 @@ async def handle_answer(
         )
 
 
-@dp.message(UserState.typing)
+@dp.message(UserState.answering_input)
 async def handle_typed_answer(
     message: Message,
     state: FSMContext,
@@ -256,14 +256,14 @@ async def handle_next_exercise(
     exercise = teacher.next_exercise()
     exercise_dict = dataclasses.asdict(exercise)
     if exercise.distractors:
-        await state.set_state(UserState.answering)
+        await state.set_state(UserState.answering_choice)
         await state.update_data(shown_exercise=exercise_dict, journal=journal)
         if isinstance(callback.message, Message):
             await callback.message.edit_text(
                 exercise.question, reply_markup=_make_keyboard(exercise)
             )
     else:
-        await state.set_state(UserState.typing)
+        await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=exercise_dict, journal=journal)
         if isinstance(callback.message, Message):
             await callback.message.edit_text(exercise.question, reply_markup=None)
