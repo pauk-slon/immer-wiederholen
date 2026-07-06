@@ -151,17 +151,23 @@ async def handle_answer(
     explanation = shown_exercise.explanation[language]
     teacher = school(journal)
     mark = teacher.check_answer(shown_exercise, message.text or "")
-    if mark.correct:
-        text = f"{locale.correct}\n\n{explanation}"
-    else:
-        text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
+    result_line = locale.correct if mark.correct else locale.wrong.format(answer=shown_exercise.answer)
     if mark.recall == RecallMode.optional:
         reply_markup = _make_recall_buttons(locale)
     elif mark.recall == RecallMode.none:
         reply_markup = _make_next_button(locale)
     else:
         reply_markup = None
-    await message.answer(text, reply_markup=reply_markup)
+    if shown_exercise.distractors and reply_markup:
+        # Two messages: first removes reply keyboard, second carries inline buttons
+        await message.answer(result_line, reply_markup=ReplyKeyboardRemove())
+        await message.answer(explanation, reply_markup=reply_markup)
+    elif shown_exercise.distractors:
+        # Recall required: single message, still need to remove reply keyboard
+        await message.answer(f"{result_line}\n\n{explanation}", reply_markup=ReplyKeyboardRemove())
+    else:
+        # Input exercise: no reply keyboard to remove
+        await message.answer(f"{result_line}\n\n{explanation}", reply_markup=reply_markup)
     if mark.recall == RecallMode.required:
         await _start_recall(
             state,
