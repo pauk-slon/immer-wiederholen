@@ -3,7 +3,7 @@ import dataclasses
 import pytest
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import ForceReply, InlineKeyboardMarkup
 
 from wiederholen.bot import UserState
 from wiederholen.bot.l10n import EN, RU
@@ -90,14 +90,14 @@ class TestWiederholenCommand:
 
         assert await state.get_state() == UserState.answering_input
 
-    async def test_no_keyboard_for_input_exercise(
+    async def test_force_reply_for_input_exercise(
         self,
         feed_raw_update: FeedRawUpdate,
     ) -> None:
         exercise = make_exercise(distractors=[])
         send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
 
-        assert send_message.reply_markup is None
+        assert isinstance(send_message.reply_markup, ForceReply)
 
 
 class TestLanguageCommand:

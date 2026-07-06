@@ -8,6 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     CallbackQuery,
+    ForceReply,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
@@ -127,7 +128,7 @@ async def command_wiederholen(
     else:
         await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=exercise_dict, journal=journal)
-        await message.answer(exercise.question)
+        await message.answer(exercise.question, reply_markup=ForceReply())
 
 
 @dp.callback_query(UserState.answering_choice)
@@ -266,7 +267,8 @@ async def handle_next_exercise(
         await state.set_state(UserState.answering_input)
         await state.update_data(shown_exercise=exercise_dict, journal=journal)
         if isinstance(callback.message, Message):
-            await callback.message.edit_text(exercise.question, reply_markup=None)
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.answer(exercise.question, reply_markup=ForceReply())
     await callback.answer()
 
 

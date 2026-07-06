@@ -1,7 +1,7 @@
 import dataclasses
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import ForceReply, InlineKeyboardMarkup
 
 from wiederholen.bot import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
@@ -115,7 +115,8 @@ async def test_next_button_leads_to_input_exercise(
 
     requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
 
-    assert requests[0].text == exercise.question
+    send_message = next(r for r in requests if hasattr(r, "text") and r.text == exercise.question)
+    assert isinstance(send_message.reply_markup, ForceReply)
     assert await state.get_state() == UserState.answering_input
 
 
