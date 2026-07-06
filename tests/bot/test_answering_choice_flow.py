@@ -172,7 +172,7 @@ class TestNextExerciseButton:
         requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
 
         send_message = next(
-            r for r in requests if hasattr(r, "text") and r.text == exercise.question
+            r for r in requests if hasattr(r, "text") and exercise.question in r.text
         )
         assert isinstance(send_message.reply_markup, ReplyKeyboardMarkup)
         assert await state.get_state() == UserState.answering

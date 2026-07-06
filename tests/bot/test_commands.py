@@ -44,7 +44,7 @@ class TestWiederholenCommand:
         exercise = make_exercise()
         send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
 
-        assert send_message.text == exercise.question
+        assert exercise.question in send_message.text
 
     async def test_sets_answering_state(
         self,

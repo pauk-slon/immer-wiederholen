@@ -97,6 +97,10 @@ async def _start_recall(
         await message.answer(recall_text)
 
 
+def _format_question(exercise: Exercise) -> str:
+    return f"❓ {exercise.question}"
+
+
 def _show_exercise_kwargs(exercise: Exercise) -> dict:
     if exercise.distractors:
         return {"reply_markup": _make_reply_keyboard(exercise)}
@@ -129,7 +133,7 @@ async def command_wiederholen(
     exercise = teacher.next_exercise()
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal=journal)
-    await message.answer(exercise.question, **_show_exercise_kwargs(exercise))
+    await message.answer(_format_question(exercise), **_show_exercise_kwargs(exercise))
 
 
 @dp.message(UserState.answering)

@@ -116,7 +116,7 @@ async def test_next_button_leads_to_input_exercise(
 
     requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
 
-    send_message = next(r for r in requests if hasattr(r, "text") and r.text == exercise.question)
+    send_message = next(r for r in requests if hasattr(r, "text") and exercise.question in r.text)
     assert isinstance(send_message.reply_markup, ReplyKeyboardRemove)
     assert await state.get_state() == UserState.answering
 
