@@ -205,7 +205,10 @@ async def handle_typed_answer(
         reply_markup = _make_next_button(locale)
     else:
         reply_markup = None
-    await message.answer(text, reply_markup=reply_markup)
+    if isinstance(message.reply_to_message, Message):
+        await message.reply_to_message.edit_text(text, reply_markup=reply_markup)
+    else:
+        await message.answer(text, reply_markup=reply_markup)
     if mark.recall == RecallMode.required:
         await _start_recall(
             state,

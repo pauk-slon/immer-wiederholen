@@ -3,12 +3,28 @@ import dataclasses
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ForceReply, InlineKeyboardMarkup
 
+from aiogram.methods import EditMessageText
 from wiederholen.bot import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.exercises import School
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedRawUpdate, FeedRawUpdateAll
 from tests.plugins.exercises import make_exercise
+
+
+async def test_correct_answer_edits_question_in_place(
+    state: FSMContext,
+    feed_raw_update_all: FeedRawUpdateAll,
+) -> None:
+    exercise = make_exercise(distractors=[])
+    await state.set_state(UserState.answering_input)
+    await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+
+    requests = await feed_raw_update_all(
+        exercise.answer, reply_to_message_id=1, school=School([exercise])
+    )
+
+    assert any(isinstance(r, EditMessageText) for r in requests)
 
 
 async def test_correct_answer_shows_success_text(
@@ -115,7 +131,9 @@ async def test_next_button_leads_to_input_exercise(
 
     requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
 
-    send_message = next(r for r in requests if hasattr(r, "text") and r.text == exercise.question)
+    send_message = next(
+        r for r in requests if hasattr(r, "text") and r.text == exercise.question
+    )
     assert isinstance(send_message.reply_markup, ForceReply)
     assert await state.get_state() == UserState.answering_input
 
