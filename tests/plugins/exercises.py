@@ -1,6 +1,6 @@
 from typing import TypedDict, NotRequired, Literal, Unpack
 
-from wiederholen.exercises import Exercise, ExerciseType, Recall
+from wiederholen.exercises import Exercise, Recall
 
 
 type Language = Literal["ru", "en"]
@@ -18,7 +18,6 @@ class ExerciseData(TypedDict):
     answer: str
     distractors: list[str]
     explanation: dict[Language, str]
-    type: str
     recall: NotRequired[RecallData]
 
 
@@ -31,16 +30,17 @@ class RecallKwargs(TypedDict, total=False):
 class ExerciseDataKwargs(TypedDict, total=False):
     topic: str
     answer: str
+    distractors: list[str]
     recall: bool | RecallKwargs
 
 
 def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
     topic = kwargs.pop("topic", "warten")
+    distractors = kwargs.pop("distractors", ["für", "an", "um"])
     exercise_data = ExerciseData(
         question=f"Ich ___ {topic}.",
         topic=topic,
-        type="choice",
-        distractors=["für", "an", "um"],
+        distractors=distractors,
         answer=kwargs.pop("answer", "auf"),
         explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
     )
@@ -64,6 +64,5 @@ def make_exercise(**kwargs: Unpack[ExerciseDataKwargs]) -> Exercise:
         answer=data["answer"],
         distractors=data["distractors"],
         explanation=data["explanation"],
-        type=ExerciseType.choice,
         recall=Recall(**recall_data) if recall_data else None,
     )

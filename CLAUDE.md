@@ -12,11 +12,10 @@ Telegram bot for practicing German with multiple choice questions (aiogram, Pyth
 
 Each exercise has the following fields.
 
-- `question` — sentence with a blank (`___`) for government exercises, or with the infinitive in parentheses for partizip exercises (e.g. `"Er ist nach London (fliegen)."`)
+- `question` — sentence with a blank (`___`) for government exercises, or `"verb → Partizip II"` for partizip exercises
 - `topic` — verb in infinitive
-- `type` — exercise category: `choice` (default) or `input` (keyboard input, not yet implemented)
 - `answer` — correct answer
-- `distractors` — 3 wrong options for government exercises, 2 for partizip exercises
+- `distractors` — list of wrong options. 3 for government exercises; empty (`[]`) for partizip exercises (empty list triggers text input instead of multiple choice)
 - `explanation` — dict with `ru` and `en` keys
 - `recall` — optional nested object with recall step data:
   - `question` — short phrase for the recall step
@@ -34,7 +33,7 @@ Exercise categories (marked with `# category:` comment in YAML):
 - *Preposition only* — answer is a single word. Distractors are other plausible prepositions.
 - *Preposition + article* — answer is a string like `"auf den"`. Use only for Wechselpräpositionen (an, auf, über, in, etc.) where the case is not fixed. Skip for prepositions with fixed case (mit, bei, für, um, nach, zu, aus, von).
 
-**`partizip`** — Partizip II forms of strong/irregular verbs. Question shows the infinitive in parentheses instead of `___`. 2 distractors (not 3).
+**`partizip`** — Partizip II forms of strong/irregular verbs. Question format: `"verb → Partizip II"`. No distractors (`distractors: []`) — user types the answer.
 
 Distractor strategy for preposition + article exercises — use a 2×2 grid (2 prepositions × 2 cases):
 - `[prep1][case1]` — correct answer
@@ -49,21 +48,6 @@ Case compatibility rule: all distractors must be compatible with the case visibl
 Special cases:
 - `sich freuen`: use `"auf das"` ↔ `"über das"` as a distractor — common confusion between the two constructions
 - `sich streiten über`: use `"um das"` — `sich streiten um` is a real expression, making it a plausible mistake
-
-## Distractor strategy for partizip exercises
-
-2 distractors, both must look like plausible Partizip II forms of the same verb (same prefix, same `-en` ending). Never use other verbs' Partizip II forms — learner shouldn't need to recognise foreign vocabulary to eliminate distractors.
-
-**Strategy:** apply wrong ablaut vowels to the same verb stem:
-- distractor 1: stem with **Präteritum vowel** — the most common learner mistake (e.g. `schlafen → schlief → *geschliefen` instead of `geschlafen`)
-- distractor 2: stem with **another wrong vowel** (e.g. infinitive vowel = no ablaut, or a third ablaut class)
-
-Example for `waschen` (Infinitiv: a, Präteritum: u, Partizip: a):
-- correct: `gewaschen`
-- distractor 1: `gewuschen` (Präteritum vowel u — very common mistake)
-- distractor 2: `gewoschen` (another wrong vowel)
-
-**Prefix rule:** verbs with inseparable prefixes (`be-`, `ver-`, `er-`, `ge-`, `ent-`, `emp-`, `miss-`, `zer-`) do not get `ge-` in Partizip II — distractors must follow the same rule (e.g. `verlieren → verloren`, distractors: `verliegen`, `verlaren`, not `geverloren`).
 
 ## Recall (`recall.question` / `recall.answer`)
 

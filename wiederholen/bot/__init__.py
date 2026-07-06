@@ -25,6 +25,7 @@ RECALL: Final = "__recall__"
 
 class UserState(StatesGroup):
     answering = State()
+    typing = State()
     recalling = State()
 
 
@@ -118,12 +119,15 @@ async def command_wiederholen(
     journal = data.get("journal", {})
     teacher = school(journal)
     exercise = teacher.next_exercise()
-    await state.set_state(UserState.answering)
-    await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
-        journal=journal,
-    )
-    await message.answer(exercise.question, reply_markup=_make_keyboard(exercise))
+    exercise_dict = dataclasses.asdict(exercise)
+    if exercise.distractors:
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=exercise_dict, journal=journal)
+        await message.answer(exercise.question, reply_markup=_make_keyboard(exercise))
+    else:
+        await state.set_state(UserState.typing)
+        await state.update_data(shown_exercise=exercise_dict, journal=journal)
+        await message.answer(exercise.question)
 
 
 @dp.callback_query(UserState.answering)
@@ -175,6 +179,50 @@ async def handle_answer(
         )
 
 
+@dp.message(UserState.typing)
+async def handle_typed_answer(
+    message: Message,
+    state: FSMContext,
+    school: School,
+) -> None:
+    state_data = await state.get_data()
+    await state.clear()
+    language = _get_language(state_data)
+    shown_exercise = _exercise_from_dict(state_data["shown_exercise"])
+    journal = state_data.get("journal", {})
+    locale = LOCALES[language]
+    explanation = shown_exercise.explanation[language]
+    teacher = school(journal)
+    mark = teacher.check_answer(shown_exercise, message.text or "")
+    if mark.correct:
+        text = f"{locale.correct}\n\n{explanation}"
+    else:
+        text = f"{locale.wrong.format(answer=shown_exercise.answer)}\n\n{explanation}"
+    if mark.recall == RecallMode.optional:
+        reply_markup = _make_recall_buttons(locale)
+    elif mark.recall == RecallMode.none:
+        reply_markup = _make_next_button(locale)
+    else:
+        reply_markup = None
+    await message.answer(text, reply_markup=reply_markup)
+    if mark.recall == RecallMode.required:
+        await _start_recall(
+            state,
+            language,
+            journal,
+            state_data["shown_exercise"],
+            shown_exercise,
+            message,
+            locale,
+        )
+    else:
+        await state.update_data(
+            language=language,
+            journal=journal,
+            shown_exercise=state_data["shown_exercise"],
+        )
+
+
 @dp.message(UserState.recalling)
 async def handle_recall(message: Message, state: FSMContext, school: School) -> None:
     state_data = await state.get_data()
@@ -206,15 +254,19 @@ async def handle_next_exercise(
     journal = state_data.get("journal", {})
     teacher = school(journal)
     exercise = teacher.next_exercise()
-    await state.set_state(UserState.answering)
-    await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
-        journal=journal,
-    )
-    if isinstance(callback.message, Message):
-        await callback.message.edit_text(
-            exercise.question, reply_markup=_make_keyboard(exercise)
-        )
+    exercise_dict = dataclasses.asdict(exercise)
+    if exercise.distractors:
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=exercise_dict, journal=journal)
+        if isinstance(callback.message, Message):
+            await callback.message.edit_text(
+                exercise.question, reply_markup=_make_keyboard(exercise)
+            )
+    else:
+        await state.set_state(UserState.typing)
+        await state.update_data(shown_exercise=exercise_dict, journal=journal)
+        if isinstance(callback.message, Message):
+            await callback.message.edit_text(exercise.question, reply_markup=None)
     await callback.answer()
 
 

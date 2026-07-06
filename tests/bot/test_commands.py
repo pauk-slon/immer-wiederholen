@@ -80,6 +80,25 @@ class TestWiederholenCommand:
         ]
         assert sorted(buttons) == sorted(exercise.distractors + [exercise.answer])
 
+    async def test_sets_typing_state_for_input_exercise(
+        self,
+        state: FSMContext,
+        feed_raw_update: FeedRawUpdate,
+    ) -> None:
+        exercise = make_exercise(distractors=[])
+        await feed_raw_update("/wiederholen", school=School([exercise]))
+
+        assert await state.get_state() == UserState.typing
+
+    async def test_no_keyboard_for_input_exercise(
+        self,
+        feed_raw_update: FeedRawUpdate,
+    ) -> None:
+        exercise = make_exercise(distractors=[])
+        send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
+
+        assert send_message.reply_markup is None
+
 
 class TestLanguageCommand:
     async def test_switches_ru_to_en(

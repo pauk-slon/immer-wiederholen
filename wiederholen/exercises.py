@@ -9,11 +9,6 @@ import yaml
 from wiederholen.i18n import Language, LANGUAGES
 
 
-class ExerciseType(str, Enum):
-    choice = "choice"
-    input = "input"
-
-
 @dataclass(frozen=True)
 class Recall:
     question: str
@@ -36,11 +31,10 @@ class Exercise:
     answer: str
     distractors: list[str]
     explanation: dict[Language, str]
-    type: ExerciseType = ExerciseType.choice
     recall: Recall | None = None
 
     def __post_init__(self) -> None:
-        if self.type == ExerciseType.choice and self.answer in self.distractors:
+        if self.answer in self.distractors:
             raise ValueError(f"answer '{self.answer}' must not be in distractors")
         if set(self.explanation.keys()) != LANGUAGES:
             raise ValueError(
@@ -64,19 +58,14 @@ def _exercise_from_dict(d: dict) -> Exercise:
     d = dict(d)
     if d.get("recall") is not None:
         d["recall"] = Recall(**d["recall"])
-    if "type" in d:
-        d["type"] = ExerciseType(d["type"])
+    d.pop("type", None)
     return Exercise(**d)
 
 
 def load_exercises(path: Path) -> list[Exercise]:
     with open(path) as f:
         items = yaml.safe_load(f)
-    return [
-        _exercise_from_dict(item)
-        for item in items
-        if item.get("type", ExerciseType.choice) == ExerciseType.choice
-    ]
+    return [_exercise_from_dict(item) for item in items]
 
 
 class Teacher:
