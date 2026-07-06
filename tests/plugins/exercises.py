@@ -36,11 +36,10 @@ class ExerciseDataKwargs(TypedDict, total=False):
 
 def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
     topic = kwargs.pop("topic", "warten")
-    distractors = kwargs.pop("distractors", ["für", "an", "um"])
     exercise_data = ExerciseData(
         question=f"Ich ___ {topic}.",
         topic=topic,
-        distractors=distractors,
+        distractors=kwargs.pop("distractors", ["für", "an", "um"]),
         answer=kwargs.pop("answer", "auf"),
         explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
     )
