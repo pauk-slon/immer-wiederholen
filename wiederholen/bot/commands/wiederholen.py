@@ -2,7 +2,7 @@ import dataclasses
 import random
 from typing import Final
 
-from aiogram import F
+from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -18,8 +18,9 @@ from aiogram.types import (
 
 from wiederholen.exercises import Exercise, RecallMode, School
 from wiederholen.i18n import Language
-from wiederholen.bot.dispatcher import dp
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
+
+router = Router()
 
 NEXT_EXERCISE: Final = "__next__"
 RECALL: Final = "__recall__"
@@ -103,7 +104,7 @@ def _show_exercise_kwargs(exercise: Exercise) -> dict:
     return {"reply_markup": ReplyKeyboardRemove()}
 
 
-@dp.message(Command("wiederholen"))
+@router.message(Command("wiederholen"))
 async def command_wiederholen(
     message: Message,
     state: FSMContext,
@@ -121,7 +122,7 @@ async def command_wiederholen(
     await message.answer(_format_question(exercise), **_show_exercise_kwargs(exercise))
 
 
-@dp.message(UserState.answering)
+@router.message(UserState.answering)
 async def handle_answer(
     message: Message,
     state: FSMContext,
@@ -181,7 +182,7 @@ async def handle_answer(
         )
 
 
-@dp.message(UserState.recalling)
+@router.message(UserState.recalling)
 async def handle_recall(message: Message, state: FSMContext, school: School) -> None:
     state_data = await state.get_data()
     await state.clear()
@@ -202,7 +203,7 @@ async def handle_recall(message: Message, state: FSMContext, school: School) -> 
         )
 
 
-@dp.callback_query(F.data == NEXT_EXERCISE)
+@router.callback_query(F.data == NEXT_EXERCISE)
 async def handle_next_exercise(
     callback: CallbackQuery,
     state: FSMContext,
@@ -224,7 +225,7 @@ async def handle_next_exercise(
     await callback.answer()
 
 
-@dp.callback_query(F.data == RECALL)
+@router.callback_query(F.data == RECALL)
 async def handle_recall_request(
     callback: CallbackQuery,
     state: FSMContext,

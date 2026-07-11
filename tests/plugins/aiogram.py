@@ -9,7 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.methods import SendMessage
 
-from wiederholen.bot import dp as _dp
+from wiederholen.bot import dispatcher as _dp
 
 
 type RawUpdateFactory = Callable[..., dict]

@@ -40,7 +40,7 @@ async def test_starts_polling_with_bot_and_dependencies(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request",
             AsyncMock(return_value=True),
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", mock_polling),
+        patch("wiederholen.bot.dispatcher.start_polling", mock_polling),
     ):
         await main()
 
@@ -61,7 +61,7 @@ async def test_sets_name_for_all_languages() -> None:
         patch(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", AsyncMock()),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
     ):
         await main()
 
@@ -79,7 +79,7 @@ async def test_sets_description_for_all_languages() -> None:
         patch(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", AsyncMock()),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
     ):
         await main()
 
@@ -99,7 +99,7 @@ async def test_sets_short_description_for_all_languages() -> None:
         patch(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", AsyncMock()),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
     ):
         await main()
 
@@ -119,7 +119,7 @@ async def test_sets_commands_for_all_languages() -> None:
         patch(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", AsyncMock()),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
     ):
         await main()
 

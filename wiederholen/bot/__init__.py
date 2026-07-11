@@ -1,8 +1,15 @@
-from .dispatcher import dp
+from typing import Final
 
-# Each import below registers that command's handlers on `dp` as a side
-# effect. Order matches handler registration order in the original
-# single-file bot: start, language, then the wiederholen exercise flow.
-from .commands import start, language, wiederholen  # noqa: F401
+from aiogram import Dispatcher
 
-__all__ = ["dp"]
+from .commands import start, language, wiederholen
+
+dispatcher: Final = Dispatcher()
+
+# Order matches handler registration order in the original single-file
+# bot: start, language, then the wiederholen exercise flow.
+dispatcher.include_router(start.router)
+dispatcher.include_router(language.router)
+dispatcher.include_router(wiederholen.router)
+
+__all__ = ["dispatcher"]

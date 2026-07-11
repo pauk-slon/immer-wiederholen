@@ -7,7 +7,7 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter
 from aiogram.types import BotCommand
 
-from . import dp
+from . import dispatcher
 from .l10n import LOCALES
 from wiederholen.exercises import load_exercises, School
 
@@ -41,7 +41,7 @@ async def main() -> None:
             ],
             language_code=language_code,
         )
-    await dp.start_polling(bot, school=school)
+    await dispatcher.start_polling(bot, school=school)
 
 
 if __name__ == "__main__":  # pragma: no cover
