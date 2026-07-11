@@ -28,19 +28,22 @@ async def main() -> None:
             await bot.set_my_short_description(
                 locale.bot_short_description, language_code=language_code
             )
+            await bot.set_my_commands(
+                [
+                    BotCommand(command="start", description=locale.cmd_start),
+                    BotCommand(
+                        command="wiederholen",
+                        description=locale.cmd_wiederholen,
+                    ),
+                    BotCommand(command="language", description=locale.cmd_language),
+                ],
+                language_code=language_code,
+            )
         except TelegramRetryAfter as e:
             logger.warning(
                 "Rate limited setting bot info, skipping: retry in %ds",
                 e.retry_after,
             )
-        await bot.set_my_commands(
-            [
-                BotCommand(command="start", description=locale.cmd_start),
-                BotCommand(command="wiederholen", description=locale.cmd_wiederholen),
-                BotCommand(command="language", description=locale.cmd_language),
-            ],
-            language_code=language_code,
-        )
     await dispatcher.start_polling(bot, school=school)
 
 
