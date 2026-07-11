@@ -47,9 +47,7 @@ async def test_reply_keyboard_contains_all_options(
     send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
 
     assert isinstance(send_message.reply_markup, ReplyKeyboardMarkup)
-    buttons = [
-        btn.text for row in send_message.reply_markup.keyboard for btn in row
-    ]
+    buttons = [btn.text for row in send_message.reply_markup.keyboard for btn in row]
     assert sorted(buttons) == sorted(exercise.distractors + [exercise.answer])
 
 
