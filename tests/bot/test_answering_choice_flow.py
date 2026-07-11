@@ -3,7 +3,7 @@ import dataclasses
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
-from wiederholen.bot import NEXT_EXERCISE, RECALL, UserState
+from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.exercises import School
 

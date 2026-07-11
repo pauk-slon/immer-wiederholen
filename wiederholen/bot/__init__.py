@@ -5,6 +5,4 @@ from .dispatcher import dp
 # single-file bot: start, language, then the wiederholen exercise flow.
 from .commands import start, language, wiederholen  # noqa: F401
 
-from .commands.wiederholen import UserState, NEXT_EXERCISE, RECALL
-
-__all__ = ["dp", "UserState", "NEXT_EXERCISE", "RECALL"]
+__all__ = ["dp"]

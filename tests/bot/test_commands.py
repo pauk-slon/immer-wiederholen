@@ -5,7 +5,7 @@ import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
-from wiederholen.bot import UserState
+from wiederholen.bot.commands.wiederholen import UserState
 from wiederholen.bot.l10n import EN, RU
 from wiederholen.exercises import School
 
