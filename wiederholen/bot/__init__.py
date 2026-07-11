@@ -51,7 +51,8 @@ def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE
+                    text=locale.cmd_wiederholen,
+                    callback_data=NEXT_EXERCISE,
                 )
             ]
         ]
@@ -64,7 +65,8 @@ def _make_recall_buttons(locale: Locale) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text=locale.btn_recall, callback_data=RECALL),
                 InlineKeyboardButton(
-                    text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE
+                    text=locale.cmd_wiederholen,
+                    callback_data=NEXT_EXERCISE,
                 ),
             ]
         ]
@@ -172,12 +174,14 @@ async def handle_answer(
     elif shown_exercise.distractors:
         # Recall required: single message, still need to remove reply keyboard
         await message.answer(
-            f"{result_line}\n\n{explanation}", reply_markup=ReplyKeyboardRemove()
+            f"{result_line}\n\n{explanation}",
+            reply_markup=ReplyKeyboardRemove(),
         )
     else:
         # Input exercise: no reply keyboard to remove
         await message.answer(
-            f"{result_line}\n\n{explanation}", reply_markup=reply_markup
+            f"{result_line}\n\n{explanation}",
+            reply_markup=reply_markup,
         )
     if mark.recall == RecallMode.required:
         await _start_recall(
