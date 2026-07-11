@@ -7,6 +7,7 @@ import pytest
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.methods import SendMessage
 
 from wiederholen.bot import dispatcher as _dp
@@ -44,8 +45,12 @@ def chat_id() -> int:
 
 
 @pytest.fixture(autouse=True)
-async def _clear_storage(dispatcher: Dispatcher) -> None:
-    await dispatcher.storage.close()
+def _clear_storage(dispatcher: Dispatcher) -> None:
+    # MemoryStorage.close() is a no-op, so clear its backing dict directly
+    # to reset FSM state between tests (all tests share one dispatcher).
+    storage = dispatcher.storage
+    assert isinstance(storage, MemoryStorage)
+    storage.storage.clear()
 
 
 @pytest.fixture
