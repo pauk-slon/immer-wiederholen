@@ -41,6 +41,13 @@ class Exercise:
                 f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
             )
 
+    @classmethod
+    def from_dict(cls, d: dict) -> "Exercise":
+        d = dict(d)
+        if d.get("recall") is not None:
+            d["recall"] = Recall(**d["recall"])
+        return cls(**d)
+
 
 class RecallMode(Enum):
     none = "none"
@@ -54,18 +61,10 @@ class Mark:
     recall: RecallMode
 
 
-def _exercise_from_dict(d: dict) -> Exercise:
-    d = dict(d)
-    if d.get("recall") is not None:
-        d["recall"] = Recall(**d["recall"])
-    d.pop("type", None)
-    return Exercise(**d)
-
-
 def load_exercises(path: Path) -> list[Exercise]:
     with open(path) as f:
         items = yaml.safe_load(f)
-    return [_exercise_from_dict(item) for item in items]
+    return [Exercise.from_dict(item) for item in items]
 
 
 class Teacher:

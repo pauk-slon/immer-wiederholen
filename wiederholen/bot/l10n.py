@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Any
 
-from wiederholen.i18n import Language
+from wiederholen.i18n import Language, LANGUAGES
 
 
 @dataclass(frozen=True)
@@ -52,3 +52,8 @@ EN: Final = Locale(
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}
 DEFAULT_LANGUAGE: Final[Language] = "ru"
+
+
+def get_language(state: dict[str, Any]) -> Language:
+    raw_language = state.get("language")
+    return raw_language if raw_language in LANGUAGES else DEFAULT_LANGUAGE
