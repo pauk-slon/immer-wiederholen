@@ -29,7 +29,10 @@ async def main() -> None:
                 locale.bot_short_description, language_code=language_code
             )
         except TelegramRetryAfter as e:
-            logger.warning("Rate limited setting bot info, skipping: retry in %ds", e.retry_after)
+            logger.warning(
+                "Rate limited setting bot info, skipping: retry in %ds",
+                e.retry_after,
+            )
         await bot.set_my_commands(
             [
                 BotCommand(command="start", description=locale.cmd_start),

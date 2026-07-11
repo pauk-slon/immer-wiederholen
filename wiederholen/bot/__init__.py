@@ -132,8 +132,11 @@ async def command_wiederholen(
     teacher = school(journal)
     exercise = teacher.next_exercise()
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal=journal)
-    await message.answer(_format_question(exercise),**_show_exercise_kwargs(exercise))
+    await state.update_data(
+        shown_exercise=dataclasses.asdict(exercise),
+        journal=journal,
+    )
+    await message.answer(_format_question(exercise), **_show_exercise_kwargs(exercise))
 
 
 @dp.message(UserState.answering)
@@ -151,7 +154,11 @@ async def handle_answer(
     explanation = shown_exercise.explanation[language]
     teacher = school(journal)
     mark = teacher.check_answer(shown_exercise, message.text or "")
-    result_line = locale.correct if mark.correct else locale.wrong.format(answer=shown_exercise.answer)
+    result_line = (
+        locale.correct
+        if mark.correct
+        else locale.wrong.format(answer=shown_exercise.answer)
+    )
     if mark.recall == RecallMode.optional:
         reply_markup = _make_recall_buttons(locale)
     elif mark.recall == RecallMode.none:
@@ -164,10 +171,14 @@ async def handle_answer(
         await message.answer(explanation, reply_markup=reply_markup)
     elif shown_exercise.distractors:
         # Recall required: single message, still need to remove reply keyboard
-        await message.answer(f"{result_line}\n\n{explanation}", reply_markup=ReplyKeyboardRemove())
+        await message.answer(
+            f"{result_line}\n\n{explanation}", reply_markup=ReplyKeyboardRemove()
+        )
     else:
         # Input exercise: no reply keyboard to remove
-        await message.answer(f"{result_line}\n\n{explanation}", reply_markup=reply_markup)
+        await message.answer(
+            f"{result_line}\n\n{explanation}", reply_markup=reply_markup
+        )
     if mark.recall == RecallMode.required:
         await _start_recall(
             state,
@@ -218,10 +229,14 @@ async def handle_next_exercise(
     teacher = school(journal)
     exercise = teacher.next_exercise()
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal=journal)
+    await state.update_data(
+        shown_exercise=dataclasses.asdict(exercise), journal=journal
+    )
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(_format_question(exercise),**_show_exercise_kwargs(exercise))
+        await callback.message.answer(
+            _format_question(exercise), **_show_exercise_kwargs(exercise)
+        )
     await callback.answer()
 
 

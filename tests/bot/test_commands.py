@@ -3,7 +3,7 @@ import dataclasses
 import pytest
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from wiederholen.bot import UserState
 from wiederholen.bot.l10n import EN, RU
@@ -75,7 +75,9 @@ class TestWiederholenCommand:
         send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
 
         assert isinstance(send_message.reply_markup, ReplyKeyboardMarkup)
-        buttons = [btn.text for row in send_message.reply_markup.keyboard for btn in row]
+        buttons = [
+            btn.text for row in send_message.reply_markup.keyboard for btn in row
+        ]
         assert sorted(buttons) == sorted(exercise.distractors + [exercise.answer])
 
     async def test_reply_keyboard_remove_for_input_exercise(

@@ -11,7 +11,6 @@ from tests.plugins.aiogram import FeedCallbackQuery, FeedRawUpdate, FeedRawUpdat
 from tests.plugins.exercises import make_exercise
 
 
-
 async def test_correct_answer_shows_success_text(
     state: FSMContext,
     feed_raw_update: FeedRawUpdate,
@@ -116,7 +115,9 @@ async def test_next_button_leads_to_input_exercise(
 
     requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
 
-    send_message = next(r for r in requests if hasattr(r, "text") and exercise.question in r.text)
+    send_message = next(
+        r for r in requests if hasattr(r, "text") and exercise.question in r.text
+    )
     assert isinstance(send_message.reply_markup, ReplyKeyboardRemove)
     assert await state.get_state() == UserState.answering
 
