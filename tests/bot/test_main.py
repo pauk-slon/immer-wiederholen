@@ -5,8 +5,14 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramRetryAfter
 
-from aiogram.methods import SetMyDescription, SetMyName, SetMyShortDescription
+from aiogram.methods import (
+    SetMyCommands,
+    SetMyDescription,
+    SetMyName,
+    SetMyShortDescription,
+)
 
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
@@ -40,7 +46,7 @@ async def test_starts_polling_with_bot_and_dependencies(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request",
             AsyncMock(return_value=True),
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", mock_polling),
+        patch("wiederholen.bot.dispatcher.start_polling", mock_polling),
     ):
         await main()
 
@@ -61,7 +67,7 @@ async def test_sets_name_for_all_languages() -> None:
         patch(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", AsyncMock()),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
     ):
         await main()
 
@@ -79,7 +85,7 @@ async def test_sets_description_for_all_languages() -> None:
         patch(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", AsyncMock()),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
     ):
         await main()
 
@@ -99,7 +105,7 @@ async def test_sets_short_description_for_all_languages() -> None:
         patch(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", AsyncMock()),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
     ):
         await main()
 
@@ -119,11 +125,9 @@ async def test_sets_commands_for_all_languages() -> None:
         patch(
             "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
         ),
-        patch("wiederholen.bot.__main__.dp.start_polling", AsyncMock()),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
     ):
         await main()
-
-    from aiogram.methods import SetMyCommands
 
     language_codes = {
         call.args[1].language_code
@@ -131,3 +135,27 @@ async def test_sets_commands_for_all_languages() -> None:
         if isinstance(call.args[1], SetMyCommands)
     }
     assert language_codes == {"ru", "en"}
+
+
+@pytest.mark.parametrize(
+    "failing_method",
+    [SetMyName, SetMyDescription, SetMyShortDescription, SetMyCommands],
+)
+async def test_does_not_crash_on_rate_limit(failing_method: type) -> None:
+    async def make_request_side_effect(bot, method, timeout=None):
+        if isinstance(method, failing_method):
+            raise TelegramRetryAfter(
+                method=method, message="flood control", retry_after=1
+            )
+        return True
+
+    mock_request = AsyncMock(side_effect=make_request_side_effect)
+    with (
+        patch(
+            "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
+        ),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()) as mock_polling,
+    ):
+        await main()
+
+    mock_polling.assert_called_once()

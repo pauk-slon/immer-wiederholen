@@ -10,12 +10,12 @@ Telegram bot for practicing German with multiple choice questions (aiogram, Pyth
 
 ## Exercises (`data/exercises.yaml`)
 
-Each exercise has the following fields. Use `___` for blanks in `question` and `recall.question`.
+Each exercise has the following fields.
 
-- `question` — sentence with a blank
+- `question` — sentence with a blank (`___`) for government exercises, or `"verb → Partizip II"` for partizip exercises
 - `topic` — verb in infinitive
-- `answer` — correct answer (preposition or preposition + article)
-- `distractors` — list of 3 wrong options
+- `answer` — correct answer
+- `distractors` — list of wrong options. 3 for government exercises; empty (`[]`) for partizip exercises (empty list triggers text input instead of multiple choice)
 - `explanation` — dict with `ru` and `en` keys
 - `recall` — optional nested object with recall step data:
   - `question` — short phrase for the recall step
@@ -26,11 +26,14 @@ Each exercise has the following fields. Use `___` for blanks in `question` and `
 
 Sanity check: substituting the answer into the question must produce a natural, everyday German sentence; substituting any distractor must not produce a grammatically valid one.
 
-Two exercise types:
+Exercise categories (marked with `# category:` comment in YAML):
 
-**Preposition only** — answer is a single word. Distractors are other plausible prepositions.
+**`government`** — verb government (preposition exercises). Two subtypes:
 
-**Preposition + article** — answer is a string like `"auf den"`. Use only for Wechselpräpositionen (an, auf, über, in, etc.) where the case is not fixed. Skip for prepositions with fixed case (mit, bei, für, um, nach, zu, aus, von).
+- *Preposition only* — answer is a single word. Distractors are other plausible prepositions.
+- *Preposition + article* — answer is a string like `"auf den"`. Use only for Wechselpräpositionen (an, auf, über, in, etc.) where the case is not fixed. Skip for prepositions with fixed case (mit, bei, für, um, nach, zu, aus, von).
+
+**`partizip`** — Partizip II forms of strong/irregular verbs. Question format: `"verb → Partizip II"`. No distractors (`distractors: []`) — user types the answer.
 
 Distractor strategy for preposition + article exercises — use a 2×2 grid (2 prepositions × 2 cases):
 - `[prep1][case1]` — correct answer

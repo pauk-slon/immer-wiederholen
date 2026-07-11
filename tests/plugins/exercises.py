@@ -30,6 +30,7 @@ class RecallKwargs(TypedDict, total=False):
 class ExerciseDataKwargs(TypedDict, total=False):
     topic: str
     answer: str
+    distractors: list[str]
     recall: bool | RecallKwargs
 
 
@@ -38,7 +39,7 @@ def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
     exercise_data = ExerciseData(
         question=f"Ich ___ {topic}.",
         topic=topic,
-        distractors=["für", "an", "um"],
+        distractors=kwargs.pop("distractors", ["für", "an", "um"]),
         answer=kwargs.pop("answer", "auf"),
         explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
     )

@@ -41,6 +41,13 @@ class Exercise:
                 f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
             )
 
+    @classmethod
+    def from_dict(cls, d: dict) -> "Exercise":
+        d = dict(d)
+        if d.get("recall") is not None:
+            d["recall"] = Recall(**d["recall"])
+        return cls(**d)
+
 
 class RecallMode(Enum):
     none = "none"
@@ -54,16 +61,10 @@ class Mark:
     recall: RecallMode
 
 
-def _exercise_from_dict(d: dict) -> Exercise:
-    if d.get("recall") is not None:
-        d = {**d, "recall": Recall(**d["recall"])}
-    return Exercise(**d)
-
-
 def load_exercises(path: Path) -> list[Exercise]:
     with open(path) as f:
         items = yaml.safe_load(f)
-    return [_exercise_from_dict(item) for item in items]
+    return [Exercise.from_dict(item) for item in items]
 
 
 class Teacher:
@@ -84,7 +85,7 @@ class Teacher:
         return random.choices(self._exercises, weights=weights, k=1)[0]
 
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
-        correct = answer == exercise.answer
+        correct = answer.strip().lower() == exercise.answer.strip().lower()
         topic_weights: dict[str, float] = self._journal.get("topic_weights", {})
         current = topic_weights.get(exercise.topic, self.WEIGHT_MIN)
         if correct:
