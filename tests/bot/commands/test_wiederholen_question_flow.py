@@ -14,9 +14,10 @@ async def test_sends_exercise_question(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise()
-    send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
+    requests = await feed_raw_update("/wiederholen", school=School([exercise]))
 
-    assert exercise.question in send_message.text
+    assert len(requests) == 1
+    assert exercise.question in requests[0].text
 
 
 async def test_sets_answering_state(
@@ -24,8 +25,9 @@ async def test_sets_answering_state(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise()
-    await feed_raw_update("/wiederholen", school=School([exercise]))
+    requests = await feed_raw_update("/wiederholen", school=School([exercise]))
 
+    assert len(requests) == 1
     assert await state.get_state() == UserState.answering
 
 
@@ -34,8 +36,9 @@ async def test_saves_shown_exercise(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise()
-    await feed_raw_update("/wiederholen", school=School([exercise]))
+    requests = await feed_raw_update("/wiederholen", school=School([exercise]))
 
+    assert len(requests) == 1
     data = await state.get_data()
     assert data["shown_exercise"] == dataclasses.asdict(exercise)
 
@@ -44,10 +47,11 @@ async def test_reply_keyboard_contains_all_options(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise()
-    send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
+    requests = await feed_raw_update("/wiederholen", school=School([exercise]))
 
-    assert isinstance(send_message.reply_markup, ReplyKeyboardMarkup)
-    buttons = [btn.text for row in send_message.reply_markup.keyboard for btn in row]
+    assert len(requests) == 1
+    assert isinstance(requests[0].reply_markup, ReplyKeyboardMarkup)
+    buttons = [btn.text for row in requests[0].reply_markup.keyboard for btn in row]
     assert sorted(buttons) == sorted(exercise.distractors + [exercise.answer])
 
 
@@ -55,6 +59,7 @@ async def test_reply_keyboard_remove_for_input_exercise(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
     exercise = make_exercise(distractors=[])
-    send_message = await feed_raw_update("/wiederholen", school=School([exercise]))
+    requests = await feed_raw_update("/wiederholen", school=School([exercise]))
 
-    assert isinstance(send_message.reply_markup, ReplyKeyboardRemove)
+    assert len(requests) == 1
+    assert isinstance(requests[0].reply_markup, ReplyKeyboardRemove)

@@ -10,9 +10,10 @@ from tests.plugins.aiogram import FeedRawUpdate
 async def test_defaults_to_ru(
     feed_raw_update: FeedRawUpdate,
 ) -> None:
-    send_message = await feed_raw_update("/start")
+    requests = await feed_raw_update("/start")
 
-    assert send_message.text == RU.start
+    assert len(requests) == 1
+    assert requests[0].text == RU.start
 
 
 @pytest.mark.parametrize("language,expected", [("ru", RU.start), ("en", EN.start)])
@@ -23,6 +24,7 @@ async def test_responds_in_current_language(
     expected: str,
 ) -> None:
     await state.update_data(language=language)
-    send_message = await feed_raw_update("/start")
+    requests = await feed_raw_update("/start")
 
-    assert send_message.text == expected
+    assert len(requests) == 1
+    assert requests[0].text == expected
