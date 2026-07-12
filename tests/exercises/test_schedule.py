@@ -127,6 +127,26 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
     assert teacher.next_exercise(date(2026, 7, 12)).topic == "warten"
 
 
+def test_next_exercise_weighs_topics_not_instances(monkeypatch) -> None:
+    single = make_exercise(topic="warten")
+    dup_a = make_exercise(topic="helfen")
+    dup_b = make_exercise(topic="helfen")
+    calls: list[list] = []
+
+    def fake_choice(seq):
+        calls.append(list(seq))
+        return seq[0]
+
+    monkeypatch.setattr("wiederholen.exercises.random.choice", fake_choice)
+
+    School([single, dup_a, dup_b])({}).next_exercise(date(2026, 7, 12))
+
+    assert calls == [
+        ["warten:government", "helfen:government"],
+        [single],
+    ]
+
+
 def test_same_topic_different_categories_are_scheduled_independently() -> None:
     government = make_exercise(topic="sprechen", category="government", answer="auf")
     partizip = make_exercise(
