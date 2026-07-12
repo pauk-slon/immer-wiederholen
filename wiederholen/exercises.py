@@ -4,16 +4,22 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Literal, TypedDict, overload
+from typing import Annotated, ClassVar, Literal, TypedDict, overload
 
 import yaml
+from pydantic import AfterValidator, TypeAdapter, ValidationError
 
 from wiederholen.i18n import Language, LANGUAGES
 
 
+def _parse_iso_date(value: str) -> str:
+    date.fromisoformat(value)
+    return value
+
+
 class _ScheduleEntry(TypedDict):
     interval_days: int
-    due_date: str
+    due_date: Annotated[str, AfterValidator(_parse_iso_date)]
 
 
 @dataclass(frozen=True)
@@ -76,10 +82,19 @@ def load_exercises(path: Path) -> list[Exercise]:
 
 class Teacher:
     MAX_INTERVAL_DAYS: int = 60
+    _SCHEDULE_ENTRY_ADAPTER: ClassVar = TypeAdapter(_ScheduleEntry)
 
     def __init__(self, exercises: Sequence[Exercise], journal: dict) -> None:
         self._exercises = exercises
         self._journal = journal
+
+    @classmethod
+    def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
+        try:
+            cls._SCHEDULE_ENTRY_ADAPTER.validate_python(schedule_entry, strict=True)
+        except ValidationError:
+            return False
+        return True
 
     @overload
     def _get_schedule_entry(
@@ -95,21 +110,22 @@ class Teacher:
         *,
         create_if_missing: Literal[False] = False,
     ) -> _ScheduleEntry | None: ...
-    # TODO: once the journal is backed by persistent storage, validate entries
-    # read here against _ScheduleEntry's shape (schema may have changed since
-    # they were written) instead of trusting them as-is.
     def _get_schedule_entry(
         self,
         topic: str,
         *,
         create_if_missing: bool = False,
     ) -> _ScheduleEntry | None:
+        default = _ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
         if create_if_missing:
-            default = _ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
             topic_schedule = self._journal.setdefault("topic_schedule", {})
-            return topic_schedule.setdefault(topic, default)
+            schedule_entry = topic_schedule.get(topic)
+            if not self._is_valid_schedule_entry(schedule_entry):
+                schedule_entry = topic_schedule[topic] = default
+            return schedule_entry
         topic_schedule = self._journal.get("topic_schedule", {})
-        return topic_schedule.get(topic)
+        schedule_entry = topic_schedule.get(topic)
+        return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
 
     def _due_date(self, topic: str) -> date:
         entry = self._get_schedule_entry(topic)

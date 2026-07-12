@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from wiederholen.exercises import School
 
 from tests.plugins.exercises import make_exercise
@@ -94,3 +96,63 @@ def test_wrong_answer_resets_interval_and_is_due_today() -> None:
     entry = state["topic_schedule"]["warten"]
     assert entry["interval_days"] == 1
     assert entry["due_date"] == "2026-07-12"
+
+
+@pytest.mark.parametrize(
+    "malformed_entry",
+    [
+        "not a dict",
+        {"interval_days": 30},
+        {"due_date": "2026-07-01"},
+        {"interval_days": "30", "due_date": "2026-07-01"},
+        {"interval_days": 30, "due_date": 20260701},
+        {"interval_days": 30, "due_date": "not a date"},
+    ],
+)
+def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> None:
+    exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    state = {
+        "topic_schedule": {
+            "warten": malformed_entry,
+            "hoffen": {"interval_days": 30, "due_date": "2026-08-01"},
+        }
+    }
+    teacher = School(exercises)(state)
+    assert teacher.next_exercise(date(2026, 7, 12)).topic == "warten"
+
+
+def test_schedule_entry_with_unknown_extra_key_is_still_respected() -> None:
+    exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    state = {
+        "topic_schedule": {
+            "warten": {
+                "interval_days": 30,
+                "due_date": "2026-08-01",
+                "extra": "field",
+            },
+            "hoffen": {"interval_days": 5, "due_date": "2026-07-01"},
+        }
+    }
+    teacher = School(exercises)(state)
+    assert teacher.next_exercise(date(2026, 7, 12)).topic == "hoffen"
+
+
+@pytest.mark.parametrize(
+    "malformed_entry",
+    [
+        "not a dict",
+        {"interval_days": 30},
+        {"interval_days": "30", "due_date": "2026-07-01"},
+        {"interval_days": 30, "due_date": "not a date"},
+    ],
+)
+def test_malformed_schedule_entry_is_overwritten_on_check_answer(
+    malformed_entry,
+) -> None:
+    exercise = make_exercise(topic="warten", answer="auf")
+    state = {"topic_schedule": {"warten": malformed_entry}}
+    today = date(2026, 7, 12)
+    School([exercise])(state).check_answer(exercise, "auf", today)
+    entry = state["topic_schedule"]["warten"]
+    assert entry["interval_days"] == 1
+    assert entry["due_date"] == "2026-07-13"

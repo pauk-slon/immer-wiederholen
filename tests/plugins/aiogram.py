@@ -74,9 +74,8 @@ def state(bot: Bot, dispatcher: Dispatcher, user_id: int, chat_id: int) -> FSMCo
 
 
 @pytest.fixture(autouse=True)
-def _clear_storage(dispatcher: Dispatcher) -> None:
-    # MemoryStorage.close() is a no-op, so clear its backing dict directly
-    # to reset FSM state between tests (all tests share one dispatcher).
-    storage = dispatcher.storage
-    assert isinstance(storage, MemoryStorage)
-    storage.storage.clear()
+def _reset_storage(dispatcher: Dispatcher) -> None:
+    # Force a fresh in-memory store for every test, regardless of what
+    # backend the dispatcher was actually configured with (e.g. FSM_STORAGE_URL
+    # set in the environment) — tests must stay fast and isolated.
+    dispatcher.fsm.storage = MemoryStorage()

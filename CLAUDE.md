@@ -86,7 +86,11 @@ YAML example with recall:
 
 ## Repetition schedule
 
-`Teacher` (in `wiederholen.exercises`) tracks per-topic review scheduling in `journal["topic_schedule"]` — `{topic: {"interval_days": int, "due_date": "YYYY-MM-DD"}}`. `next_exercise()` picks randomly among topics due today, falling back to the single earliest-due topic if nothing is due yet. On a correct answer the interval doubles (capped at `Teacher.MAX_INTERVAL_DAYS`, currently 60 days); on a wrong answer it resets to 1 day (due again immediately). The journal is only as durable as the FSM storage backing it — currently in-memory, so schedules reset on every bot restart.
+`Teacher` (in `wiederholen.exercises`) tracks per-topic review scheduling in `journal["topic_schedule"]` — `{topic: {"interval_days": int, "due_date": "YYYY-MM-DD"}}`. `next_exercise()` picks randomly among topics due today, falling back to the single earliest-due topic if nothing is due yet. On a correct answer the interval doubles (capped at `Teacher.MAX_INTERVAL_DAYS`, currently 60 days); on a wrong answer it resets to 1 day (due again immediately). The journal's durability depends on the FSM storage backing it — see below.
+
+## Persistence
+
+`wiederholen.bot` builds `dispatcher` with aiogram's default in-memory FSM storage (needed so importing the package — e.g. from tests — never depends on an external service or env var). `wiederholen.bot.__main__.main()` swaps in real storage before polling starts: `dispatcher.fsm.storage = RedisStorage.from_url(os.environ["FSM_STORAGE_URL"])`, required with no fallback, same as `BOT_TOKEN`. Works with Valkey too (wire-compatible). `compose.yaml` and `deploy/compose.yaml` both run a `valkey` service and set `FSM_STORAGE_URL` for the `bot` service, backed by a named volume for durability across container recreation. Tests always force a fresh in-memory store regardless of `FSM_STORAGE_URL` (see `tests/plugins/aiogram.py::_reset_storage`), so they stay fast and hermetic.
 
 ## Commands
 

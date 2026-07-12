@@ -4,5 +4,14 @@ services:
     restart: unless-stopped
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
+      FSM_STORAGE_URL: redis://valkey:6379/0
     volumes:
       - ./data:/app/data
+    depends_on:
+      - valkey
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    volumes:
+      - ./valkey/data:/data

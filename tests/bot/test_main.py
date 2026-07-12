@@ -6,6 +6,7 @@ import pytest
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter
+from aiogram.fsm.storage.redis import RedisStorage
 
 from aiogram.methods import (
     SetMyCommands,
@@ -14,6 +15,7 @@ from aiogram.methods import (
     SetMyShortDescription,
 )
 
+from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
 from wiederholen.exercises import School
@@ -32,6 +34,7 @@ def _env(
     monkeypatch, bot_token: str, tmp_yaml_file: TmpYamlFile, exercise_data: ExerciseData
 ) -> Generator[None]:
     monkeypatch.setenv("BOT_TOKEN", bot_token)
+    monkeypatch.setenv("FSM_STORAGE_URL", "redis://localhost:6379/0")
     with tmp_yaml_file([exercise_data]) as path:
         monkeypatch.setenv("EXERCISES_PATH", str(path))
         yield None
@@ -59,6 +62,19 @@ async def test_starts_polling_with_bot_and_dependencies(
     if loaded_exercise["recall"] is None:
         del loaded_exercise["recall"]
     assert loaded_exercise == exercise_data
+
+
+async def test_configures_redis_storage_from_env() -> None:
+    with (
+        patch(
+            "aiogram.client.session.aiohttp.AiohttpSession.make_request",
+            AsyncMock(return_value=True),
+        ),
+        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
+    ):
+        await main()
+
+    assert isinstance(dispatcher.fsm.storage, RedisStorage)
 
 
 async def test_sets_name_for_all_languages() -> None:
