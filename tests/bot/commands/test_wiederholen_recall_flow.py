@@ -6,13 +6,13 @@ from wiederholen.bot.commands.wiederholen import UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.exercises import Exercise, Recall, School
 
-from tests.plugins.aiogram import FeedRawUpdate
+from tests.plugins.aiogram import FeedMessage
 from tests.plugins.exercises import make_exercise
 
 
 async def test_correct_input_shows_success(
     state: FSMContext,
-    feed_raw_update: FeedRawUpdate,
+    feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
         recall={"answer": ["Ich warte auf den Bus."]},
@@ -22,9 +22,7 @@ async def test_correct_input_shows_success(
         shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
     )
 
-    requests = await feed_raw_update(
-        "Ich warte auf den Bus.", school=School([exercise])
-    )
+    requests = await feed_message("Ich warte auf den Bus.", school=School([exercise]))
 
     assert len(requests) == 1
     assert RU.recall_correct in requests[0].text
@@ -32,7 +30,7 @@ async def test_correct_input_shows_success(
 
 async def test_wrong_input_shows_correct_sentence(
     state: FSMContext,
-    feed_raw_update: FeedRawUpdate,
+    feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
         recall={"answer": ["Ich warte auf den Bus."]},
@@ -42,7 +40,7 @@ async def test_wrong_input_shows_correct_sentence(
         shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
     )
 
-    requests = await feed_raw_update(
+    requests = await feed_message(
         "Es hängt alles in der Situation ab.", school=School([exercise])
     )
 
@@ -52,7 +50,7 @@ async def test_wrong_input_shows_correct_sentence(
 
 async def test_normalizes_case_and_whitespace(
     state: FSMContext,
-    feed_raw_update: FeedRawUpdate,
+    feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
         recall={"answer": ["Ich warte auf den Bus."]},
@@ -62,9 +60,7 @@ async def test_normalizes_case_and_whitespace(
         shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
     )
 
-    requests = await feed_raw_update(
-        "ich warte  auf den bus.", school=School([exercise])
-    )
+    requests = await feed_message("ich warte  auf den bus.", school=School([exercise]))
 
     assert len(requests) == 1
     assert RU.recall_correct in requests[0].text
@@ -72,7 +68,7 @@ async def test_normalizes_case_and_whitespace(
 
 async def test_accepts_any_of_multiple_answers(
     state: FSMContext,
-    feed_raw_update: FeedRawUpdate,
+    feed_message: FeedMessage,
 ) -> None:
     exercise = Exercise(
         question="Ich warte ___ den Bus.",
@@ -90,7 +86,7 @@ async def test_accepts_any_of_multiple_answers(
         shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
     )
 
-    requests = await feed_raw_update(
+    requests = await feed_message(
         "Ich warte auf die Straßenbahn.", school=School([exercise])
     )
 
@@ -100,7 +96,7 @@ async def test_accepts_any_of_multiple_answers(
 
 async def test_recall_prompt_sent_after_answering(
     state: FSMContext,
-    feed_raw_update: FeedRawUpdate,
+    feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
         recall={"hint": {"ru": "die Rede — речь", "en": "die Rede — speech"}},
@@ -108,9 +104,7 @@ async def test_recall_prompt_sent_after_answering(
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-    requests = await feed_raw_update(
-        exercise.distractors[0], school=School([exercise])
-    )
+    requests = await feed_message(exercise.distractors[0], school=School([exercise]))
     recall_message = requests[2]
 
     assert exercise.recall is not None
@@ -120,17 +114,15 @@ async def test_recall_prompt_sent_after_answering(
 
 async def test_recall_accepted_after_answering(
     state: FSMContext,
-    feed_raw_update: FeedRawUpdate,
+    feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(recall=True)
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     assert exercise.recall is not None
-    await feed_raw_update(exercise.distractors[0], school=School([exercise]))
-    requests = await feed_raw_update(
-        exercise.recall.answer[0], school=School([exercise])
-    )
+    await feed_message(exercise.distractors[0], school=School([exercise]))
+    requests = await feed_message(exercise.recall.answer[0], school=School([exercise]))
 
     assert len(requests) == 1
     assert RU.recall_correct in requests[0].text

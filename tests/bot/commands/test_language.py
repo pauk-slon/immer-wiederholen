@@ -2,15 +2,15 @@ from aiogram.fsm.context import FSMContext
 
 from wiederholen.bot.l10n import EN, RU
 
-from tests.plugins.aiogram import FeedRawUpdate
+from tests.plugins.aiogram import FeedMessage
 
 
 async def test_switches_ru_to_en(
     state: FSMContext,
-    feed_raw_update: FeedRawUpdate,
+    feed_message: FeedMessage,
 ) -> None:
     await state.update_data(language="ru")
-    requests = await feed_raw_update("/language")
+    requests = await feed_message("/language")
 
     assert len(requests) == 1
     assert (await state.get_data())["language"] == "en"
@@ -19,10 +19,10 @@ async def test_switches_ru_to_en(
 
 async def test_switches_en_to_ru(
     state: FSMContext,
-    feed_raw_update: FeedRawUpdate,
+    feed_message: FeedMessage,
 ) -> None:
     await state.update_data(language="en")
-    requests = await feed_raw_update("/language")
+    requests = await feed_message("/language")
 
     assert len(requests) == 1
     assert (await state.get_data())["language"] == "ru"
@@ -31,9 +31,9 @@ async def test_switches_en_to_ru(
 
 async def test_defaults_to_ru_then_switches_to_en(
     state: FSMContext,
-    feed_raw_update: FeedRawUpdate,
+    feed_message: FeedMessage,
 ) -> None:
-    requests = await feed_raw_update("/language")
+    requests = await feed_message("/language")
 
     assert len(requests) == 1
     assert (await state.get_data())["language"] == "en"
