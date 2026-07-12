@@ -74,6 +74,7 @@ async def test_accepts_any_of_multiple_answers(
     exercise = Exercise(
         question="Ich warte ___ den Bus.",
         topic="warten",
+        category="government",
         distractors=["für", "an", "um"],
         answer="auf",
         explanation={"ru": "warten auf + Akk", "en": "warten auf + Acc"},

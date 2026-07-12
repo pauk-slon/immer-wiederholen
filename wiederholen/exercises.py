@@ -4,12 +4,16 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, ClassVar, Literal, TypedDict, overload
+from typing import Annotated, ClassVar, Final, Literal, TypedDict, get_args, overload
 
 import yaml
 from pydantic import AfterValidator, TypeAdapter, ValidationError
 
 from wiederholen.i18n import Language, LANGUAGES
+
+type Category = Literal["government", "partizip_ii"]
+
+CATEGORIES: Final[frozenset[Category]] = frozenset(get_args(Category.__value__))
 
 
 def _parse_iso_date(value: str) -> str:
@@ -40,6 +44,7 @@ class Recall:
 @dataclass(frozen=True)
 class Exercise:
     topic: str
+    category: Category
     question: str
     answer: str
     distractors: list[str]
@@ -52,6 +57,10 @@ class Exercise:
         if set(self.explanation.keys()) != LANGUAGES:
             raise ValueError(
                 f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
+            )
+        if self.category not in CATEGORIES:
+            raise ValueError(
+                f"category must be one of {CATEGORIES}, got {self.category!r}"
             )
 
     @classmethod
@@ -96,56 +105,63 @@ class Teacher:
             return False
         return True
 
+    @staticmethod
+    def _schedule_key(exercise: Exercise) -> str:
+        return f"{exercise.topic}:{exercise.category}"
+
     @overload
     def _get_schedule_entry(
         self,
-        topic: str,
+        key: str,
         *,
         create_if_missing: Literal[True],
     ) -> _ScheduleEntry: ...
     @overload
     def _get_schedule_entry(
         self,
-        topic: str,
+        key: str,
         *,
         create_if_missing: Literal[False] = False,
     ) -> _ScheduleEntry | None: ...
     def _get_schedule_entry(
         self,
-        topic: str,
+        key: str,
         *,
         create_if_missing: bool = False,
     ) -> _ScheduleEntry | None:
         default = _ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
         if create_if_missing:
             topic_schedule = self._journal.setdefault("topic_schedule", {})
-            schedule_entry = topic_schedule.get(topic)
+            schedule_entry = topic_schedule.get(key)
             if not self._is_valid_schedule_entry(schedule_entry):
-                schedule_entry = topic_schedule[topic] = default
+                schedule_entry = topic_schedule[key] = default
             return schedule_entry
         topic_schedule = self._journal.get("topic_schedule", {})
-        schedule_entry = topic_schedule.get(topic)
+        schedule_entry = topic_schedule.get(key)
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
 
-    def _due_date(self, topic: str) -> date:
-        entry = self._get_schedule_entry(topic)
+    def _due_date(self, exercise: Exercise) -> date:
+        entry = self._get_schedule_entry(self._schedule_key(exercise))
         if entry is None:
             return date.min
         return date.fromisoformat(entry["due_date"])
 
     def next_exercise(self, today: date | None = None) -> Exercise:
         today = today or date.today()
-        due = [ex for ex in self._exercises if self._due_date(ex.topic) <= today]
+        due = [ex for ex in self._exercises if self._due_date(ex) <= today]
         if due:
             return random.choice(due)
-        return min(self._exercises, key=lambda ex: self._due_date(ex.topic))
+        return min(self._exercises, key=self._due_date)
 
     def check_answer(
         self, exercise: Exercise, answer: str, today: date | None = None
     ) -> Mark:
         today = today or date.today()
         correct = answer.strip().lower() == exercise.answer.strip().lower()
-        entry = self._get_schedule_entry(exercise.topic, create_if_missing=True)
+        entry = self._get_schedule_entry(
+            self._schedule_key(exercise),
+            create_if_missing=True,
+        )
         if correct:
             interval = min(max(entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS)
             due_date = today + timedelta(days=interval)

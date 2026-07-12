@@ -14,6 +14,7 @@ Each exercise has the following fields.
 
 - `question` — sentence with a blank (`___`) for government exercises, or `"verb → Partizip II"` for partizip exercises
 - `topic` — verb in infinitive
+- `category` — `government` or `partizip_ii` (see below); together with `topic` forms the key `Teacher` uses for repetition scheduling, so exercises of different categories for the same verb are scheduled independently
 - `answer` — correct answer
 - `distractors` — list of wrong options. 3 for government exercises; empty (`[]`) for partizip exercises (empty list triggers text input instead of multiple choice)
 - `explanation` — dict with `ru` and `en` keys
@@ -26,14 +27,14 @@ Each exercise has the following fields.
 
 Sanity check: substituting the answer into the question must produce a natural, everyday German sentence; substituting any distractor must not produce a grammatically valid one.
 
-Exercise categories (marked with `# category:` comment in YAML):
+Exercise categories (`category` field):
 
 **`government`** — verb government (preposition exercises). Two subtypes:
 
 - *Preposition only* — answer is a single word. Distractors are other plausible prepositions.
 - *Preposition + article* — answer is a string like `"auf den"`. Use only for Wechselpräpositionen (an, auf, über, in, etc.) where the case is not fixed. Skip for prepositions with fixed case (mit, bei, für, um, nach, zu, aus, von).
 
-**`partizip`** — Partizip II forms of strong/irregular verbs. Question format: `"verb → Partizip II"`. No distractors (`distractors: []`) — user types the answer.
+**`partizip_ii`** — Partizip II forms of strong/irregular verbs. Question format: `"verb → Partizip II"`. No distractors (`distractors: []`) — user types the answer.
 
 Distractor strategy for preposition + article exercises — use a 2×2 grid (2 prepositions × 2 cases):
 - `[prep1][case1]` — correct answer
@@ -86,7 +87,7 @@ YAML example with recall:
 
 ## Repetition schedule
 
-`Teacher` (in `wiederholen.exercises`) tracks per-topic review scheduling in `journal["topic_schedule"]` — `{topic: {"interval_days": int, "due_date": "YYYY-MM-DD"}}`. `next_exercise()` picks randomly among topics due today, falling back to the single earliest-due topic if nothing is due yet. On a correct answer the interval doubles (capped at `Teacher.MAX_INTERVAL_DAYS`, currently 60 days); on a wrong answer it resets to 1 day (due again immediately). The journal's durability depends on the FSM storage backing it — see below.
+`Teacher` (in `wiederholen.exercises`) tracks review scheduling in `journal["topic_schedule"]` — `{"{topic}:{category}": {"interval_days": int, "due_date": "YYYY-MM-DD"}}`. The schedule key is `topic` + `category` (`Teacher._schedule_key`), not `topic` alone — so e.g. `sprechen`'s government exercises (different prepositions) and its `partizip_ii` exercise are scheduled independently, while exercises that intentionally share a `topic` within the same category (different prepositions of the same verb) still share one schedule entry. `next_exercise()` picks randomly among exercises whose key is due today, falling back to the single earliest-due exercise if nothing is due yet. On a correct answer the interval doubles (capped at `Teacher.MAX_INTERVAL_DAYS`, currently 60 days); on a wrong answer it resets to 1 day (due again immediately). The journal's durability depends on the FSM storage backing it — see below.
 
 ## Persistence
 
