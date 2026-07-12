@@ -83,11 +83,17 @@ class Teacher:
 
     @overload
     def _get_schedule_entry(
-        self, topic: str, *, create_if_missing: Literal[True]
+        self,
+        topic: str,
+        *,
+        create_if_missing: Literal[True],
     ) -> _ScheduleEntry: ...
     @overload
     def _get_schedule_entry(
-        self, topic: str, *, create_if_missing: Literal[False] = False
+        self,
+        topic: str,
+        *,
+        create_if_missing: Literal[False] = False,
     ) -> _ScheduleEntry | None: ...
     # TODO: once the journal is backed by persistent storage, validate entries
     # read here against _ScheduleEntry's shape (schema may have changed since
