@@ -1,12 +1,19 @@
 import random
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date, timedelta
 from enum import Enum
 from pathlib import Path
+from typing import Literal, TypedDict, overload
 
 import yaml
 
 from wiederholen.i18n import Language, LANGUAGES
+
+
+class _ScheduleEntry(TypedDict):
+    interval_days: int
+    due_date: str
 
 
 @dataclass(frozen=True)
@@ -68,33 +75,69 @@ def load_exercises(path: Path) -> list[Exercise]:
 
 
 class Teacher:
-    WEIGHT_ON_WRONG: float = 2.0
-    WEIGHT_ON_CORRECT: float = 0.5
-    WEIGHT_MIN: float = 1.0
+    MAX_INTERVAL_DAYS: int = 60
 
     def __init__(self, exercises: Sequence[Exercise], journal: dict) -> None:
         self._exercises = exercises
         self._journal = journal
 
-    def next_exercise(self) -> Exercise:
-        topic_weights: dict[str, float] = self._journal.get("topic_weights", {})
-        weights = [
-            topic_weights.get(exercise.topic, self.WEIGHT_MIN)
-            for exercise in self._exercises
-        ]
-        return random.choices(self._exercises, weights=weights, k=1)[0]
+    @overload
+    def _get_schedule_entry(
+        self,
+        topic: str,
+        *,
+        create_if_missing: Literal[True],
+    ) -> _ScheduleEntry: ...
+    @overload
+    def _get_schedule_entry(
+        self,
+        topic: str,
+        *,
+        create_if_missing: Literal[False] = False,
+    ) -> _ScheduleEntry | None: ...
+    # TODO: once the journal is backed by persistent storage, validate entries
+    # read here against _ScheduleEntry's shape (schema may have changed since
+    # they were written) instead of trusting them as-is.
+    def _get_schedule_entry(
+        self,
+        topic: str,
+        *,
+        create_if_missing: bool = False,
+    ) -> _ScheduleEntry | None:
+        if create_if_missing:
+            default = _ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
+            topic_schedule = self._journal.setdefault("topic_schedule", {})
+            return topic_schedule.setdefault(topic, default)
+        topic_schedule = self._journal.get("topic_schedule", {})
+        return topic_schedule.get(topic)
 
-    def check_answer(self, exercise: Exercise, answer: str) -> Mark:
+    def _due_date(self, topic: str) -> date:
+        entry = self._get_schedule_entry(topic)
+        if entry is None:
+            return date.min
+        return date.fromisoformat(entry["due_date"])
+
+    def next_exercise(self, today: date | None = None) -> Exercise:
+        today = today or date.today()
+        due = [ex for ex in self._exercises if self._due_date(ex.topic) <= today]
+        if due:
+            return random.choice(due)
+        return min(self._exercises, key=lambda ex: self._due_date(ex.topic))
+
+    def check_answer(
+        self, exercise: Exercise, answer: str, today: date | None = None
+    ) -> Mark:
+        today = today or date.today()
         correct = answer.strip().lower() == exercise.answer.strip().lower()
-        topic_weights: dict[str, float] = self._journal.get("topic_weights", {})
-        current = topic_weights.get(exercise.topic, self.WEIGHT_MIN)
+        entry = self._get_schedule_entry(exercise.topic, create_if_missing=True)
         if correct:
-            topic_weights[exercise.topic] = max(
-                self.WEIGHT_MIN, current * self.WEIGHT_ON_CORRECT
-            )
+            interval = min(max(entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS)
+            due_date = today + timedelta(days=interval)
         else:
-            topic_weights[exercise.topic] = current * self.WEIGHT_ON_WRONG
-        self._journal["topic_weights"] = topic_weights
+            interval = 1
+            due_date = today
+        entry["interval_days"] = interval
+        entry["due_date"] = due_date.isoformat()
         if exercise.recall is None:
             recall_mode = RecallMode.none
         elif correct:
