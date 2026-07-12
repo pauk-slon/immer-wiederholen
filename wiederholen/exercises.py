@@ -59,7 +59,9 @@ class Exercise:
                 f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
             )
         if self.category not in CATEGORIES:
-            raise ValueError(f"category must be one of {CATEGORIES}, got {self.category!r}")
+            raise ValueError(
+                f"category must be one of {CATEGORIES}, got {self.category!r}"
+            )
 
     @classmethod
     def from_dict(cls, d: dict) -> "Exercise":
@@ -157,7 +159,8 @@ class Teacher:
         today = today or date.today()
         correct = answer.strip().lower() == exercise.answer.strip().lower()
         entry = self._get_schedule_entry(
-            self._schedule_key(exercise), create_if_missing=True
+            self._schedule_key(exercise),
+            create_if_missing=True,
         )
         if correct:
             interval = min(max(entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS)

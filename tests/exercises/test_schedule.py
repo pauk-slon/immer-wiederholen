@@ -55,7 +55,9 @@ def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None
 def test_correct_answer_doubles_interval() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
     state = {
-        "topic_schedule": {"warten:government": {"interval_days": 4, "due_date": "2026-07-01"}}
+        "topic_schedule": {
+            "warten:government": {"interval_days": 4, "due_date": "2026-07-01"}
+        }
     }
     today = date(2026, 7, 12)
     School([exercise])(state).check_answer(exercise, "auf", today)
@@ -77,7 +79,9 @@ def test_correct_answer_on_new_topic_sets_interval_to_one() -> None:
 def test_correct_answer_caps_interval_at_max() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
     state = {
-        "topic_schedule": {"warten:government": {"interval_days": 50, "due_date": "2026-07-01"}}
+        "topic_schedule": {
+            "warten:government": {"interval_days": 50, "due_date": "2026-07-01"}
+        }
     }
     today = date(2026, 7, 12)
     School([exercise])(state).check_answer(exercise, "auf", today)
@@ -89,7 +93,9 @@ def test_correct_answer_caps_interval_at_max() -> None:
 def test_wrong_answer_resets_interval_and_is_due_today() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
     state = {
-        "topic_schedule": {"warten:government": {"interval_days": 30, "due_date": "2026-07-01"}}
+        "topic_schedule": {
+            "warten:government": {"interval_days": 30, "due_date": "2026-07-01"}
+        }
     }
     today = date(2026, 7, 12)
     School([exercise])(state).check_answer(exercise, "für", today)
@@ -123,7 +129,9 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
 
 def test_same_topic_different_categories_are_scheduled_independently() -> None:
     government = make_exercise(topic="sprechen", category="government", answer="auf")
-    partizip = make_exercise(topic="sprechen", category="partizip_ii", answer="gesprochen")
+    partizip = make_exercise(
+        topic="sprechen", category="partizip_ii", answer="gesprochen"
+    )
     today = date(2026, 7, 12)
     state: dict = {}
     teacher = School([government, partizip])(state)
