@@ -4,9 +4,9 @@ Telegram bot for practicing German with multiple choice questions (aiogram, Pyth
 
 ## Key modules
 
-- `wiederholen.exercises` — exercise domain: `Exercise` dataclass, loading from YAML, random picking
+- `wiederholen.exercises` — exercise domain: `Exercise` dataclass, loading from YAML, `Teacher` (date-based repetition scheduling, see below)
 - `wiederholen.i18n` — supported languages (`Language` type, `LANGUAGES` set)
-- `wiederholen.bot` — Telegram bot implementation (aiogram)
+- `wiederholen.bot` — Telegram bot implementation (aiogram); each command lives in its own module under `wiederholen.bot.commands`
 
 ## Exercises (`data/exercises.yaml`)
 
@@ -83,6 +83,10 @@ YAML example with recall:
     hint:
       ru: "der Bus — автобус"
 ```
+
+## Repetition schedule
+
+`Teacher` (in `wiederholen.exercises`) tracks per-topic review scheduling in `journal["topic_schedule"]` — `{topic: {"interval_days": int, "due_date": "YYYY-MM-DD"}}`. `next_exercise()` picks randomly among topics due today, falling back to the single earliest-due topic if nothing is due yet. On a correct answer the interval doubles (capped at `Teacher.MAX_INTERVAL_DAYS`, currently 60 days); on a wrong answer it resets to 1 day (due again immediately). The journal is only as durable as the FSM storage backing it — currently in-memory, so schedules reset on every bot restart.
 
 ## Commands
 
