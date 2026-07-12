@@ -15,6 +15,7 @@ class Locale:
     cmd_start: str
     cmd_wiederholen: str
     btn_recall: str
+    btn_recall_retry: str
     cmd_language: str
     bot_name: str
     bot_short_description: str
@@ -30,6 +31,7 @@ RU: Final = Locale(
     cmd_start="Начать",
     cmd_wiederholen="Следующее задание",
     btn_recall="Закрепить",
+    btn_recall_retry="Попробовать ещё раз",
     cmd_language="Сменить язык",
     bot_name="Immer wiederholen!",
     bot_short_description="Учи немецкие слова с интервальным повторением",
@@ -45,6 +47,7 @@ EN: Final = Locale(
     cmd_start="Start",
     cmd_wiederholen="Next exercise",
     btn_recall="Drill",
+    btn_recall_retry="Try again",
     cmd_language="Change language",
     bot_name="Immer wiederholen!",
     bot_short_description="Learn German vocabulary with spaced repetition",
