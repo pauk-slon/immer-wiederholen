@@ -8,15 +8,13 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.methods import SendMessage
 
 from wiederholen.bot import dispatcher as _dp
 
 
 type RawUpdateFactory = Callable[..., dict]
 type FeedCallbackQuery = Callable[..., Awaitable[list[Any]]]
-type FeedRawUpdate = Callable[..., Awaitable[SendMessage]]
-type FeedRawUpdateAll = Callable[..., Awaitable[list[Any]]]
+type FeedRawUpdate = Callable[..., Awaitable[list[Any]]]
 
 
 @pytest.fixture
@@ -109,11 +107,11 @@ def feed_callback_query(
 
 
 @pytest.fixture
-def feed_raw_update_all(
+def feed_raw_update(
     bot: Bot,
     dispatcher: Dispatcher,
     raw_update_factory: RawUpdateFactory,
-) -> FeedRawUpdateAll:
+) -> FeedRawUpdate:
     async def factory(
         text: str, *, reply_to_message_id: int | None = None, **kwargs
     ) -> list[Any]:
@@ -122,16 +120,6 @@ def feed_raw_update_all(
         with patch.object(bot.session, "make_request", mock_request):
             await dispatcher.feed_raw_update(bot, raw_update, **kwargs)
         return [call.args[1] for call in mock_request.call_args_list]
-
-    return factory
-
-
-@pytest.fixture
-def feed_raw_update(feed_raw_update_all: FeedRawUpdateAll) -> FeedRawUpdate:
-    async def factory(text: str, **kwargs):
-        requests = await feed_raw_update_all(text, **kwargs)
-        assert len(requests) == 1
-        return requests[0]
 
     return factory
 
