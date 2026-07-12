@@ -1,12 +1,13 @@
 import dataclasses
 
 from aiogram.fsm.context import FSMContext
+from aiogram.types import InlineKeyboardMarkup
 
-from wiederholen.bot.commands.wiederholen import UserState
+from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.exercises import Exercise, Recall, School
 
-from tests.plugins.aiogram import FeedMessage
+from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.exercises import make_exercise
 
 
@@ -126,3 +127,50 @@ async def test_recall_accepted_after_answering(
 
     assert len(requests) == 1
     assert RU.recall_correct in requests[0].text
+
+
+async def test_retry_button_appears_after_wrong_recall(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        recall={"answer": ["Ich warte auf den Bus."]},
+    )
+    await state.set_state(UserState.recalling)
+    await state.update_data(
+        shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
+    )
+
+    requests = await feed_message(
+        "Es hängt alles in der Situation ab.", school=School([exercise])
+    )
+
+    assert isinstance(requests[0].reply_markup, InlineKeyboardMarkup)
+    buttons = [
+        btn.callback_data
+        for row in requests[0].reply_markup.inline_keyboard
+        for btn in row
+    ]
+    assert buttons == [RECALL, NEXT_EXERCISE]
+
+
+async def test_clicking_retry_starts_recall_again(
+    state: FSMContext,
+    feed_message: FeedMessage,
+    feed_callback_query: FeedCallbackQuery,
+) -> None:
+    exercise = make_exercise(
+        recall={"answer": ["Ich warte auf den Bus."]},
+    )
+    await state.set_state(UserState.recalling)
+    await state.update_data(
+        shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
+    )
+
+    await feed_message("Es hängt alles in der Situation ab.", school=School([exercise]))
+    requests = await feed_callback_query(RECALL, school=School([exercise]))
+    recall_message = requests[1]
+
+    assert exercise.recall is not None
+    assert exercise.recall.question in recall_message.text
+    assert await state.get_state() == UserState.recalling

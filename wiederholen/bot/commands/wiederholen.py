@@ -54,11 +54,11 @@ def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
     )
 
 
-def _make_recall_buttons(locale: Locale) -> InlineKeyboardMarkup:
+def _make_recall_buttons(locale: Locale, label: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text=locale.btn_recall, callback_data=RECALL),
+                InlineKeyboardButton(text=label, callback_data=RECALL),
                 InlineKeyboardButton(
                     text=locale.cmd_wiederholen,
                     callback_data=NEXT_EXERCISE,
@@ -143,7 +143,7 @@ async def handle_answer(
         else locale.wrong.format(answer=shown_exercise.answer)
     )
     if mark.recall == RecallMode.optional:
-        reply_markup = _make_recall_buttons(locale)
+        reply_markup = _make_recall_buttons(locale, locale.btn_recall)
     elif mark.recall == RecallMode.none:
         reply_markup = _make_next_button(locale)
     else:
@@ -176,17 +176,23 @@ async def handle_recall(message: Message, state: FSMContext, school: School) -> 
     language = get_language(state_data)
     journal = state_data.get("journal", {})
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
-    await state.update_data(language=language, journal=journal)
+    await state.update_data(
+        language=language,
+        journal=journal,
+        shown_exercise=state_data["shown_exercise"],
+    )
     locale = LOCALES[language]
     teacher = school(journal)
-    next_button = _make_next_button(locale)
     if teacher.check_recall(shown_exercise, message.text or ""):
-        await message.answer(locale.recall_correct, reply_markup=next_button)
+        await message.answer(
+            locale.recall_correct,
+            reply_markup=_make_next_button(locale),
+        )
     else:
         assert shown_exercise.recall is not None
         await message.answer(
             locale.recall_wrong.format(answer=shown_exercise.recall.answer[0]),
-            reply_markup=next_button,
+            reply_markup=_make_recall_buttons(locale, locale.btn_recall_retry),
         )
 
 
