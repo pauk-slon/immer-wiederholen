@@ -140,18 +140,24 @@ class Teacher:
         schedule_entry = topic_schedule.get(key)
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
 
-    def _due_date(self, exercise: Exercise) -> date:
-        entry = self._get_schedule_entry(self._schedule_key(exercise))
+    def _due_date(self, key: str) -> date:
+        entry = self._get_schedule_entry(key)
         if entry is None:
             return date.min
         return date.fromisoformat(entry["due_date"])
 
+    def _exercises_by_key(self) -> dict[str, list[Exercise]]:
+        by_key: dict[str, list[Exercise]] = {}
+        for exercise in self._exercises:
+            by_key.setdefault(self._schedule_key(exercise), []).append(exercise)
+        return by_key
+
     def next_exercise(self, today: date | None = None) -> Exercise:
         today = today or date.today()
-        due = [ex for ex in self._exercises if self._due_date(ex) <= today]
-        if due:
-            return random.choice(due)
-        return min(self._exercises, key=self._due_date)
+        by_key = self._exercises_by_key()
+        due_keys = [key for key in by_key if self._due_date(key) <= today]
+        key = random.choice(due_keys) if due_keys else min(by_key, key=self._due_date)
+        return random.choice(by_key[key])
 
     def check_answer(
         self, exercise: Exercise, answer: str, today: date | None = None

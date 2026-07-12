@@ -1,3 +1,5 @@
+import random
+from collections import Counter
 from datetime import date
 
 import pytest
@@ -125,6 +127,22 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
     }
     teacher = School(exercises)(state)
     assert teacher.next_exercise(date(2026, 7, 12)).topic == "warten"
+
+
+def test_exercises_selected_evenly_across_topics() -> None:
+    # "helfen" has two YAML entries for one topic (e.g. two recall variants),
+    # "warten" has one. A fixed seed makes the pick counts reproducible: if
+    # selection weren't topic-first, "helfen" would come up roughly twice as
+    # often as "warten" instead of about equally often.
+    single = make_exercise(topic="warten")
+    duplicate_1 = make_exercise(topic="helfen")
+    duplicate_2 = make_exercise(topic="helfen")
+    teacher = School([single, duplicate_1, duplicate_2])({})
+
+    random.seed(1234)
+    picks = Counter(teacher.next_exercise().topic for _ in range(2000))
+
+    assert 0.8 < picks["warten"] / picks["helfen"] < 1.25
 
 
 def test_same_topic_different_categories_are_scheduled_independently() -> None:
