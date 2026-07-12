@@ -129,7 +129,7 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
     assert teacher.next_exercise(date(2026, 7, 12)).topic == "warten"
 
 
-def test_next_exercise_does_not_overweight_topics_with_more_variants() -> None:
+def test_next_exercise_distributes_evenly_across_topics() -> None:
     # "helfen" has two YAML entries for one topic (e.g. two recall variants),
     # "warten" has one. A fixed seed makes the pick counts reproducible: if
     # selection weren't topic-first, "helfen" would come up roughly twice as
