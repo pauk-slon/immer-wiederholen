@@ -148,22 +148,9 @@ async def handle_answer(
         reply_markup = _make_next_button(locale)
     else:
         reply_markup = None
-    if shown_exercise.distractors and reply_markup:
-        # Two messages: first removes reply keyboard, second carries inline buttons
-        await message.answer(result_line, reply_markup=ReplyKeyboardRemove())
-        await message.answer(explanation, reply_markup=reply_markup)
-    elif shown_exercise.distractors:
-        # Recall required: single message, still need to remove reply keyboard
-        await message.answer(
-            f"{result_line}\n\n{explanation}",
-            reply_markup=ReplyKeyboardRemove(),
-        )
-    else:
-        # Input exercise: no reply keyboard to remove
-        await message.answer(
-            f"{result_line}\n\n{explanation}",
-            reply_markup=reply_markup,
-        )
+    first_reply_markup = ReplyKeyboardRemove() if shown_exercise.distractors else None
+    await message.answer(result_line, reply_markup=first_reply_markup)
+    await message.answer(explanation, reply_markup=reply_markup)
     if mark.recall == RecallMode.required:
         await _start_recall(
             state,
