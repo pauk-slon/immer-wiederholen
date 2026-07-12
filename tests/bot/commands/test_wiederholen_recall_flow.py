@@ -107,7 +107,7 @@ async def test_recall_prompt_sent_after_answering(
     requests = await feed_raw_update_all(
         exercise.distractors[0], school=School([exercise])
     )
-    recall_message = requests[1]
+    recall_message = requests[2]
 
     assert exercise.recall is not None
     assert exercise.recall.question in recall_message.text
