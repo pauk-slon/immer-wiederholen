@@ -5,6 +5,7 @@ from pathlib import Path
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter
+from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import BotCommand
 
 from . import dispatcher
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     token = os.environ["BOT_TOKEN"]
     exercises_path = Path(os.environ.get("EXERCISES_PATH", "data/exercises.yaml"))
+    dispatcher.fsm.storage = RedisStorage.from_url(os.environ["FSM_STORAGE_URL"])
     school = School(load_exercises(exercises_path))
     bot = Bot(token=token)
     for language_code, locale in LOCALES.items():
