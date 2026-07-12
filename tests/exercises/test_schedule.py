@@ -1,3 +1,5 @@
+import random
+from collections import Counter
 from datetime import date
 
 import pytest
@@ -127,24 +129,20 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
     assert teacher.next_exercise(date(2026, 7, 12)).topic == "warten"
 
 
-def test_next_exercise_weighs_topics_not_instances(monkeypatch) -> None:
+def test_next_exercise_does_not_overweight_topics_with_more_variants() -> None:
+    # "helfen" has two YAML entries for one topic (e.g. two recall variants),
+    # "warten" has one. A fixed seed makes the pick counts reproducible: if
+    # selection weren't topic-first, "helfen" would come up roughly twice as
+    # often as "warten" instead of about equally often.
     single = make_exercise(topic="warten")
-    dup_a = make_exercise(topic="helfen")
-    dup_b = make_exercise(topic="helfen")
-    calls: list[list] = []
+    duplicate_1 = make_exercise(topic="helfen")
+    duplicate_2 = make_exercise(topic="helfen")
+    teacher = School([single, duplicate_1, duplicate_2])({})
 
-    def fake_choice(seq):
-        calls.append(list(seq))
-        return seq[0]
+    random.seed(1234)
+    picks = Counter(teacher.next_exercise().topic for _ in range(2000))
 
-    monkeypatch.setattr("wiederholen.exercises.random.choice", fake_choice)
-
-    School([single, dup_a, dup_b])({}).next_exercise(date(2026, 7, 12))
-
-    assert calls == [
-        ["warten:government", "helfen:government"],
-        [single],
-    ]
+    assert 0.8 < picks["warten"] / picks["helfen"] < 1.25
 
 
 def test_same_topic_different_categories_are_scheduled_independently() -> None:
