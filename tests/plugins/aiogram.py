@@ -12,9 +12,10 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from wiederholen.bot import dispatcher as _dp
 
 
-type RawUpdateFactory = Callable[..., dict]
-type FeedCallbackQuery = Callable[..., Awaitable[list[Any]]]
+type MessageFactory = Callable[..., dict]
 type FeedRawUpdate = Callable[..., Awaitable[list[Any]]]
+type FeedCallbackQuery = Callable[..., Awaitable[list[Any]]]
+type FeedMessage = Callable[..., Awaitable[list[Any]]]
 
 
 @pytest.fixture
@@ -42,17 +43,8 @@ def chat_id() -> int:
     return 1
 
 
-@pytest.fixture(autouse=True)
-def _clear_storage(dispatcher: Dispatcher) -> None:
-    # MemoryStorage.close() is a no-op, so clear its backing dict directly
-    # to reset FSM state between tests (all tests share one dispatcher).
-    storage = dispatcher.storage
-    assert isinstance(storage, MemoryStorage)
-    storage.storage.clear()
-
-
 @pytest.fixture
-def raw_update_factory(user_id: int, chat_id: int) -> RawUpdateFactory:
+def message_factory(user_id: int, chat_id: int) -> MessageFactory:
     def factory(text: str, *, reply_to_message_id: int | None = None):
         message: dict = {
             "message_id": 1,
@@ -75,9 +67,19 @@ def raw_update_factory(user_id: int, chat_id: int) -> RawUpdateFactory:
 
 
 @pytest.fixture
+def feed_raw_update(bot: Bot, dispatcher: Dispatcher) -> FeedRawUpdate:
+    async def factory(raw_update: dict, **kwargs) -> list[Any]:
+        mock_request = AsyncMock(return_value=True)
+        with patch.object(bot.session, "make_request", mock_request):
+            await dispatcher.feed_raw_update(bot, raw_update, **kwargs)
+        return [call.args[1] for call in mock_request.call_args_list]
+
+    return factory
+
+
+@pytest.fixture
 def feed_callback_query(
-    bot: Bot,
-    dispatcher: Dispatcher,
+    feed_raw_update: FeedRawUpdate,
     user_id: int,
     chat_id: int,
 ) -> FeedCallbackQuery:
@@ -98,28 +100,21 @@ def feed_callback_query(
                 "data": data,
             },
         }
-        mock_request = AsyncMock(return_value=True)
-        with patch.object(bot.session, "make_request", mock_request):
-            await dispatcher.feed_raw_update(bot, raw_update, **kwargs)
-        return [call.args[1] for call in mock_request.call_args_list]
+        return await feed_raw_update(raw_update, **kwargs)
 
     return factory
 
 
 @pytest.fixture
-def feed_raw_update(
-    bot: Bot,
-    dispatcher: Dispatcher,
-    raw_update_factory: RawUpdateFactory,
-) -> FeedRawUpdate:
+def feed_message(
+    feed_raw_update: FeedRawUpdate,
+    message_factory: MessageFactory,
+) -> FeedMessage:
     async def factory(
         text: str, *, reply_to_message_id: int | None = None, **kwargs
     ) -> list[Any]:
-        raw_update = raw_update_factory(text, reply_to_message_id=reply_to_message_id)
-        mock_request = AsyncMock(return_value=True)
-        with patch.object(bot.session, "make_request", mock_request):
-            await dispatcher.feed_raw_update(bot, raw_update, **kwargs)
-        return [call.args[1] for call in mock_request.call_args_list]
+        raw_update = message_factory(text, reply_to_message_id=reply_to_message_id)
+        return await feed_raw_update(raw_update, **kwargs)
 
     return factory
 
@@ -130,3 +125,12 @@ def state(bot: Bot, dispatcher: Dispatcher, user_id: int, chat_id: int) -> FSMCo
         storage=dispatcher.storage,
         key=StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=user_id),
     )
+
+
+@pytest.fixture(autouse=True)
+def _clear_storage(dispatcher: Dispatcher) -> None:
+    # MemoryStorage.close() is a no-op, so clear its backing dict directly
+    # to reset FSM state between tests (all tests share one dispatcher).
+    storage = dispatcher.storage
+    assert isinstance(storage, MemoryStorage)
+    storage.storage.clear()

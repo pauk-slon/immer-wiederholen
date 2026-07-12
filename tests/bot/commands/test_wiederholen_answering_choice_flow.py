@@ -7,7 +7,7 @@ from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserStat
 from wiederholen.bot.l10n import RU
 from wiederholen.exercises import School
 
-from tests.plugins.aiogram import FeedCallbackQuery, FeedRawUpdate
+from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.exercises import make_exercise
 
 
@@ -15,13 +15,13 @@ class TestHandleAnswer:
     async def test_correct_answer_shows_success_text(
         self,
         state: FSMContext,
-        feed_raw_update: FeedRawUpdate,
+        feed_message: FeedMessage,
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_raw_update(exercise.answer, school=School([exercise]))
+        requests = await feed_message(exercise.answer, school=School([exercise]))
 
         assert RU.correct in requests[0].text
         assert exercise.explanation["ru"] in requests[1].text
@@ -29,13 +29,13 @@ class TestHandleAnswer:
     async def test_wrong_answer_shows_correct_answer(
         self,
         state: FSMContext,
-        feed_raw_update: FeedRawUpdate,
+        feed_message: FeedMessage,
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_raw_update(
+        requests = await feed_message(
             exercise.distractors[0], school=School([exercise])
         )
 
@@ -47,13 +47,13 @@ class TestNextExerciseButton:
     async def test_appears_after_correct_answer(
         self,
         state: FSMContext,
-        feed_raw_update: FeedRawUpdate,
+        feed_message: FeedMessage,
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_raw_update(exercise.answer, school=School([exercise]))
+        requests = await feed_message(exercise.answer, school=School([exercise]))
 
         assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
         buttons = [
@@ -66,13 +66,13 @@ class TestNextExerciseButton:
     async def test_appears_after_wrong_answer_without_recall(
         self,
         state: FSMContext,
-        feed_raw_update: FeedRawUpdate,
+        feed_message: FeedMessage,
     ) -> None:
         exercise = make_exercise(recall=False)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_raw_update(
+        requests = await feed_message(
             exercise.distractors[0], school=School([exercise])
         )
 
@@ -87,13 +87,13 @@ class TestNextExerciseButton:
     async def test_not_shown_after_wrong_answer_with_recall(
         self,
         state: FSMContext,
-        feed_raw_update: FeedRawUpdate,
+        feed_message: FeedMessage,
     ) -> None:
         exercise = make_exercise(recall=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_raw_update(
+        requests = await feed_message(
             exercise.distractors[0], school=School([exercise])
         )
 
@@ -102,7 +102,7 @@ class TestNextExerciseButton:
     async def test_appears_after_recall(
         self,
         state: FSMContext,
-        feed_raw_update: FeedRawUpdate,
+        feed_message: FeedMessage,
     ) -> None:
         exercise = make_exercise(
             recall={"answer": ["Ich warte auf den Bus."]},
@@ -112,7 +112,7 @@ class TestNextExerciseButton:
             shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
         )
 
-        requests = await feed_raw_update(
+        requests = await feed_message(
             "Ich warte auf den Bus.", school=School([exercise])
         )
 
@@ -128,13 +128,13 @@ class TestNextExerciseButton:
     async def test_practice_button_appears_after_correct_answer_with_recall(
         self,
         state: FSMContext,
-        feed_raw_update: FeedRawUpdate,
+        feed_message: FeedMessage,
     ) -> None:
         exercise = make_exercise(recall=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        requests = await feed_raw_update(exercise.answer, school=School([exercise]))
+        requests = await feed_message(exercise.answer, school=School([exercise]))
 
         assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
         buttons = [
@@ -147,14 +147,14 @@ class TestNextExerciseButton:
     async def test_clicking_practice_starts_recall(
         self,
         state: FSMContext,
-        feed_raw_update: FeedRawUpdate,
+        feed_message: FeedMessage,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise(recall=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-        await feed_raw_update(exercise.answer, school=School([exercise]))
+        await feed_message(exercise.answer, school=School([exercise]))
         requests = await feed_callback_query(RECALL, school=School([exercise]))
         recall_message = requests[1]
 
