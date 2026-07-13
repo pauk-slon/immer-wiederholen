@@ -3,27 +3,32 @@ from collections import Counter
 from datetime import date
 
 import pytest
+import time_machine
 
 from wiederholen.exercises import Exercise, School
 
 from tests.plugins.exercises import make_exercise
 
 
+@pytest.fixture(autouse=True)
+def _travel_to_fixed_date():
+    with time_machine.travel(date(2026, 7, 12), tick=False):
+        yield
+
+
 def test_next_exercise_only_picks_due_topics() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
-    today = date(2026, 7, 12)
     state = {
         "topic_schedule": {
             "warten:government": {"interval_days": 30, "due_date": "2026-08-01"},
         }
     }
     teacher = School(exercises)(state)
-    assert teacher.next_exercise(today).topic == "hoffen"
+    assert teacher.next_exercise().topic == "hoffen"
 
 
 def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
-    today = date(2026, 7, 12)
     state = {
         "topic_schedule": {
             "warten:government": {"interval_days": 30, "due_date": "2026-08-10"},
@@ -31,13 +36,13 @@ def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
         }
     }
     teacher = School(exercises)(state)
-    assert teacher.next_exercise(today).topic == "hoffen"
+    assert teacher.next_exercise().topic == "hoffen"
 
 
 def test_new_topic_is_always_due() -> None:
     exercise = make_exercise(topic="warten")
     teacher = School([exercise])({})
-    assert teacher.next_exercise(date(2026, 7, 12)).topic == "warten"
+    assert teacher.next_exercise().topic == "warten"
 
 
 def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None:
@@ -49,7 +54,7 @@ def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None
     }
     teacher = School(exercises)(state)
 
-    teacher.next_exercise(date(2026, 7, 12))
+    teacher.next_exercise()
 
     assert "hoffen:government" not in state["topic_schedule"]
 
@@ -61,8 +66,7 @@ def test_correct_answer_doubles_interval() -> None:
             "warten:government": {"interval_days": 4, "due_date": "2026-07-01"}
         }
     }
-    today = date(2026, 7, 12)
-    School([exercise])(state).check_answer(exercise, "auf", today)
+    School([exercise])(state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 8
     assert entry["due_date"] == "2026-07-20"
@@ -71,8 +75,7 @@ def test_correct_answer_doubles_interval() -> None:
 def test_correct_answer_on_new_topic_sets_interval_to_one() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
     state: dict = {}
-    today = date(2026, 7, 12)
-    School([exercise])(state).check_answer(exercise, "auf", today)
+    School([exercise])(state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
     assert entry["due_date"] == "2026-07-13"
@@ -85,8 +88,7 @@ def test_correct_answer_caps_interval_at_max() -> None:
             "warten:government": {"interval_days": 50, "due_date": "2026-07-01"}
         }
     }
-    today = date(2026, 7, 12)
-    School([exercise])(state).check_answer(exercise, "auf", today)
+    School([exercise])(state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 60
     assert entry["due_date"] == "2026-09-10"
@@ -99,8 +101,7 @@ def test_wrong_answer_resets_interval_and_is_due_today() -> None:
             "warten:government": {"interval_days": 30, "due_date": "2026-07-01"}
         }
     }
-    today = date(2026, 7, 12)
-    School([exercise])(state).check_answer(exercise, "für", today)
+    School([exercise])(state).check_answer(exercise, "für")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
     assert entry["due_date"] == "2026-07-12"
@@ -110,7 +111,7 @@ def test_check_answer_records_last_answered_question() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
     state: dict = {}
 
-    School([exercise])(state).check_answer(exercise, "auf", date(2026, 7, 12))
+    School([exercise])(state).check_answer(exercise, "auf")
 
     assert state["last_answered_question"] == exercise.question
 
@@ -135,7 +136,7 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
         }
     }
     teacher = School(exercises)(state)
-    assert teacher.next_exercise(date(2026, 7, 12)).topic == "warten"
+    assert teacher.next_exercise().topic == "warten"
 
 
 def test_exercises_selected_evenly_across_topics() -> None:
@@ -198,11 +199,10 @@ def test_same_topic_different_categories_are_scheduled_independently() -> None:
     partizip = make_exercise(
         topic="sprechen", category="partizip_ii", answer="gesprochen"
     )
-    today = date(2026, 7, 12)
     state: dict = {}
     teacher = School([government, partizip])(state)
 
-    teacher.check_answer(government, "auf", today)
+    teacher.check_answer(government, "auf")
 
     assert "sprechen:government" in state["topic_schedule"]
     assert "sprechen:partizip_ii" not in state["topic_schedule"]
@@ -221,7 +221,7 @@ def test_schedule_entry_with_unknown_extra_key_is_still_respected() -> None:
         }
     }
     teacher = School(exercises)(state)
-    assert teacher.next_exercise(date(2026, 7, 12)).topic == "hoffen"
+    assert teacher.next_exercise().topic == "hoffen"
 
 
 @pytest.mark.parametrize(
@@ -238,8 +238,7 @@ def test_malformed_schedule_entry_is_overwritten_on_check_answer(
 ) -> None:
     exercise = make_exercise(topic="warten", answer="auf")
     state = {"topic_schedule": {"warten:government": malformed_entry}}
-    today = date(2026, 7, 12)
-    School([exercise])(state).check_answer(exercise, "auf", today)
+    School([exercise])(state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
     assert entry["due_date"] == "2026-07-13"
