@@ -19,7 +19,7 @@ class ExerciseData(TypedDict):
     answer: str
     distractors: list[str]
     explanation: dict[Language, str]
-    recall: NotRequired[RecallData]
+    recalls: NotRequired[list[RecallData]]
 
 
 class RecallKwargs(TypedDict, total=False):
@@ -33,7 +33,7 @@ class ExerciseDataKwargs(TypedDict, total=False):
     category: Category
     answer: str
     distractors: list[str]
-    recall: bool | RecallKwargs
+    recalls: bool | RecallKwargs
 
 
 def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
@@ -46,20 +46,21 @@ def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
         answer=kwargs.pop("answer", "auf"),
         explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
     )
-    if recall := kwargs.pop("recall", False):
-        recall_kwargs = {} if isinstance(recall, bool) else recall
-        exercise_data["recall"] = RecallData(
+    if recalls := kwargs.pop("recalls", False):
+        recall_kwargs = {} if isinstance(recalls, bool) else recalls
+        recall_data = RecallData(
             question=recall_kwargs.pop("question", "Ich ___ (der Bus)."),
             answer=recall_kwargs.pop("answer", ["Ich warte auf den Bus."]),
         )
         if "hint" in recall_kwargs:
-            exercise_data["recall"]["hint"] = recall_kwargs.pop("hint")
+            recall_data["hint"] = recall_kwargs.pop("hint")
+        exercise_data["recalls"] = [recall_data]
     return exercise_data
 
 
 def make_exercise(**kwargs: Unpack[ExerciseDataKwargs]) -> Exercise:
     data = make_exercise_data(**kwargs)
-    recall_data = data.get("recall")
+    recalls_data = data.get("recalls")
     return Exercise(
         topic=data["topic"],
         category=data["category"],
@@ -67,5 +68,5 @@ def make_exercise(**kwargs: Unpack[ExerciseDataKwargs]) -> Exercise:
         answer=data["answer"],
         distractors=data["distractors"],
         explanation=data["explanation"],
-        recall=Recall(**recall_data) if recall_data else None,
+        recalls=[Recall(**r) for r in recalls_data] if recalls_data else [],
     )

@@ -1,6 +1,6 @@
 import random
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import Enum
 from functools import cached_property
@@ -50,7 +50,7 @@ class Exercise:
     answer: str
     distractors: list[str]
     explanation: dict[Language, str]
-    recall: Recall | None = None
+    recalls: list[Recall] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.answer in self.distractors:
@@ -67,8 +67,8 @@ class Exercise:
     @classmethod
     def from_dict(cls, d: dict) -> "Exercise":
         d = dict(d)
-        if d.get("recall") is not None:
-            d["recall"] = Recall(**d["recall"])
+        if d.get("recalls") is not None:
+            d["recalls"] = [Recall(**r) for r in d["recalls"]]
         return cls(**d)
 
 
@@ -210,7 +210,7 @@ class Teacher:
             due_date = date.today()
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
-        if exercise.recall is None:
+        if not exercise.recalls:
             recall_mode = RecallMode.none
         elif correct:
             recall_mode = RecallMode.optional
@@ -218,14 +218,12 @@ class Teacher:
             recall_mode = RecallMode.required
         return Mark(correct=correct, recall=recall_mode)
 
-    def check_recall(self, exercise: Exercise, text: str) -> bool:
-        assert exercise.recall is not None
-
+    def check_recall(self, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:
             return " ".join(s.lower().strip(".,!?").split())
 
         normalized = normalize(text)
-        return any(normalize(a) == normalized for a in exercise.recall.answer)
+        return any(normalize(a) == normalized for a in recall.answer)
 
 
 class School:

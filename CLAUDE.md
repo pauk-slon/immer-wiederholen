@@ -18,7 +18,7 @@ Each exercise has the following fields.
 - `answer` — correct answer
 - `distractors` — list of wrong options. 3 for government exercises; empty (`[]`) for partizip exercises (empty list triggers text input instead of multiple choice)
 - `explanation` — dict with `ru` and `en` keys
-- `recall` — optional nested object with recall step data:
+- `recalls` — optional list of recall-step variants (empty/omitted means no recall step). The bot picks one variant at random each time recall starts, avoiding an immediate repeat of the previously shown variant when more than one is available. Each variant has:
   - `question` — short phrase for the recall step
   - `answer` — list of accepted full sentences (required; always a list, even if one item)
   - `hint` — dict with `ru` and `en` keys: translation of the noun shown in italics below the recall prompt (optional)
@@ -50,44 +50,64 @@ Special cases:
 - `sich freuen`: use `"auf das"` ↔ `"über das"` as a distractor — common confusion between the two constructions
 - `sich streiten über`: use `"um das"` — `sich streiten um` is a real expression, making it a plausible mistake
 
-## Recall (`recall.question` / `recall.answer`)
+## Recall (`recalls[].question` / `recalls[].answer`)
 
-After the multiple-choice step, the bot asks the user to reconstruct a short phrase from memory.
+After the multiple-choice step, the bot asks the user to reconstruct a short phrase from memory. `recalls` is a list — usually one variant, but add more when the exercise's own `question` can't vary between repetitions (notably `partizip_ii`, where `question` is always the fixed `"verb → Partizip II"` template) so the recall prompt doesn't feel identical every time the topic comes up. The bot picks a variant at random each time (excluding the immediately-previous one when possible, including on recall retries), so different variants don't need to be equivalent rephrasings of the same prompt — each is a full, independent recall variant (own `question`, `answer`, optional `hint`).
 
-`recall.question` — a minimal phrase built from the question's vocabulary: strip adverbs, time expressions, and extra clauses, keep only subject + verb + preposition + noun (+ separable prefix / reflexive pronoun if needed). Show the noun hint in nominative in parentheses — omit the hint when no article is needed (mass nouns, proper nouns). Always one `___` blank regardless of whether the answer is one or two words.
+`recalls[].question` — a minimal phrase built from the question's vocabulary: strip adverbs, time expressions, and extra clauses, keep only subject + verb + preposition + noun (+ separable prefix / reflexive pronoun if needed). Show the noun hint in nominative in parentheses — omit the hint when no article is needed (mass nouns, proper nouns). Always one `___` blank regardless of whether the answer is one or two words.
 
 Example:
 - Question: `"Ich warte schon eine Stunde ___ den Bus."`
-- recall.question: `"Ich warte ___ (der Bus)."`
+- recalls[].question: `"Ich warte ___ (der Bus)."`
 
-`recall.answer` — list of accepted full sentences (always a list, even if one item; multiple entries for cases where several phrasings are equally valid).
+`recalls[].answer` — list of accepted full sentences (always a list, even if one item; multiple entries for cases where several phrasings are equally valid for that *same* variant's prompt).
 
-`recall.hint` — translation of the noun shown in italics below the recall prompt, to help the user focus on the grammar rather than vocabulary. Use when the noun in `recall.question` may be unfamiliar. Format: `"die Rede — речь"` / `"die Rede — speech"`. Both `ru` and `en` keys are optional — omit a language if the word sounds similar to its translation (e.g. `die Katastrophe` needs no `en` hint).
+`recalls[].hint` — translation of the noun shown in italics below the recall prompt, to help the user focus on the grammar rather than vocabulary. Use when the noun in `recalls[].question` may be unfamiliar. Format: `"die Rede — речь"` / `"die Rede — speech"`. Both `ru` and `en` keys are optional — omit a language if the word sounds similar to its translation (e.g. `die Katastrophe` needs no `en` hint).
 
-Vary the subject across exercises of the same topic to avoid identical recall prompts.
+For categories whose `question` already varies per exercise (`government`), a single recall variant is normally enough — vary the subject across *exercises* of the same topic instead, to avoid identical recall prompts across those. For `partizip_ii`, add 2 (or more) variants within the one exercise instead, since there's no per-exercise variation to lean on.
 
-Sanity check: the recall.answer must be a natural, everyday German sentence. Do not force an article where none is natural — e.g. `"Sie verzichtet auf Fleisch."` not `"Sie verzichtet auf das Fleisch."`
+Sanity check: every `recalls[].answer` must be a natural, everyday German sentence. Do not force an article where none is natural — e.g. `"Sie verzichtet auf Fleisch."` not `"Sie verzichtet auf das Fleisch."`
 
-YAML example with recall:
+YAML example with `recalls`:
 ```yaml
 - question: "Ich warte schon eine Stunde ___ den Bus."
   topic: warten
+  category: government
   answer: auf
   distractors: [für, an, um]
   explanation:
     ru: warten auf + Akk
     en: warten auf + Acc
-  recall:
-    question: "Ich warte ___ (der Bus)."
-    answer:
-      - "Ich warte auf den Bus."
-    hint:
-      ru: "der Bus — автобус"
+  recalls:
+    - question: "Ich warte ___ (der Bus)."
+      answer:
+        - "Ich warte auf den Bus."
+      hint:
+        ru: "der Bus — автобус"
+```
+
+YAML example with multiple `recalls` variants (`partizip_ii`, fixed `question` per exercise):
+```yaml
+- question: "helfen → Partizip II"
+  topic: helfen
+  category: partizip_ii
+  answer: geholfen
+  distractors: []
+  explanation:
+    ru: "helfen — помогать; Partizip II: geholfen (haben)"
+    en: "helfen — to help; Partizip II: geholfen (haben)"
+  recalls:
+    - question: "Er hat mir ___."
+      answer:
+        - "Er hat mir geholfen."
+    - question: "Sie hat ihr ___."
+      answer:
+        - "Sie hat ihr geholfen."
 ```
 
 ## Repetition schedule
 
-`Teacher` (in `wiederholen.exercises`) tracks review scheduling in `journal["topic_schedule"]` — `{"{topic}:{category}": {"interval_days": int, "due_date": "YYYY-MM-DD"}}`. The schedule key is `topic` + `category` (`Teacher._schedule_key`), not `topic` alone — so e.g. `sprechen`'s government exercises (different prepositions) and its `partizip_ii` exercise are scheduled independently, while exercises that intentionally share a `topic` within the same category (different prepositions of the same verb) still share one schedule entry. `next_exercise()` selects in two steps — first a random due key (`topic:category`), then a random exercise among the (possibly several) YAML entries sharing that key — so a key backed by many entries (e.g. several prepositions for one verb, or several near-duplicate recall variants) isn't shown more often than a key with only one entry. Falls back to a random key among those tied for the earliest due date if nothing is due yet. `check_answer()` also records `journal["last_answered_question"]` (the `question` of the exercise just checked), and `next_exercise()` reads it back to exclude any within-key candidate with a matching `question`, unless that would leave no candidates at all (e.g. `partizip_ii` topics whose two YAML entries render an identical question and differ only in `recall` — repeating is then unavoidable, not a bug). This keeps repeat-avoidance entirely inside `Teacher`/`journal` — the bot layer doesn't pass or know anything about it. On a correct answer the interval doubles (capped at `Teacher.MAX_INTERVAL_DAYS`, currently 60 days); on a wrong answer it resets to 1 day (due again immediately). The journal's durability depends on the FSM storage backing it — see below.
+`Teacher` (in `wiederholen.exercises`) tracks review scheduling in `journal["topic_schedule"]` — `{"{topic}:{category}": {"interval_days": int, "due_date": "YYYY-MM-DD"}}`. The schedule key is `topic` + `category` (`Teacher._schedule_key`), not `topic` alone — so e.g. `sprechen`'s government exercises (different prepositions) and its `partizip_ii` exercise are scheduled independently, while exercises that intentionally share a `topic` within the same category (different prepositions of the same verb) still share one schedule entry. `next_exercise()` selects in two steps — first a random due key (`topic:category`), then a random exercise among the (possibly several) YAML entries sharing that key — so a key backed by many entries (e.g. several prepositions for one verb) isn't shown more often than a key with only one entry. Falls back to a random key among those tied for the earliest due date if nothing is due yet. `check_answer()` also records `journal["last_answered_question"]` (the `question` of the exercise just checked), and `next_exercise()` reads it back to exclude any within-key candidate with a matching `question`, unless that would leave no candidates at all (e.g. a key whose only entry happens to match — repeating is then unavoidable, not a bug). This keeps repeat-avoidance entirely inside `Teacher`/`journal` — the bot layer doesn't pass or know anything about it. On a correct answer the interval doubles (capped at `Teacher.MAX_INTERVAL_DAYS`, currently 60 days); on a wrong answer it resets to 1 day (due again immediately). The journal's durability depends on the FSM storage backing it — see below.
 
 ## Persistence
 

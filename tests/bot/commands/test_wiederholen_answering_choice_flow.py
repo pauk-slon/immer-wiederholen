@@ -68,7 +68,7 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_message: FeedMessage,
     ) -> None:
-        exercise = make_exercise(recall=False)
+        exercise = make_exercise(recalls=False)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -89,7 +89,7 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_message: FeedMessage,
     ) -> None:
-        exercise = make_exercise(recall=True)
+        exercise = make_exercise(recalls=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -105,11 +105,14 @@ class TestNextExerciseButton:
         feed_message: FeedMessage,
     ) -> None:
         exercise = make_exercise(
-            recall={"answer": ["Ich warte auf den Bus."]},
+            recalls={"answer": ["Ich warte auf den Bus."]},
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
-            shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
+            shown_exercise=dataclasses.asdict(exercise),
+            shown_recall=dataclasses.asdict(exercise.recalls[0]),
+            language="ru",
+            journal={},
         )
 
         requests = await feed_message(
@@ -130,7 +133,7 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_message: FeedMessage,
     ) -> None:
-        exercise = make_exercise(recall=True)
+        exercise = make_exercise(recalls=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -150,7 +153,7 @@ class TestNextExerciseButton:
         feed_message: FeedMessage,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
-        exercise = make_exercise(recall=True)
+        exercise = make_exercise(recalls=True)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -158,8 +161,8 @@ class TestNextExerciseButton:
         requests = await feed_callback_query(RECALL, school=School([exercise]))
         recall_message = requests[1]
 
-        assert exercise.recall is not None
-        assert exercise.recall.question in recall_message.text
+        assert exercise.recalls
+        assert exercise.recalls[0].question in recall_message.text
         assert await state.get_state() == UserState.recalling
 
     async def test_clicking_shows_new_exercise(

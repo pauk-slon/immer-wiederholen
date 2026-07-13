@@ -16,11 +16,14 @@ async def test_correct_input_shows_success(
     feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
-        recall={"answer": ["Ich warte auf den Bus."]},
+        recalls={"answer": ["Ich warte auf den Bus."]},
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
+        shown_exercise=dataclasses.asdict(exercise),
+        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        language="ru",
+        journal={},
     )
 
     requests = await feed_message("Ich warte auf den Bus.", school=School([exercise]))
@@ -34,11 +37,14 @@ async def test_wrong_input_shows_correct_sentence(
     feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
-        recall={"answer": ["Ich warte auf den Bus."]},
+        recalls={"answer": ["Ich warte auf den Bus."]},
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
+        shown_exercise=dataclasses.asdict(exercise),
+        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        language="ru",
+        journal={},
     )
 
     requests = await feed_message(
@@ -54,11 +60,14 @@ async def test_normalizes_case_and_whitespace(
     feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
-        recall={"answer": ["Ich warte auf den Bus."]},
+        recalls={"answer": ["Ich warte auf den Bus."]},
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
+        shown_exercise=dataclasses.asdict(exercise),
+        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        language="ru",
+        journal={},
     )
 
     requests = await feed_message("ich warte  auf den bus.", school=School([exercise]))
@@ -78,14 +87,19 @@ async def test_accepts_any_of_multiple_answers(
         distractors=["für", "an", "um"],
         answer="auf",
         explanation={"ru": "warten auf + Akk", "en": "warten auf + Acc"},
-        recall=Recall(
-            question="Ich warte ___ (der Bus).",
-            answer=["Ich warte auf den Bus.", "Ich warte auf die Straßenbahn."],
-        ),
+        recalls=[
+            Recall(
+                question="Ich warte ___ (der Bus).",
+                answer=["Ich warte auf den Bus.", "Ich warte auf die Straßenbahn."],
+            )
+        ],
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
+        shown_exercise=dataclasses.asdict(exercise),
+        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        language="ru",
+        journal={},
     )
 
     requests = await feed_message(
@@ -101,7 +115,7 @@ async def test_recall_prompt_sent_after_answering(
     feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
-        recall={"hint": {"ru": "die Rede — речь", "en": "die Rede — speech"}},
+        recalls={"hint": {"ru": "die Rede — речь", "en": "die Rede — speech"}},
     )
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
@@ -109,8 +123,8 @@ async def test_recall_prompt_sent_after_answering(
     requests = await feed_message(exercise.distractors[0], school=School([exercise]))
     recall_message = requests[2]
 
-    assert exercise.recall is not None
-    assert exercise.recall.question in recall_message.text
+    assert exercise.recalls
+    assert exercise.recalls[0].question in recall_message.text
     assert "<i>die Rede — речь</i>" in recall_message.text
 
 
@@ -118,13 +132,15 @@ async def test_recall_accepted_after_answering(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
-    exercise = make_exercise(recall=True)
+    exercise = make_exercise(recalls=True)
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
-    assert exercise.recall is not None
+    assert exercise.recalls
     await feed_message(exercise.distractors[0], school=School([exercise]))
-    requests = await feed_message(exercise.recall.answer[0], school=School([exercise]))
+    requests = await feed_message(
+        exercise.recalls[0].answer[0], school=School([exercise])
+    )
 
     assert len(requests) == 1
     assert RU.recall_correct in requests[0].text
@@ -135,11 +151,14 @@ async def test_retry_button_appears_after_wrong_recall(
     feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
-        recall={"answer": ["Ich warte auf den Bus."]},
+        recalls={"answer": ["Ich warte auf den Bus."]},
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
+        shown_exercise=dataclasses.asdict(exercise),
+        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        language="ru",
+        journal={},
     )
 
     requests = await feed_message(
@@ -161,17 +180,52 @@ async def test_clicking_retry_starts_recall_again(
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
     exercise = make_exercise(
-        recall={"answer": ["Ich warte auf den Bus."]},
+        recalls={"answer": ["Ich warte auf den Bus."]},
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise), language="ru", journal={}
+        shown_exercise=dataclasses.asdict(exercise),
+        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        language="ru",
+        journal={},
     )
 
     await feed_message("Es hängt alles in der Situation ab.", school=School([exercise]))
     requests = await feed_callback_query(RECALL, school=School([exercise]))
     recall_message = requests[1]
 
-    assert exercise.recall is not None
-    assert exercise.recall.question in recall_message.text
+    assert exercise.recalls
+    assert exercise.recalls[0].question in recall_message.text
     assert await state.get_state() == UserState.recalling
+
+
+async def test_retry_avoids_repeating_last_recall_variant(
+    state: FSMContext,
+    feed_message: FeedMessage,
+    feed_callback_query: FeedCallbackQuery,
+) -> None:
+    exercise = Exercise(
+        question="helfen → Partizip II",
+        topic="helfen",
+        category="partizip_ii",
+        answer="geholfen",
+        distractors=[],
+        explanation={"ru": "x", "en": "y"},
+        recalls=[
+            Recall(question="Er hat mir ___.", answer=["Er hat mir geholfen."]),
+            Recall(question="Sie hat ihr ___.", answer=["Sie hat ihr geholfen."]),
+        ],
+    )
+    await state.set_state(UserState.recalling)
+    await state.update_data(
+        shown_exercise=dataclasses.asdict(exercise),
+        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        language="ru",
+        journal={},
+    )
+
+    await feed_message("das ist ganz falsch", school=School([exercise]))
+    requests = await feed_callback_query(RECALL, school=School([exercise]))
+    recall_message = requests[1]
+
+    assert exercise.recalls[1].question in recall_message.text
