@@ -51,12 +51,11 @@ def test_new_topic_is_always_due() -> None:
 
 def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
-    today = date.today()
     state = {
         "topic_schedule": {
             "warten:government": {
                 "interval_days": 5,
-                "due_date": (today + timedelta(days=20)).isoformat(),
+                "due_date": (date.today() + timedelta(days=20)).isoformat(),
             },
         }
     }
