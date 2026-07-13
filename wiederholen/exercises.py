@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import Annotated, ClassVar, Final, Literal, TypedDict, get_args, overload
 
@@ -146,7 +147,16 @@ class Teacher:
             return date.min
         return date.fromisoformat(entry["due_date"])
 
-    def _exercises_by_key(self) -> dict[str, list[Exercise]]:
+    @property
+    def _last_answered_question(self) -> str | None:
+        return self._journal.get("last_answered_question")
+
+    @_last_answered_question.setter
+    def _last_answered_question(self, question: str) -> None:
+        self._journal["last_answered_question"] = question
+
+    @cached_property
+    def _exercises_by_schedule_key(self) -> dict[str, list[Exercise]]:
         by_key: dict[str, list[Exercise]] = {}
         for exercise in self._exercises:
             by_key.setdefault(self._schedule_key(exercise), []).append(exercise)
@@ -154,28 +164,50 @@ class Teacher:
 
     def next_exercise(self, today: date | None = None) -> Exercise:
         today = today or date.today()
-        by_key = self._exercises_by_key()
-        due_keys = [key for key in by_key if self._due_date(key) <= today]
-        key = random.choice(due_keys) if due_keys else min(by_key, key=self._due_date)
-        return random.choice(by_key[key])
+        due_schedule_keys = [
+            schedule_key
+            for schedule_key in self._exercises_by_schedule_key
+            if self._due_date(schedule_key) <= today
+        ]
+        schedule_key = (
+            random.choice(due_schedule_keys)
+            if due_schedule_keys
+            else min(self._exercises_by_schedule_key, key=self._due_date)
+        )
+        candidates = self._exercises_by_schedule_key[schedule_key]
+        last_answered_question = self._last_answered_question
+        if last_answered_question is not None:
+            if filtered_exercises := [
+                exercise
+                for exercise in candidates
+                if exercise.question != last_answered_question
+            ]:
+                candidates = filtered_exercises
+        return random.choice(candidates)
 
     def check_answer(
-        self, exercise: Exercise, answer: str, today: date | None = None
+        self,
+        exercise: Exercise,
+        answer: str,
+        today: date | None = None,
     ) -> Mark:
         today = today or date.today()
         correct = answer.strip().lower() == exercise.answer.strip().lower()
-        entry = self._get_schedule_entry(
+        self._last_answered_question = exercise.question
+        schedule_entry = self._get_schedule_entry(
             self._schedule_key(exercise),
             create_if_missing=True,
         )
         if correct:
-            interval = min(max(entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS)
+            interval = min(
+                max(schedule_entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS
+            )
             due_date = today + timedelta(days=interval)
         else:
             interval = 1
             due_date = today
-        entry["interval_days"] = interval
-        entry["due_date"] = due_date.isoformat()
+        schedule_entry["interval_days"] = interval
+        schedule_entry["due_date"] = due_date.isoformat()
         if exercise.recall is None:
             recall_mode = RecallMode.none
         elif correct:
