@@ -43,6 +43,24 @@ def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
     assert teacher.next_exercise().topic == "hoffen"
 
 
+def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
+    exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    today = date.today()
+    due_date = (today + timedelta(days=8)).isoformat()
+    state = {
+        "topic_schedule": {
+            "warten:government": {"interval_days": 5, "due_date": due_date},
+            "hoffen:government": {"interval_days": 5, "due_date": due_date},
+        }
+    }
+    teacher = School(exercises)(state)
+
+    random.seed(1234)
+    picks = Counter(teacher.next_exercise().topic for _ in range(2000))
+
+    assert 0.8 < picks["warten"] / picks["hoffen"] < 1.25
+
+
 def test_new_topic_is_always_due() -> None:
     exercise = make_exercise(topic="warten")
     teacher = School([exercise])({})
