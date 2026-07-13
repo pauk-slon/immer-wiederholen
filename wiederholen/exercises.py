@@ -162,8 +162,8 @@ class Teacher:
             by_key.setdefault(self._schedule_key(exercise), []).append(exercise)
         return by_key
 
-    def next_exercise(self, today: date | None = None) -> Exercise:
-        today = today or date.today()
+    def next_exercise(self) -> Exercise:
+        today = date.today()
         due_schedule_keys = [
             schedule_key
             for schedule_key in self._exercises_by_schedule_key
@@ -185,13 +185,7 @@ class Teacher:
                 candidates = filtered_exercises
         return random.choice(candidates)
 
-    def check_answer(
-        self,
-        exercise: Exercise,
-        answer: str,
-        today: date | None = None,
-    ) -> Mark:
-        today = today or date.today()
+    def check_answer(self, exercise: Exercise, answer: str) -> Mark:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
         self._last_answered_question = exercise.question
         schedule_entry = self._get_schedule_entry(
@@ -202,10 +196,10 @@ class Teacher:
             interval = min(
                 max(schedule_entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS
             )
-            due_date = today + timedelta(days=interval)
+            due_date = date.today() + timedelta(days=interval)
         else:
             interval = 1
-            due_date = today
+            due_date = date.today()
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
         if exercise.recall is None:
