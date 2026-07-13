@@ -1,26 +1,23 @@
 import random
 from collections import Counter
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
-import time_machine
 
 from wiederholen.exercises import Exercise, School
 
 from tests.plugins.exercises import make_exercise
 
 
-@pytest.fixture(autouse=True)
-def _travel_to_fixed_date():
-    with time_machine.travel(date(2026, 7, 12), tick=False):
-        yield
-
-
 def test_next_exercise_only_picks_due_topics() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    today = date.today()
     state = {
         "topic_schedule": {
-            "warten:government": {"interval_days": 30, "due_date": "2026-08-01"},
+            "warten:government": {
+                "interval_days": 30,
+                "due_date": (today + timedelta(days=20)).isoformat(),
+            },
         }
     }
     teacher = School(exercises)(state)
@@ -29,10 +26,17 @@ def test_next_exercise_only_picks_due_topics() -> None:
 
 def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    today = date.today()
     state = {
         "topic_schedule": {
-            "warten:government": {"interval_days": 30, "due_date": "2026-08-10"},
-            "hoffen:government": {"interval_days": 5, "due_date": "2026-07-20"},
+            "warten:government": {
+                "interval_days": 30,
+                "due_date": (today + timedelta(days=29)).isoformat(),
+            },
+            "hoffen:government": {
+                "interval_days": 5,
+                "due_date": (today + timedelta(days=8)).isoformat(),
+            },
         }
     }
     teacher = School(exercises)(state)
@@ -47,9 +51,13 @@ def test_new_topic_is_always_due() -> None:
 
 def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    today = date.today()
     state = {
         "topic_schedule": {
-            "warten:government": {"interval_days": 5, "due_date": "2026-08-01"},
+            "warten:government": {
+                "interval_days": 5,
+                "due_date": (today + timedelta(days=20)).isoformat(),
+            },
         }
     }
     teacher = School(exercises)(state)
@@ -61,50 +69,63 @@ def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None
 
 def test_correct_answer_doubles_interval() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
+    today = date.today()
     state = {
         "topic_schedule": {
-            "warten:government": {"interval_days": 4, "due_date": "2026-07-01"}
+            "warten:government": {
+                "interval_days": 4,
+                "due_date": (today - timedelta(days=11)).isoformat(),
+            }
         }
     }
     School([exercise])(state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 8
-    assert entry["due_date"] == "2026-07-20"
+    assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
 
 
 def test_correct_answer_on_new_topic_sets_interval_to_one() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
+    today = date.today()
     state: dict = {}
     School([exercise])(state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
-    assert entry["due_date"] == "2026-07-13"
+    assert entry["due_date"] == (today + timedelta(days=1)).isoformat()
 
 
 def test_correct_answer_caps_interval_at_max() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
+    today = date.today()
     state = {
         "topic_schedule": {
-            "warten:government": {"interval_days": 50, "due_date": "2026-07-01"}
+            "warten:government": {
+                "interval_days": 50,
+                "due_date": (today - timedelta(days=11)).isoformat(),
+            }
         }
     }
     School([exercise])(state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 60
-    assert entry["due_date"] == "2026-09-10"
+    assert entry["due_date"] == (today + timedelta(days=60)).isoformat()
 
 
 def test_wrong_answer_resets_interval_and_is_due_today() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
+    today = date.today()
     state = {
         "topic_schedule": {
-            "warten:government": {"interval_days": 30, "due_date": "2026-07-01"}
+            "warten:government": {
+                "interval_days": 30,
+                "due_date": (today - timedelta(days=11)).isoformat(),
+            }
         }
     }
     School([exercise])(state).check_answer(exercise, "für")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
-    assert entry["due_date"] == "2026-07-12"
+    assert entry["due_date"] == today.isoformat()
 
 
 def test_check_answer_records_last_answered_question() -> None:
@@ -132,7 +153,10 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
     state = {
         "topic_schedule": {
             "warten:government": malformed_entry,
-            "hoffen:government": {"interval_days": 30, "due_date": "2026-08-01"},
+            "hoffen:government": {
+                "interval_days": 30,
+                "due_date": (date.today() + timedelta(days=20)).isoformat(),
+            },
         }
     }
     teacher = School(exercises)(state)
@@ -210,14 +234,18 @@ def test_same_topic_different_categories_are_scheduled_independently() -> None:
 
 def test_schedule_entry_with_unknown_extra_key_is_still_respected() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    today = date.today()
     state = {
         "topic_schedule": {
             "warten:government": {
                 "interval_days": 30,
-                "due_date": "2026-08-01",
+                "due_date": (today + timedelta(days=20)).isoformat(),
                 "extra": "field",
             },
-            "hoffen:government": {"interval_days": 5, "due_date": "2026-07-01"},
+            "hoffen:government": {
+                "interval_days": 5,
+                "due_date": (today - timedelta(days=11)).isoformat(),
+            },
         }
     }
     teacher = School(exercises)(state)
@@ -237,8 +265,9 @@ def test_malformed_schedule_entry_is_overwritten_on_check_answer(
     malformed_entry,
 ) -> None:
     exercise = make_exercise(topic="warten", answer="auf")
+    today = date.today()
     state = {"topic_schedule": {"warten:government": malformed_entry}}
     School([exercise])(state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
-    assert entry["due_date"] == "2026-07-13"
+    assert entry["due_date"] == (today + timedelta(days=1)).isoformat()

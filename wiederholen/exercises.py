@@ -186,7 +186,6 @@ class Teacher:
         return random.choice(candidates)
 
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
-        today = date.today()
         correct = answer.strip().lower() == exercise.answer.strip().lower()
         self._last_answered_question = exercise.question
         schedule_entry = self._get_schedule_entry(
@@ -197,10 +196,10 @@ class Teacher:
             interval = min(
                 max(schedule_entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS
             )
-            due_date = today + timedelta(days=interval)
+            due_date = date.today() + timedelta(days=interval)
         else:
             interval = 1
-            due_date = today
+            due_date = date.today()
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
         if exercise.recall is None:

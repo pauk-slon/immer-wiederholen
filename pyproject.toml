@@ -23,6 +23,5 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.17",
-    "time-machine>=3.2.0",
     "ty>=0.0.49",
 ]
