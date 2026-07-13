@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from wiederholen.bot.commands.wiederholen import UserState
-from wiederholen.exercises import School
+from wiederholen.exercises import Exercise, School
 
 from tests.plugins.aiogram import FeedMessage
 from tests.plugins.exercises import make_exercise
@@ -63,3 +63,31 @@ async def test_reply_keyboard_remove_for_input_exercise(
 
     assert len(requests) == 1
     assert isinstance(requests[0].reply_markup, ReplyKeyboardRemove)
+
+
+async def test_avoids_repeating_previously_shown_question(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    mit = Exercise(
+        topic="sprechen",
+        category="government",
+        question="Ich spreche ___ meiner Mutter.",
+        answer="mit",
+        distractors=["über", "an", "für"],
+        explanation={"ru": "x", "en": "y"},
+    )
+    ueber = Exercise(
+        topic="sprechen",
+        category="government",
+        question="Wir sprechen ___ das Problem.",
+        answer="über",
+        distractors=["mit", "an", "für"],
+        explanation={"ru": "x", "en": "y"},
+    )
+    await state.update_data(journal={"last_answered_question": mit.question})
+
+    requests = await feed_message("/wiederholen", school=School([mit, ueber]))
+
+    assert len(requests) == 1
+    assert ueber.question in requests[0].text

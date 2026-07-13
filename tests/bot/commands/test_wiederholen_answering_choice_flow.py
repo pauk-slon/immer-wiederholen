@@ -5,7 +5,7 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.exercises import School
+from wiederholen.exercises import Exercise, School
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.exercises import make_exercise
@@ -177,3 +177,35 @@ class TestNextExerciseButton:
         )
         assert isinstance(send_message.reply_markup, ReplyKeyboardMarkup)
         assert await state.get_state() == UserState.answering
+
+    async def test_avoids_repeating_previously_shown_question(
+        self,
+        state: FSMContext,
+        feed_callback_query: FeedCallbackQuery,
+    ) -> None:
+        mit = Exercise(
+            topic="sprechen",
+            category="government",
+            question="Ich spreche ___ meiner Mutter.",
+            answer="mit",
+            distractors=["über", "an", "für"],
+            explanation={"ru": "x", "en": "y"},
+        )
+        ueber = Exercise(
+            topic="sprechen",
+            category="government",
+            question="Wir sprechen ___ das Problem.",
+            answer="über",
+            distractors=["mit", "an", "für"],
+            explanation={"ru": "x", "en": "y"},
+        )
+        await state.update_data(
+            language="ru", journal={"last_answered_question": mit.question}
+        )
+
+        requests = await feed_callback_query(NEXT_EXERCISE, school=School([mit, ueber]))
+
+        send_message = next(
+            r for r in requests if hasattr(r, "text") and ueber.question in r.text
+        )
+        assert ueber.question in send_message.text

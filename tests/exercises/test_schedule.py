@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from wiederholen.exercises import School
+from wiederholen.exercises import Exercise, School
 
 from tests.plugins.exercises import make_exercise
 
@@ -106,6 +106,15 @@ def test_wrong_answer_resets_interval_and_is_due_today() -> None:
     assert entry["due_date"] == "2026-07-12"
 
 
+def test_check_answer_records_last_answered_question() -> None:
+    exercise = make_exercise(topic="warten", answer="auf")
+    state: dict = {}
+
+    School([exercise])(state).check_answer(exercise, "auf", date(2026, 7, 12))
+
+    assert state["last_answered_question"] == exercise.question
+
+
 @pytest.mark.parametrize(
     "malformed_entry",
     [
@@ -143,6 +152,45 @@ def test_exercises_selected_evenly_across_topics() -> None:
     picks = Counter(teacher.next_exercise().topic for _ in range(2000))
 
     assert 0.8 < picks["warten"] / picks["helfen"] < 1.25
+
+
+def test_next_exercise_avoids_repeating_last_answered_question() -> None:
+    mit = Exercise(
+        topic="sprechen",
+        category="government",
+        question="Ich spreche ___ meiner Mutter.",
+        answer="mit",
+        distractors=["über", "an", "für"],
+        explanation={"ru": "x", "en": "y"},
+    )
+    ueber = Exercise(
+        topic="sprechen",
+        category="government",
+        question="Wir sprechen ___ das Problem.",
+        answer="über",
+        distractors=["mit", "an", "für"],
+        explanation={"ru": "x", "en": "y"},
+    )
+    state = {"last_answered_question": mit.question}
+    teacher = School([mit, ueber])(state)
+
+    result = teacher.next_exercise()
+
+    assert result.question == ueber.question
+
+
+def test_next_exercise_repeats_question_when_no_other_variant_is_available() -> None:
+    # Both partizip_ii entries for one topic render the same question text and
+    # differ only in recall — excluding by question leaves no alternative, so
+    # the repeat is unavoidable rather than something to filter out.
+    duplicate_1 = make_exercise(topic="helfen")
+    duplicate_2 = make_exercise(topic="helfen")
+    state = {"last_answered_question": duplicate_1.question}
+    teacher = School([duplicate_1, duplicate_2])(state)
+
+    result = teacher.next_exercise()
+
+    assert result.question == duplicate_1.question
 
 
 def test_same_topic_different_categories_are_scheduled_independently() -> None:
