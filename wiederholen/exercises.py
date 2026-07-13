@@ -169,11 +169,19 @@ class Teacher:
             for schedule_key in self._exercises_by_schedule_key
             if self._due_date(schedule_key) <= today
         ]
-        schedule_key = (
-            random.choice(due_schedule_keys)
-            if due_schedule_keys
-            else min(self._exercises_by_schedule_key, key=self._due_date)
-        )
+        if due_schedule_keys:
+            schedule_key = random.choice(due_schedule_keys)
+        else:
+            earliest_due_date = min(
+                self._due_date(schedule_key)
+                for schedule_key in self._exercises_by_schedule_key
+            )
+            earliest_schedule_keys = [
+                schedule_key
+                for schedule_key in self._exercises_by_schedule_key
+                if self._due_date(schedule_key) == earliest_due_date
+            ]
+            schedule_key = random.choice(earliest_schedule_keys)
         candidates = self._exercises_by_schedule_key[schedule_key]
         last_answered_question = self._last_answered_question
         if last_answered_question is not None:
