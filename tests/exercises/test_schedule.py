@@ -85,12 +85,11 @@ def test_correct_answer_doubles_interval() -> None:
 
 def test_correct_answer_on_new_topic_sets_interval_to_one() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
-    today = date.today()
     state: dict = {}
     School([exercise])(state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
-    assert entry["due_date"] == (today + timedelta(days=1)).isoformat()
+    assert entry["due_date"] == (date.today() + timedelta(days=1)).isoformat()
 
 
 def test_correct_answer_caps_interval_at_max() -> None:
@@ -129,11 +128,11 @@ def test_wrong_answer_resets_interval_and_is_due_today() -> None:
 
 def test_check_answer_records_last_answered_question() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
-    state: dict = {}
+    journal: dict = {}
 
-    School([exercise])(state).check_answer(exercise, "auf")
+    School([exercise])(journal).check_answer(exercise, "auf")
 
-    assert state["last_answered_question"] == exercise.question
+    assert journal["last_answered_question"] == exercise.question
 
 
 @pytest.mark.parametrize(
