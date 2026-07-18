@@ -68,16 +68,6 @@ def _make_recall_buttons(locale: Locale, label: str) -> InlineKeyboardMarkup:
     )
 
 
-def _pick_recall(exercise: Exercise, previous_recall_question: str | None) -> Recall:
-    candidates = exercise.recalls
-    if previous_recall_question is not None:
-        if filtered := [
-            r for r in candidates if r.question != previous_recall_question
-        ]:
-            candidates = filtered
-    return random.choice(candidates)
-
-
 async def _start_recall(
     state: FSMContext,
     language: Language,
@@ -86,9 +76,10 @@ async def _start_recall(
     shown_exercise: Exercise,
     message: Message,
     locale: Locale,
-    previous_recall_question: str | None = None,
+    school: School,
 ) -> None:
-    recall = _pick_recall(shown_exercise, previous_recall_question)
+    teacher = school(journal)
+    recall = teacher.pick_recall(shown_exercise)
     await state.set_state(UserState.recalling)
     await state.update_data(
         language=language,
@@ -170,6 +161,7 @@ async def handle_answer(
             shown_exercise,
             message,
             locale,
+            school,
         )
     else:
         await state.update_data(
@@ -232,12 +224,12 @@ async def handle_next_exercise(
 async def handle_recall_request(
     callback: CallbackQuery,
     state: FSMContext,
+    school: School,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     journal = state_data.get("journal", {})
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
-    previous_recall_question = state_data.get("shown_recall", {}).get("question")
     locale = LOCALES[language]
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -249,6 +241,6 @@ async def handle_recall_request(
             shown_exercise,
             callback.message,
             locale,
-            previous_recall_question,
+            school,
         )
     await callback.answer()

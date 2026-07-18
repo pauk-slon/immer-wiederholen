@@ -211,7 +211,7 @@ async def test_retry_avoids_repeating_last_recall_variant(
         shown_exercise=dataclasses.asdict(exercise),
         shown_recall=dataclasses.asdict(exercise.recalls[0]),
         language="ru",
-        journal={},
+        journal={"last_recall_question": exercise.recalls[0].question},
     )
 
     await feed_message("das ist ganz falsch", school=School([exercise]))
