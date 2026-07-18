@@ -53,7 +53,9 @@ class MakeRequest(Protocol):
 
 class MockMainIO(Protocol):
     def __call__(
-        self, *, request_side_effect: MakeRequest | None = None
+        self,
+        *,
+        request_side_effect: MakeRequest | None = None,
     ) -> AbstractContextManager[tuple[AsyncMock, AsyncMock]]: ...
 
 
