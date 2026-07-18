@@ -1,4 +1,3 @@
-import dataclasses
 import random
 from typing import Final
 
@@ -85,7 +84,7 @@ async def _start_recall(
         language=language,
         journal=journal,
         shown_exercise=shown_exercise_dict,
-        shown_recall=dataclasses.asdict(recall),
+        shown_recall=recall.to_dict(),
     )
     hint = recall.hint.get(language) if recall.hint else None
     recall_text = locale.recall_prompt.format(recall=recall.question)
@@ -117,7 +116,7 @@ async def command_wiederholen(
     exercise = teacher.next_exercise()
     await state.set_state(UserState.answering)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
+        shown_exercise=exercise.to_dict(),
         journal=journal,
     )
     await message.answer(_format_question(exercise), **_show_exercise_kwargs(exercise))
@@ -177,7 +176,7 @@ async def handle_recall(message: Message, state: FSMContext, school: School) -> 
     await state.clear()
     language = get_language(state_data)
     journal = state_data.get("journal", {})
-    shown_recall = Recall(**state_data["shown_recall"])
+    shown_recall = Recall.from_dict(state_data["shown_recall"])
     await state.update_data(
         language=language,
         journal=journal,
@@ -209,9 +208,7 @@ async def handle_next_exercise(
     teacher = school(journal)
     exercise = teacher.next_exercise()
     await state.set_state(UserState.answering)
-    await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise), journal=journal
-    )
+    await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await callback.message.answer(

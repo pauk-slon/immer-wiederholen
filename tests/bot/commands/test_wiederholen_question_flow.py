@@ -1,5 +1,3 @@
-import dataclasses
-
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
@@ -40,7 +38,7 @@ async def test_saves_shown_exercise(
 
     assert len(requests) == 1
     data = await state.get_data()
-    assert data["shown_exercise"] == dataclasses.asdict(exercise)
+    assert data["shown_exercise"] == exercise.to_dict()
 
 
 async def test_reply_keyboard_contains_all_options(

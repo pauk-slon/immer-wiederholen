@@ -1,4 +1,3 @@
-import dataclasses
 from typing import Generator
 from unittest.mock import AsyncMock, patch
 
@@ -58,7 +57,7 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert isinstance(args[0], Bot)
     assert args[0].token == bot_token
     assert isinstance(kwargs["school"], School)
-    loaded_exercise = dataclasses.asdict(kwargs["school"]({}).next_exercise())
+    loaded_exercise = kwargs["school"]({}).next_exercise().to_dict()
     if not loaded_exercise["recalls"]:
         del loaded_exercise["recalls"]
     assert loaded_exercise == exercise_data

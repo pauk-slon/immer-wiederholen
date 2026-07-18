@@ -1,5 +1,3 @@
-import dataclasses
-
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
@@ -19,7 +17,7 @@ class TestHandleAnswer:
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         requests = await feed_message(exercise.answer, school=School([exercise]))
 
@@ -33,7 +31,7 @@ class TestHandleAnswer:
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         requests = await feed_message(
             exercise.distractors[0], school=School([exercise])
@@ -51,7 +49,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         requests = await feed_message(exercise.answer, school=School([exercise]))
 
@@ -70,7 +68,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise(recalls=False)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         requests = await feed_message(
             exercise.distractors[0], school=School([exercise])
@@ -91,7 +89,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise(recalls=True)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         requests = await feed_message(
             exercise.distractors[0], school=School([exercise])
@@ -109,8 +107,8 @@ class TestNextExerciseButton:
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
-            shown_exercise=dataclasses.asdict(exercise),
-            shown_recall=dataclasses.asdict(exercise.recalls[0]),
+            shown_exercise=exercise.to_dict(),
+            shown_recall=exercise.recalls[0].to_dict(),
             language="ru",
             journal={},
         )
@@ -135,7 +133,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise(recalls=True)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         requests = await feed_message(exercise.answer, school=School([exercise]))
 
@@ -155,7 +153,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise(recalls=True)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         await feed_message(exercise.answer, school=School([exercise]))
         requests = await feed_callback_query(RECALL, school=School([exercise]))

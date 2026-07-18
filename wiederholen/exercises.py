@@ -1,6 +1,6 @@
 import random
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import date, timedelta
 from enum import Enum
 from functools import cached_property
@@ -41,6 +41,13 @@ class Recall:
                 f"recall.hint keys must be a subset of {LANGUAGES}, got {set(self.hint.keys())}"
             )
 
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Recall":
+        return cls(**d)
+
 
 @dataclass(frozen=True)
 class Exercise:
@@ -64,11 +71,14 @@ class Exercise:
                 f"category must be one of {CATEGORIES}, got {self.category!r}"
             )
 
+    def to_dict(self) -> dict:
+        return asdict(self)
+
     @classmethod
     def from_dict(cls, d: dict) -> "Exercise":
         d = dict(d)
         if d.get("recalls") is not None:
-            d["recalls"] = [Recall(**r) for r in d["recalls"]]
+            d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
         return cls(**d)
 
 

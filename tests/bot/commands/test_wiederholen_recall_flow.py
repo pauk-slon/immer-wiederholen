@@ -1,5 +1,3 @@
-import dataclasses
-
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
@@ -20,8 +18,8 @@ async def test_correct_input_shows_success(
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
-        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
         journal={},
     )
@@ -41,8 +39,8 @@ async def test_wrong_input_shows_correct_sentence(
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
-        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
         journal={},
     )
@@ -64,8 +62,8 @@ async def test_normalizes_case_and_whitespace(
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
-        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
         journal={},
     )
@@ -87,8 +85,8 @@ async def test_accepts_any_of_multiple_answers(
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
-        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
         journal={},
     )
@@ -109,7 +107,7 @@ async def test_recall_prompt_sent_after_answering(
         recalls=[{"hint": {"ru": "die Rede — речь", "en": "die Rede — speech"}}],
     )
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
     requests = await feed_message(exercise.distractors[0], school=School([exercise]))
     recall_message = requests[2]
@@ -125,7 +123,7 @@ async def test_recall_accepted_after_answering(
 ) -> None:
     exercise = make_exercise(recalls=True)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
     assert exercise.recalls
     await feed_message(exercise.distractors[0], school=School([exercise]))
@@ -147,8 +145,8 @@ async def test_retry_button_appears_after_wrong_recall(
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
-        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
         journal={},
     )
@@ -176,8 +174,8 @@ async def test_clicking_retry_starts_recall_again(
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
-        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
         journal={},
     )
@@ -208,8 +206,8 @@ async def test_retry_avoids_repeating_last_recall_variant(
     )
     await state.set_state(UserState.recalling)
     await state.update_data(
-        shown_exercise=dataclasses.asdict(exercise),
-        shown_recall=dataclasses.asdict(exercise.recalls[0]),
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
         journal={"last_recall_question": exercise.recalls[0].question},
     )
