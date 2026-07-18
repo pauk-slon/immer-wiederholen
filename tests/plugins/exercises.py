@@ -58,11 +58,7 @@ def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
         explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
     )
     if recalls := kwargs.pop("recalls", False):
-        recalls_kwargs: list[RecallKwargs]
-        if isinstance(recalls, Sequence):
-            recalls_kwargs = list(recalls)
-        else:
-            recalls_kwargs = [RecallKwargs()]
+        recalls_kwargs = recalls if isinstance(recalls, Sequence) else [RecallKwargs()]
         exercise_data["recalls"] = [_make_recall_data(r) for r in recalls_kwargs]
     return exercise_data
 
