@@ -1,5 +1,6 @@
-from typing import Generator
+from typing import Generator, Protocol
 from unittest.mock import AsyncMock, patch
+from contextlib import contextmanager, AbstractContextManager
 
 import pytest
 
@@ -12,7 +13,9 @@ from aiogram.methods import (
     SetMyDescription,
     SetMyName,
     SetMyShortDescription,
+    TelegramMethod,
 )
+from aiogram.methods.base import TelegramType
 
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
@@ -39,17 +42,53 @@ def _env(
         yield None
 
 
+class MakeRequest(Protocol):
+    async def __call__(
+        self,
+        bot: Bot,
+        method: TelegramMethod[TelegramType],
+        timeout: int | None = None,
+    ) -> TelegramType: ...
+
+
+class MockMainIO(Protocol):
+    def __call__(
+        self, *, request_side_effect: MakeRequest | None = None
+    ) -> AbstractContextManager[tuple[AsyncMock, AsyncMock]]: ...
+
+
+@pytest.fixture
+def mock_main_io() -> MockMainIO:
+    @contextmanager
+    def factory(
+        *,
+        request_side_effect: MakeRequest | None = None,
+    ) -> Generator[tuple[AsyncMock, AsyncMock]]:
+        mock_request = (
+            AsyncMock(side_effect=request_side_effect)
+            if request_side_effect
+            else AsyncMock(return_value=True)
+        )
+        with (
+            patch(
+                "aiogram.client.session.aiohttp.AiohttpSession.make_request",
+                mock_request,
+            ),
+            patch(
+                "wiederholen.bot.dispatcher.start_polling", AsyncMock()
+            ) as mock_polling,
+        ):
+            yield mock_request, mock_polling
+
+    return factory
+
+
 async def test_starts_polling_with_bot_and_dependencies(
-    bot_token: str, exercise_data: ExerciseData
+    bot_token: str,
+    exercise_data: ExerciseData,
+    mock_main_io: MockMainIO,
 ) -> None:
-    mock_polling = AsyncMock()
-    with (
-        patch(
-            "aiogram.client.session.aiohttp.AiohttpSession.make_request",
-            AsyncMock(return_value=True),
-        ),
-        patch("wiederholen.bot.dispatcher.start_polling", mock_polling),
-    ):
+    with mock_main_io() as (mock_request, mock_polling):
         await main()
 
     mock_polling.assert_called_once()
@@ -63,27 +102,15 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert loaded_exercise == exercise_data
 
 
-async def test_configures_redis_storage_from_env() -> None:
-    with (
-        patch(
-            "aiogram.client.session.aiohttp.AiohttpSession.make_request",
-            AsyncMock(return_value=True),
-        ),
-        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
-    ):
+async def test_configures_redis_storage_from_env(mock_main_io: MockMainIO) -> None:
+    with mock_main_io():
         await main()
 
     assert isinstance(dispatcher.fsm.storage, RedisStorage)
 
 
-async def test_sets_name_for_all_languages() -> None:
-    mock_request = AsyncMock(return_value=True)
-    with (
-        patch(
-            "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
-        ),
-        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
-    ):
+async def test_sets_name_for_all_languages(mock_main_io: MockMainIO) -> None:
+    with mock_main_io() as (mock_request, mock_polling):
         await main()
 
     name_calls = {
@@ -94,14 +121,8 @@ async def test_sets_name_for_all_languages() -> None:
     assert name_calls == {lc: locale.bot_name for lc, locale in LOCALES.items()}
 
 
-async def test_sets_description_for_all_languages() -> None:
-    mock_request = AsyncMock(return_value=True)
-    with (
-        patch(
-            "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
-        ),
-        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
-    ):
+async def test_sets_description_for_all_languages(mock_main_io: MockMainIO) -> None:
+    with mock_main_io() as (mock_request, mock_polling):
         await main()
 
     description_calls = {
@@ -114,14 +135,10 @@ async def test_sets_description_for_all_languages() -> None:
     }
 
 
-async def test_sets_short_description_for_all_languages() -> None:
-    mock_request = AsyncMock(return_value=True)
-    with (
-        patch(
-            "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
-        ),
-        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
-    ):
+async def test_sets_short_description_for_all_languages(
+    mock_main_io: MockMainIO,
+) -> None:
+    with mock_main_io() as (mock_request, mock_polling):
         await main()
 
     short_description_calls = {
@@ -134,14 +151,8 @@ async def test_sets_short_description_for_all_languages() -> None:
     }
 
 
-async def test_sets_commands_for_all_languages() -> None:
-    mock_request = AsyncMock(return_value=True)
-    with (
-        patch(
-            "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
-        ),
-        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()),
-    ):
+async def test_sets_commands_for_all_languages(mock_main_io: MockMainIO) -> None:
+    with mock_main_io() as (mock_request, mock_polling):
         await main()
 
     language_codes = {
@@ -156,7 +167,9 @@ async def test_sets_commands_for_all_languages() -> None:
     "failing_method",
     [SetMyName, SetMyDescription, SetMyShortDescription, SetMyCommands],
 )
-async def test_does_not_crash_on_rate_limit(failing_method: type) -> None:
+async def test_does_not_crash_on_rate_limit(
+    mock_main_io: MockMainIO, failing_method: type
+) -> None:
     async def make_request_side_effect(bot, method, timeout=None):
         if isinstance(method, failing_method):
             raise TelegramRetryAfter(
@@ -164,13 +177,9 @@ async def test_does_not_crash_on_rate_limit(failing_method: type) -> None:
             )
         return True
 
-    mock_request = AsyncMock(side_effect=make_request_side_effect)
-    with (
-        patch(
-            "aiogram.client.session.aiohttp.AiohttpSession.make_request", mock_request
-        ),
-        patch("wiederholen.bot.dispatcher.start_polling", AsyncMock()) as mock_polling,
-    ):
+    with mock_main_io(
+        request_side_effect=make_request_side_effect,
+    ) as (mock_request, mock_polling):
         await main()
 
     mock_polling.assert_called_once()
