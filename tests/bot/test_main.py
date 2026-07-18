@@ -173,7 +173,9 @@ async def test_does_not_crash_on_rate_limit(
     async def make_request_side_effect(bot, method, timeout=None):
         if isinstance(method, failing_method):
             raise TelegramRetryAfter(
-                method=method, message="flood control", retry_after=1
+                method=method,
+                message="flood control",
+                retry_after=1,
             )
         return True
 
