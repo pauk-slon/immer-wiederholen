@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import TypedDict, NotRequired, Literal, Unpack
 
 from wiederholen.exercises import Category, Exercise, Recall
@@ -33,7 +34,17 @@ class ExerciseDataKwargs(TypedDict, total=False):
     category: Category
     answer: str
     distractors: list[str]
-    recalls: bool | RecallKwargs
+    recalls: bool | Sequence[RecallKwargs]
+
+
+def _make_recall_data(recall_kwargs: RecallKwargs) -> RecallData:
+    recall_data = RecallData(
+        question=recall_kwargs.get("question", "Ich ___ (der Bus)."),
+        answer=recall_kwargs.get("answer", ["Ich warte auf den Bus."]),
+    )
+    if "hint" in recall_kwargs:
+        recall_data["hint"] = recall_kwargs["hint"]
+    return recall_data
 
 
 def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
@@ -47,14 +58,12 @@ def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
         explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
     )
     if recalls := kwargs.pop("recalls", False):
-        recall_kwargs = {} if isinstance(recalls, bool) else recalls
-        recall_data = RecallData(
-            question=recall_kwargs.pop("question", "Ich ___ (der Bus)."),
-            answer=recall_kwargs.pop("answer", ["Ich warte auf den Bus."]),
-        )
-        if "hint" in recall_kwargs:
-            recall_data["hint"] = recall_kwargs.pop("hint")
-        exercise_data["recalls"] = [recall_data]
+        recalls_kwargs: list[RecallKwargs]
+        if isinstance(recalls, Sequence):
+            recalls_kwargs = list(recalls)
+        else:
+            recalls_kwargs = [RecallKwargs()]
+        exercise_data["recalls"] = [_make_recall_data(r) for r in recalls_kwargs]
     return exercise_data
 
 

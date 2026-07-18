@@ -105,7 +105,7 @@ class TestNextExerciseButton:
         feed_message: FeedMessage,
     ) -> None:
         exercise = make_exercise(
-            recalls={"answer": ["Ich warte auf den Bus."]},
+            recalls=[{"answer": ["Ich warte auf den Bus."]}],
         )
         await state.set_state(UserState.recalling)
         await state.update_data(
