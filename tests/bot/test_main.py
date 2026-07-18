@@ -66,16 +66,13 @@ def mock_main_io() -> MockMainIO:
         *,
         request_side_effect: MakeRequest | None = None,
     ) -> Generator[tuple[AsyncMock, AsyncMock]]:
-        mock_request = (
-            AsyncMock(side_effect=request_side_effect)
-            if request_side_effect
-            else AsyncMock(return_value=True)
-        )
         with (
             patch(
                 "aiogram.client.session.aiohttp.AiohttpSession.make_request",
-                mock_request,
-            ),
+                AsyncMock(
+                    side_effect=request_side_effect or (lambda *args, **kwargs: True),
+                ),
+            ) as mock_request,
             patch(
                 "wiederholen.bot.dispatcher.start_polling", AsyncMock()
             ) as mock_polling,
