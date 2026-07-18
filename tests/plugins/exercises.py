@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import TypedDict, NotRequired, Literal, Unpack
 
 from wiederholen.exercises import Category, Exercise, Recall
@@ -19,7 +20,7 @@ class ExerciseData(TypedDict):
     answer: str
     distractors: list[str]
     explanation: dict[Language, str]
-    recall: NotRequired[RecallData]
+    recalls: NotRequired[list[RecallData]]
 
 
 class RecallKwargs(TypedDict, total=False):
@@ -33,7 +34,17 @@ class ExerciseDataKwargs(TypedDict, total=False):
     category: Category
     answer: str
     distractors: list[str]
-    recall: bool | RecallKwargs
+    recalls: bool | Sequence[RecallKwargs]
+
+
+def _make_recall_data(recall_kwargs: RecallKwargs) -> RecallData:
+    recall_data = RecallData(
+        question=recall_kwargs.get("question", "Ich ___ (der Bus)."),
+        answer=recall_kwargs.get("answer", ["Ich warte auf den Bus."]),
+    )
+    if "hint" in recall_kwargs:
+        recall_data["hint"] = recall_kwargs["hint"]
+    return recall_data
 
 
 def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
@@ -46,20 +57,15 @@ def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
         answer=kwargs.pop("answer", "auf"),
         explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
     )
-    if recall := kwargs.pop("recall", False):
-        recall_kwargs = {} if isinstance(recall, bool) else recall
-        exercise_data["recall"] = RecallData(
-            question=recall_kwargs.pop("question", "Ich ___ (der Bus)."),
-            answer=recall_kwargs.pop("answer", ["Ich warte auf den Bus."]),
-        )
-        if "hint" in recall_kwargs:
-            exercise_data["recall"]["hint"] = recall_kwargs.pop("hint")
+    if recalls := kwargs.pop("recalls", False):
+        recalls_kwargs = recalls if isinstance(recalls, Sequence) else [RecallKwargs()]
+        exercise_data["recalls"] = [_make_recall_data(r) for r in recalls_kwargs]
     return exercise_data
 
 
 def make_exercise(**kwargs: Unpack[ExerciseDataKwargs]) -> Exercise:
     data = make_exercise_data(**kwargs)
-    recall_data = data.get("recall")
+    recalls_data = data.get("recalls")
     return Exercise(
         topic=data["topic"],
         category=data["category"],
@@ -67,5 +73,5 @@ def make_exercise(**kwargs: Unpack[ExerciseDataKwargs]) -> Exercise:
         answer=data["answer"],
         distractors=data["distractors"],
         explanation=data["explanation"],
-        recall=Recall(**recall_data) if recall_data else None,
+        recalls=[Recall(**r) for r in recalls_data] if recalls_data else [],
     )

@@ -62,7 +62,7 @@ async def test_next_button_after_wrong_answer_without_recall(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
-    exercise = make_exercise(distractors=[], recall=False)
+    exercise = make_exercise(distractors=[], recalls=False)
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -81,7 +81,7 @@ async def test_no_button_after_wrong_answer_with_recall(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
-    exercise = make_exercise(distractors=[], recall=True)
+    exercise = make_exercise(distractors=[], recalls=True)
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
@@ -94,15 +94,15 @@ async def test_recall_prompt_sent_after_wrong_answer(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
-    exercise = make_exercise(distractors=[], recall=True)
+    exercise = make_exercise(distractors=[], recalls=True)
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 
     requests = await feed_message("falsch", school=School([exercise]))
 
     assert len(requests) == 3
-    assert exercise.recall is not None
-    assert exercise.recall.question in requests[2].text
+    assert exercise.recalls
+    assert exercise.recalls[0].question in requests[2].text
     assert await state.get_state() == UserState.recalling
 
 
@@ -126,7 +126,7 @@ async def test_recall_button_after_correct_answer_with_recall(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
-    exercise = make_exercise(distractors=[], recall=True)
+    exercise = make_exercise(distractors=[], recalls=True)
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=dataclasses.asdict(exercise), journal={})
 

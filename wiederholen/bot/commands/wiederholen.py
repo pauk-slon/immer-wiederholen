@@ -16,7 +16,7 @@ from aiogram.types import (
     ReplyKeyboardRemove,
 )
 
-from wiederholen.exercises import Exercise, RecallMode, School
+from wiederholen.exercises import Exercise, Recall, RecallMode, School
 from wiederholen.i18n import Language
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 
@@ -76,18 +76,19 @@ async def _start_recall(
     shown_exercise: Exercise,
     message: Message,
     locale: Locale,
+    school: School,
 ) -> None:
-    assert shown_exercise.recall is not None
+    teacher = school(journal)
+    recall = teacher.pick_recall(shown_exercise)
     await state.set_state(UserState.recalling)
     await state.update_data(
         language=language,
         journal=journal,
         shown_exercise=shown_exercise_dict,
+        shown_recall=dataclasses.asdict(recall),
     )
-    hint = (
-        shown_exercise.recall.hint.get(language) if shown_exercise.recall.hint else None
-    )
-    recall_text = locale.recall_prompt.format(recall=shown_exercise.recall.question)
+    hint = recall.hint.get(language) if recall.hint else None
+    recall_text = locale.recall_prompt.format(recall=recall.question)
     if hint:
         await message.answer(f"{recall_text}\n<i>{hint}</i>", parse_mode="HTML")
     else:
@@ -160,6 +161,7 @@ async def handle_answer(
             shown_exercise,
             message,
             locale,
+            school,
         )
     else:
         await state.update_data(
@@ -175,23 +177,23 @@ async def handle_recall(message: Message, state: FSMContext, school: School) -> 
     await state.clear()
     language = get_language(state_data)
     journal = state_data.get("journal", {})
-    shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
+    shown_recall = Recall(**state_data["shown_recall"])
     await state.update_data(
         language=language,
         journal=journal,
         shown_exercise=state_data["shown_exercise"],
+        shown_recall=state_data["shown_recall"],
     )
     locale = LOCALES[language]
     teacher = school(journal)
-    if teacher.check_recall(shown_exercise, message.text or ""):
+    if teacher.check_recall(shown_recall, message.text or ""):
         await message.answer(
             locale.recall_correct,
             reply_markup=_make_next_button(locale),
         )
     else:
-        assert shown_exercise.recall is not None
         await message.answer(
-            locale.recall_wrong.format(answer=shown_exercise.recall.answer[0]),
+            locale.recall_wrong.format(answer=shown_recall.answer[0]),
             reply_markup=_make_recall_buttons(locale, locale.btn_recall_retry),
         )
 
@@ -222,6 +224,7 @@ async def handle_next_exercise(
 async def handle_recall_request(
     callback: CallbackQuery,
     state: FSMContext,
+    school: School,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -238,5 +241,6 @@ async def handle_recall_request(
             shown_exercise,
             callback.message,
             locale,
+            school,
         )
     await callback.answer()

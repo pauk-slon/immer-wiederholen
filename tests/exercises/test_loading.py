@@ -36,17 +36,17 @@ class TestExerciseValidation:
 
 class TestRecallValidation:
     def test_empty_answer_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
-        data = make_exercise_data(recall=True)
-        data["recall"]["answer"] = []
+        data = make_exercise_data(recalls=True)
+        data["recalls"][0]["answer"] = []
         with pytest.raises(ValueError, match="recall.answer must not be empty"):
             with tmp_yaml_file([data]) as exercises_file:
                 load_exercises(exercises_file)
 
     def test_invalid_hint_keys_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
-        data = make_exercise_data(recall=True)
-        invalid_hint_recall_data = data["recall"] | {"hint": {"de": "falsch"}}
+        data = make_exercise_data(recalls=True)
+        invalid_hint_recall_data = data["recalls"][0] | {"hint": {"de": "falsch"}}
         with pytest.raises(ValueError, match="recall.hint keys must be a subset"):
             with tmp_yaml_file(
-                [data | {"recall": invalid_hint_recall_data}]
+                [data | {"recalls": [invalid_hint_recall_data]}]
             ) as exercises_file:
                 load_exercises(exercises_file)

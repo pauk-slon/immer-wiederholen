@@ -59,8 +59,8 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert args[0].token == bot_token
     assert isinstance(kwargs["school"], School)
     loaded_exercise = dataclasses.asdict(kwargs["school"]({}).next_exercise())
-    if loaded_exercise["recall"] is None:
-        del loaded_exercise["recall"]
+    if not loaded_exercise["recalls"]:
+        del loaded_exercise["recalls"]
     assert loaded_exercise == exercise_data
 
 
