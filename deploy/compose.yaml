@@ -10,6 +10,18 @@ services:
     depends_on:
       - valkey
 
+  reminder:
+    image: ghcr.io/pauk-slon/immer-wiederholen:main
+    restart: unless-stopped
+    command: python -m wiederholen.bot.reminder
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      FSM_STORAGE_URL: redis://valkey:6379/0
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - valkey
+
   valkey:
     image: valkey/valkey:8-alpine
     restart: unless-stopped

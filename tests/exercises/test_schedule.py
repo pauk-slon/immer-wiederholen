@@ -153,6 +153,15 @@ def test_check_answer_records_last_answered_question() -> None:
     assert journal["last_answered_question"] == exercise.question
 
 
+def test_check_answer_records_last_answered_at() -> None:
+    exercise = make_exercise(topic="warten", answer="auf")
+    journal: dict = {}
+
+    School([exercise])(journal).check_answer(exercise, "auf")
+
+    assert "last_answered_at" in journal
+
+
 @pytest.mark.parametrize(
     "malformed_entry",
     [
