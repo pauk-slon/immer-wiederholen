@@ -20,7 +20,7 @@ POLL_INTERVAL_SECONDS = 15 * 60
 
 async def _remind_chat(
     bot: Bot,
-    storage: ChatScanningStorage,
+    storage: BaseStorage,
     school: School,
     chat_id: int,
     data: dict,
@@ -37,15 +37,13 @@ async def _remind_chat(
         return
     teacher.record_reminder_sent()
     key = StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=chat_id)
-    await FSMContext(storage=cast(BaseStorage, storage), key=key).update_data(
-        journal=journal
-    )
+    await FSMContext(storage=storage, key=key).update_data(journal=journal)
 
 
 async def tick(bot: Bot, storage: ChatScanningStorage, school: School) -> None:
     async for chat_id, data in storage.iter_fsm_data(bot.id):
         try:
-            await _remind_chat(bot, storage, school, chat_id, data)
+            await _remind_chat(bot, cast(BaseStorage, storage), school, chat_id, data)
         except Exception:
             logger.exception("Failed to process reminder for chat %s", chat_id)
 
