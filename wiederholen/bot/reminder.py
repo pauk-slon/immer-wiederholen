@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from typing import cast
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError
@@ -11,7 +10,7 @@ from wiederholen.exercises import School
 
 from .bootstrap import load_bot_school_and_storage
 from .l10n import LOCALES, get_language
-from .redis_storage import ChatScanningStorage
+from .redis_storage import ScanningRedisStorage
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +39,15 @@ async def _remind_chat(
     await FSMContext(storage=storage, key=key).update_data(journal=journal)
 
 
-async def tick(bot: Bot, storage: ChatScanningStorage, school: School) -> None:
+async def tick(bot: Bot, storage: ScanningRedisStorage, school: School) -> None:
     async for chat_id, data in storage.iter_fsm_data(bot.id):
         try:
-            await _remind_chat(bot, cast(BaseStorage, storage), school, chat_id, data)
+            await _remind_chat(bot, storage, school, chat_id, data)
         except Exception:
             logger.exception("Failed to process reminder for chat %s", chat_id)
 
 
-async def run(bot: Bot, storage: ChatScanningStorage, school: School) -> None:
+async def run(bot: Bot, storage: ScanningRedisStorage, school: School) -> None:
     while True:
         await tick(bot, storage, school)
         await asyncio.sleep(POLL_INTERVAL_SECONDS)

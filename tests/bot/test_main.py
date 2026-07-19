@@ -4,6 +4,8 @@ from contextlib import contextmanager, AbstractContextManager
 
 import pytest
 
+from redis.asyncio import Redis
+
 from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter
 from aiogram.fsm.storage.redis import RedisStorage
@@ -31,12 +33,21 @@ def exercise_data() -> ExerciseData:
     return make_exercise_data(topic="sprechen")
 
 
+@pytest.fixture
+def fsm_storage_url() -> str:
+    return "redis://localhost:6379/0"
+
+
 @pytest.fixture(autouse=True)
 def _env(
-    monkeypatch, bot_token: str, tmp_yaml_file: TmpYamlFile, exercise_data: ExerciseData
+    monkeypatch,
+    bot_token: str,
+    fsm_storage_url: str,
+    tmp_yaml_file: TmpYamlFile,
+    exercise_data: ExerciseData,
 ) -> Generator[None]:
     monkeypatch.setenv("BOT_TOKEN", bot_token)
-    monkeypatch.setenv("FSM_STORAGE_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("FSM_STORAGE_URL", fsm_storage_url)
     with tmp_yaml_file([exercise_data]) as path:
         monkeypatch.setenv("EXERCISES_PATH", str(path))
         yield None
@@ -101,11 +112,16 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert loaded_exercise == exercise_data
 
 
-async def test_configures_redis_storage_from_env(mock_main_io: MockMainIO) -> None:
+async def test_configures_redis_storage_from_env(
+    mock_main_io: MockMainIO, fsm_storage_url: str
+) -> None:
     with mock_main_io():
         await main()
 
-    assert isinstance(dispatcher.fsm.storage, RedisStorage)
+    storage = dispatcher.fsm.storage
+    assert isinstance(storage, RedisStorage)
+    expected = Redis.from_url(fsm_storage_url).connection_pool.connection_kwargs
+    assert storage.redis.connection_pool.connection_kwargs == expected
 
 
 async def test_sets_name_for_all_languages(mock_main_io: MockMainIO) -> None:
