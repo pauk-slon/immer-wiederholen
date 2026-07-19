@@ -1,7 +1,5 @@
 import asyncio
 import logging
-import os
-from pathlib import Path
 from typing import cast
 
 from aiogram import Bot
@@ -9,10 +7,11 @@ from aiogram.exceptions import TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import BaseStorage, StorageKey
 
-from wiederholen.exercises import School, load_exercises
+from wiederholen.exercises import School
 
+from .bootstrap import load_bot_school_and_storage
 from .l10n import LOCALES, get_language
-from .redis_storage import ChatScanningStorage, ScanningRedisStorage
+from .redis_storage import ChatScanningStorage
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +57,7 @@ async def run(bot: Bot, storage: ChatScanningStorage, school: School) -> None:
 
 
 async def main() -> None:
-    token = os.environ["BOT_TOKEN"]
-    exercises_path = Path(os.environ.get("EXERCISES_PATH", "data/exercises.yaml"))
-    storage = ScanningRedisStorage.from_url(os.environ["FSM_STORAGE_URL"])
-    school = School(load_exercises(exercises_path))
-    bot = Bot(token=token)
+    bot, school, storage = load_bot_school_and_storage()
     await run(bot, storage, school)
 
 
