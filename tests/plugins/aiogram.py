@@ -1,14 +1,17 @@
-from collections.abc import Awaitable, Callable
+import os
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 from unittest.mock import AsyncMock, patch
+from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
-from aiogram.fsm.storage.memory import MemoryStorage
 
 from wiederholen.bot import dispatcher as _dp
+from wiederholen.bot.bootstrap import load_storage
+from wiederholen.bot.redis_storage import ScanningRedisStorage
 
 from .telegram import CallbackQueryFactory, MessageFactory
 
@@ -16,6 +19,29 @@ from .telegram import CallbackQueryFactory, MessageFactory
 type FeedRawUpdate = Callable[..., Awaitable[list[Any]]]
 type FeedCallbackQuery = Callable[..., Awaitable[list[Any]]]
 type FeedMessage = Callable[..., Awaitable[list[Any]]]
+
+
+def _db_override(value: str) -> int | None:
+    if not value:
+        return None
+    return int(value)
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--fsm-storage-db-override",
+        action="store",
+        type=_db_override,
+    )
+
+
+def pytest_configure(config) -> None:
+    if (db_override := config.getoption("--fsm-storage-db-override")) is None:
+        return
+    fsm_storage_url = os.environ["FSM_STORAGE_URL"]
+    os.environ["FSM_STORAGE_URL"] = urlunsplit(
+        urlsplit(fsm_storage_url)._replace(path=f"/{db_override}"),
+    )
 
 
 @pytest.fixture
@@ -73,9 +99,14 @@ def state(bot: Bot, dispatcher: Dispatcher, user_id: int, chat_id: int) -> FSMCo
     )
 
 
+@pytest.fixture
+async def redis_storage() -> AsyncIterator[ScanningRedisStorage]:
+    storage = load_storage()
+    await storage.redis.flushdb()
+    yield storage
+    await storage.close()
+
+
 @pytest.fixture(autouse=True)
-def _reset_storage(dispatcher: Dispatcher) -> None:
-    # Force a fresh in-memory store for every test, regardless of what
-    # backend the dispatcher was actually configured with (e.g. FSM_STORAGE_URL
-    # set in the environment) — tests must stay fast and isolated.
-    dispatcher.fsm.storage = MemoryStorage()
+def _reset_storage(dispatcher: Dispatcher, redis_storage: ScanningRedisStorage) -> None:
+    dispatcher.fsm.storage = redis_storage

@@ -1,13 +1,9 @@
 import re
 from collections.abc import AsyncIterator
-from typing import Any, Protocol, Self, cast
+from typing import Any, Self, cast
 
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
-
-
-class ChatScanningStorage(Protocol):
-    def iter_fsm_data(self, bot_id: int) -> AsyncIterator[tuple[int, dict]]: ...
 
 
 class ScanningRedisStorage(RedisStorage):

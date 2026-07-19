@@ -12,7 +12,11 @@ dependencies = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-addopts = "--cov=wiederholen --cov-report=term-missing"
+addopts = [
+    "--cov=wiederholen",
+    "--cov-report=term-missing",
+    "--fsm-storage-db-override=15",
+]
 
 [tool.coverage.report]
 exclude_also = ["if TYPE_CHECKING:"]

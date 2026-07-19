@@ -12,13 +12,25 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    services:
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      FSM_STORAGE_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --frozen
       - run: uv run ruff check .
       - run: uv run ty check .
-      - run: uv run pytest .
+      - run: uv run pytest --fsm-storage-db-override="" .
       - name: Coverage summary
         if: always()
         run: uv run coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
