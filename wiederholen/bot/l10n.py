@@ -51,7 +51,7 @@ RU: Final = Locale(
         "\n"
         "Всего тем: {total}"
     ),
-    description_prompt="💭 {description} Введи только пропущенное слово.",
+    description_prompt="💭 {description} Введи пропущенное слово.",
 )
 
 EN: Final = Locale(
@@ -80,7 +80,7 @@ EN: Final = Locale(
         "\n"
         "Total topics: {total}"
     ),
-    description_prompt="💭 {description} Enter only the missing word.",
+    description_prompt="💭 {description} Enter the missing word.",
 )
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}
