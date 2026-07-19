@@ -21,6 +21,7 @@ class ExerciseData(TypedDict):
     distractors: list[str]
     explanation: dict[Language, str]
     recalls: NotRequired[list[RecallData]]
+    description: NotRequired[dict[Language, str]]
 
 
 class RecallKwargs(TypedDict, total=False):
@@ -35,6 +36,7 @@ class ExerciseDataKwargs(TypedDict, total=False):
     answer: str
     distractors: list[str]
     recalls: bool | Sequence[RecallKwargs]
+    description: dict[Language, str]
 
 
 def _make_recall_data(recall_kwargs: RecallKwargs) -> RecallData:
@@ -60,6 +62,8 @@ def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
     if recalls := kwargs.pop("recalls", False):
         recalls_kwargs = recalls if isinstance(recalls, Sequence) else [RecallKwargs()]
         exercise_data["recalls"] = [_make_recall_data(r) for r in recalls_kwargs]
+    if "description" in kwargs:
+        exercise_data["description"] = kwargs.pop("description")
     return exercise_data
 
 
@@ -74,4 +78,5 @@ def make_exercise(**kwargs: Unpack[ExerciseDataKwargs]) -> Exercise:
         distractors=data["distractors"],
         explanation=data["explanation"],
         recalls=[Recall(**r) for r in recalls_data] if recalls_data else [],
+        description=data.get("description"),
     )
