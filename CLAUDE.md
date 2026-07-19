@@ -25,7 +25,7 @@ Each exercise has the following fields.
 
 `topic` — verb in infinitive that the exercise is about (e.g. `"sprechen"`, `"sich freuen"`). Reflexive verbs include `sich`. Exercises for the same verb but different prepositions (`sprechen mit`, `sprechen über`) share the same `topic: "sprechen"` — intentionally, so that all forms of the verb are shown together when the user makes a mistake. Exception: for `preposition_case`, `topic` is the preposition itself (e.g. `"mit"`, `"für"`) — there is no single governing verb, since the preposition's case is fixed independently of whatever verb happens to appear in the example sentence.
 
-Sanity check: substituting the answer into the question must produce a natural, everyday German sentence; substituting any distractor must not produce a grammatically valid one.
+Sanity check: substituting the answer into the question must produce a natural, everyday German sentence; substituting any distractor must not produce a grammatically valid one. Keep the register mundane, not dramatic — e.g. "Die Mutter kocht für ihren Sohn" over "Die Mutter kämpft für ihren Sohn" (fighting/battling reads as heroic and clashes with the otherwise everyday tone of buying gifts, chatting with a boss, going for a walk).
 
 Exercise categories (`category` field):
 
