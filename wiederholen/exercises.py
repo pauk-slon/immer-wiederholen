@@ -94,6 +94,15 @@ class Mark:
     recall: RecallMode
 
 
+@dataclass(frozen=True)
+class Progress:
+    total: int
+    new: int
+    learning: int
+    mastered: int
+    due: int
+
+
 def load_exercises(path: Path) -> list[Exercise]:
     with open(path) as f:
         items = yaml.safe_load(f)
@@ -240,6 +249,26 @@ class Teacher:
             1
             for schedule_key in self._exercises_by_schedule_key
             if self._due_date(schedule_key) <= today
+        )
+
+    def progress(self) -> Progress:
+        new = 0
+        learning = 0
+        mastered = 0
+        for schedule_key in self._exercises_by_schedule_key:
+            entry = self._get_schedule_entry(schedule_key)
+            if entry is None:
+                new += 1
+            elif entry["interval_days"] >= self.MAX_INTERVAL_DAYS:
+                mastered += 1
+            else:
+                learning += 1
+        return Progress(
+            total=len(self._exercises_by_schedule_key),
+            new=new,
+            learning=learning,
+            mastered=mastered,
+            due=self.due_topics_count(),
         )
 
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:

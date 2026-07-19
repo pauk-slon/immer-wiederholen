@@ -30,6 +30,7 @@ async def main() -> None:
                         command="wiederholen",
                         description=locale.cmd_wiederholen,
                     ),
+                    BotCommand(command="progress", description=locale.cmd_progress),
                     BotCommand(command="language", description=locale.cmd_language),
                 ],
                 language_code=language_code,

@@ -17,9 +17,11 @@ class Locale:
     btn_recall: str
     btn_recall_retry: str
     cmd_language: str
+    cmd_progress: str
     bot_name: str
     bot_short_description: str
     reminder_text: str
+    progress_text: str
 
 
 RU: Final = Locale(
@@ -34,9 +36,20 @@ RU: Final = Locale(
     btn_recall="Закрепить",
     btn_recall_retry="Попробовать ещё раз",
     cmd_language="Сменить язык",
+    cmd_progress="Прогресс",
     bot_name="Immer wiederholen!",
     bot_short_description="Учи немецкие слова с интервальным повторением",
     reminder_text="🔔 Есть что повторить! Загляни и сделай /wiederholen!",
+    progress_text=(
+        "📊 Твой прогресс\n"
+        "\n"
+        "⏰ Готово к повторению: {due}\n"
+        "🆕 Новые темы: {new}\n"
+        "📈 В процессе: {learning}\n"
+        "✅ Выучено: {mastered}\n"
+        "\n"
+        "Всего тем: {total}"
+    ),
 )
 
 EN: Final = Locale(
@@ -51,9 +64,20 @@ EN: Final = Locale(
     btn_recall="Drill",
     btn_recall_retry="Try again",
     cmd_language="Change language",
+    cmd_progress="Progress",
     bot_name="Immer wiederholen!",
     bot_short_description="Learn German vocabulary with spaced repetition",
     reminder_text="🔔 Something to review! Come back and do /wiederholen!",
+    progress_text=(
+        "📊 Your progress\n"
+        "\n"
+        "⏰ Due now: {due}\n"
+        "🆕 New topics: {new}\n"
+        "📈 Learning: {learning}\n"
+        "✅ Mastered: {mastered}\n"
+        "\n"
+        "Total topics: {total}"
+    ),
 )
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}
