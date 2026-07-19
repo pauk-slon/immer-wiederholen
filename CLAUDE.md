@@ -1,6 +1,6 @@
 # immer-wiederholen
 
-Telegram bot for practicing German with multiple choice questions (aiogram, Python). Exercises are loaded at startup from the path set by `EXERCISES_PATH` env var (default: `data/exercises.yaml`). Bot commands: `/start`, `/wiederholen` (show a exercise with answer options), `/language` (toggle ru/en).
+Telegram bot for practicing German with multiple choice questions (aiogram, Python). Exercises are loaded at startup from the path set by `EXERCISES_PATH` env var (default: `data/exercises.yaml`). Bot commands: `/start`, `/wiederholen` (show a exercise with answer options), `/progress` (topic counts: due/new/learning/mastered), `/language` (toggle ru/en).
 
 ## Key modules
 
@@ -110,6 +110,8 @@ YAML example with multiple `recalls` variants (`partizip_ii`, fixed `question` p
 `Teacher` (in `wiederholen.exercises`) tracks review scheduling in `journal["topic_schedule"]` — `{"{topic}:{category}": {"interval_days": int, "due_date": "YYYY-MM-DD"}}`. The schedule key is `topic` + `category` (`Teacher._schedule_key`), not `topic` alone — so e.g. `sprechen`'s government exercises (different prepositions) and its `partizip_ii` exercise are scheduled independently, while exercises that intentionally share a `topic` within the same category (different prepositions of the same verb) still share one schedule entry. `next_exercise()` selects in two steps — first a random due key (`topic:category`), then a random exercise among the (possibly several) YAML entries sharing that key — so a key backed by many entries (e.g. several prepositions for one verb) isn't shown more often than a key with only one entry. Falls back to a random key among those tied for the earliest due date if nothing is due yet. `check_answer()` also records `journal["last_answered_question"]` (the `question` of the exercise just checked), and `next_exercise()` reads it back to exclude any within-key candidate with a matching `question`, unless that would leave no candidates at all (e.g. a key whose only entry happens to match — repeating is then unavoidable, not a bug). This keeps repeat-avoidance entirely inside `Teacher`/`journal` — the bot layer doesn't pass or know anything about it. On a correct answer the interval doubles (capped at `Teacher.MAX_INTERVAL_DAYS`, currently 60 days); on a wrong answer it resets to 1 day (due again immediately). The journal's durability depends on the FSM storage backing it — see below.
 
 `pick_recall()` follows the same pattern for recall variants: it records `journal["last_recall_question"]` and reads it back next time to exclude a matching candidate, unless that would leave no candidates. This too lives entirely inside `Teacher`/`journal` — the bot layer (`_start_recall` in `wiederholen.bot.commands.wiederholen`) just calls `teacher.pick_recall(exercise)` and doesn't track which variant was shown last.
+
+`progress()` (shown by `/progress`) buckets every schedule key into `new` (no valid schedule entry yet), `learning` (`interval_days < MAX_INTERVAL_DAYS`), or `mastered` (`interval_days >= MAX_INTERVAL_DAYS`) — there's no explicit "done" flag, so a capped interval is used as a proxy for mastery. `due` reuses `due_topics_count()`. Read-only: it never creates or mutates schedule entries, unlike `next_exercise()`/`check_answer()`.
 
 ## Persistence
 
