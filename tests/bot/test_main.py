@@ -109,6 +109,8 @@ async def test_starts_polling_with_bot_and_dependencies(
     loaded_exercise = kwargs["school"]({}).next_exercise().to_dict()
     if not loaded_exercise["recalls"]:
         del loaded_exercise["recalls"]
+    if loaded_exercise["description"] is None:
+        del loaded_exercise["description"]
     assert loaded_exercise == exercise_data
 
 

@@ -94,8 +94,14 @@ async def _start_recall(
         await message.answer(recall_text)
 
 
-def _format_question(exercise: Exercise) -> str:
-    return f"❓ {exercise.question}"
+def _format_question(exercise: Exercise, language: Language, locale: Locale) -> str:
+    text = f"❓ {exercise.question}"
+    if exercise.description:
+        description_line = locale.description_prompt.format(
+            description=exercise.description[language]
+        )
+        text += f"\n{description_line}"
+    return text
 
 
 def _show_exercise_kwargs(exercise: Exercise) -> dict:
@@ -111,6 +117,7 @@ async def command_wiederholen(
     school: School,
 ) -> None:
     data = await state.get_data()
+    language = get_language(data)
     journal = data.get("journal", {})
     teacher = school(journal)
     exercise = teacher.next_exercise()
@@ -119,7 +126,8 @@ async def command_wiederholen(
         shown_exercise=exercise.to_dict(),
         journal=journal,
     )
-    await message.answer(_format_question(exercise), **_show_exercise_kwargs(exercise))
+    question_text = _format_question(exercise, language, LOCALES[language])
+    await message.answer(question_text, **_show_exercise_kwargs(exercise))
 
 
 @router.message(UserState.answering)
@@ -204,6 +212,7 @@ async def handle_next_exercise(
     school: School,
 ) -> None:
     state_data = await state.get_data()
+    language = get_language(state_data)
     journal = state_data.get("journal", {})
     teacher = school(journal)
     exercise = teacher.next_exercise()
@@ -211,9 +220,8 @@ async def handle_next_exercise(
     await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(
-            _format_question(exercise), **_show_exercise_kwargs(exercise)
-        )
+        question_text = _format_question(exercise, language, LOCALES[language])
+        await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
     await callback.answer()
 
 

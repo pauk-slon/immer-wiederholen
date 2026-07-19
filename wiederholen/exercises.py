@@ -12,7 +12,9 @@ from pydantic import AfterValidator, TypeAdapter, ValidationError
 
 from wiederholen.i18n import Language, LANGUAGES
 
-type Category = Literal["government", "case_government", "preposition_case", "partizip_ii"]
+type Category = Literal[
+    "government", "case_government", "preposition_case", "preposition_meaning", "partizip_ii"
+]
 
 CATEGORIES: Final[frozenset[Category]] = frozenset(get_args(Category.__value__))
 
@@ -58,6 +60,7 @@ class Exercise:
     distractors: list[str]
     explanation: dict[Language, str]
     recalls: list[Recall] = field(default_factory=list)
+    description: dict[Language, str] | None = None
 
     def __post_init__(self) -> None:
         if self.answer in self.distractors:
@@ -65,6 +68,10 @@ class Exercise:
         if set(self.explanation.keys()) != LANGUAGES:
             raise ValueError(
                 f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
+            )
+        if self.description is not None and set(self.description.keys()) != LANGUAGES:
+            raise ValueError(
+                f"description must have keys {LANGUAGES}, got {set(self.description.keys())}"
             )
         if self.category not in CATEGORIES:
             raise ValueError(

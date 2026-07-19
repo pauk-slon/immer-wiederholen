@@ -33,6 +33,13 @@ class TestExerciseValidation:
             ) as exercise_file:
                 load_exercises(exercise_file)
 
+    def test_wrong_description_keys_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
+        with pytest.raises(ValueError, match="description must have keys"):
+            with tmp_yaml_file(
+                [make_exercise_data() | {"description": {"de": "falsch"}}]
+            ) as exercise_file:
+                load_exercises(exercise_file)
+
 
 class TestRecallValidation:
     def test_empty_answer_raises(self, tmp_yaml_file: TmpYamlFile) -> None:

@@ -2,6 +2,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from wiederholen.bot.commands.wiederholen import UserState
+from wiederholen.bot.l10n import EN, RU
 from wiederholen.exercises import Exercise, School
 
 from tests.plugins.aiogram import FeedMessage
@@ -61,6 +62,48 @@ async def test_reply_keyboard_remove_for_input_exercise(
 
     assert len(requests) == 1
     assert isinstance(requests[0].reply_markup, ReplyKeyboardRemove)
+
+
+async def test_omits_description_block_when_absent(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise()
+    requests = await feed_message("/wiederholen", school=School([exercise]))
+
+    assert len(requests) == 1
+    assert "💭" not in requests[0].text
+
+
+async def test_shows_description_in_ru_by_default(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        category="preposition_meaning",
+        distractors=[],
+        description={"ru": "Поезд едет через туннель.", "en": "The train goes through the tunnel."},
+    )
+    requests = await feed_message("/wiederholen", school=School([exercise]))
+
+    assert len(requests) == 1
+    expected = RU.description_prompt.format(description="Поезд едет через туннель.")
+    assert expected in requests[0].text
+
+
+async def test_shows_description_in_current_language(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    await state.update_data(language="en")
+    exercise = make_exercise(
+        category="preposition_meaning",
+        distractors=[],
+        description={"ru": "Поезд едет через туннель.", "en": "The train goes through the tunnel."},
+    )
+    requests = await feed_message("/wiederholen", school=School([exercise]))
+
+    assert len(requests) == 1
+    expected = EN.description_prompt.format(description="The train goes through the tunnel.")
+    assert expected in requests[0].text
 
 
 async def test_avoids_repeating_previously_shown_question(
