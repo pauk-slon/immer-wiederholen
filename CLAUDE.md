@@ -12,11 +12,11 @@ Telegram bot for practicing German with multiple choice questions (aiogram, Pyth
 
 Each exercise has the following fields.
 
-- `question` — sentence with a blank (`___`) for government exercises, or `"verb → Partizip II"` for partizip exercises
+- `question` — sentence with a blank (`___`) for government and case_government exercises, or `"verb → Partizip II"` for partizip exercises
 - `topic` — verb in infinitive
-- `category` — `government` or `partizip_ii` (see below); together with `topic` forms the key `Teacher` uses for repetition scheduling, so exercises of different categories for the same verb are scheduled independently
+- `category` — `government`, `case_government`, or `partizip_ii` (see below); together with `topic` forms the key `Teacher` uses for repetition scheduling, so exercises of different categories for the same verb are scheduled independently
 - `answer` — correct answer
-- `distractors` — list of wrong options. 3 for government exercises; empty (`[]`) for partizip exercises (empty list triggers text input instead of multiple choice)
+- `distractors` — list of wrong options. 3 for government and case_government exercises; empty (`[]`) for partizip exercises (empty list triggers text input instead of multiple choice)
 - `explanation` — dict with `ru` and `en` keys
 - `recalls` — optional list of recall-step variants (empty/omitted means no recall step). `Teacher.pick_recall()` picks one variant at random each time recall starts, avoiding an immediate repeat of the previously shown variant when more than one is available. Each variant has:
   - `question` — short phrase for the recall step
@@ -34,7 +34,11 @@ Exercise categories (`category` field):
 - *Preposition only* — answer is a single word. Distractors are other plausible prepositions.
 - *Preposition + article* — answer is a string like `"auf den"`. Use only for Wechselpräpositionen (an, auf, über, in, etc.) where the case is not fixed. Skip for prepositions with fixed case (mit, bei, für, um, nach, zu, aus, von).
 
+**`case_government`** — verbs that govern a case directly, without a preposition (e.g. `helfen`, `danken`, `glauben` + bare Dativ; ditransitive verbs like `geben`, `schenken`, `zeigen` where the recipient is Dativ and the thing is Akkusativ). Distinct from `government`, which is specifically about prepositions — a verb can have entries in both categories (e.g. `helfen` + bare Dativ vs `helfen bei` + Dativ), scheduled independently since they test different things. Answer is a string like `"meinem Bruder"` (possessive/article + noun in Dativ). For ditransitive verbs, the sentence already contains the Akkusativ object (e.g. `"ein Buch"`) and the blank is only for the Dativ one.
+
 **`partizip_ii`** — Partizip II forms of strong/irregular verbs. Question format: `"verb → Partizip II"`. No distractors (`distractors: []`) — user types the answer.
+
+Distractor strategy for `case_government` exercises — the answer is always Dativ (that's the whole point: these are verbs whose object case isn't the Akkusativ many learners default to), so distractors are the same noun/article in the three other cases: Nominativ, Akkusativ, Genitiv. Always use a **masculine singular** noun/possessive (e.g. `mein Bruder` → `meinen Bruder`/`meinem Bruder`/`meines Bruders`) — feminine and neuter (and plural) articles collapse two cases into identical surface forms (`die Frau` is both Nominativ and Akkusativ; `der Frau` is both Dativ and Genitiv), which would make a distractor textually indistinguishable from the answer. Avoid weak nouns (`der Kollege`, `der Nachbar`, `der Herr`, `der Student`, `der Junge`, `der Zeuge`, `der Praktikant`, `der Kunde`) for the same reason — their Akkusativ/Dativ/Genitiv forms are all identical (`den/dem/des Kollegen`).
 
 Distractor strategy for preposition + article exercises — use a 2×2 grid (2 prepositions × 2 cases):
 - `[prep1][case1]` — correct answer

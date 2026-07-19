@@ -12,7 +12,7 @@ from pydantic import AfterValidator, TypeAdapter, ValidationError
 
 from wiederholen.i18n import Language, LANGUAGES
 
-type Category = Literal["government", "partizip_ii"]
+type Category = Literal["government", "case_government", "partizip_ii"]
 
 CATEGORIES: Final[frozenset[Category]] = frozenset(get_args(Category.__value__))
 
