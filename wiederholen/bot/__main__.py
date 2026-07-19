@@ -1,26 +1,19 @@
 import asyncio
 import logging
-import os
-from pathlib import Path
 
-from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter
-from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import BotCommand
 
 from . import dispatcher
+from .bootstrap import load_bot_school_and_storage
 from .l10n import LOCALES
-from wiederholen.exercises import load_exercises, School
 
 logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
-    token = os.environ["BOT_TOKEN"]
-    exercises_path = Path(os.environ.get("EXERCISES_PATH", "data/exercises.yaml"))
-    dispatcher.fsm.storage = RedisStorage.from_url(os.environ["FSM_STORAGE_URL"])
-    school = School(load_exercises(exercises_path))
-    bot = Bot(token=token)
+    bot, school, storage = load_bot_school_and_storage()
+    dispatcher.fsm.storage = storage
     for language_code, locale in LOCALES.items():
         try:
             await bot.set_my_name(locale.bot_name, language_code=language_code)

@@ -19,6 +19,7 @@ class Locale:
     cmd_language: str
     bot_name: str
     bot_short_description: str
+    reminder_text: str
 
 
 RU: Final = Locale(
@@ -35,6 +36,7 @@ RU: Final = Locale(
     cmd_language="Сменить язык",
     bot_name="Immer wiederholen!",
     bot_short_description="Учи немецкие слова с интервальным повторением",
+    reminder_text="🔔 Есть что повторить! Загляни и сделай /wiederholen!",
 )
 
 EN: Final = Locale(
@@ -51,6 +53,7 @@ EN: Final = Locale(
     cmd_language="Change language",
     bot_name="Immer wiederholen!",
     bot_short_description="Learn German vocabulary with spaced repetition",
+    reminder_text="🔔 Something to review! Come back and do /wiederholen!",
 )
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}

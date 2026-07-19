@@ -1,7 +1,7 @@
 import random
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
@@ -102,6 +102,7 @@ def load_exercises(path: Path) -> list[Exercise]:
 
 class Teacher:
     MAX_INTERVAL_DAYS: int = 60
+    REMIND_AFTER: timedelta = timedelta(hours=24)
     _SCHEDULE_ENTRY_ADAPTER: ClassVar = TypeAdapter(_ScheduleEntry)
 
     def __init__(self, exercises: Sequence[Exercise], journal: dict) -> None:
@@ -173,6 +174,28 @@ class Teacher:
     def _last_recall_question(self, question: str) -> None:
         self._journal["last_recall_question"] = question
 
+    @property
+    def _last_answered_at(self) -> datetime | None:
+        raw = self._journal.get("last_answered_at")
+        if raw is None:
+            return None
+        return datetime.fromisoformat(raw)
+
+    @_last_answered_at.setter
+    def _last_answered_at(self, value: datetime) -> None:
+        self._journal["last_answered_at"] = value.isoformat()
+
+    @property
+    def _last_reminded_at(self) -> datetime | None:
+        raw = self._journal.get("last_reminded_at")
+        if raw is None:
+            return None
+        return datetime.fromisoformat(raw)
+
+    @_last_reminded_at.setter
+    def _last_reminded_at(self, value: datetime) -> None:
+        self._journal["last_reminded_at"] = value.isoformat()
+
     @cached_property
     def _exercises_by_schedule_key(self) -> dict[str, list[Exercise]]:
         by_key: dict[str, list[Exercise]] = {}
@@ -211,9 +234,18 @@ class Teacher:
                 candidates = filtered_exercises
         return random.choice(candidates)
 
+    def due_topics_count(self) -> int:
+        today = date.today()
+        return sum(
+            1
+            for schedule_key in self._exercises_by_schedule_key
+            if self._due_date(schedule_key) <= today
+        )
+
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
         self._last_answered_question = exercise.question
+        self._last_answered_at = datetime.now(UTC)
         schedule_entry = self._get_schedule_entry(
             self._schedule_key(exercise),
             create_if_missing=True,
@@ -256,6 +288,22 @@ class Teacher:
         recall = random.choice(candidates)
         self._last_recall_question = recall.question
         return recall
+
+    def should_remind(self) -> bool:
+        if self.due_topics_count() <= 0:
+            return False
+        last_answered_at = self._last_answered_at
+        if last_answered_at is None:
+            return False
+        if datetime.now(UTC) - last_answered_at < self.REMIND_AFTER:
+            return False
+        last_reminded_at = self._last_reminded_at
+        if last_reminded_at is not None and last_reminded_at >= last_answered_at:
+            return False
+        return True
+
+    def record_reminder_sent(self) -> None:
+        self._last_reminded_at = datetime.now(UTC)
 
 
 class School:

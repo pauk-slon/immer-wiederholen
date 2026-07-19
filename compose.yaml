@@ -3,7 +3,20 @@ services:
     build:
       context: .
       target: dev
+    image: wiederholen_dev
     restart: unless-stopped
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      FSM_STORAGE_URL: redis://valkey:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - valkey
+
+  reminder:
+    image: wiederholen_dev
+    restart: unless-stopped
+    command: python -m wiederholen.bot.reminder
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
       FSM_STORAGE_URL: redis://valkey:6379/0
