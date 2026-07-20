@@ -26,13 +26,6 @@ class TestExerciseValidation:
             ) as exercise_file:
                 load_exercises(exercise_file)
 
-    def test_invalid_category_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
-        with pytest.raises(ValueError, match="category must be one of"):
-            with tmp_yaml_file(
-                [make_exercise_data() | {"category": "verb"}]
-            ) as exercise_file:
-                load_exercises(exercise_file)
-
     def test_wrong_description_keys_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
         with pytest.raises(ValueError, match="description must have keys"):
             with tmp_yaml_file(

@@ -5,18 +5,14 @@ from datetime import UTC, date, datetime, timedelta
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
-from typing import Annotated, ClassVar, Final, Literal, TypedDict, get_args, overload
+from typing import Annotated, ClassVar, Literal, TypedDict, overload
 
 import yaml
 from pydantic import AfterValidator, TypeAdapter, ValidationError
 
 from wiederholen.i18n import Language, LANGUAGES
 
-type Category = Literal[
-    "government", "case_government", "preposition_case", "preposition_meaning", "partizip_ii"
-]
-
-CATEGORIES: Final[frozenset[Category]] = frozenset(get_args(Category.__value__))
+type Category = str
 
 
 def _parse_iso_date(value: str) -> str:
@@ -72,10 +68,6 @@ class Exercise:
         if self.description is not None and set(self.description.keys()) != LANGUAGES:
             raise ValueError(
                 f"description must have keys {LANGUAGES}, got {set(self.description.keys())}"
-            )
-        if self.category not in CATEGORIES:
-            raise ValueError(
-                f"category must be one of {CATEGORIES}, got {self.category!r}"
             )
 
     def to_dict(self) -> dict:
