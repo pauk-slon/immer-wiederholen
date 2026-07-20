@@ -2,7 +2,7 @@
 
 Telegram bot for practicing German with multiple choice questions (aiogram, Python). Exercises are loaded at startup from the path set by `EXERCISES_PATH` env var (default: `data/exercises.yaml`). Bot commands: `/start`, `/wiederholen` (show a exercise with answer options), `/progress` (topic counts: due/new/learning/mastered), `/language` (toggle ru/en).
 
-`data/` is gitignored and populated locally from [immer-wiederholen-de](https://github.com/pauk-slon/immer-wiederholen-de), a private repo holding `exercises.yaml` (the exercise database), deployment config, and the exercise-authoring guide — see that repo's `CLAUDE.md` for the rules on writing exercises (fields, categories, distractor strategy, recall variants). `category` is a free-form string here (not a fixed enum) precisely so that repo can introduce new categories without needing a code change in this one.
+`data/` is gitignored and populated locally from [immer-wiederholen-de](https://github.com/pauk-slon/immer-wiederholen-de), which holds `exercises.yaml` (the exercise database), deployment config, and the exercise-authoring guide — see that repo's `CLAUDE.md` for the rules on writing exercises (fields, categories, distractor strategy, recall variants). `category` is a free-form string here (not a fixed enum) precisely so that repo can introduce new categories without needing a code change in this one.
 
 ## Key modules
 
