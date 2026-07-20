@@ -28,6 +28,8 @@ Each exercise has the following fields.
 
 Sanity check: substituting the answer into the question must produce a natural, everyday German sentence; substituting any distractor must not produce a grammatically valid one. Keep the register mundane, not dramatic — e.g. "Die Mutter kocht für ihren Sohn" over "Die Mutter kämpft für ihren Sohn" (fighting/battling reads as heroic and clashes with the otherwise everyday tone of buying gifts, chatting with a boss, going for a walk).
 
+Prefer the context where the topic word/phrase is most typically used in real life — this makes idiomatic or figurative meanings self-evident from the sentence itself instead of requiring separate explanation. E.g. `jemandem blind folgen` ("to blindly follow someone") reads as an abstract, arbitrary fact with a generic authority figure (`"Er folgt seinem Chef blind."`); tying it to fan culture (`"Die Fans folgen ihrem Idol blind und glauben ihm alles."`) makes the figurative sense obvious from the scenario itself, not just from the translated `explanation`.
+
 Exercise categories (`category` field):
 
 **`government`** — verb government (preposition exercises). Two subtypes:
@@ -44,6 +46,8 @@ Exercise categories (`category` field):
 **`partizip_ii`** — Partizip II forms of strong/irregular verbs. Question format: `"verb → Partizip II"`. No distractors (`distractors: []`) — user types the answer.
 
 Distractor strategy for `case_government` and `preposition_case` exercises — the answer is a single fixed case (always Dativ for `case_government`; either Dativ or Akkusativ for `preposition_case`, depending on the preposition — that's the whole point: these are verbs/prepositions whose case isn't the one many learners default to), so distractors are the same noun/article in the three other cases. Always use a **masculine singular** noun/possessive (e.g. `mein Bruder` → `meinen Bruder`/`meinem Bruder`/`meines Bruders`) — feminine and neuter (and plural) articles collapse two cases into identical surface forms (`die Frau` is both Nominativ and Akkusativ; `der Frau` is both Dativ and Genitiv), which would make a distractor textually indistinguishable from the answer. Avoid weak nouns (`der Kollege`, `der Nachbar`, `der Herr`, `der Student`, `der Junge`, `der Zeuge`, `der Praktikant`, `der Kunde`) for the same reason — their Akkusativ/Dativ/Genitiv forms are all identical (`den/dem/des Kollegen`).
+
+Exception: a **neuter** noun is fine with only 2 distractors instead of 3, when the collision doesn't touch the answer itself. Neuter only collapses Nominativ=Akkusativ (`das Idol`/`ihr Idol` for both) — Dativ and Genitiv stay distinct — so for a Dativ answer, drop the duplicate Nominativ/Akkusativ distractor and keep just the other two (e.g. `answer: ihrem Idol`, `distractors: [ihr Idol, ihres Idols]`). This doesn't work for **feminine**: there Dativ=Genitiv (`der Frau` for both), which for a Dativ answer would make the Genitiv distractor literally identical to the answer — not just fewer options, but a validation error (`answer must not be in distractors`). So feminine nouns must still be avoided outright for this category; only neuter gets the reduced-distractor exception.
 
 Distractor strategy for preposition + article exercises — use a 2×2 grid (2 prepositions × 2 cases):
 - `[prep1][case1]` — correct answer
