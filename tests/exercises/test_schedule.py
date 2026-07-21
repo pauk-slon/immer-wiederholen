@@ -296,3 +296,132 @@ def test_malformed_schedule_entry_is_overwritten_on_check_answer(
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
     assert entry["due_date"] == (today + timedelta(days=1)).isoformat()
+
+
+class TestChainedCategories:
+    def test_advances_chained_category_due_date_to_today(self) -> None:
+        case_exercise = make_exercise(
+            topic="mit", category="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            topic="mit", category="preposition_meaning", answer="mit"
+        )
+        today = date.today()
+        state = {
+            "topic_schedule": {
+                "mit:preposition_meaning": {
+                    "interval_days": 8,
+                    "due_date": (today + timedelta(days=8)).isoformat(),
+                },
+            }
+        }
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        teacher = School([case_exercise, meaning_exercise], chained_categories)(state)
+
+        teacher.check_answer(case_exercise, "Freund")
+
+        entry = state["topic_schedule"]["mit:preposition_meaning"]
+        assert entry["due_date"] == today.isoformat()
+        assert entry["interval_days"] == 8
+
+    def test_advances_regardless_of_answer_correctness(self) -> None:
+        case_exercise = make_exercise(
+            topic="mit", category="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            topic="mit", category="preposition_meaning", answer="mit"
+        )
+        today = date.today()
+        state = {
+            "topic_schedule": {
+                "mit:preposition_meaning": {
+                    "interval_days": 8,
+                    "due_date": (today + timedelta(days=8)).isoformat(),
+                },
+            }
+        }
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        teacher = School([case_exercise, meaning_exercise], chained_categories)(state)
+
+        teacher.check_answer(case_exercise, "wrong answer")
+
+        entry = state["topic_schedule"]["mit:preposition_meaning"]
+        assert entry["due_date"] == today.isoformat()
+
+    def test_does_not_push_back_an_already_due_chained_category(self) -> None:
+        case_exercise = make_exercise(
+            topic="mit", category="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            topic="mit", category="preposition_meaning", answer="mit"
+        )
+        today = date.today()
+        overdue_date = today - timedelta(days=3)
+        state = {
+            "topic_schedule": {
+                "mit:preposition_meaning": {
+                    "interval_days": 8,
+                    "due_date": overdue_date.isoformat(),
+                },
+            }
+        }
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        teacher = School([case_exercise, meaning_exercise], chained_categories)(state)
+
+        teacher.check_answer(case_exercise, "Freund")
+
+        entry = state["topic_schedule"]["mit:preposition_meaning"]
+        assert entry["due_date"] == overdue_date.isoformat()
+
+    def test_does_not_create_entry_for_never_scheduled_chained_category(self) -> None:
+        case_exercise = make_exercise(
+            topic="mit", category="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            topic="mit", category="preposition_meaning", answer="mit"
+        )
+        state: dict = {}
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        teacher = School([case_exercise, meaning_exercise], chained_categories)(state)
+
+        teacher.check_answer(case_exercise, "Freund")
+
+        assert "mit:preposition_meaning" not in state.get("topic_schedule", {})
+
+    def test_ignores_chained_category_with_no_exercises(self) -> None:
+        case_exercise = make_exercise(
+            topic="mit", category="preposition_case", answer="Freund"
+        )
+        state: dict = {}
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        teacher = School([case_exercise], chained_categories)(state)
+
+        teacher.check_answer(case_exercise, "Freund")
+
+        assert "mit:preposition_meaning" not in state.get("topic_schedule", {})
+
+    def test_ignores_unrelated_category(self) -> None:
+        government_exercise = make_exercise(
+            topic="warten", category="government", answer="auf"
+        )
+        meaning_exercise = make_exercise(
+            topic="mit", category="preposition_meaning", answer="mit"
+        )
+        today = date.today()
+        state = {
+            "topic_schedule": {
+                "mit:preposition_meaning": {
+                    "interval_days": 8,
+                    "due_date": (today + timedelta(days=8)).isoformat(),
+                },
+            }
+        }
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        teacher = School([government_exercise, meaning_exercise], chained_categories)(
+            state
+        )
+
+        teacher.check_answer(government_exercise, "auf")
+
+        entry = state["topic_schedule"]["mit:preposition_meaning"]
+        assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
