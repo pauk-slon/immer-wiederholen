@@ -379,7 +379,9 @@ class TestChainedCategories:
         entry = state["topic_schedule"]["mit:preposition_meaning"]
         assert entry["due_date"] == overdue_date.isoformat()
 
-    def test_does_not_create_entry_for_never_scheduled_chained_category(self) -> None:
+    def test_creates_a_due_today_entry_for_a_never_scheduled_chained_category(
+        self,
+    ) -> None:
         case_exercise = make_exercise(
             topic="mit", category="preposition_case", answer="Freund"
         )
@@ -394,7 +396,8 @@ class TestChainedCategories:
 
         tutor.check_answer(case_exercise, "Freund")
 
-        assert "mit:preposition_meaning" not in state.get("topic_schedule", {})
+        entry = state["topic_schedule"]["mit:preposition_meaning"]
+        assert entry["due_date"] == date.today().isoformat()
 
     def test_ignores_chained_category_with_no_exercises(self) -> None:
         case_exercise = make_exercise(
@@ -433,3 +436,68 @@ class TestChainedCategories:
 
         entry = state["topic_schedule"]["mit:preposition_meaning"]
         assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
+
+
+class TestChainedCategoryGating:
+    def test_never_answered_parent_locks_the_chained_category(self) -> None:
+        case_exercise = make_exercise(
+            topic="mit", category="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            topic="mit", category="preposition_meaning", answer="mit"
+        )
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_categories), {})
+
+        assert tutor.next_exercise().category == "preposition_case"
+
+    def test_answering_the_parent_unlocks_the_chained_category(self) -> None:
+        case_exercise = make_exercise(
+            topic="mit", category="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            topic="mit", category="preposition_meaning", answer="mit"
+        )
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        course = Course([case_exercise, meaning_exercise], chained_categories)
+        state: dict = {}
+        Tutor(course, state).check_answer(case_exercise, "Freund")
+
+        assert Tutor(course, state).next_exercise().category == "preposition_meaning"
+
+    def test_locked_category_is_excluded_even_when_it_would_otherwise_tie_for_due(
+        self,
+    ) -> None:
+        # Both keys start unscheduled (date.min fallback), so without gating they'd
+        # tie for "due today" and next_exercise() could randomly pick either. Gating
+        # must exclude the never-unlocked child regardless of that tie.
+        case_exercise = make_exercise(
+            topic="mit", category="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            topic="mit", category="preposition_meaning", answer="mit"
+        )
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_categories), {})
+
+        for _ in range(50):
+            assert tutor.next_exercise().category == "preposition_case"
+
+    def test_due_topics_count_excludes_locked_categories(self) -> None:
+        case_exercise = make_exercise(
+            topic="mit", category="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            topic="mit", category="preposition_meaning", answer="mit"
+        )
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_categories), {})
+
+        assert tutor.due_topics_count() == 1
+
+    def test_unrelated_category_is_never_locked(self) -> None:
+        government_exercise = make_exercise(topic="warten", category="government")
+        chained_categories = {"preposition_case": ["preposition_meaning"]}
+        tutor = Tutor(Course([government_exercise], chained_categories), {})
+
+        assert tutor.next_exercise().topic == "warten"
