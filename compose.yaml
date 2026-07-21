@@ -3,7 +3,7 @@ services:
     build:
       context: .
       target: dev
-    image: wiederholen_dev
+    image: ghcr.io/pauk-slon/immer-wiederholen:dev
     restart: unless-stopped
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
@@ -14,7 +14,7 @@ services:
       - valkey
 
   reminder:
-    image: wiederholen_dev
+    image: ghcr.io/pauk-slon/immer-wiederholen:dev
     restart: unless-stopped
     command: python -m wiederholen.bot.reminder
     environment:
