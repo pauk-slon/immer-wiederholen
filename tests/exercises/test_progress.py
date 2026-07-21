@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from wiederholen.exercises import School
+from wiederholen.exercises import Course, Tutor
 
 from tests.plugins.exercises import make_exercise
 
@@ -8,20 +8,20 @@ from tests.plugins.exercises import make_exercise
 def test_progress_total_counts_distinct_schedule_keys() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
 
-    assert School(exercises)({}).progress().total == 2
+    assert Tutor(Course(exercises), {}).progress().total == 2
 
 
 def test_progress_counts_shared_schedule_key_once() -> None:
     duplicate_1 = make_exercise(topic="helfen")
     duplicate_2 = make_exercise(topic="helfen")
 
-    assert School([duplicate_1, duplicate_2])({}).progress().total == 1
+    assert Tutor(Course([duplicate_1, duplicate_2]), {}).progress().total == 1
 
 
 def test_progress_unscheduled_topic_is_new() -> None:
     exercise = make_exercise(topic="warten")
 
-    progress = School([exercise])({}).progress()
+    progress = Tutor(Course([exercise]), {}).progress()
 
     assert progress.new == 1
     assert progress.learning == 0
@@ -39,7 +39,7 @@ def test_progress_topic_below_max_interval_is_learning() -> None:
         }
     }
 
-    progress = School([exercise])(journal).progress()
+    progress = Tutor(Course([exercise]), journal).progress()
 
     assert progress.learning == 1
     assert progress.new == 0
@@ -57,7 +57,7 @@ def test_progress_topic_at_max_interval_is_mastered() -> None:
         }
     }
 
-    progress = School([exercise])(journal).progress()
+    progress = Tutor(Course([exercise]), journal).progress()
 
     assert progress.mastered == 1
     assert progress.new == 0
@@ -74,15 +74,15 @@ def test_progress_due_matches_due_topics_count() -> None:
             },
         }
     }
-    teacher = School([exercise])(journal)
+    tutor = Tutor(Course([exercise]), journal)
 
-    assert teacher.progress().due == teacher.due_topics_count() == 1
+    assert tutor.progress().due == tutor.due_topics_count() == 1
 
 
 def test_progress_does_not_persist_entries_for_unscheduled_topics() -> None:
     exercise = make_exercise(topic="warten")
     journal: dict = {}
 
-    School([exercise])(journal).progress()
+    Tutor(Course([exercise]), journal).progress()
 
     assert journal == {}

@@ -15,7 +15,7 @@ from aiogram.types import (
     ReplyKeyboardRemove,
 )
 
-from wiederholen.exercises import Exercise, Recall, RecallMode, School
+from wiederholen.exercises import Course, Exercise, Recall, RecallMode, Tutor
 from wiederholen.i18n import Language
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 
@@ -75,10 +75,10 @@ async def _start_recall(
     shown_exercise: Exercise,
     message: Message,
     locale: Locale,
-    school: School,
+    course: Course,
 ) -> None:
-    teacher = school(journal)
-    recall = teacher.pick_recall(shown_exercise)
+    tutor = Tutor(course, journal)
+    recall = tutor.pick_recall(shown_exercise)
     await state.set_state(UserState.recalling)
     await state.update_data(
         language=language,
@@ -114,13 +114,13 @@ def _show_exercise_kwargs(exercise: Exercise) -> dict:
 async def command_wiederholen(
     message: Message,
     state: FSMContext,
-    school: School,
+    course: Course,
 ) -> None:
     data = await state.get_data()
     language = get_language(data)
     journal = data.get("journal", {})
-    teacher = school(journal)
-    exercise = teacher.next_exercise()
+    tutor = Tutor(course, journal)
+    exercise = tutor.next_exercise()
     await state.set_state(UserState.answering)
     await state.update_data(
         shown_exercise=exercise.to_dict(),
@@ -134,7 +134,7 @@ async def command_wiederholen(
 async def handle_answer(
     message: Message,
     state: FSMContext,
-    school: School,
+    course: Course,
 ) -> None:
     state_data = await state.get_data()
     await state.clear()
@@ -143,8 +143,8 @@ async def handle_answer(
     journal = state_data.get("journal", {})
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
-    teacher = school(journal)
-    mark = teacher.check_answer(shown_exercise, message.text or "")
+    tutor = Tutor(course, journal)
+    mark = tutor.check_answer(shown_exercise, message.text or "")
     result_line = (
         locale.correct
         if mark.correct
@@ -168,7 +168,7 @@ async def handle_answer(
             shown_exercise,
             message,
             locale,
-            school,
+            course,
         )
     else:
         await state.update_data(
@@ -179,7 +179,7 @@ async def handle_answer(
 
 
 @router.message(UserState.recalling)
-async def handle_recall(message: Message, state: FSMContext, school: School) -> None:
+async def handle_recall(message: Message, state: FSMContext, course: Course) -> None:
     state_data = await state.get_data()
     await state.clear()
     language = get_language(state_data)
@@ -192,8 +192,8 @@ async def handle_recall(message: Message, state: FSMContext, school: School) -> 
         shown_recall=state_data["shown_recall"],
     )
     locale = LOCALES[language]
-    teacher = school(journal)
-    if teacher.check_recall(shown_recall, message.text or ""):
+    tutor = Tutor(course, journal)
+    if tutor.check_recall(shown_recall, message.text or ""):
         await message.answer(
             locale.recall_correct,
             reply_markup=_make_next_button(locale),
@@ -209,13 +209,13 @@ async def handle_recall(message: Message, state: FSMContext, school: School) -> 
 async def handle_next_exercise(
     callback: CallbackQuery,
     state: FSMContext,
-    school: School,
+    course: Course,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     journal = state_data.get("journal", {})
-    teacher = school(journal)
-    exercise = teacher.next_exercise()
+    tutor = Tutor(course, journal)
+    exercise = tutor.next_exercise()
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
     if isinstance(callback.message, Message):
@@ -229,7 +229,7 @@ async def handle_next_exercise(
 async def handle_recall_request(
     callback: CallbackQuery,
     state: FSMContext,
-    school: School,
+    course: Course,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -246,6 +246,6 @@ async def handle_recall_request(
             shown_exercise,
             callback.message,
             locale,
-            school,
+            course,
         )
     await callback.answer()

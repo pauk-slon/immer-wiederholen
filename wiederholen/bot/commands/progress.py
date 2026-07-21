@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from wiederholen.bot.l10n import LOCALES, get_language
-from wiederholen.exercises import School
+from wiederholen.exercises import Course, Tutor
 
 router = Router()
 
@@ -13,12 +13,12 @@ router = Router()
 async def command_progress(
     message: Message,
     state: FSMContext,
-    school: School,
+    course: Course,
 ) -> None:
     data = await state.get_data()
     language = get_language(data)
     journal = data.get("journal", {})
-    progress = school(journal).progress()
+    progress = Tutor(course, journal).progress()
     await message.answer(
         LOCALES[language].progress_text.format(
             due=progress.due,
