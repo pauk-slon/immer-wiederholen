@@ -11,7 +11,7 @@ from aiogram.methods import SendMessage
 
 from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
 from wiederholen.bot.redis_storage import ScanningRedisStorage
-from wiederholen.exercises import School
+from wiederholen.exercises import Course
 
 from tests.conftest import TmpYamlFile
 from tests.plugins.exercises import ExerciseData, make_exercise, make_exercise_data
@@ -40,7 +40,7 @@ async def test_tick_sends_reminder_and_records_it(
 
     mock_request = AsyncMock(return_value=True)
     with patch.object(bot.session, "make_request", mock_request):
-        await tick(bot, redis_storage, School([exercise]))
+        await tick(bot, redis_storage, Course([exercise]))
 
     sent = [
         call.args[1]
@@ -73,7 +73,7 @@ async def test_tick_skips_chat_with_nothing_due(
 
     mock_request = AsyncMock(return_value=True)
     with patch.object(bot.session, "make_request", mock_request):
-        await tick(bot, redis_storage, School([exercise]))
+        await tick(bot, redis_storage, Course([exercise]))
 
     assert mock_request.call_args_list == []
 
@@ -95,7 +95,7 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
 
     mock_request = AsyncMock(side_effect=make_request_side_effect)
     with patch.object(bot.session, "make_request", mock_request):
-        await tick(bot, redis_storage, School([exercise]))
+        await tick(bot, redis_storage, Course([exercise]))
 
     data = await state.get_data()
     assert "last_reminded_at" not in data["journal"]
@@ -116,7 +116,7 @@ async def test_tick_continues_after_one_chat_fails(
 
     mock_request = AsyncMock(return_value=True)
     with patch.object(bot.session, "make_request", mock_request):
-        await tick(bot, redis_storage, School([exercise]))
+        await tick(bot, redis_storage, Course([exercise]))
 
     sent_chat_ids = {
         call.args[1].chat_id
@@ -130,7 +130,7 @@ async def test_run_ticks_then_sleeps_between_iterations(
     bot_token: str, redis_storage: ScanningRedisStorage
 ) -> None:
     bot = Bot(token=bot_token)
-    school = School([make_exercise()])
+    course = Course([make_exercise()])
     sleep_calls: list[float] = []
 
     async def fake_sleep(seconds: float) -> None:
@@ -142,7 +142,7 @@ async def test_run_ticks_then_sleeps_between_iterations(
         patch("wiederholen.bot.reminder.asyncio.sleep", fake_sleep),
         pytest.raises(asyncio.CancelledError),
     ):
-        await run(bot, redis_storage, school)
+        await run(bot, redis_storage, course)
 
     assert sleep_calls == [POLL_INTERVAL_SECONDS]
 
@@ -161,8 +161,8 @@ async def test_main_calls_run_with_constructed_dependencies(
 
     mock_run.assert_called_once()
     args, kwargs = mock_run.call_args
-    bot_arg, storage_arg, school_arg = args
+    bot_arg, storage_arg, course_arg = args
     assert isinstance(bot_arg, Bot)
     assert bot_arg.token == bot_token
     assert isinstance(storage_arg, ScanningRedisStorage)
-    assert isinstance(school_arg, School)
+    assert isinstance(course_arg, Course)

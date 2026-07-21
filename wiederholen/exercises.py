@@ -116,20 +116,21 @@ def load_chained_categories(path: Path) -> dict[str, list[str]]:
     return data or {}
 
 
-class Teacher:
+@dataclass(frozen=True)
+class Course:
+    exercises: Sequence[Exercise]
+    chained_categories: Mapping[str, Sequence[str]] = field(default_factory=dict)
+
+
+class Tutor:
     MAX_INTERVAL_DAYS: int = 60
     REMIND_AFTER: timedelta = timedelta(hours=24)
     _SCHEDULE_ENTRY_ADAPTER: ClassVar = TypeAdapter(_ScheduleEntry)
 
-    def __init__(
-        self,
-        exercises: Sequence[Exercise],
-        journal: dict,
-        chained_categories: Mapping[str, Sequence[str]] | None = None,
-    ) -> None:
-        self._exercises = exercises
+    def __init__(self, course: Course, journal: dict) -> None:
+        self._exercises = course.exercises
         self._journal = journal
-        self._chained_categories = chained_categories or {}
+        self._chained_categories = course.chained_categories
 
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
@@ -359,16 +360,3 @@ class Teacher:
 
     def record_reminder_sent(self) -> None:
         self._last_reminded_at = datetime.now(UTC)
-
-
-class School:
-    def __init__(
-        self,
-        exercises: Sequence[Exercise],
-        chained_categories: Mapping[str, Sequence[str]] | None = None,
-    ) -> None:
-        self._exercises = exercises
-        self._chained_categories = chained_categories or {}
-
-    def __call__(self, journal: dict) -> Teacher:
-        return Teacher(self._exercises, journal, self._chained_categories)

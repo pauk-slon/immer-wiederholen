@@ -5,14 +5,14 @@ from aiogram.exceptions import TelegramRetryAfter
 from aiogram.types import BotCommand
 
 from . import dispatcher
-from .bootstrap import load_bot_school_and_storage
+from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES
 
 logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
-    bot, school, storage = load_bot_school_and_storage()
+    bot, course, storage = load_bot_course_and_storage()
     dispatcher.fsm.storage = storage
     for language_code, locale in LOCALES.items():
         try:
@@ -40,7 +40,7 @@ async def main() -> None:
                 "Rate limited setting bot info, skipping: retry in %ds",
                 e.retry_after,
             )
-    await dispatcher.start_polling(bot, school=school)
+    await dispatcher.start_polling(bot, course=course)
 
 
 if __name__ == "__main__":  # pragma: no cover

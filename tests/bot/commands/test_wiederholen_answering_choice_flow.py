@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.exercises import Exercise, School
+from wiederholen.exercises import Exercise, Course
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.exercises import make_exercise
@@ -19,7 +19,7 @@ class TestHandleAnswer:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
-        requests = await feed_message(exercise.answer, school=School([exercise]))
+        requests = await feed_message(exercise.answer, course=Course([exercise]))
 
         assert RU.correct in requests[0].text
         assert exercise.explanation["ru"] in requests[1].text
@@ -34,7 +34,7 @@ class TestHandleAnswer:
         await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         requests = await feed_message(
-            exercise.distractors[0], school=School([exercise])
+            exercise.distractors[0], course=Course([exercise])
         )
 
         assert exercise.answer in requests[0].text
@@ -51,7 +51,7 @@ class TestNextExerciseButton:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
-        requests = await feed_message(exercise.answer, school=School([exercise]))
+        requests = await feed_message(exercise.answer, course=Course([exercise]))
 
         assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
         buttons = [
@@ -71,7 +71,7 @@ class TestNextExerciseButton:
         await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         requests = await feed_message(
-            exercise.distractors[0], school=School([exercise])
+            exercise.distractors[0], course=Course([exercise])
         )
 
         assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
@@ -92,7 +92,7 @@ class TestNextExerciseButton:
         await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
         requests = await feed_message(
-            exercise.distractors[0], school=School([exercise])
+            exercise.distractors[0], course=Course([exercise])
         )
 
         assert not isinstance(requests[0].reply_markup, InlineKeyboardMarkup)
@@ -114,7 +114,7 @@ class TestNextExerciseButton:
         )
 
         requests = await feed_message(
-            "Ich warte auf den Bus.", school=School([exercise])
+            "Ich warte auf den Bus.", course=Course([exercise])
         )
 
         assert len(requests) == 1
@@ -135,7 +135,7 @@ class TestNextExerciseButton:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
-        requests = await feed_message(exercise.answer, school=School([exercise]))
+        requests = await feed_message(exercise.answer, course=Course([exercise]))
 
         assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
         buttons = [
@@ -155,8 +155,8 @@ class TestNextExerciseButton:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict(), journal={})
 
-        await feed_message(exercise.answer, school=School([exercise]))
-        requests = await feed_callback_query(RECALL, school=School([exercise]))
+        await feed_message(exercise.answer, course=Course([exercise]))
+        requests = await feed_callback_query(RECALL, course=Course([exercise]))
         recall_message = requests[1]
 
         assert exercise.recalls
@@ -171,7 +171,7 @@ class TestNextExerciseButton:
         exercise = make_exercise()
         await state.update_data(language="ru", journal={})
 
-        requests = await feed_callback_query(NEXT_EXERCISE, school=School([exercise]))
+        requests = await feed_callback_query(NEXT_EXERCISE, course=Course([exercise]))
 
         send_message = next(
             r for r in requests if hasattr(r, "text") and exercise.question in r.text
@@ -204,7 +204,7 @@ class TestNextExerciseButton:
             language="ru", journal={"last_answered_question": mit.question}
         )
 
-        requests = await feed_callback_query(NEXT_EXERCISE, school=School([mit, ueber]))
+        requests = await feed_callback_query(NEXT_EXERCISE, course=Course([mit, ueber]))
 
         send_message = next(
             r for r in requests if hasattr(r, "text") and ueber.question in r.text

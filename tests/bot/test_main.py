@@ -22,7 +22,7 @@ from aiogram.methods.base import TelegramType
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
-from wiederholen.exercises import School
+from wiederholen.exercises import Course, Tutor
 
 from tests.plugins.exercises import make_exercise_data, ExerciseData
 from tests.conftest import TmpYamlFile
@@ -105,8 +105,8 @@ async def test_starts_polling_with_bot_and_dependencies(
     args, kwargs = mock_polling.call_args
     assert isinstance(args[0], Bot)
     assert args[0].token == bot_token
-    assert isinstance(kwargs["school"], School)
-    loaded_exercise = kwargs["school"]({}).next_exercise().to_dict()
+    assert isinstance(kwargs["course"], Course)
+    loaded_exercise = Tutor(kwargs["course"], {}).next_exercise().to_dict()
     if not loaded_exercise["recalls"]:
         del loaded_exercise["recalls"]
     if loaded_exercise["description"] is None:

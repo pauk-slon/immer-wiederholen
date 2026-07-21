@@ -1,18 +1,18 @@
 from datetime import UTC, date, datetime, timedelta
 
-from wiederholen.exercises import School
+from wiederholen.exercises import Course, Tutor
 
 from tests.plugins.exercises import make_exercise
 
 
 def test_due_topics_count_is_zero_for_empty_school() -> None:
-    assert School([])({}).due_topics_count() == 0
+    assert Tutor(Course([]), {}).due_topics_count() == 0
 
 
 def test_due_topics_count_counts_new_topics_as_due() -> None:
     exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
 
-    assert School(exercises)({}).due_topics_count() == 2
+    assert Tutor(Course(exercises), {}).due_topics_count() == 2
 
 
 def test_due_topics_count_excludes_not_yet_due_topics() -> None:
@@ -26,7 +26,7 @@ def test_due_topics_count_excludes_not_yet_due_topics() -> None:
         }
     }
 
-    assert School([exercise])(journal).due_topics_count() == 0
+    assert Tutor(Course([exercise]), journal).due_topics_count() == 0
 
 
 def test_due_topics_count_counts_shared_schedule_key_once() -> None:
@@ -34,7 +34,7 @@ def test_due_topics_count_counts_shared_schedule_key_once() -> None:
     duplicate_1 = make_exercise(topic="helfen")
     duplicate_2 = make_exercise(topic="helfen")
 
-    assert School([duplicate_1, duplicate_2])({}).due_topics_count() == 1
+    assert Tutor(Course([duplicate_1, duplicate_2]), {}).due_topics_count() == 1
 
 
 def test_record_reminder_sent_sets_last_reminded_at() -> None:
@@ -42,7 +42,7 @@ def test_record_reminder_sent_sets_last_reminded_at() -> None:
     journal: dict = {}
     before = datetime.now(UTC)
 
-    School([exercise])(journal).record_reminder_sent()
+    Tutor(Course([exercise]), journal).record_reminder_sent()
 
     recorded = datetime.fromisoformat(journal["last_reminded_at"])
     assert before <= recorded <= datetime.now(UTC)
@@ -60,14 +60,14 @@ def test_should_remind_is_false_when_nothing_is_due() -> None:
         "last_answered_at": (datetime.now(UTC) - timedelta(hours=25)).isoformat(),
     }
 
-    assert School([exercise])(journal).should_remind() is False
+    assert Tutor(Course([exercise]), journal).should_remind() is False
 
 
 def test_should_remind_is_false_without_ever_answering() -> None:
     exercise = make_exercise()
     journal: dict = {}
 
-    assert School([exercise])(journal).should_remind() is False
+    assert Tutor(Course([exercise]), journal).should_remind() is False
 
 
 def test_should_remind_is_false_when_answered_recently() -> None:
@@ -76,7 +76,7 @@ def test_should_remind_is_false_when_answered_recently() -> None:
         "last_answered_at": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
     }
 
-    assert School([exercise])(journal).should_remind() is False
+    assert Tutor(Course([exercise]), journal).should_remind() is False
 
 
 def test_should_remind_is_true_after_24h_since_last_answer_with_due_material() -> None:
@@ -85,7 +85,7 @@ def test_should_remind_is_true_after_24h_since_last_answer_with_due_material() -
         "last_answered_at": (datetime.now(UTC) - timedelta(hours=25)).isoformat(),
     }
 
-    assert School([exercise])(journal).should_remind() is True
+    assert Tutor(Course([exercise]), journal).should_remind() is True
 
 
 def test_should_remind_is_false_if_already_reminded_since_last_answer() -> None:
@@ -96,7 +96,7 @@ def test_should_remind_is_false_if_already_reminded_since_last_answer() -> None:
         "last_reminded_at": (last_answered_at + timedelta(minutes=1)).isoformat(),
     }
 
-    assert School([exercise])(journal).should_remind() is False
+    assert Tutor(Course([exercise]), journal).should_remind() is False
 
 
 def test_should_remind_is_true_if_answered_again_since_last_reminder() -> None:
@@ -108,4 +108,4 @@ def test_should_remind_is_true_if_answered_again_since_last_reminder() -> None:
         "last_reminded_at": last_reminded_at.isoformat(),
     }
 
-    assert School([exercise])(journal).should_remind() is True
+    assert Tutor(Course([exercise]), journal).should_remind() is True

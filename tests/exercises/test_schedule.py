@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from wiederholen.exercises import Exercise, School
+from wiederholen.exercises import Course, Exercise, Tutor
 
 from tests.plugins.exercises import make_exercise
 
@@ -20,8 +20,8 @@ def test_next_exercise_only_picks_due_topics() -> None:
             },
         }
     }
-    teacher = School(exercises)(state)
-    assert teacher.next_exercise().topic == "hoffen"
+    tutor = Tutor(Course(exercises), state)
+    assert tutor.next_exercise().topic == "hoffen"
 
 
 def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
@@ -39,8 +39,8 @@ def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
             },
         }
     }
-    teacher = School(exercises)(state)
-    assert teacher.next_exercise().topic == "hoffen"
+    tutor = Tutor(Course(exercises), state)
+    assert tutor.next_exercise().topic == "hoffen"
 
 
 def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
@@ -53,18 +53,18 @@ def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
             "hoffen:government": {"interval_days": 5, "due_date": due_date},
         }
     }
-    teacher = School(exercises)(state)
+    tutor = Tutor(Course(exercises), state)
 
     random.seed(1234)
-    picks = Counter(teacher.next_exercise().topic for _ in range(2000))
+    picks = Counter(tutor.next_exercise().topic for _ in range(2000))
 
     assert 0.8 < picks["warten"] / picks["hoffen"] < 1.25
 
 
 def test_new_topic_is_always_due() -> None:
     exercise = make_exercise(topic="warten")
-    teacher = School([exercise])({})
-    assert teacher.next_exercise().topic == "warten"
+    tutor = Tutor(Course([exercise]), {})
+    assert tutor.next_exercise().topic == "warten"
 
 
 def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None:
@@ -77,9 +77,9 @@ def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None
             },
         }
     }
-    teacher = School(exercises)(state)
+    tutor = Tutor(Course(exercises), state)
 
-    teacher.next_exercise()
+    tutor.next_exercise()
 
     assert "hoffen:government" not in state["topic_schedule"]
 
@@ -95,7 +95,7 @@ def test_correct_answer_doubles_interval() -> None:
             }
         }
     }
-    School([exercise])(state).check_answer(exercise, "auf")
+    Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 8
     assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
@@ -104,7 +104,7 @@ def test_correct_answer_doubles_interval() -> None:
 def test_correct_answer_on_new_topic_sets_interval_to_one() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
     state: dict = {}
-    School([exercise])(state).check_answer(exercise, "auf")
+    Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
     assert entry["due_date"] == (date.today() + timedelta(days=1)).isoformat()
@@ -121,7 +121,7 @@ def test_correct_answer_caps_interval_at_max() -> None:
             }
         }
     }
-    School([exercise])(state).check_answer(exercise, "auf")
+    Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 60
     assert entry["due_date"] == (today + timedelta(days=60)).isoformat()
@@ -138,7 +138,7 @@ def test_wrong_answer_resets_interval_and_is_due_today() -> None:
             }
         }
     }
-    School([exercise])(state).check_answer(exercise, "für")
+    Tutor(Course([exercise]), state).check_answer(exercise, "für")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
     assert entry["due_date"] == today.isoformat()
@@ -148,7 +148,7 @@ def test_check_answer_records_last_answered_question() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
     journal: dict = {}
 
-    School([exercise])(journal).check_answer(exercise, "auf")
+    Tutor(Course([exercise]), journal).check_answer(exercise, "auf")
 
     assert journal["last_answered_question"] == exercise.question
 
@@ -157,7 +157,7 @@ def test_check_answer_records_last_answered_at() -> None:
     exercise = make_exercise(topic="warten", answer="auf")
     journal: dict = {}
 
-    School([exercise])(journal).check_answer(exercise, "auf")
+    Tutor(Course([exercise]), journal).check_answer(exercise, "auf")
 
     assert "last_answered_at" in journal
 
@@ -184,8 +184,8 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
             },
         }
     }
-    teacher = School(exercises)(state)
-    assert teacher.next_exercise().topic == "warten"
+    tutor = Tutor(Course(exercises), state)
+    assert tutor.next_exercise().topic == "warten"
 
 
 def test_exercises_selected_evenly_across_topics() -> None:
@@ -196,10 +196,10 @@ def test_exercises_selected_evenly_across_topics() -> None:
     single = make_exercise(topic="warten")
     duplicate_1 = make_exercise(topic="helfen")
     duplicate_2 = make_exercise(topic="helfen")
-    teacher = School([single, duplicate_1, duplicate_2])({})
+    tutor = Tutor(Course([single, duplicate_1, duplicate_2]), {})
 
     random.seed(1234)
-    picks = Counter(teacher.next_exercise().topic for _ in range(2000))
+    picks = Counter(tutor.next_exercise().topic for _ in range(2000))
 
     assert 0.8 < picks["warten"] / picks["helfen"] < 1.25
 
@@ -222,9 +222,9 @@ def test_next_exercise_avoids_repeating_last_answered_question() -> None:
         explanation={"ru": "x", "en": "y"},
     )
     state = {"last_answered_question": mit.question}
-    teacher = School([mit, ueber])(state)
+    tutor = Tutor(Course([mit, ueber]), state)
 
-    result = teacher.next_exercise()
+    result = tutor.next_exercise()
 
     assert result.question == ueber.question
 
@@ -236,9 +236,9 @@ def test_next_exercise_repeats_question_when_no_other_variant_is_available() -> 
     duplicate_1 = make_exercise(topic="helfen")
     duplicate_2 = make_exercise(topic="helfen")
     state = {"last_answered_question": duplicate_1.question}
-    teacher = School([duplicate_1, duplicate_2])(state)
+    tutor = Tutor(Course([duplicate_1, duplicate_2]), state)
 
-    result = teacher.next_exercise()
+    result = tutor.next_exercise()
 
     assert result.question == duplicate_1.question
 
@@ -249,9 +249,9 @@ def test_same_topic_different_categories_are_scheduled_independently() -> None:
         topic="sprechen", category="partizip_ii", answer="gesprochen"
     )
     state: dict = {}
-    teacher = School([government, partizip])(state)
+    tutor = Tutor(Course([government, partizip]), state)
 
-    teacher.check_answer(government, "auf")
+    tutor.check_answer(government, "auf")
 
     assert "sprechen:government" in state["topic_schedule"]
     assert "sprechen:partizip_ii" not in state["topic_schedule"]
@@ -273,8 +273,8 @@ def test_schedule_entry_with_unknown_extra_key_is_still_respected() -> None:
             },
         }
     }
-    teacher = School(exercises)(state)
-    assert teacher.next_exercise().topic == "hoffen"
+    tutor = Tutor(Course(exercises), state)
+    assert tutor.next_exercise().topic == "hoffen"
 
 
 @pytest.mark.parametrize(
@@ -292,7 +292,7 @@ def test_malformed_schedule_entry_is_overwritten_on_check_answer(
     exercise = make_exercise(topic="warten", answer="auf")
     today = date.today()
     state = {"topic_schedule": {"warten:government": malformed_entry}}
-    School([exercise])(state).check_answer(exercise, "auf")
+    Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["topic_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
     assert entry["due_date"] == (today + timedelta(days=1)).isoformat()
@@ -316,9 +316,11 @@ class TestChainedCategories:
             }
         }
         chained_categories = {"preposition_case": ["preposition_meaning"]}
-        teacher = School([case_exercise, meaning_exercise], chained_categories)(state)
+        tutor = Tutor(
+            Course([case_exercise, meaning_exercise], chained_categories), state
+        )
 
-        teacher.check_answer(case_exercise, "Freund")
+        tutor.check_answer(case_exercise, "Freund")
 
         entry = state["topic_schedule"]["mit:preposition_meaning"]
         assert entry["due_date"] == today.isoformat()
@@ -341,9 +343,11 @@ class TestChainedCategories:
             }
         }
         chained_categories = {"preposition_case": ["preposition_meaning"]}
-        teacher = School([case_exercise, meaning_exercise], chained_categories)(state)
+        tutor = Tutor(
+            Course([case_exercise, meaning_exercise], chained_categories), state
+        )
 
-        teacher.check_answer(case_exercise, "wrong answer")
+        tutor.check_answer(case_exercise, "wrong answer")
 
         entry = state["topic_schedule"]["mit:preposition_meaning"]
         assert entry["due_date"] == today.isoformat()
@@ -366,9 +370,11 @@ class TestChainedCategories:
             }
         }
         chained_categories = {"preposition_case": ["preposition_meaning"]}
-        teacher = School([case_exercise, meaning_exercise], chained_categories)(state)
+        tutor = Tutor(
+            Course([case_exercise, meaning_exercise], chained_categories), state
+        )
 
-        teacher.check_answer(case_exercise, "Freund")
+        tutor.check_answer(case_exercise, "Freund")
 
         entry = state["topic_schedule"]["mit:preposition_meaning"]
         assert entry["due_date"] == overdue_date.isoformat()
@@ -382,9 +388,11 @@ class TestChainedCategories:
         )
         state: dict = {}
         chained_categories = {"preposition_case": ["preposition_meaning"]}
-        teacher = School([case_exercise, meaning_exercise], chained_categories)(state)
+        tutor = Tutor(
+            Course([case_exercise, meaning_exercise], chained_categories), state
+        )
 
-        teacher.check_answer(case_exercise, "Freund")
+        tutor.check_answer(case_exercise, "Freund")
 
         assert "mit:preposition_meaning" not in state.get("topic_schedule", {})
 
@@ -394,9 +402,9 @@ class TestChainedCategories:
         )
         state: dict = {}
         chained_categories = {"preposition_case": ["preposition_meaning"]}
-        teacher = School([case_exercise], chained_categories)(state)
+        tutor = Tutor(Course([case_exercise], chained_categories), state)
 
-        teacher.check_answer(case_exercise, "Freund")
+        tutor.check_answer(case_exercise, "Freund")
 
         assert "mit:preposition_meaning" not in state.get("topic_schedule", {})
 
@@ -417,11 +425,11 @@ class TestChainedCategories:
             }
         }
         chained_categories = {"preposition_case": ["preposition_meaning"]}
-        teacher = School([government_exercise, meaning_exercise], chained_categories)(
-            state
+        tutor = Tutor(
+            Course([government_exercise, meaning_exercise], chained_categories), state
         )
 
-        teacher.check_answer(government_exercise, "auf")
+        tutor.check_answer(government_exercise, "auf")
 
         entry = state["topic_schedule"]["mit:preposition_meaning"]
         assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
