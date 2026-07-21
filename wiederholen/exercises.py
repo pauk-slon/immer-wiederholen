@@ -1,5 +1,5 @@
 import random
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from enum import Enum
@@ -108,14 +108,28 @@ def load_exercises(path: Path) -> list[Exercise]:
     return [Exercise.from_dict(item) for item in items]
 
 
+def load_chained_categories(path: Path) -> dict[str, list[str]]:
+    if not path.exists():
+        return {}
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    return data or {}
+
+
 class Teacher:
     MAX_INTERVAL_DAYS: int = 60
     REMIND_AFTER: timedelta = timedelta(hours=24)
     _SCHEDULE_ENTRY_ADAPTER: ClassVar = TypeAdapter(_ScheduleEntry)
 
-    def __init__(self, exercises: Sequence[Exercise], journal: dict) -> None:
+    def __init__(
+        self,
+        exercises: Sequence[Exercise],
+        journal: dict,
+        chained_categories: Mapping[str, Sequence[str]] | None = None,
+    ) -> None:
         self._exercises = exercises
         self._journal = journal
+        self._chained_categories = chained_categories or {}
 
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
@@ -270,6 +284,18 @@ class Teacher:
             due=self.due_topics_count(),
         )
 
+    def _expedite_chained_categories(self, exercise: Exercise) -> None:
+        today = date.today()
+        for target_category in self._chained_categories.get(exercise.category, []):
+            target_key = f"{exercise.topic}:{target_category}"
+            if target_key not in self._exercises_by_schedule_key:
+                continue
+            target_entry = self._get_schedule_entry(target_key)
+            if target_entry is None:
+                continue
+            if date.fromisoformat(target_entry["due_date"]) > today:
+                target_entry["due_date"] = today.isoformat()
+
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
         self._last_answered_question = exercise.question
@@ -288,6 +314,7 @@ class Teacher:
             due_date = date.today()
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
+        self._expedite_chained_categories(exercise)
         if not exercise.recalls:
             recall_mode = RecallMode.none
         elif correct:
@@ -335,8 +362,13 @@ class Teacher:
 
 
 class School:
-    def __init__(self, exercises: Sequence[Exercise]) -> None:
+    def __init__(
+        self,
+        exercises: Sequence[Exercise],
+        chained_categories: Mapping[str, Sequence[str]] | None = None,
+    ) -> None:
         self._exercises = exercises
+        self._chained_categories = chained_categories or {}
 
     def __call__(self, journal: dict) -> Teacher:
-        return Teacher(self._exercises, journal)
+        return Teacher(self._exercises, journal, self._chained_categories)

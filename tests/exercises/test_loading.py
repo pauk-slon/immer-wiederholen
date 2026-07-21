@@ -4,7 +4,7 @@ from typing import Callable, Any
 
 import pytest
 
-from wiederholen.exercises import load_exercises
+from wiederholen.exercises import load_chained_categories, load_exercises
 
 from tests.plugins.exercises import make_exercise_data
 
@@ -32,6 +32,20 @@ class TestExerciseValidation:
                 [make_exercise_data() | {"description": {"de": "falsch"}}]
             ) as exercise_file:
                 load_exercises(exercise_file)
+
+
+class TestChainedCategoriesLoading:
+    def test_missing_file_returns_empty_dict(self, tmp_path: Path) -> None:
+        assert load_chained_categories(tmp_path / "does_not_exist.yaml") == {}
+
+    def test_loads_file_contents(self, tmp_yaml_file: TmpYamlFile) -> None:
+        data = {"preposition_case": ["preposition_meaning"]}
+        with tmp_yaml_file(data) as path:
+            assert load_chained_categories(path) == data
+
+    def test_empty_file_returns_empty_dict(self, tmp_yaml_file: TmpYamlFile) -> None:
+        with tmp_yaml_file(None) as path:
+            assert load_chained_categories(path) == {}
 
 
 class TestRecallValidation:
