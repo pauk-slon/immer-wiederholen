@@ -178,6 +178,9 @@ class Tutor:
     def _due_date(self, key: str) -> date:
         entry = self._get_schedule_entry(key)
         if entry is None:
+            exercise = self._exercises_by_schedule_key[key][0]
+            if exercise.category in self._chained_dependent_categories:
+                return date.max
             return date.min
         return date.fromisoformat(entry["due_date"])
 
@@ -225,6 +228,14 @@ class Tutor:
         for exercise in self._exercises:
             by_key.setdefault(self._schedule_key(exercise), []).append(exercise)
         return by_key
+
+    @cached_property
+    def _chained_dependent_categories(self) -> set[str]:
+        return {
+            dependent_category
+            for dependent_categories in self._chained_categories.values()
+            for dependent_category in dependent_categories
+        }
 
     def next_exercise(self) -> Exercise:
         today = date.today()
@@ -287,15 +298,18 @@ class Tutor:
 
     def _expedite_chained_categories(self, exercise: Exercise) -> None:
         today = date.today()
-        for target_category in self._chained_categories.get(exercise.category, []):
-            target_key = f"{exercise.topic}:{target_category}"
-            if target_key not in self._exercises_by_schedule_key:
+        for dependent_category in self._chained_categories.get(exercise.category, []):
+            dependent_key = f"{exercise.topic}:{dependent_category}"
+            if dependent_key not in self._exercises_by_schedule_key:
                 continue
-            target_entry = self._get_schedule_entry(target_key)
-            if target_entry is None:
-                continue
-            if date.fromisoformat(target_entry["due_date"]) > today:
-                target_entry["due_date"] = today.isoformat()
+            dependent_entry = self._get_schedule_entry(dependent_key)
+            if dependent_entry is None:
+                topic_schedule = self._journal.setdefault("topic_schedule", {})
+                topic_schedule[dependent_key] = _ScheduleEntry(
+                    interval_days=0, due_date=today.isoformat()
+                )
+            elif date.fromisoformat(dependent_entry["due_date"]) > today:
+                dependent_entry["due_date"] = today.isoformat()
 
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
