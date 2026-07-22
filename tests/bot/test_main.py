@@ -30,7 +30,7 @@ from tests.conftest import TmpYamlFile
 
 @pytest.fixture
 def exercise_data() -> ExerciseData:
-    return make_exercise_data(topic="sprechen")
+    return make_exercise_data(word="sprechen")
 
 
 @pytest.fixture

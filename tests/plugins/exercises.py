@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import TypedDict, NotRequired, Literal, Unpack
 
-from wiederholen.exercises import Category, Exercise, Recall
+from wiederholen.exercises import Exercise, Recall, Topic
 
 
 type Language = Literal["ru", "en"]
@@ -14,8 +14,8 @@ class RecallData(TypedDict):
 
 
 class ExerciseData(TypedDict):
-    topic: str
-    category: Category
+    word: str
+    topic: Topic
     question: str
     answer: str
     distractors: list[str]
@@ -31,8 +31,8 @@ class RecallKwargs(TypedDict, total=False):
 
 
 class ExerciseDataKwargs(TypedDict, total=False):
-    topic: str
-    category: Category
+    word: str
+    topic: Topic
     answer: str
     distractors: list[str]
     recalls: bool | Sequence[RecallKwargs]
@@ -50,14 +50,14 @@ def _make_recall_data(recall_kwargs: RecallKwargs) -> RecallData:
 
 
 def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
-    topic = kwargs.pop("topic", "warten")
+    word = kwargs.pop("word", "warten")
     exercise_data = ExerciseData(
-        question=f"Ich ___ {topic}.",
-        topic=topic,
-        category=kwargs.pop("category", "government"),
+        question=f"Ich ___ {word}.",
+        word=word,
+        topic=kwargs.pop("topic", "government"),
         distractors=kwargs.pop("distractors", ["für", "an", "um"]),
         answer=kwargs.pop("answer", "auf"),
-        explanation={"ru": f"{topic} + Akk", "en": f"{topic} + Acc"},
+        explanation={"ru": f"{word} + Akk", "en": f"{word} + Acc"},
     )
     if recalls := kwargs.pop("recalls", False):
         recalls_kwargs = recalls if isinstance(recalls, Sequence) else [RecallKwargs()]
@@ -71,8 +71,8 @@ def make_exercise(**kwargs: Unpack[ExerciseDataKwargs]) -> Exercise:
     data = make_exercise_data(**kwargs)
     recalls_data = data.get("recalls")
     return Exercise(
+        word=data["word"],
         topic=data["topic"],
-        category=data["category"],
         question=data["question"],
         answer=data["answer"],
         distractors=data["distractors"],

@@ -10,7 +10,7 @@ from tests.plugins.exercises import make_exercise
 
 
 async def test_defaults_to_ru(feed_message: FeedMessage) -> None:
-    exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
     requests = await feed_message("/progress", course=Course(exercises))
 
     assert len(requests) == 1
@@ -24,7 +24,7 @@ async def test_responds_in_current_language(
     feed_message: FeedMessage,
 ) -> None:
     await state.update_data(language="en")
-    exercises = [make_exercise(topic="warten")]
+    exercises = [make_exercise(word="warten")]
     requests = await feed_message("/progress", course=Course(exercises))
 
     assert len(requests) == 1
@@ -37,11 +37,11 @@ async def test_reflects_journal_breakdown(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
-    new = make_exercise(topic="warten")
-    learning = make_exercise(topic="hoffen")
-    mastered = make_exercise(topic="helfen")
+    new = make_exercise(word="warten")
+    learning = make_exercise(word="hoffen")
+    mastered = make_exercise(word="helfen")
     journal = {
-        "topic_schedule": {
+        "word_schedule": {
             "hoffen:government": {
                 "interval_days": 30,
                 "due_date": (date.today() + timedelta(days=20)).isoformat(),

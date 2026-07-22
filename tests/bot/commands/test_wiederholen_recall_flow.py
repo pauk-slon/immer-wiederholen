@@ -222,8 +222,8 @@ async def test_retry_avoids_repeating_last_recall_variant(
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
     exercise = make_exercise(
-        topic="helfen",
-        category="partizip_ii",
+        word="helfen",
+        topic="partizip_ii",
         answer="geholfen",
         distractors=[],
         recalls=[
