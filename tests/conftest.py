@@ -15,7 +15,10 @@ pytest_plugins = [
 
 class TmpYamlFile(Protocol):
     def __call__(
-        self, data: Any, *, filename: str = "data.yaml"
+        self,
+        data: Any,
+        *,
+        filename: str = "data.yaml",
     ) -> AbstractContextManager[Path]: ...
 
 
