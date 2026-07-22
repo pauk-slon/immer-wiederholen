@@ -427,6 +427,23 @@ class TestChainedTopics:
         entry = state["word_schedule"]["mit:preposition_meaning"]
         assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
 
+    def test_mutual_chains_without_gating_does_not_deadlock(self) -> None:
+        partizip_exercise = make_exercise(
+            word="sprechen", topic="partizip_ii", answer="gesprochen"
+        )
+        preteritum_exercise = make_exercise(
+            word="sprechen", topic="preteritum", answer="sprach"
+        )
+        chained_topics = {
+            "partizip_ii": ["preteritum"],
+            "preteritum": ["partizip_ii"],
+        }
+        tutor = Tutor(
+            Course([partizip_exercise, preteritum_exercise], chained_topics), {}
+        )
+
+        assert tutor.due_topics_count() == 2
+
 
 class TestChainedTopicGating:
     def test_never_answered_parent_locks_the_chained_topic(self) -> None:
@@ -437,7 +454,10 @@ class TestChainedTopicGating:
             word="mit", topic="preposition_meaning", answer="mit"
         )
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_topics), {})
+        gated_topics = frozenset({"preposition_meaning"})
+        tutor = Tutor(
+            Course([case_exercise, meaning_exercise], chained_topics, gated_topics), {}
+        )
 
         assert tutor.next_exercise().topic == "preposition_case"
 
@@ -449,7 +469,8 @@ class TestChainedTopicGating:
             word="mit", topic="preposition_meaning", answer="mit"
         )
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        course = Course([case_exercise, meaning_exercise], chained_topics)
+        gated_topics = frozenset({"preposition_meaning"})
+        course = Course([case_exercise, meaning_exercise], chained_topics, gated_topics)
         state: dict = {}
         Tutor(course, state).check_answer(case_exercise, "Freund")
 
@@ -468,7 +489,10 @@ class TestChainedTopicGating:
             word="mit", topic="preposition_meaning", answer="mit"
         )
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_topics), {})
+        gated_topics = frozenset({"preposition_meaning"})
+        tutor = Tutor(
+            Course([case_exercise, meaning_exercise], chained_topics, gated_topics), {}
+        )
 
         for _ in range(50):
             assert tutor.next_exercise().topic == "preposition_case"
@@ -481,13 +505,17 @@ class TestChainedTopicGating:
             word="mit", topic="preposition_meaning", answer="mit"
         )
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_topics), {})
+        gated_topics = frozenset({"preposition_meaning"})
+        tutor = Tutor(
+            Course([case_exercise, meaning_exercise], chained_topics, gated_topics), {}
+        )
 
         assert tutor.due_topics_count() == 1
 
     def test_unrelated_topic_is_never_locked(self) -> None:
         government_exercise = make_exercise(word="warten", topic="government")
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        tutor = Tutor(Course([government_exercise], chained_topics), {})
+        gated_topics = frozenset({"preposition_meaning"})
+        tutor = Tutor(Course([government_exercise], chained_topics, gated_topics), {})
 
         assert tutor.next_exercise().word == "warten"

@@ -39,30 +39,40 @@ class TestExerciseValidation:
                 Course.load(tmp_path)
 
 
-class TestChainedTopicsLoading:
-    def test_missing_file_returns_empty_dict(
+class TestTopicsConfigLoading:
+    def test_missing_file_returns_empty(
         self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
     ) -> None:
         with tmp_yaml_file([], filename="exercises.yaml"):
             course = Course.load(tmp_path)
         assert course.chained_topics == {}
+        assert course.gated_topics == frozenset()
 
-    def test_loads_file_contents(
+    def test_loads_chains_and_gates(
         self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
     ) -> None:
-        data = {"preposition_case": ["preposition_meaning"]}
+        data = {
+            "partizip_ii": {
+                "chains": ["preteritum"],
+                "gates": ["partizip_ii_meaning"],
+            }
+        }
         with tmp_yaml_file([], filename="exercises.yaml"):
-            with tmp_yaml_file(data, filename="chained_categories.yaml"):
+            with tmp_yaml_file(data, filename="topics.yaml"):
                 course = Course.load(tmp_path)
-        assert course.chained_topics == data
+        assert course.chained_topics == {
+            "partizip_ii": ["preteritum", "partizip_ii_meaning"]
+        }
+        assert course.gated_topics == frozenset({"partizip_ii_meaning"})
 
-    def test_empty_file_returns_empty_dict(
+    def test_empty_file_returns_empty(
         self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
     ) -> None:
         with tmp_yaml_file([], filename="exercises.yaml"):
-            with tmp_yaml_file(None, filename="chained_categories.yaml"):
+            with tmp_yaml_file(None, filename="topics.yaml"):
                 course = Course.load(tmp_path)
         assert course.chained_topics == {}
+        assert course.gated_topics == frozenset()
 
 
 class TestRecallValidation:
