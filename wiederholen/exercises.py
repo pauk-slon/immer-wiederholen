@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
-from typing import Annotated, ClassVar, Literal, TypedDict, overload
+from typing import Annotated, Final, Literal, Self, TypedDict, overload
 
 import yaml
 from pydantic import AfterValidator, TypeAdapter, ValidationError
@@ -43,7 +43,7 @@ class Recall:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Recall":
+    def from_dict(cls, d: dict) -> Self:
         return cls(**d)
 
 
@@ -74,7 +74,7 @@ class Exercise:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Exercise":
+    def from_dict(cls, d: dict) -> Self:
         d = dict(d)
         if d.get("recalls") is not None:
             d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
@@ -108,36 +108,45 @@ def _load_exercises(path: Path) -> list[Exercise]:
     return [Exercise.from_dict(item) for item in items]
 
 
-def _load_chained_topics(path: Path) -> dict[str, list[str]]:
+def _load_topics(path: Path) -> tuple[dict[str, list[str]], frozenset[str]]:
     if not path.exists():
-        return {}
+        return {}, frozenset()
     with open(path) as f:
-        data = yaml.safe_load(f)
-    return data or {}
+        data = yaml.safe_load(f) or {}
+    chained_topics: dict[str, list[str]] = {}
+    gated_topics: set[str] = set()
+    for source, relations in data.items():
+        chains = relations.get("chains", [])
+        gates = relations.get("gates", [])
+        chained_topics[source] = list(dict.fromkeys([*chains, *gates]))
+        gated_topics.update(gates)
+    return chained_topics, frozenset(gated_topics)
 
 
 @dataclass(frozen=True)
 class Course:
     exercises: Sequence[Exercise]
     chained_topics: Mapping[str, Sequence[str]] = field(default_factory=dict)
+    gated_topics: frozenset[str] = field(default_factory=frozenset)
 
     @classmethod
-    def load(cls, path: Path) -> "Course":
+    def load(cls, path: Path) -> Self:
+        chained_topics, gated_topics = _load_topics(path / "topics.yaml")
         return cls(
-            _load_exercises(path / "exercises.yaml"),
-            _load_chained_topics(path / "chained_categories.yaml"),
+            _load_exercises(path / "exercises.yaml"), chained_topics, gated_topics
         )
 
 
 class Tutor:
-    MAX_INTERVAL_DAYS: int = 60
-    REMIND_AFTER: timedelta = timedelta(hours=24)
-    _SCHEDULE_ENTRY_ADAPTER: ClassVar = TypeAdapter(_ScheduleEntry)
+    MAX_INTERVAL_DAYS: Final = 60
+    REMIND_AFTER: Final = timedelta(hours=24)
+    _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(_ScheduleEntry)
 
     def __init__(self, course: Course, journal: dict) -> None:
         self._exercises = course.exercises
         self._journal = journal
         self._chained_topics = course.chained_topics
+        self._gated_topics = course.gated_topics
 
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
@@ -186,7 +195,7 @@ class Tutor:
         entry = self._get_schedule_entry(key)
         if entry is None:
             exercise = self._exercises_by_schedule_key[key][0]
-            if exercise.topic in self._chained_dependent_topics:
+            if exercise.topic in self._gated_topics:
                 return date.max
             return date.min
         return date.fromisoformat(entry["due_date"])
@@ -235,14 +244,6 @@ class Tutor:
         for exercise in self._exercises:
             by_key.setdefault(self._schedule_key(exercise), []).append(exercise)
         return by_key
-
-    @cached_property
-    def _chained_dependent_topics(self) -> set[str]:
-        return {
-            dependent_topic
-            for dependent_topics in self._chained_topics.values()
-            for dependent_topic in dependent_topics
-        }
 
     def next_exercise(self) -> Exercise:
         today = date.today()
