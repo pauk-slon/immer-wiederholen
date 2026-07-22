@@ -1,3 +1,5 @@
+import difflib
+import html
 import random
 from typing import Final
 
@@ -104,6 +106,18 @@ def _format_question(exercise: Exercise, language: Language, locale: Locale) -> 
     return text
 
 
+def _highlight_diff(user_text: str, correct_text: str) -> str:
+    matcher = difflib.SequenceMatcher(a=user_text, b=correct_text)
+    correct_parts: list[str] = []
+    for tag, _, _, j1, j2 in matcher.get_opcodes():
+        correct_chunk = html.escape(correct_text[j1:j2])
+        if tag == "equal":
+            correct_parts.append(correct_chunk)
+        elif correct_chunk:
+            correct_parts.append(f"<u>{correct_chunk}</u>")
+    return "".join(correct_parts)
+
+
 def _show_exercise_kwargs(exercise: Exercise) -> dict:
     if exercise.distractors:
         return {"reply_markup": _make_reply_keyboard(exercise)}
@@ -199,9 +213,11 @@ async def handle_recall(message: Message, state: FSMContext, course: Course) -> 
             reply_markup=_make_next_button(locale),
         )
     else:
+        correct_answer = _highlight_diff(message.text or "", shown_recall.answer[0])
         await message.answer(
-            locale.recall_wrong.format(answer=shown_recall.answer[0]),
+            locale.recall_wrong.format(answer=correct_answer),
             reply_markup=_make_recall_buttons(locale, locale.btn_recall_retry),
+            parse_mode="HTML",
         )
 
 
