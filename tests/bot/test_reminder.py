@@ -153,8 +153,8 @@ async def test_main_calls_run_with_constructed_dependencies(
     exercise_data: ExerciseData = make_exercise_data(topic="sprechen")
     monkeypatch.setenv("BOT_TOKEN", bot_token)
     monkeypatch.setenv("FSM_STORAGE_URL", "redis://localhost:6379/0")
-    with tmp_yaml_file([exercise_data]) as path:
-        monkeypatch.setenv("EXERCISES_PATH", str(path))
+    with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
+        monkeypatch.setenv("COURSE_PATH", str(path.parent))
         mock_run = AsyncMock()
         with patch("wiederholen.bot.reminder.run", mock_run):
             await main()

@@ -102,13 +102,13 @@ class Progress:
     due: int
 
 
-def load_exercises(path: Path) -> list[Exercise]:
+def _load_exercises(path: Path) -> list[Exercise]:
     with open(path) as f:
         items = yaml.safe_load(f)
     return [Exercise.from_dict(item) for item in items]
 
 
-def load_chained_categories(path: Path) -> dict[str, list[str]]:
+def _load_chained_categories(path: Path) -> dict[str, list[str]]:
     if not path.exists():
         return {}
     with open(path) as f:
@@ -120,6 +120,13 @@ def load_chained_categories(path: Path) -> dict[str, list[str]]:
 class Course:
     exercises: Sequence[Exercise]
     chained_categories: Mapping[str, Sequence[str]] = field(default_factory=dict)
+
+    @classmethod
+    def load(cls, path: Path) -> "Course":
+        return cls(
+            _load_exercises(path / "exercises.yaml"),
+            _load_chained_categories(path / "chained_categories.yaml"),
+        )
 
 
 class Tutor:

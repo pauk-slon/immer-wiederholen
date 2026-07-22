@@ -1,66 +1,88 @@
-from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import Callable, Any
 
 import pytest
 
-from wiederholen.exercises import load_chained_categories, load_exercises
+from wiederholen.exercises import Course
 
+from tests.conftest import TmpYamlFile
 from tests.plugins.exercises import make_exercise_data
-
-type TmpYamlFile = Callable[[Any], AbstractContextManager[Path]]
 
 
 class TestExerciseValidation:
-    def test_answer_in_distractors_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
+    def test_answer_in_distractors_raises(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
         exercise_data = make_exercise_data()
         exercise_data["distractors"][0] = exercise_data["answer"]
         with pytest.raises(ValueError, match="must not be in distractors"):
-            with tmp_yaml_file([exercise_data]) as exercise_file:
-                load_exercises(exercise_file)
+            with tmp_yaml_file([exercise_data], filename="exercises.yaml"):
+                Course.load(tmp_path)
 
-    def test_wrong_explanation_keys_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
+    def test_wrong_explanation_keys_raises(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
         with pytest.raises(ValueError, match="explanation must have keys"):
             with tmp_yaml_file(
-                [make_exercise_data() | {"explanation": {"de": "falsch"}}]
-            ) as exercise_file:
-                load_exercises(exercise_file)
+                [make_exercise_data() | {"explanation": {"de": "falsch"}}],
+                filename="exercises.yaml",
+            ):
+                Course.load(tmp_path)
 
-    def test_wrong_description_keys_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
+    def test_wrong_description_keys_raises(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
         with pytest.raises(ValueError, match="description must have keys"):
             with tmp_yaml_file(
-                [make_exercise_data() | {"description": {"de": "falsch"}}]
-            ) as exercise_file:
-                load_exercises(exercise_file)
+                [make_exercise_data() | {"description": {"de": "falsch"}}],
+                filename="exercises.yaml",
+            ):
+                Course.load(tmp_path)
 
 
 class TestChainedCategoriesLoading:
-    def test_missing_file_returns_empty_dict(self, tmp_path: Path) -> None:
-        assert load_chained_categories(tmp_path / "does_not_exist.yaml") == {}
+    def test_missing_file_returns_empty_dict(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
+        with tmp_yaml_file([], filename="exercises.yaml"):
+            course = Course.load(tmp_path)
+        assert course.chained_categories == {}
 
-    def test_loads_file_contents(self, tmp_yaml_file: TmpYamlFile) -> None:
+    def test_loads_file_contents(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
         data = {"preposition_case": ["preposition_meaning"]}
-        with tmp_yaml_file(data) as path:
-            assert load_chained_categories(path) == data
+        with tmp_yaml_file([], filename="exercises.yaml"):
+            with tmp_yaml_file(data, filename="chained_categories.yaml"):
+                course = Course.load(tmp_path)
+        assert course.chained_categories == data
 
-    def test_empty_file_returns_empty_dict(self, tmp_yaml_file: TmpYamlFile) -> None:
-        with tmp_yaml_file(None) as path:
-            assert load_chained_categories(path) == {}
+    def test_empty_file_returns_empty_dict(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
+        with tmp_yaml_file([], filename="exercises.yaml"):
+            with tmp_yaml_file(None, filename="chained_categories.yaml"):
+                course = Course.load(tmp_path)
+        assert course.chained_categories == {}
 
 
 class TestRecallValidation:
-    def test_empty_answer_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
+    def test_empty_answer_raises(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
         data = make_exercise_data(recalls=True)
         data["recalls"][0]["answer"] = []
         with pytest.raises(ValueError, match="recall.answer must not be empty"):
-            with tmp_yaml_file([data]) as exercises_file:
-                load_exercises(exercises_file)
+            with tmp_yaml_file([data], filename="exercises.yaml"):
+                Course.load(tmp_path)
 
-    def test_invalid_hint_keys_raises(self, tmp_yaml_file: TmpYamlFile) -> None:
+    def test_invalid_hint_keys_raises(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
         data = make_exercise_data(recalls=True)
         invalid_hint_recall_data = data["recalls"][0] | {"hint": {"de": "falsch"}}
         with pytest.raises(ValueError, match="recall.hint keys must be a subset"):
             with tmp_yaml_file(
-                [data | {"recalls": [invalid_hint_recall_data]}]
-            ) as exercises_file:
-                load_exercises(exercises_file)
+                [data | {"recalls": [invalid_hint_recall_data]}],
+                filename="exercises.yaml",
+            ):
+                Course.load(tmp_path)
