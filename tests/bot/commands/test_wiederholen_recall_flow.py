@@ -1,3 +1,5 @@
+import re
+
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
@@ -7,6 +9,10 @@ from wiederholen.exercises import Course
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.exercises import make_exercise
+
+
+def _strip_tags(text: str) -> str:
+    return re.sub(r"<[^>]+>", "", text)
 
 
 async def test_correct_input_shows_success(
@@ -50,7 +56,28 @@ async def test_wrong_input_shows_correct_sentence(
     )
 
     assert len(requests) == 1
-    assert "Ich warte auf den Bus." in requests[0].text
+    assert "Ich warte auf den Bus." in _strip_tags(requests[0].text)
+
+
+async def test_wrong_input_highlights_the_typo(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        recalls=[{"answer": ["Ich warte auf den Bus."]}],
+    )
+    await state.set_state(UserState.recalling)
+    await state.update_data(
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
+        language="ru",
+        journal={},
+    )
+
+    requests = await feed_message("Ich warte auf den Bas.", course=Course([exercise]))
+
+    assert len(requests) == 1
+    assert "<u>u</u>" in requests[0].text
 
 
 async def test_normalizes_case_and_whitespace(
