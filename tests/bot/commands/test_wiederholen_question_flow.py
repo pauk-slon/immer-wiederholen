@@ -78,7 +78,7 @@ async def test_shows_description_in_ru_by_default(
     feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(
-        category="preposition_meaning",
+        topic="preposition_meaning",
         distractors=[],
         description={
             "ru": "Поезд едет через туннель.",
@@ -98,7 +98,7 @@ async def test_shows_description_in_current_language(
 ) -> None:
     await state.update_data(language="en")
     exercise = make_exercise(
-        category="preposition_meaning",
+        topic="preposition_meaning",
         distractors=[],
         description={
             "ru": "Поезд едет через туннель.",
@@ -119,16 +119,16 @@ async def test_avoids_repeating_previously_shown_question(
     feed_message: FeedMessage,
 ) -> None:
     mit = Exercise(
-        topic="sprechen",
-        category="government",
+        word="sprechen",
+        topic="government",
         question="Ich spreche ___ meiner Mutter.",
         answer="mit",
         distractors=["über", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )
     ueber = Exercise(
-        topic="sprechen",
-        category="government",
+        word="sprechen",
+        topic="government",
         question="Wir sprechen ___ das Problem.",
         answer="über",
         distractors=["mit", "an", "für"],

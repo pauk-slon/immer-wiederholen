@@ -12,7 +12,7 @@ from pydantic import AfterValidator, TypeAdapter, ValidationError
 
 from wiederholen.i18n import Language, LANGUAGES
 
-type Category = str
+type Topic = str
 
 
 def _parse_iso_date(value: str) -> str:
@@ -49,8 +49,8 @@ class Recall:
 
 @dataclass(frozen=True)
 class Exercise:
-    topic: str
-    category: Category
+    word: str
+    topic: Topic
     question: str
     answer: str
     distractors: list[str]
@@ -108,7 +108,7 @@ def _load_exercises(path: Path) -> list[Exercise]:
     return [Exercise.from_dict(item) for item in items]
 
 
-def _load_chained_categories(path: Path) -> dict[str, list[str]]:
+def _load_chained_topics(path: Path) -> dict[str, list[str]]:
     if not path.exists():
         return {}
     with open(path) as f:
@@ -119,13 +119,13 @@ def _load_chained_categories(path: Path) -> dict[str, list[str]]:
 @dataclass(frozen=True)
 class Course:
     exercises: Sequence[Exercise]
-    chained_categories: Mapping[str, Sequence[str]] = field(default_factory=dict)
+    chained_topics: Mapping[str, Sequence[str]] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path) -> "Course":
         return cls(
             _load_exercises(path / "exercises.yaml"),
-            _load_chained_categories(path / "chained_categories.yaml"),
+            _load_chained_topics(path / "chained_categories.yaml"),
         )
 
 
@@ -137,7 +137,7 @@ class Tutor:
     def __init__(self, course: Course, journal: dict) -> None:
         self._exercises = course.exercises
         self._journal = journal
-        self._chained_categories = course.chained_categories
+        self._chained_topics = course.chained_topics
 
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
@@ -149,7 +149,7 @@ class Tutor:
 
     @staticmethod
     def _schedule_key(exercise: Exercise) -> str:
-        return f"{exercise.topic}:{exercise.category}"
+        return f"{exercise.word}:{exercise.topic}"
 
     @overload
     def _get_schedule_entry(
@@ -173,20 +173,20 @@ class Tutor:
     ) -> _ScheduleEntry | None:
         default = _ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
         if create_if_missing:
-            topic_schedule = self._journal.setdefault("topic_schedule", {})
-            schedule_entry = topic_schedule.get(key)
+            word_schedule = self._journal.setdefault("word_schedule", {})
+            schedule_entry = word_schedule.get(key)
             if not self._is_valid_schedule_entry(schedule_entry):
-                schedule_entry = topic_schedule[key] = default
+                schedule_entry = word_schedule[key] = default
             return schedule_entry
-        topic_schedule = self._journal.get("topic_schedule", {})
-        schedule_entry = topic_schedule.get(key)
+        word_schedule = self._journal.get("word_schedule", {})
+        schedule_entry = word_schedule.get(key)
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
 
     def _due_date(self, key: str) -> date:
         entry = self._get_schedule_entry(key)
         if entry is None:
             exercise = self._exercises_by_schedule_key[key][0]
-            if exercise.category in self._chained_dependent_categories:
+            if exercise.topic in self._chained_dependent_topics:
                 return date.max
             return date.min
         return date.fromisoformat(entry["due_date"])
@@ -237,11 +237,11 @@ class Tutor:
         return by_key
 
     @cached_property
-    def _chained_dependent_categories(self) -> set[str]:
+    def _chained_dependent_topics(self) -> set[str]:
         return {
-            dependent_category
-            for dependent_categories in self._chained_categories.values()
-            for dependent_category in dependent_categories
+            dependent_topic
+            for dependent_topics in self._chained_topics.values()
+            for dependent_topic in dependent_topics
         }
 
     def next_exercise(self) -> Exercise:
@@ -303,16 +303,16 @@ class Tutor:
             due=self.due_topics_count(),
         )
 
-    def _expedite_chained_categories(self, exercise: Exercise) -> None:
+    def _expedite_chained_topics(self, exercise: Exercise) -> None:
         today = date.today()
-        for dependent_category in self._chained_categories.get(exercise.category, []):
-            dependent_key = f"{exercise.topic}:{dependent_category}"
+        for dependent_topic in self._chained_topics.get(exercise.topic, []):
+            dependent_key = f"{exercise.word}:{dependent_topic}"
             if dependent_key not in self._exercises_by_schedule_key:
                 continue
             dependent_entry = self._get_schedule_entry(dependent_key)
             if dependent_entry is None:
-                topic_schedule = self._journal.setdefault("topic_schedule", {})
-                topic_schedule[dependent_key] = _ScheduleEntry(
+                word_schedule = self._journal.setdefault("word_schedule", {})
+                word_schedule[dependent_key] = _ScheduleEntry(
                     interval_days=0, due_date=today.isoformat()
                 )
             elif date.fromisoformat(dependent_entry["due_date"]) > today:
@@ -336,7 +336,7 @@ class Tutor:
             due_date = date.today()
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
-        self._expedite_chained_categories(exercise)
+        self._expedite_chained_topics(exercise)
         if not exercise.recalls:
             recall_mode = RecallMode.none
         elif correct:

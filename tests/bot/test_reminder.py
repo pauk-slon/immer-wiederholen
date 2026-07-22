@@ -56,12 +56,12 @@ async def test_tick_sends_reminder_and_records_it(
 async def test_tick_skips_chat_with_nothing_due(
     bot_token: str, redis_storage: ScanningRedisStorage
 ) -> None:
-    exercise = make_exercise(topic="warten")
+    exercise = make_exercise(word="warten")
     bot = Bot(token=bot_token)
     state = _state(bot, redis_storage, 1)
     await state.update_data(
         journal={
-            "topic_schedule": {
+            "word_schedule": {
                 "warten:government": {
                     "interval_days": 30,
                     "due_date": (date.today() + timedelta(days=20)).isoformat(),
@@ -150,7 +150,7 @@ async def test_run_ticks_then_sleeps_between_iterations(
 async def test_main_calls_run_with_constructed_dependencies(
     monkeypatch, bot_token: str, tmp_yaml_file: TmpYamlFile
 ) -> None:
-    exercise_data: ExerciseData = make_exercise_data(topic="sprechen")
+    exercise_data: ExerciseData = make_exercise_data(word="sprechen")
     monkeypatch.setenv("BOT_TOKEN", bot_token)
     monkeypatch.setenv("FSM_STORAGE_URL", "redis://localhost:6379/0")
     with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:

@@ -185,16 +185,16 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         mit = Exercise(
-            topic="sprechen",
-            category="government",
+            word="sprechen",
+            topic="government",
             question="Ich spreche ___ meiner Mutter.",
             answer="mit",
             distractors=["über", "an", "für"],
             explanation={"ru": "x", "en": "y"},
         )
         ueber = Exercise(
-            topic="sprechen",
-            category="government",
+            word="sprechen",
+            topic="government",
             question="Wir sprechen ___ das Problem.",
             answer="über",
             distractors=["mit", "an", "für"],

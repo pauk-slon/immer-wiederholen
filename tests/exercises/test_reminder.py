@@ -10,15 +10,15 @@ def test_due_topics_count_is_zero_for_empty_school() -> None:
 
 
 def test_due_topics_count_counts_new_topics_as_due() -> None:
-    exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
 
     assert Tutor(Course(exercises), {}).due_topics_count() == 2
 
 
 def test_due_topics_count_excludes_not_yet_due_topics() -> None:
-    exercise = make_exercise(topic="warten")
+    exercise = make_exercise(word="warten")
     journal = {
-        "topic_schedule": {
+        "word_schedule": {
             "warten:government": {
                 "interval_days": 30,
                 "due_date": (date.today() + timedelta(days=20)).isoformat(),
@@ -30,9 +30,9 @@ def test_due_topics_count_excludes_not_yet_due_topics() -> None:
 
 
 def test_due_topics_count_counts_shared_schedule_key_once() -> None:
-    # Two YAML entries for the same topic+category share one schedule key.
-    duplicate_1 = make_exercise(topic="helfen")
-    duplicate_2 = make_exercise(topic="helfen")
+    # Two YAML entries for the same word+topic share one schedule key.
+    duplicate_1 = make_exercise(word="helfen")
+    duplicate_2 = make_exercise(word="helfen")
 
     assert Tutor(Course([duplicate_1, duplicate_2]), {}).due_topics_count() == 1
 
@@ -49,9 +49,9 @@ def test_record_reminder_sent_sets_last_reminded_at() -> None:
 
 
 def test_should_remind_is_false_when_nothing_is_due() -> None:
-    exercise = make_exercise(topic="warten")
+    exercise = make_exercise(word="warten")
     journal = {
-        "topic_schedule": {
+        "word_schedule": {
             "warten:government": {
                 "interval_days": 30,
                 "due_date": (date.today() + timedelta(days=20)).isoformat(),

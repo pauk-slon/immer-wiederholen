@@ -6,20 +6,20 @@ from tests.plugins.exercises import make_exercise
 
 
 def test_progress_total_counts_distinct_schedule_keys() -> None:
-    exercises = [make_exercise(topic="warten"), make_exercise(topic="hoffen")]
+    exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
 
     assert Tutor(Course(exercises), {}).progress().total == 2
 
 
 def test_progress_counts_shared_schedule_key_once() -> None:
-    duplicate_1 = make_exercise(topic="helfen")
-    duplicate_2 = make_exercise(topic="helfen")
+    duplicate_1 = make_exercise(word="helfen")
+    duplicate_2 = make_exercise(word="helfen")
 
     assert Tutor(Course([duplicate_1, duplicate_2]), {}).progress().total == 1
 
 
 def test_progress_unscheduled_topic_is_new() -> None:
-    exercise = make_exercise(topic="warten")
+    exercise = make_exercise(word="warten")
 
     progress = Tutor(Course([exercise]), {}).progress()
 
@@ -29,9 +29,9 @@ def test_progress_unscheduled_topic_is_new() -> None:
 
 
 def test_progress_topic_below_max_interval_is_learning() -> None:
-    exercise = make_exercise(topic="warten")
+    exercise = make_exercise(word="warten")
     journal = {
-        "topic_schedule": {
+        "word_schedule": {
             "warten:government": {
                 "interval_days": 30,
                 "due_date": (date.today() + timedelta(days=20)).isoformat(),
@@ -47,9 +47,9 @@ def test_progress_topic_below_max_interval_is_learning() -> None:
 
 
 def test_progress_topic_at_max_interval_is_mastered() -> None:
-    exercise = make_exercise(topic="warten")
+    exercise = make_exercise(word="warten")
     journal = {
-        "topic_schedule": {
+        "word_schedule": {
             "warten:government": {
                 "interval_days": 60,
                 "due_date": (date.today() + timedelta(days=60)).isoformat(),
@@ -65,9 +65,9 @@ def test_progress_topic_at_max_interval_is_mastered() -> None:
 
 
 def test_progress_due_matches_due_topics_count() -> None:
-    exercise = make_exercise(topic="warten")
+    exercise = make_exercise(word="warten")
     journal = {
-        "topic_schedule": {
+        "word_schedule": {
             "warten:government": {
                 "interval_days": 30,
                 "due_date": (date.today() - timedelta(days=1)).isoformat(),
@@ -80,7 +80,7 @@ def test_progress_due_matches_due_topics_count() -> None:
 
 
 def test_progress_does_not_persist_entries_for_unscheduled_topics() -> None:
-    exercise = make_exercise(topic="warten")
+    exercise = make_exercise(word="warten")
     journal: dict = {}
 
     Tutor(Course([exercise]), journal).progress()

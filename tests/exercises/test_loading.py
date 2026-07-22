@@ -39,13 +39,13 @@ class TestExerciseValidation:
                 Course.load(tmp_path)
 
 
-class TestChainedCategoriesLoading:
+class TestChainedTopicsLoading:
     def test_missing_file_returns_empty_dict(
         self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
     ) -> None:
         with tmp_yaml_file([], filename="exercises.yaml"):
             course = Course.load(tmp_path)
-        assert course.chained_categories == {}
+        assert course.chained_topics == {}
 
     def test_loads_file_contents(
         self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
@@ -54,7 +54,7 @@ class TestChainedCategoriesLoading:
         with tmp_yaml_file([], filename="exercises.yaml"):
             with tmp_yaml_file(data, filename="chained_categories.yaml"):
                 course = Course.load(tmp_path)
-        assert course.chained_categories == data
+        assert course.chained_topics == data
 
     def test_empty_file_returns_empty_dict(
         self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
@@ -62,7 +62,7 @@ class TestChainedCategoriesLoading:
         with tmp_yaml_file([], filename="exercises.yaml"):
             with tmp_yaml_file(None, filename="chained_categories.yaml"):
                 course = Course.load(tmp_path)
-        assert course.chained_categories == {}
+        assert course.chained_topics == {}
 
 
 class TestRecallValidation:
