@@ -32,6 +32,7 @@ async def main() -> None:
                     ),
                     BotCommand(command="progress", description=locale.cmd_progress),
                     BotCommand(command="language", description=locale.cmd_language),
+                    BotCommand(command="reset", description=locale.cmd_reset),
                 ],
                 language_code=language_code,
             )
