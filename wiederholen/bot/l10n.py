@@ -18,6 +18,12 @@ class Locale:
     btn_recall_retry: str
     cmd_language: str
     cmd_progress: str
+    cmd_reset: str
+    reset_confirm_prompt: str
+    reset_confirm_button: str
+    reset_cancel_button: str
+    reset_done: str
+    reset_cancelled: str
     bot_name: str
     bot_short_description: str
     reminder_text: str
@@ -38,6 +44,12 @@ RU: Final = Locale(
     btn_recall_retry="Попробовать ещё раз",
     cmd_language="Сменить язык",
     cmd_progress="Прогресс",
+    cmd_reset="Сбросить прогресс",
+    reset_confirm_prompt="Точно сбросить весь прогресс? Это действие нельзя отменить.",
+    reset_confirm_button="Да, сбросить",
+    reset_cancel_button="Отмена",
+    reset_done="✅ Прогресс сброшен.",
+    reset_cancelled="Отменено.",
     bot_name="Immer wiederholen!",
     bot_short_description="Учи немецкие слова с интервальным повторением",
     reminder_text="🔔 Есть что повторить! Загляни и сделай /wiederholen!",
@@ -67,6 +79,12 @@ EN: Final = Locale(
     btn_recall_retry="Try again",
     cmd_language="Change language",
     cmd_progress="Progress",
+    cmd_reset="Reset progress",
+    reset_confirm_prompt="Are you sure you want to reset all progress? This can't be undone.",
+    reset_confirm_button="Yes, reset",
+    reset_cancel_button="Cancel",
+    reset_done="✅ Progress has been reset.",
+    reset_cancelled="Cancelled.",
     bot_name="Immer wiederholen!",
     bot_short_description="Learn German vocabulary with spaced repetition",
     reminder_text="🔔 Something to review! Come back and do /wiederholen!",
