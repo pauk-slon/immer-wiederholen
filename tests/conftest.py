@@ -1,6 +1,6 @@
 from contextlib import contextmanager, AbstractContextManager
 from pathlib import Path
-from typing import Any, Generator, Callable
+from typing import Any, Generator, Protocol
 
 import pytest
 import yaml
@@ -12,7 +12,11 @@ pytest_plugins = [
     "tests.plugins.exercises",
 ]
 
-type TmpYamlFile = Callable[[Any], AbstractContextManager[Path]]
+
+class TmpYamlFile(Protocol):
+    def __call__(
+        self, data: Any, *, filename: str = "data.yaml"
+    ) -> AbstractContextManager[Path]: ...
 
 
 @pytest.fixture

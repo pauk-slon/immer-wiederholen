@@ -48,8 +48,8 @@ def _env(
 ) -> Generator[None]:
     monkeypatch.setenv("BOT_TOKEN", bot_token)
     monkeypatch.setenv("FSM_STORAGE_URL", fsm_storage_url)
-    with tmp_yaml_file([exercise_data]) as path:
-        monkeypatch.setenv("EXERCISES_PATH", str(path))
+    with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
+        monkeypatch.setenv("COURSE_PATH", str(path.parent))
         yield None
 
 

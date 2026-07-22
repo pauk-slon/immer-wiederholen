@@ -121,6 +121,13 @@ class Course:
     exercises: Sequence[Exercise]
     chained_categories: Mapping[str, Sequence[str]] = field(default_factory=dict)
 
+    @classmethod
+    def load(cls, path: Path) -> "Course":
+        return cls(
+            load_exercises(path / "exercises.yaml"),
+            load_chained_categories(path / "chained_categories.yaml"),
+        )
+
 
 class Tutor:
     MAX_INTERVAL_DAYS: int = 60
