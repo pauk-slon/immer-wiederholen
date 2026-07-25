@@ -299,12 +299,11 @@ class Tutor:
             ]
             schedule_key = random.choice(earliest_schedule_keys)
         candidates = self._exercises_by_schedule_key[schedule_key]
-        last_answered_question = self._journal.last_answered_question
-        if last_answered_question is not None:
+        if self._journal.last_answered_question is not None:
             if filtered_exercises := [
                 exercise
                 for exercise in candidates
-                if exercise.question != last_answered_question
+                if exercise.question != self._journal.last_answered_question
             ]:
                 candidates = filtered_exercises
         return random.choice(candidates)
@@ -405,12 +404,11 @@ class Tutor:
             ).isoformat()
             self._journal.recall_requested = True
         candidates = exercise.recalls
-        last_recall_question = self._journal.last_recall_question
-        if last_recall_question is not None:
+        if self._journal.last_recall_question is not None:
             if filtered := [
                 recall
                 for recall in candidates
-                if recall.question != last_recall_question
+                if recall.question != self._journal.last_recall_question
             ]:
                 candidates = filtered
         recall = random.choice(candidates)
