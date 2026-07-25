@@ -145,6 +145,8 @@ class Course:
 
 
 class Journal:
+    _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(_ScheduleEntry)
+
     def __init__(self, data: dict) -> None:
         self._data = data
 
@@ -190,18 +192,6 @@ class Journal:
             return self._data.setdefault("word_schedule", {})
         return self._data.get("word_schedule", {})
 
-
-class Tutor:
-    MAX_INTERVAL_DAYS: Final = 60
-    REMIND_AFTER: Final = timedelta(hours=24)
-    _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(_ScheduleEntry)
-
-    def __init__(self, course: Course, journal: dict) -> None:
-        self._exercises = course.exercises
-        self._journal = Journal(journal)
-        self._chained_topics = course.chained_topics
-        self._gated_topics = course.gated_topics
-
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
         try:
@@ -210,25 +200,21 @@ class Tutor:
             return False
         return True
 
-    @staticmethod
-    def _schedule_key(exercise: Exercise) -> str:
-        return f"{exercise.word}:{exercise.topic}"
-
     @overload
-    def _get_schedule_entry(
+    def get_schedule_entry(
         self,
         key: str,
         *,
         create_if_missing: Literal[True],
     ) -> _ScheduleEntry: ...
     @overload
-    def _get_schedule_entry(
+    def get_schedule_entry(
         self,
         key: str,
         *,
         create_if_missing: Literal[False] = False,
     ) -> _ScheduleEntry | None: ...
-    def _get_schedule_entry(
+    def get_schedule_entry(
         self,
         key: str,
         *,
@@ -236,17 +222,32 @@ class Tutor:
     ) -> _ScheduleEntry | None:
         default = _ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
         if create_if_missing:
-            word_schedule = self._journal.get_word_schedule(create_if_missing=True)
+            word_schedule = self.get_word_schedule(create_if_missing=True)
             schedule_entry = word_schedule.get(key)
             if not self._is_valid_schedule_entry(schedule_entry):
                 schedule_entry = word_schedule[key] = default
             return schedule_entry
-        word_schedule = self._journal.get_word_schedule()
+        word_schedule = self.get_word_schedule()
         schedule_entry = word_schedule.get(key)
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
 
+
+class Tutor:
+    MAX_INTERVAL_DAYS: Final = 60
+    REMIND_AFTER: Final = timedelta(hours=24)
+
+    def __init__(self, course: Course, journal: dict) -> None:
+        self._exercises = course.exercises
+        self._journal = Journal(journal)
+        self._chained_topics = course.chained_topics
+        self._gated_topics = course.gated_topics
+
+    @staticmethod
+    def _schedule_key(exercise: Exercise) -> str:
+        return f"{exercise.word}:{exercise.topic}"
+
     def _due_date(self, key: str) -> date:
-        entry = self._get_schedule_entry(key)
+        entry = self._journal.get_schedule_entry(key)
         if entry is None:
             exercise = self._exercises_by_schedule_key[key][0]
             if exercise.topic in self._gated_topics:
@@ -304,7 +305,7 @@ class Tutor:
         learning = 0
         mastered = 0
         for schedule_key in self._exercises_by_schedule_key:
-            entry = self._get_schedule_entry(schedule_key)
+            entry = self._journal.get_schedule_entry(schedule_key)
             if entry is None:
                 new += 1
             elif entry["interval_days"] >= self.MAX_INTERVAL_DAYS:
@@ -325,7 +326,7 @@ class Tutor:
             dependent_key = f"{exercise.word}:{dependent_topic}"
             if dependent_key not in self._exercises_by_schedule_key:
                 continue
-            dependent_entry = self._get_schedule_entry(dependent_key)
+            dependent_entry = self._journal.get_schedule_entry(dependent_key)
             if dependent_entry is None:
                 word_schedule = self._journal.get_word_schedule(create_if_missing=True)
                 word_schedule[dependent_key] = _ScheduleEntry(
@@ -344,7 +345,7 @@ class Tutor:
             recall_mode = RecallMode.required
         mark = Mark(correct=correct, recall=recall_mode)
         self._journal.record_mark(exercise.question, mark)
-        schedule_entry = self._get_schedule_entry(
+        schedule_entry = self._journal.get_schedule_entry(
             self._schedule_key(exercise),
             create_if_missing=True,
         )
@@ -374,7 +375,7 @@ class Tutor:
             last_mark is not None and last_mark.recall == RecallMode.optional
         )
         if is_optional_recall and self._journal.last_recall_question is None:
-            schedule_entry = self._get_schedule_entry(
+            schedule_entry = self._journal.get_schedule_entry(
                 self._schedule_key(exercise), create_if_missing=True
             )
             interval = max(schedule_entry["interval_days"] // 2, 1)
