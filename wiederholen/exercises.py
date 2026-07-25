@@ -165,20 +165,17 @@ class Journal:
         raw = self._data.get("last_mark")
         return Mark.from_dict(raw) if raw is not None else None
 
-    @last_mark.setter
-    def last_mark(self, value: Mark) -> None:
-        self._data["last_mark"] = value.to_dict()
-
     @property
     def last_answered_at(self) -> datetime | None:
         if (raw := self._data.get("last_answered_at")) is None:
             return None
         return datetime.fromisoformat(raw)
 
-    def register_answer(self, question: str) -> None:
+    def record_mark(self, question: str, mark: Mark) -> None:
         self._data["last_answered_question"] = question
         self._data["last_answered_at"] = datetime.now(UTC).isoformat()
         self._data["last_recall_question"] = None
+        self._data["last_mark"] = mark.to_dict()
 
     @property
     def last_reminded_at(self) -> datetime | None:
@@ -342,7 +339,14 @@ class Tutor:
 
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
-        self._journal.register_answer(exercise.question)
+        if not exercise.recalls:
+            recall_mode = RecallMode.none
+        elif correct:
+            recall_mode = RecallMode.optional
+        else:
+            recall_mode = RecallMode.required
+        mark = Mark(correct=correct, recall=recall_mode)
+        self._journal.record_mark(exercise.question, mark)
         schedule_entry = self._get_schedule_entry(
             self._schedule_key(exercise),
             create_if_missing=True,
@@ -358,14 +362,6 @@ class Tutor:
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
         self._expedite_chained_topics(exercise)
-        if not exercise.recalls:
-            recall_mode = RecallMode.none
-        elif correct:
-            recall_mode = RecallMode.optional
-        else:
-            recall_mode = RecallMode.required
-        mark = Mark(correct=correct, recall=recall_mode)
-        self._journal.last_mark = mark
         return mark
 
     def check_recall(self, recall: Recall, text: str) -> bool:
