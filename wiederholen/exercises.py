@@ -92,6 +92,13 @@ class Mark:
     correct: bool
     recall: RecallMode
 
+    def to_dict(self) -> dict:
+        return {"correct": self.correct, "recall": self.recall.value}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Self:
+        return cls(correct=d["correct"], recall=RecallMode(d["recall"]))
+
 
 @dataclass(frozen=True)
 class Progress:
@@ -217,6 +224,23 @@ class Tutor:
         self._journal["last_recall_question"] = question
 
     @property
+    def _last_mark(self) -> Mark | None:
+        raw = self._journal.get("last_mark")
+        return Mark.from_dict(raw) if raw is not None else None
+
+    @_last_mark.setter
+    def _last_mark(self, value: Mark) -> None:
+        self._journal["last_mark"] = value.to_dict()
+
+    @property
+    def _recall_requested(self) -> bool:
+        return self._journal.get("recall_requested", False)
+
+    @_recall_requested.setter
+    def _recall_requested(self, value: bool) -> None:
+        self._journal["recall_requested"] = value
+
+    @property
     def _last_answered_at(self) -> datetime | None:
         raw = self._journal.get("last_answered_at")
         if raw is None:
@@ -323,6 +347,7 @@ class Tutor:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
         self._last_answered_question = exercise.question
         self._last_answered_at = datetime.now(UTC)
+        self._recall_requested = False
         schedule_entry = self._get_schedule_entry(
             self._schedule_key(exercise),
             create_if_missing=True,
@@ -344,7 +369,9 @@ class Tutor:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
-        return Mark(correct=correct, recall=recall_mode)
+        mark = Mark(correct=correct, recall=recall_mode)
+        self._last_mark = mark
+        return mark
 
     def check_recall(self, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:
@@ -353,7 +380,21 @@ class Tutor:
         normalized = normalize(text)
         return any(normalize(a) == normalized for a in recall.answer)
 
-    def pick_recall(self, exercise: Exercise) -> Recall:
+    def request_recall(self, exercise: Exercise) -> Recall:
+        last_mark = self._last_mark
+        is_optional_recall = (
+            last_mark is not None and last_mark.recall == RecallMode.optional
+        )
+        if is_optional_recall and not self._recall_requested:
+            schedule_entry = self._get_schedule_entry(
+                self._schedule_key(exercise), create_if_missing=True
+            )
+            interval = max(schedule_entry["interval_days"] // 2, 1)
+            schedule_entry["interval_days"] = interval
+            schedule_entry["due_date"] = (
+                date.today() + timedelta(days=interval)
+            ).isoformat()
+            self._recall_requested = True
         candidates = exercise.recalls
         last_recall_question = self._last_recall_question
         if last_recall_question is not None:

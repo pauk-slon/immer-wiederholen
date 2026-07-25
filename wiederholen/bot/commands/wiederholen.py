@@ -80,7 +80,7 @@ async def _start_recall(
     course: Course,
 ) -> None:
     tutor = Tutor(course, journal)
-    recall = tutor.pick_recall(shown_exercise)
+    recall = tutor.request_recall(shown_exercise)
     await state.set_state(UserState.recalling)
     await state.update_data(
         language=language,

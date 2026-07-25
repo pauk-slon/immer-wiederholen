@@ -519,3 +519,55 @@ class TestChainedTopicGating:
         tutor = Tutor(Course([government_exercise], chained_topics, gated_topics), {})
 
         assert tutor.next_exercise().word == "warten"
+
+
+class TestRequestRecallInterval:
+    def test_halves_the_interval_after_a_correct_answer(self) -> None:
+        exercise = make_exercise(recalls=True)
+        today = date.today()
+        journal = {
+            "word_schedule": {
+                "warten:government": {
+                    "interval_days": 8,
+                    "due_date": today.isoformat(),
+                },
+            }
+        }
+        tutor = Tutor(Course([exercise]), journal)
+        tutor.check_answer(exercise, exercise.answer)
+
+        tutor.request_recall(exercise)
+
+        entry = journal["word_schedule"]["warten:government"]
+        assert entry["interval_days"] == 8
+        assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
+
+    def test_only_halves_once_per_episode(self) -> None:
+        exercise = make_exercise(recalls=True)
+        today = date.today()
+        journal = {
+            "word_schedule": {
+                "warten:government": {
+                    "interval_days": 8,
+                    "due_date": today.isoformat(),
+                },
+            }
+        }
+        tutor = Tutor(Course([exercise]), journal)
+        tutor.check_answer(exercise, exercise.answer)
+
+        tutor.request_recall(exercise)
+        tutor.request_recall(exercise)
+
+        entry = journal["word_schedule"]["warten:government"]
+        assert entry["interval_days"] == 8
+
+    def test_does_not_halve_after_a_wrong_answer(self) -> None:
+        exercise = make_exercise(recalls=True)
+        journal: dict = {}
+        tutor = Tutor(Course([exercise]), journal)
+        tutor.check_answer(exercise, "completely wrong")
+
+        tutor.request_recall(exercise)
+
+        assert journal["recall_requested"] is False
