@@ -335,16 +335,7 @@ class Tutor:
             elif date.fromisoformat(dependent_entry["due_date"]) > today:
                 dependent_entry["due_date"] = today.isoformat()
 
-    def check_answer(self, exercise: Exercise, answer: str) -> Mark:
-        correct = answer.strip().lower() == exercise.answer.strip().lower()
-        if not exercise.recalls:
-            recall_mode = RecallMode.none
-        elif correct:
-            recall_mode = RecallMode.optional
-        else:
-            recall_mode = RecallMode.required
-        mark = Mark(correct=correct, recall=recall_mode)
-        self._journal.record_mark(exercise.question, mark)
+    def _schedule_next_repetition(self, exercise: Exercise, correct: bool) -> None:
         schedule_entry = self._journal.get_schedule_entry(
             self._schedule_key(exercise),
             create_if_missing=True,
@@ -359,6 +350,18 @@ class Tutor:
             due_date = date.today()
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
+
+    def check_answer(self, exercise: Exercise, answer: str) -> Mark:
+        correct = answer.strip().lower() == exercise.answer.strip().lower()
+        if not exercise.recalls:
+            recall_mode = RecallMode.none
+        elif correct:
+            recall_mode = RecallMode.optional
+        else:
+            recall_mode = RecallMode.required
+        mark = Mark(correct=correct, recall=recall_mode)
+        self._journal.record_mark(exercise.question, mark)
+        self._schedule_next_repetition(exercise, correct)
         self._expedite_chained_topics(exercise)
         return mark
 
