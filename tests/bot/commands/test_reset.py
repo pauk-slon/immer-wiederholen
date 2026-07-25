@@ -33,18 +33,24 @@ async def test_reset_command_responds_in_current_language(
     assert requests[0].text == EN.reset_confirm_prompt
 
 
-async def test_confirming_reset_clears_journal(
+async def test_confirming_reset_clears_schedule_only(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
-    await state.update_data(journal={"word_schedule": {"warten:government": {}}})
+    await state.update_data(
+        journal={
+            "word_schedule": {"warten:government": {}},
+            "last_mark": {"correct": True, "recall": "none"},
+        }
+    )
 
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_done
     data = await state.get_data()
-    assert data["journal"] == {}
+    assert data["journal"]["word_schedule"] == {}
+    assert data["journal"]["last_mark"] == {"correct": True, "recall": "none"}
 
 
 async def test_confirming_reset_preserves_language(
@@ -59,7 +65,7 @@ async def test_confirming_reset_preserves_language(
     assert requests[0].text == EN.reset_done
     data = await state.get_data()
     assert data["language"] == "en"
-    assert data["journal"] == {}
+    assert data["journal"]["word_schedule"] == {}
 
 
 async def test_cancelling_reset_keeps_journal(

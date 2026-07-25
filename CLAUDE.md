@@ -1,6 +1,6 @@
 # immer-wiederholen
 
-Telegram bot for practicing German with multiple choice questions (aiogram, Python). Exercises and topic relations are loaded at startup from the directory set by `COURSE_PATH` env var (default: `data`) — `{COURSE_PATH}/exercises.yaml` and `{COURSE_PATH}/topics.yaml`. Bot commands: `/start`, `/wiederholen` (show a exercise with answer options), `/progress` (topic counts: due/new/learning/mastered), `/language` (toggle ru/en), `/reset` (wipe the journal after an inline confirm/cancel prompt).
+Telegram bot for practicing German with multiple choice questions (aiogram, Python). Exercises and topic relations are loaded at startup from the directory set by `COURSE_PATH` env var (default: `data`) — `{COURSE_PATH}/exercises.yaml` and `{COURSE_PATH}/topics.yaml`. Bot commands: `/start`, `/wiederholen` (show a exercise with answer options), `/progress` (topic counts: due/new/learning/mastered), `/language` (toggle ru/en), `/reset` (wipe the repetition schedule after an inline confirm/cancel prompt).
 
 `data/` is gitignored and populated locally with `exercises.yaml` (the exercise database) from outside this repo. Each `Exercise` has a `word` (the specific vocabulary item it drills, e.g. a verb like `sprechen`) and a `topic` (the grammar aspect being drilled, e.g. `partizip_ii`, `preteritum`, `government`) — `topic` is a free-form string (not a fixed enum), so new topics can be introduced without needing a code change in this repo.
 

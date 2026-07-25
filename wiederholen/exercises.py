@@ -155,9 +155,8 @@ class Journal:
         return self._data.get("last_answered_question")
 
     @property
-    def last_mark(self) -> Mark | None:
-        if (raw_value := self._data.get("last_mark")) is not None:
-            return Mark.from_dict(raw_value)
+    def last_mark(self) -> Mark:
+        return Mark.from_dict(self._data["last_mark"])
 
     @property
     def last_answered_at(self) -> datetime | None:
@@ -191,6 +190,9 @@ class Journal:
         if create_if_missing:
             return self._data.setdefault("word_schedule", {})
         return self._data.get("word_schedule", {})
+
+    def reset_schedule(self) -> None:
+        self._data["word_schedule"] = {}
 
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
@@ -374,13 +376,13 @@ class Tutor:
         return any(normalize(a) == normalized for a in recall.answer)
 
     def request_recall(self, exercise: Exercise) -> Recall:
-        last_mark = self._journal.last_mark
-        is_optional_recall = (
-            last_mark is not None and last_mark.recall == RecallMode.optional
-        )
-        if is_optional_recall and self._journal.last_recall_question is None:
+        if (
+            self._journal.last_mark.recall == RecallMode.optional
+            and self._journal.last_recall_question is None
+        ):
             schedule_entry = self._journal.get_schedule_entry(
-                self._compose_schedule_key(exercise), create_if_missing=True
+                self._compose_schedule_key(exercise),
+                create_if_missing=True,
             )
             interval = max(schedule_entry["interval_days"] // 2, 1)
             schedule_entry["interval_days"] = interval

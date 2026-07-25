@@ -5,7 +5,7 @@ from tests.plugins.exercises import make_exercise
 
 def test_request_recall_records_last_recall_question() -> None:
     exercise = make_exercise(recalls=True)
-    journal: dict = {}
+    journal = {"last_mark": {"correct": True, "recall": "optional"}}
 
     recall = Tutor(Course([exercise]), journal).request_recall(exercise)
 
@@ -19,7 +19,10 @@ def test_request_recall_avoids_repeating_last_recall_question() -> None:
             {"question": "Sie hat ihr ___.", "answer": ["Sie hat ihr geholfen."]},
         ],
     )
-    journal = {"last_recall_question": exercise.recalls[0].question}
+    journal = {
+        "last_mark": {"correct": True, "recall": "optional"},
+        "last_recall_question": exercise.recalls[0].question,
+    }
 
     recall = Tutor(Course([exercise]), journal).request_recall(exercise)
 
@@ -28,7 +31,10 @@ def test_request_recall_avoids_repeating_last_recall_question() -> None:
 
 def test_request_recall_repeats_question_when_no_other_variant_is_available() -> None:
     exercise = make_exercise(recalls=True)
-    journal = {"last_recall_question": exercise.recalls[0].question}
+    journal = {
+        "last_mark": {"correct": True, "recall": "optional"},
+        "last_recall_question": exercise.recalls[0].question,
+    }
 
     recall = Tutor(Course([exercise]), journal).request_recall(exercise)
 
