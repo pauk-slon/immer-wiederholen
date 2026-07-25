@@ -178,10 +178,8 @@ class Journal:
 
     @property
     def last_reminded_at(self) -> datetime | None:
-        raw = self._data.get("last_reminded_at")
-        if raw is None:
-            return None
-        return datetime.fromisoformat(raw)
+        if (raw_value := self._data.get("last_reminded_at")) is not None:
+            return datetime.fromisoformat(raw_value)
 
     @last_reminded_at.setter
     def last_reminded_at(self, value: datetime) -> None:
