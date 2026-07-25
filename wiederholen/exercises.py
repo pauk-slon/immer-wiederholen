@@ -152,10 +152,6 @@ class Journal:
     def last_answered_question(self) -> str | None:
         return self._data.get("last_answered_question")
 
-    @last_answered_question.setter
-    def last_answered_question(self, question: str) -> None:
-        self._data["last_answered_question"] = question
-
     @property
     def last_recall_question(self) -> str | None:
         return self._data.get("last_recall_question")
@@ -174,22 +170,15 @@ class Journal:
         self._data["last_mark"] = value.to_dict()
 
     @property
-    def recall_requested(self) -> bool:
-        return self._data.get("recall_requested", False)
-
-    @recall_requested.setter
-    def recall_requested(self, value: bool) -> None:
-        self._data["recall_requested"] = value
-
-    @property
     def last_answered_at(self) -> datetime | None:
         if (raw := self._data.get("last_answered_at")) is None:
             return None
         return datetime.fromisoformat(raw)
 
-    @last_answered_at.setter
-    def last_answered_at(self, value: datetime) -> None:
-        self._data["last_answered_at"] = value.isoformat()
+    def register_answer(self, question: str) -> None:
+        self._data["last_answered_question"] = question
+        self._data["last_answered_at"] = datetime.now(UTC).isoformat()
+        self._data["last_recall_question"] = None
 
     @property
     def last_reminded_at(self) -> datetime | None:
@@ -353,9 +342,7 @@ class Tutor:
 
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
-        self._journal.last_answered_question = exercise.question
-        self._journal.last_answered_at = datetime.now(UTC)
-        self._journal.recall_requested = False
+        self._journal.register_answer(exercise.question)
         schedule_entry = self._get_schedule_entry(
             self._schedule_key(exercise),
             create_if_missing=True,
@@ -393,7 +380,7 @@ class Tutor:
         is_optional_recall = (
             last_mark is not None and last_mark.recall == RecallMode.optional
         )
-        if is_optional_recall and not self._journal.recall_requested:
+        if is_optional_recall and self._journal.last_recall_question is None:
             schedule_entry = self._get_schedule_entry(
                 self._schedule_key(exercise), create_if_missing=True
             )
@@ -402,7 +389,6 @@ class Tutor:
             schedule_entry["due_date"] = (
                 date.today() + timedelta(days=interval)
             ).isoformat()
-            self._journal.recall_requested = True
         candidates = exercise.recalls
         if self._journal.last_recall_question is not None:
             if filtered := [
@@ -418,14 +404,13 @@ class Tutor:
     def should_remind(self) -> bool:
         if self.due_topics_count() <= 0:
             return False
-        if self._journal.last_answered_at is None:
+        last_answered_at = self._journal.last_answered_at
+        if last_answered_at is None:
             return False
-        if datetime.now(UTC) - self._journal.last_answered_at < self.REMIND_AFTER:
+        if datetime.now(UTC) - last_answered_at < self.REMIND_AFTER:
             return False
-        if (
-            self._journal.last_reminded_at is not None
-            and self._journal.last_reminded_at >= self._journal.last_answered_at
-        ):
+        last_reminded_at = self._journal.last_reminded_at
+        if last_reminded_at is not None and last_reminded_at >= last_answered_at:
             return False
         return True
 
