@@ -192,6 +192,9 @@ class Journal:
             return self._data.setdefault("word_schedule", {})
         return self._data.get("word_schedule", {})
 
+    def reset_schedule(self) -> None:
+        self._data["word_schedule"] = {}
+
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
         try:
