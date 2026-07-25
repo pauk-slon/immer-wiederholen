@@ -418,13 +418,14 @@ class Tutor:
     def should_remind(self) -> bool:
         if self.due_topics_count() <= 0:
             return False
-        last_answered_at = self._journal.last_answered_at
-        if last_answered_at is None:
+        if self._journal.last_answered_at is None:
             return False
-        if datetime.now(UTC) - last_answered_at < self.REMIND_AFTER:
+        if datetime.now(UTC) - self._journal.last_answered_at < self.REMIND_AFTER:
             return False
-        last_reminded_at = self._journal.last_reminded_at
-        if last_reminded_at is not None and last_reminded_at >= last_answered_at:
+        if (
+            self._journal.last_reminded_at is not None
+            and self._journal.last_reminded_at >= self._journal.last_answered_at
+        ):
             return False
         return True
 
