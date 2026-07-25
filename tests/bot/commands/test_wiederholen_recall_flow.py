@@ -1,4 +1,5 @@
 import re
+from datetime import date, timedelta
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
@@ -244,3 +245,30 @@ async def test_retry_avoids_repeating_last_recall_variant(
     recall_message = requests[1]
 
     assert exercise.recalls[1].question in recall_message.text
+
+
+async def test_requesting_recall_after_correct_answer_halves_the_interval(
+    state: FSMContext,
+    feed_message: FeedMessage,
+    feed_callback_query: FeedCallbackQuery,
+) -> None:
+    exercise = make_exercise(recalls=True)
+    today = date.today()
+    journal = {
+        "word_schedule": {
+            "warten:government": {
+                "interval_days": 8,
+                "due_date": today.isoformat(),
+            },
+        }
+    }
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
+
+    await feed_message(exercise.answer, course=Course([exercise]))
+    await feed_callback_query(RECALL, course=Course([exercise]))
+
+    data = await state.get_data()
+    entry = data["journal"]["word_schedule"]["warten:government"]
+    assert entry["interval_days"] == 8
+    assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
