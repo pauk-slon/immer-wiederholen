@@ -153,14 +153,6 @@ class Journal:
         return self._data.get("last_answered_question")
 
     @property
-    def last_recall_question(self) -> str | None:
-        return self._data.get("last_recall_question")
-
-    @last_recall_question.setter
-    def last_recall_question(self, question: str) -> None:
-        self._data["last_recall_question"] = question
-
-    @property
     def last_mark(self) -> Mark | None:
         if (raw_value := self._data.get("last_mark")) is not None:
             return Mark.from_dict(raw_value)
@@ -173,8 +165,16 @@ class Journal:
     def record_mark(self, question: str, mark: Mark) -> None:
         self._data["last_answered_question"] = question
         self._data["last_answered_at"] = datetime.now(UTC).isoformat()
-        self._data["last_recall_question"] = None
         self._data["last_mark"] = mark.to_dict()
+        self._data["last_recall_question"] = None
+
+    @property
+    def last_recall_question(self) -> str | None:
+        return self._data.get("last_recall_question")
+
+    @last_recall_question.setter
+    def last_recall_question(self, question: str) -> None:
+        self._data["last_recall_question"] = question
 
     @property
     def last_reminded_at(self) -> datetime | None:
