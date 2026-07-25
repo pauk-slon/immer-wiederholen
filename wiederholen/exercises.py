@@ -109,38 +109,38 @@ class Progress:
     due: int
 
 
-def _load_exercises(path: Path) -> list[Exercise]:
-    with open(path) as f:
-        items = yaml.safe_load(f)
-    return [Exercise.from_dict(item) for item in items]
-
-
-def _load_topics(path: Path) -> tuple[dict[str, list[str]], frozenset[str]]:
-    if not path.exists():
-        return {}, frozenset()
-    with open(path) as f:
-        data = yaml.safe_load(f) or {}
-    chained_topics: dict[str, list[str]] = {}
-    gated_topics: set[str] = set()
-    for source, relations in data.items():
-        chains = relations.get("chains", [])
-        gates = relations.get("gates", [])
-        chained_topics[source] = list(dict.fromkeys([*chains, *gates]))
-        gated_topics.update(gates)
-    return chained_topics, frozenset(gated_topics)
-
-
 @dataclass(frozen=True)
 class Course:
     exercises: Sequence[Exercise]
     chained_topics: Mapping[str, Sequence[str]] = field(default_factory=dict)
     gated_topics: frozenset[str] = field(default_factory=frozenset)
 
+    @staticmethod
+    def _load_exercises(path: Path) -> list[Exercise]:
+        with open(path) as f:
+            items = yaml.safe_load(f)
+        return [Exercise.from_dict(item) for item in items]
+
+    @staticmethod
+    def _load_topics(path: Path) -> tuple[dict[str, list[str]], frozenset[str]]:
+        if not path.exists():
+            return {}, frozenset()
+        with open(path) as f:
+            data = yaml.safe_load(f) or {}
+        chained_topics: dict[str, list[str]] = {}
+        gated_topics: set[str] = set()
+        for source, relations in data.items():
+            chains = relations.get("chains", [])
+            gates = relations.get("gates", [])
+            chained_topics[source] = list(dict.fromkeys([*chains, *gates]))
+            gated_topics.update(gates)
+        return chained_topics, frozenset(gated_topics)
+
     @classmethod
     def load(cls, path: Path) -> Self:
-        chained_topics, gated_topics = _load_topics(path / "topics.yaml")
+        chained_topics, gated_topics = cls._load_topics(path / "topics.yaml")
         return cls(
-            _load_exercises(path / "exercises.yaml"), chained_topics, gated_topics
+            cls._load_exercises(path / "exercises.yaml"), chained_topics, gated_topics
         )
 
 
