@@ -162,14 +162,13 @@ class Journal:
 
     @property
     def last_mark(self) -> Mark | None:
-        raw = self._data.get("last_mark")
-        return Mark.from_dict(raw) if raw is not None else None
+        if (raw_value := self._data.get("last_mark")) is not None:
+            return Mark.from_dict(raw_value)
 
     @property
     def last_answered_at(self) -> datetime | None:
-        if (raw := self._data.get("last_answered_at")) is None:
-            return None
-        return datetime.fromisoformat(raw)
+        if (raw_value := self._data.get("last_answered_at")) is not None:
+            return datetime.fromisoformat(raw_value)
 
     def record_mark(self, question: str, mark: Mark) -> None:
         self._data["last_answered_question"] = question
