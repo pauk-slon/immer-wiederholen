@@ -562,12 +562,21 @@ class TestRequestRecallInterval:
         entry = journal["word_schedule"]["warten:government"]
         assert entry["interval_days"] == 8
 
-    def test_does_not_halve_after_a_wrong_answer(self) -> None:
+    def test_does_not_halve_when_last_mark_is_required(self) -> None:
         exercise = make_exercise(recalls=True)
-        journal: dict = {}
+        today = date.today()
+        journal = {
+            "last_mark": {"correct": False, "recall": "required"},
+            "word_schedule": {
+                "warten:government": {
+                    "interval_days": 8,
+                    "due_date": today.isoformat(),
+                },
+            },
+        }
         tutor = Tutor(Course([exercise]), journal)
-        tutor.check_answer(exercise, "completely wrong")
 
         tutor.request_recall(exercise)
 
-        assert journal["recall_requested"] is False
+        entry = journal["word_schedule"]["warten:government"]
+        assert entry["interval_days"] == 8
