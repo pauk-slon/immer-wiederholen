@@ -453,7 +453,8 @@ class TestChainedTopics:
         state: dict = {}
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         tutor = Tutor(
-            Course([case_exercise], word_chained_topics=chained_topics), state
+            Course([case_exercise], word_chained_topics=chained_topics),
+            state,
         )
 
         tutor.check_answer(case_exercise, "Freund")
