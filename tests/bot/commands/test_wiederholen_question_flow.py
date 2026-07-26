@@ -1,12 +1,11 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
-from wiederholen.bot.commands.wiederholen import UserState
-from wiederholen.bot.l10n import EN, RU
-from wiederholen.tutoring import Exercise, Course
-
 from tests.plugins.aiogram import FeedMessage
 from tests.plugins.tutoring import make_exercise
+from wiederholen.bot.commands.wiederholen import UserState
+from wiederholen.bot.l10n import EN, RU
+from wiederholen.tutoring import Course, Exercise
 
 
 async def test_sends_exercise_question(

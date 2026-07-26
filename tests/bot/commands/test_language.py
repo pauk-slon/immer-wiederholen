@@ -1,8 +1,7 @@
 from aiogram.fsm.context import FSMContext
 
-from wiederholen.bot.l10n import EN, RU
-
 from tests.plugins.aiogram import FeedMessage
+from wiederholen.bot.l10n import EN, RU
 
 
 async def test_switches_ru_to_en(

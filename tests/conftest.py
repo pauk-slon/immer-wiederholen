@@ -1,10 +1,10 @@
-from contextlib import contextmanager, AbstractContextManager
+from collections.abc import Generator
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
-from typing import Any, Generator, Protocol
+from typing import Any, Protocol
 
 import pytest
 import yaml
-
 
 pytest_plugins = [
     "tests.plugins.telegram",

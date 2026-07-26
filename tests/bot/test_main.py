@@ -1,15 +1,12 @@
-from typing import Generator, Protocol
+from collections.abc import Generator
+from contextlib import AbstractContextManager, contextmanager
+from typing import Protocol
 from unittest.mock import AsyncMock, patch
-from contextlib import contextmanager, AbstractContextManager
 
 import pytest
-
-from redis.asyncio import Redis
-
 from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter
 from aiogram.fsm.storage.redis import RedisStorage
-
 from aiogram.methods import (
     SetMyCommands,
     SetMyDescription,
@@ -18,14 +15,14 @@ from aiogram.methods import (
     TelegramMethod,
 )
 from aiogram.methods.base import TelegramType
+from redis.asyncio import Redis
 
+from tests.conftest import TmpYamlFile
+from tests.plugins.tutoring import ExerciseData, make_exercise_data
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
 from wiederholen.tutoring import Course, Tutor
-
-from tests.plugins.tutoring import make_exercise_data, ExerciseData
-from tests.conftest import TmpYamlFile
 
 
 @pytest.fixture
@@ -98,7 +95,7 @@ async def test_starts_polling_with_bot_and_dependencies(
     exercise_data: ExerciseData,
     mock_main_io: MockMainIO,
 ) -> None:
-    with mock_main_io() as (mock_request, mock_polling):
+    with mock_main_io() as (_mock_request, mock_polling):
         await main()
 
     mock_polling.assert_called_once()
@@ -127,7 +124,7 @@ async def test_configures_redis_storage_from_env(
 
 
 async def test_sets_name_for_all_languages(mock_main_io: MockMainIO) -> None:
-    with mock_main_io() as (mock_request, mock_polling):
+    with mock_main_io() as (mock_request, _mock_polling):
         await main()
 
     name_calls = {
@@ -139,7 +136,7 @@ async def test_sets_name_for_all_languages(mock_main_io: MockMainIO) -> None:
 
 
 async def test_sets_description_for_all_languages(mock_main_io: MockMainIO) -> None:
-    with mock_main_io() as (mock_request, mock_polling):
+    with mock_main_io() as (mock_request, _mock_polling):
         await main()
 
     description_calls = {
@@ -155,7 +152,7 @@ async def test_sets_description_for_all_languages(mock_main_io: MockMainIO) -> N
 async def test_sets_short_description_for_all_languages(
     mock_main_io: MockMainIO,
 ) -> None:
-    with mock_main_io() as (mock_request, mock_polling):
+    with mock_main_io() as (mock_request, _mock_polling):
         await main()
 
     short_description_calls = {
@@ -169,7 +166,7 @@ async def test_sets_short_description_for_all_languages(
 
 
 async def test_sets_commands_for_all_languages(mock_main_io: MockMainIO) -> None:
-    with mock_main_io() as (mock_request, mock_polling):
+    with mock_main_io() as (mock_request, _mock_polling):
         await main()
 
     language_codes = {
@@ -198,7 +195,7 @@ async def test_does_not_crash_on_rate_limit(
 
     with mock_main_io(
         request_side_effect=make_request_side_effect,
-    ) as (mock_request, mock_polling):
+    ) as (_mock_request, mock_polling):
         await main()
 
     mock_polling.assert_called_once()

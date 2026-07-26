@@ -5,7 +5,7 @@ from typing import Self
 
 import yaml
 
-from wiederholen.i18n import Language, LANGUAGES
+from wiederholen.i18n import LANGUAGES, Language
 
 type Topic = str
 

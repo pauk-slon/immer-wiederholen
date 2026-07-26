@@ -1,12 +1,11 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardRemove
 
+from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
+from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.tutoring import Course
-
-from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.tutoring import make_exercise
 
 
 async def test_correct_answer_shows_success_text(

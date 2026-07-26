@@ -27,7 +27,7 @@ def message_factory(user_id: int, chat_id: int) -> MessageFactory:
     def factory(text: str, *, reply_to_message_id: int | None = None):
         message: dict = {
             "message_id": 1,
-            "date": datetime.datetime.now(),
+            "date": datetime.datetime.now(tz=datetime.UTC),
             "chat": {"id": chat_id, "type": "private"},
             "from": {"id": user_id, "is_bot": False, "first_name": "Test"},
             "text": text,
@@ -35,7 +35,7 @@ def message_factory(user_id: int, chat_id: int) -> MessageFactory:
         if reply_to_message_id is not None:
             message["reply_to_message"] = {
                 "message_id": reply_to_message_id,
-                "date": datetime.datetime.now(),
+                "date": datetime.datetime.now(tz=datetime.UTC),
                 "chat": {"id": chat_id, "type": "private"},
                 "from": {"id": 123, "is_bot": True, "first_name": "Bot"},
                 "text": "question",
@@ -55,7 +55,7 @@ def callback_query_factory(user_id: int, chat_id: int) -> CallbackQueryFactory:
                 "from": {"id": user_id, "is_bot": False, "first_name": "Test"},
                 "message": {
                     "message_id": 1,
-                    "date": datetime.datetime.now(),
+                    "date": datetime.datetime.now(tz=datetime.UTC),
                     "chat": {"id": chat_id, "type": "private"},
                     "from": {"id": 123, "is_bot": True, "first_name": "Bot"},
                     "text": "question",

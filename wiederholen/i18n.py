@@ -1,4 +1,4 @@
-from typing import Literal, get_args, Final
+from typing import Final, Literal, get_args
 
 type Language = Literal["ru", "en"]
 

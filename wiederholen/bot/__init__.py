@@ -2,7 +2,7 @@ from typing import Final
 
 from aiogram import Dispatcher
 
-from .commands import start, language, progress, reset, wiederholen
+from .commands import language, progress, reset, start, wiederholen
 
 dispatcher: Final = Dispatcher()
 

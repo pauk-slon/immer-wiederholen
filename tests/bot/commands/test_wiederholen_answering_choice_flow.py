@@ -1,12 +1,11 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
-from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
-from wiederholen.bot.l10n import RU
-from wiederholen.tutoring import Exercise, Course
-
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.tutoring import make_exercise
+from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
+from wiederholen.bot.l10n import RU
+from wiederholen.tutoring import Course, Exercise
 
 
 class TestHandleAnswer:

@@ -1,17 +1,16 @@
 import random
 from collections import Counter
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from wiederholen.tutoring import Course, Exercise, Tutor
-
 from tests.plugins.tutoring import make_exercise
+from wiederholen.tutoring import Course, Exercise, Tutor
 
 
 def test_next_exercise_only_picks_due_topics() -> None:
     exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
-    today = date.today()
+    today = datetime.now(UTC).date()
     state = {
         "word_schedule": {
             "warten:government": {
@@ -26,7 +25,7 @@ def test_next_exercise_only_picks_due_topics() -> None:
 
 def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
     exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
-    today = date.today()
+    today = datetime.now(UTC).date()
     state = {
         "word_schedule": {
             "warten:government": {
@@ -45,7 +44,7 @@ def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
 
 def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
     exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
-    today = date.today()
+    today = datetime.now(UTC).date()
     due_date = (today + timedelta(days=8)).isoformat()
     state = {
         "word_schedule": {
@@ -73,7 +72,7 @@ def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None
         "word_schedule": {
             "warten:government": {
                 "interval_days": 5,
-                "due_date": (date.today() + timedelta(days=20)).isoformat(),
+                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
             },
         }
     }
@@ -86,7 +85,7 @@ def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None
 
 def test_correct_answer_doubles_interval() -> None:
     exercise = make_exercise(word="warten", answer="auf")
-    today = date.today()
+    today = datetime.now(UTC).date()
     state = {
         "word_schedule": {
             "warten:government": {
@@ -107,12 +106,14 @@ def test_correct_answer_on_new_topic_sets_interval_to_one() -> None:
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten:government"]
     assert entry["interval_days"] == 1
-    assert entry["due_date"] == (date.today() + timedelta(days=1)).isoformat()
+    assert (
+        entry["due_date"] == (datetime.now(UTC).date() + timedelta(days=1)).isoformat()
+    )
 
 
 def test_correct_answer_caps_interval_at_max() -> None:
     exercise = make_exercise(word="warten", answer="auf")
-    today = date.today()
+    today = datetime.now(UTC).date()
     state = {
         "word_schedule": {
             "warten:government": {
@@ -129,7 +130,7 @@ def test_correct_answer_caps_interval_at_max() -> None:
 
 def test_wrong_answer_resets_interval_and_is_due_today() -> None:
     exercise = make_exercise(word="warten", answer="auf")
-    today = date.today()
+    today = datetime.now(UTC).date()
     state = {
         "word_schedule": {
             "warten:government": {
@@ -180,7 +181,7 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
             "warten:government": malformed_entry,
             "hoffen:government": {
                 "interval_days": 30,
-                "due_date": (date.today() + timedelta(days=20)).isoformat(),
+                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
             },
         }
     }
@@ -257,7 +258,7 @@ def test_same_word_different_topics_are_scheduled_independently() -> None:
 
 def test_schedule_entry_with_unknown_extra_key_is_still_respected() -> None:
     exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
-    today = date.today()
+    today = datetime.now(UTC).date()
     state = {
         "word_schedule": {
             "warten:government": {
@@ -288,7 +289,7 @@ def test_malformed_schedule_entry_is_overwritten_on_check_answer(
     malformed_entry,
 ) -> None:
     exercise = make_exercise(word="warten", answer="auf")
-    today = date.today()
+    today = datetime.now(UTC).date()
     state = {"word_schedule": {"warten:government": malformed_entry}}
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten:government"]
@@ -304,7 +305,7 @@ class TestChainedTopics:
         meaning_exercise = make_exercise(
             word="mit", topic="preposition_meaning", answer="mit"
         )
-        today = date.today()
+        today = datetime.now(UTC).date()
         state = {
             "word_schedule": {
                 "mit:preposition_meaning": {
@@ -329,7 +330,7 @@ class TestChainedTopics:
         meaning_exercise = make_exercise(
             word="mit", topic="preposition_meaning", answer="mit"
         )
-        today = date.today()
+        today = datetime.now(UTC).date()
         state = {
             "word_schedule": {
                 "mit:preposition_meaning": {
@@ -353,7 +354,7 @@ class TestChainedTopics:
         meaning_exercise = make_exercise(
             word="mit", topic="preposition_meaning", answer="mit"
         )
-        today = date.today()
+        today = datetime.now(UTC).date()
         overdue_date = today - timedelta(days=3)
         state = {
             "word_schedule": {
@@ -387,7 +388,7 @@ class TestChainedTopics:
         tutor.check_answer(case_exercise, "Freund")
 
         entry = state["word_schedule"]["mit:preposition_meaning"]
-        assert entry["due_date"] == date.today().isoformat()
+        assert entry["due_date"] == datetime.now(UTC).date().isoformat()
 
     def test_ignores_chained_topic_with_no_exercises(self) -> None:
         case_exercise = make_exercise(
@@ -408,7 +409,7 @@ class TestChainedTopics:
         meaning_exercise = make_exercise(
             word="mit", topic="preposition_meaning", answer="mit"
         )
-        today = date.today()
+        today = datetime.now(UTC).date()
         state = {
             "word_schedule": {
                 "mit:preposition_meaning": {
@@ -524,7 +525,7 @@ class TestChainedTopicGating:
 class TestRequestRecallInterval:
     def test_halves_the_interval_after_a_correct_answer(self) -> None:
         exercise = make_exercise(recalls=True)
-        today = date.today()
+        today = datetime.now(UTC).date()
         journal = {
             "word_schedule": {
                 "warten:government": {
@@ -544,7 +545,7 @@ class TestRequestRecallInterval:
 
     def test_only_halves_once_per_episode(self) -> None:
         exercise = make_exercise(recalls=True)
-        today = date.today()
+        today = datetime.now(UTC).date()
         journal = {
             "word_schedule": {
                 "warten:government": {
@@ -564,7 +565,7 @@ class TestRequestRecallInterval:
 
     def test_does_not_halve_when_last_mark_is_required(self) -> None:
         exercise = make_exercise(recalls=True)
-        today = date.today()
+        today = datetime.now(UTC).date()
         journal = {
             "last_exercise": {"is_recall_optional": False},
             "word_schedule": {
