@@ -349,7 +349,8 @@ class TestChainedTopics:
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         tutor = Tutor(
             Course(
-                [case_exercise, meaning_exercise], word_chained_topics=chained_topics
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
             ),
             state,
         )
@@ -379,7 +380,8 @@ class TestChainedTopics:
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         tutor = Tutor(
             Course(
-                [case_exercise, meaning_exercise], word_chained_topics=chained_topics
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
             ),
             state,
         )
@@ -409,7 +411,8 @@ class TestChainedTopics:
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         tutor = Tutor(
             Course(
-                [case_exercise, meaning_exercise], word_chained_topics=chained_topics
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
             ),
             state,
         )
@@ -432,7 +435,8 @@ class TestChainedTopics:
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         tutor = Tutor(
             Course(
-                [case_exercise, meaning_exercise], word_chained_topics=chained_topics
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
             ),
             state,
         )
