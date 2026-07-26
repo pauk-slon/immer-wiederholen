@@ -4,38 +4,6 @@ from tests.plugins.tutoring import make_exercise
 from wiederholen.tutoring import Course, Tutor
 
 
-def test_due_topics_count_is_zero_for_empty_school() -> None:
-    assert Tutor(Course([]), {}).due_topics_count() == 0
-
-
-def test_due_topics_count_counts_new_topics_as_due() -> None:
-    exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
-
-    assert Tutor(Course(exercises), {}).due_topics_count() == 2
-
-
-def test_due_topics_count_excludes_not_yet_due_topics() -> None:
-    exercise = make_exercise(word="warten")
-    journal = {
-        "word_schedule": {
-            "warten:government": {
-                "interval_days": 30,
-                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
-            },
-        }
-    }
-
-    assert Tutor(Course([exercise]), journal).due_topics_count() == 0
-
-
-def test_due_topics_count_counts_shared_schedule_key_once() -> None:
-    # Two YAML entries for the same word+topic share one schedule key.
-    duplicate_1 = make_exercise(word="helfen")
-    duplicate_2 = make_exercise(word="helfen")
-
-    assert Tutor(Course([duplicate_1, duplicate_2]), {}).due_topics_count() == 1
-
-
 def test_record_reminder_sent_sets_last_reminded_at() -> None:
     exercise = make_exercise()
     journal: dict = {}

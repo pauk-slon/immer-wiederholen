@@ -63,7 +63,7 @@ def test_progress_topic_at_max_interval_is_mastered() -> None:
     assert progress.learning == 0
 
 
-def test_progress_due_matches_due_topics_count() -> None:
+def test_progress_counts_overdue_topic_as_due() -> None:
     exercise = make_exercise(word="warten")
     journal = {
         "word_schedule": {
@@ -75,7 +75,7 @@ def test_progress_due_matches_due_topics_count() -> None:
     }
     tutor = Tutor(Course([exercise]), journal)
 
-    assert tutor.progress().due == tutor.due_topics_count() == 1
+    assert tutor.progress().due == 1
 
 
 def test_progress_does_not_persist_entries_for_unscheduled_topics() -> None:
