@@ -76,10 +76,12 @@ class _TopicsConfig(TypedDict):
 class Course:
     exercises: Sequence[Exercise]
     word_chained_topics: Mapping[str, Sequence[str]] = field(
-        default_factory=dict, kw_only=True
+        default_factory=dict,
+        kw_only=True,
     )
     answer_chained_topics: Mapping[str, Sequence[str]] = field(
-        default_factory=dict, kw_only=True
+        default_factory=dict,
+        kw_only=True,
     )
     gated_topics: frozenset[str] = field(default_factory=frozenset, kw_only=True)
 
