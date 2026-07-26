@@ -50,8 +50,9 @@ class TestTopicsConfigLoading:
     ) -> None:
         with tmp_yaml_file([], filename="exercises.yaml"):
             course = Course.load(tmp_path)
-        assert course.chained_topics == {}
+        assert course.word_chained_topics == {}
         assert course.gated_topics == frozenset()
+        assert course.answer_chained_topics == {}
 
     def test_loads_chains_and_gates(
         self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
@@ -67,10 +68,29 @@ class TestTopicsConfigLoading:
             tmp_yaml_file(data, filename="topics.yaml"),
         ):
             course = Course.load(tmp_path)
-        assert course.chained_topics == {
+        assert course.word_chained_topics == {
             "partizip_ii": ["preteritum", "partizip_ii_meaning"]
         }
         assert course.gated_topics == frozenset({"partizip_ii_meaning"})
+
+    def test_loads_chains_by_answer(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
+        data = {
+            "government": {
+                "chains_by_answer": ["preposition_meaning", "preposition_case"],
+            }
+        }
+        with (
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            course = Course.load(tmp_path)
+        assert course.answer_chained_topics == {
+            "government": ["preposition_meaning", "preposition_case"]
+        }
+        assert course.word_chained_topics == {"government": []}
+        assert course.gated_topics == frozenset()
 
     def test_empty_file_returns_empty(
         self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
@@ -80,8 +100,9 @@ class TestTopicsConfigLoading:
             tmp_yaml_file(None, filename="topics.yaml"),
         ):
             course = Course.load(tmp_path)
-        assert course.chained_topics == {}
+        assert course.word_chained_topics == {}
         assert course.gated_topics == frozenset()
+        assert course.answer_chained_topics == {}
 
 
 class TestRecallValidation:
