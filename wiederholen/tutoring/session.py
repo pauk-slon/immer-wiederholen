@@ -90,7 +90,7 @@ class Tutor:
             candidates = filtered_exercises
         return random.choice(candidates)
 
-    def due_topics_count(self) -> int:
+    def _due_topics_count(self) -> int:
         today = datetime.now(UTC).date()
         return sum(
             1
@@ -115,7 +115,7 @@ class Tutor:
             new=new,
             learning=learning,
             mastered=mastered,
-            due=self.due_topics_count(),
+            due=self._due_topics_count(),
         )
 
     def _schedule_next_repetition(self, exercise: Exercise, correct: bool) -> None:
@@ -160,7 +160,8 @@ class Tutor:
             recall_mode = RecallMode.required
         mark = Mark(correct=correct, recall=recall_mode)
         self._journal.record_mark(
-            exercise.question, was_recall_optional=recall_mode == RecallMode.optional
+            exercise.question,
+            was_recall_optional=recall_mode == RecallMode.optional,
         )
         self._schedule_next_repetition(exercise, correct)
         self._expedite_chained_topics(exercise)
@@ -203,10 +204,9 @@ class Tutor:
         return recall
 
     def should_remind(self) -> bool:
-        if self.due_topics_count() <= 0:
+        if self._due_topics_count() <= 0:
             return False
-        last_exercise = self._journal.get_last_exercise()
-        if last_exercise is None:
+        if (last_exercise := self._journal.get_last_exercise()) is None:
             return False
         last_answered_at = datetime.fromisoformat(last_exercise["answered_at"])
         if datetime.now(UTC) - last_answered_at < self.REMIND_AFTER:

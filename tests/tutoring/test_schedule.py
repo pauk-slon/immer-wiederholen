@@ -60,6 +60,38 @@ def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
     assert 0.8 < picks["warten"] / picks["hoffen"] < 1.25
 
 
+def test_due_topics_count_is_zero_for_empty_course() -> None:
+    assert Tutor(Course([]), {}).progress().due == 0
+
+
+def test_due_topics_count_counts_new_topics_as_due() -> None:
+    exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
+
+    assert Tutor(Course(exercises), {}).progress().due == 2
+
+
+def test_due_topics_count_excludes_not_yet_due_topics() -> None:
+    exercise = make_exercise(word="warten")
+    journal = {
+        "word_schedule": {
+            "warten:government": {
+                "interval_days": 30,
+                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+            },
+        }
+    }
+
+    assert Tutor(Course([exercise]), journal).progress().due == 0
+
+
+def test_due_topics_count_counts_shared_schedule_key_once() -> None:
+    # Two YAML entries for the same word+topic share one schedule key.
+    duplicate_1 = make_exercise(word="helfen")
+    duplicate_2 = make_exercise(word="helfen")
+
+    assert Tutor(Course([duplicate_1, duplicate_2]), {}).progress().due == 1
+
+
 def test_new_topic_is_always_due() -> None:
     exercise = make_exercise(word="warten")
     tutor = Tutor(Course([exercise]), {})
@@ -443,7 +475,7 @@ class TestChainedTopics:
             Course([partizip_exercise, preteritum_exercise], chained_topics), {}
         )
 
-        assert tutor.due_topics_count() == 2
+        assert tutor.progress().due == 2
 
 
 class TestChainedTopicGating:
@@ -511,7 +543,7 @@ class TestChainedTopicGating:
             Course([case_exercise, meaning_exercise], chained_topics, gated_topics), {}
         )
 
-        assert tutor.due_topics_count() == 1
+        assert tutor.progress().due == 1
 
     def test_unrelated_topic_is_never_locked(self) -> None:
         government_exercise = make_exercise(word="warten", topic="government")
