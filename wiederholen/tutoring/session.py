@@ -35,10 +35,8 @@ class Tutor:
     REMIND_AFTER: Final = timedelta(hours=24)
 
     def __init__(self, course: Course, journal: dict) -> None:
-        self._exercises = course.exercises
+        self._course = course
         self._journal = Journal(journal)
-        self._chained_topics = course.chained_topics
-        self._gated_topics = course.gated_topics
 
     @staticmethod
     def _compose_schedule_key(exercise: Exercise) -> str:
@@ -48,7 +46,7 @@ class Tutor:
         entry = self._journal.get_schedule_entry(key)
         if entry is None:
             exercise = self._exercises_by_schedule_key[key][0]
-            if exercise.topic in self._gated_topics:
+            if exercise.topic in self._course.gated_topics:
                 return date.max
             return date.min
         return date.fromisoformat(entry["due_date"])
@@ -56,7 +54,7 @@ class Tutor:
     @cached_property
     def _exercises_by_schedule_key(self) -> dict[str, list[Exercise]]:
         result: dict[str, list[Exercise]] = {}
-        for exercise in self._exercises:
+        for exercise in self._course.exercises:
             result.setdefault(self._compose_schedule_key(exercise), []).append(exercise)
         return result
 
@@ -137,7 +135,7 @@ class Tutor:
 
     def _expedite_chained_topics(self, exercise: Exercise) -> None:
         today = date.today()
-        for dependent_topic in self._chained_topics.get(exercise.topic, []):
+        for dependent_topic in self._course.chained_topics.get(exercise.topic, []):
             dependent_key = f"{exercise.word}:{dependent_topic}"
             if dependent_key not in self._exercises_by_schedule_key:
                 continue
