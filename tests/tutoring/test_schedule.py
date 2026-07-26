@@ -551,7 +551,7 @@ class TestAnswerChainedTopics:
         meaning_exercise = make_exercise(word="auf", topic="preposition_meaning")
         case_exercise = make_exercise(word="auf", topic="preposition_case")
         answer_chained_topics = {
-            "government": ["preposition_meaning", "preposition_case"]
+            "government": ["preposition_meaning", "preposition_case"],
         }
         state: dict = {}
         tutor = Tutor(

@@ -87,7 +87,7 @@ class TestTopicsConfigLoading:
         ):
             course = Course.load(tmp_path)
         assert course.answer_chained_topics == {
-            "government": ["preposition_meaning", "preposition_case"]
+            "government": ["preposition_meaning", "preposition_case"],
         }
         assert course.word_chained_topics == {"government": []}
         assert course.gated_topics == frozenset()
