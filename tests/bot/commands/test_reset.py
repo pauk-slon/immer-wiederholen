@@ -1,11 +1,10 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
+from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
 from wiederholen.bot.l10n import EN, RU
 from wiederholen.tutoring import Course
-
-from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 
 
 async def test_reset_command_asks_for_confirmation(feed_message: FeedMessage) -> None:

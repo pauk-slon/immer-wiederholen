@@ -59,7 +59,7 @@ class Tutor:
         return result
 
     def next_exercise(self) -> Exercise:
-        today = date.today()
+        today = datetime.now(UTC).date()
         due_schedule_keys = [
             schedule_key
             for schedule_key in self._exercises_by_schedule_key
@@ -80,17 +80,18 @@ class Tutor:
             schedule_key = random.choice(earliest_schedule_keys)
         candidates = self._exercises_by_schedule_key[schedule_key]
         last_exercise = self._journal.get_last_exercise()
-        if last_exercise is not None:
-            if filtered_exercises := [
+        if last_exercise is not None and (
+            filtered_exercises := [
                 exercise
                 for exercise in candidates
                 if exercise.question != last_exercise["question"]
-            ]:
-                candidates = filtered_exercises
+            ]
+        ):
+            candidates = filtered_exercises
         return random.choice(candidates)
 
     def due_topics_count(self) -> int:
-        today = date.today()
+        today = datetime.now(UTC).date()
         return sum(
             1
             for schedule_key in self._exercises_by_schedule_key
@@ -126,15 +127,15 @@ class Tutor:
             interval = min(
                 max(schedule_entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS
             )
-            due_date = date.today() + timedelta(days=interval)
+            due_date = datetime.now(UTC).date() + timedelta(days=interval)
         else:
             interval = 1
-            due_date = date.today()
+            due_date = datetime.now(UTC).date()
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
 
     def _expedite_chained_topics(self, exercise: Exercise) -> None:
-        today = date.today()
+        today = datetime.now(UTC).date()
         for dependent_topic in self._course.chained_topics.get(exercise.topic, []):
             dependent_key = f"{exercise.word}:{dependent_topic}"
             if dependent_key not in self._exercises_by_schedule_key:
@@ -186,16 +187,17 @@ class Tutor:
             interval = max(schedule_entry["interval_days"] // 2, 1)
             schedule_entry["interval_days"] = interval
             schedule_entry["due_date"] = (
-                date.today() + timedelta(days=interval)
+                datetime.now(UTC).date() + timedelta(days=interval)
             ).isoformat()
         candidates = exercise.recalls
-        if last_exercise.get("recall_question") is not None:
-            if filtered_recalls := [
+        if last_exercise.get("recall_question") is not None and (
+            filtered_recalls := [
                 recall
                 for recall in candidates
                 if recall.question != last_exercise.get("recall_question")
-            ]:
-                candidates = filtered_recalls
+            ]
+        ):
+            candidates = filtered_recalls
         recall = random.choice(candidates)
         last_exercise["recall_question"] = recall.question
         return recall
@@ -210,9 +212,7 @@ class Tutor:
         if datetime.now(UTC) - last_answered_at < self.REMIND_AFTER:
             return False
         last_reminded_at = self._journal.last_reminded_at
-        if last_reminded_at is not None and last_reminded_at >= last_answered_at:
-            return False
-        return True
+        return last_reminded_at is None or last_reminded_at < last_answered_at
 
     def record_reminder_sent(self) -> None:
         self._journal.last_reminded_at = datetime.now(UTC)

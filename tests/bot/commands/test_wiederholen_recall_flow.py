@@ -1,15 +1,14 @@
 import re
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
+from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
+from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.tutoring import Course
-
-from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.tutoring import make_exercise
 
 
 def _strip_tags(text: str) -> str:
@@ -258,7 +257,7 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
     exercise = make_exercise(recalls=True)
-    today = date.today()
+    today = datetime.now(UTC).date()
     journal = {
         "word_schedule": {
             "warten:government": {

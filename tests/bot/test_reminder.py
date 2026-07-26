@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -9,12 +9,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.methods import SendMessage
 
-from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
-from wiederholen.bot.redis_storage import ScanningRedisStorage
-from wiederholen.tutoring import Course
-
 from tests.conftest import TmpYamlFile
 from tests.plugins.tutoring import ExerciseData, make_exercise, make_exercise_data
+from wiederholen.bot.redis_storage import ScanningRedisStorage
+from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
+from wiederholen.tutoring import Course
 
 
 def _state(bot: Bot, storage: ScanningRedisStorage, chat_id: int) -> FSMContext:
@@ -64,7 +63,9 @@ async def test_tick_skips_chat_with_nothing_due(
             "word_schedule": {
                 "warten:government": {
                     "interval_days": 30,
-                    "due_date": (date.today() + timedelta(days=20)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=20)
+                    ).isoformat(),
                 }
             },
             "last_exercise": {"answered_at": _stale_answer()},
@@ -160,7 +161,7 @@ async def test_main_calls_run_with_constructed_dependencies(
             await main()
 
     mock_run.assert_called_once()
-    args, kwargs = mock_run.call_args
+    args, _kwargs = mock_run.call_args
     bot_arg, storage_arg, course_arg = args
     assert isinstance(bot_arg, Bot)
     assert bot_arg.token == bot_token

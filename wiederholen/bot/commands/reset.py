@@ -10,7 +10,7 @@ from aiogram.types import (
     Message,
 )
 
-from wiederholen.bot.l10n import Locale, LOCALES, get_language
+from wiederholen.bot.l10n import LOCALES, Locale, get_language
 from wiederholen.tutoring import Journal
 
 router = Router()

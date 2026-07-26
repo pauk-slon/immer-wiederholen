@@ -1,6 +1,5 @@
-from wiederholen.tutoring import Course, Tutor
-
 from tests.plugins.tutoring import make_exercise
+from wiederholen.tutoring import Course, Tutor
 
 
 def test_request_recall_records_last_recall_question() -> None:

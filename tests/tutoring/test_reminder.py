@@ -1,8 +1,7 @@
-from datetime import UTC, date, datetime, timedelta
-
-from wiederholen.tutoring import Course, Tutor
+from datetime import UTC, datetime, timedelta
 
 from tests.plugins.tutoring import make_exercise
+from wiederholen.tutoring import Course, Tutor
 
 
 def test_due_topics_count_is_zero_for_empty_school() -> None:
@@ -21,7 +20,7 @@ def test_due_topics_count_excludes_not_yet_due_topics() -> None:
         "word_schedule": {
             "warten:government": {
                 "interval_days": 30,
-                "due_date": (date.today() + timedelta(days=20)).isoformat(),
+                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
             },
         }
     }
@@ -54,7 +53,7 @@ def test_should_remind_is_false_when_nothing_is_due() -> None:
         "word_schedule": {
             "warten:government": {
                 "interval_days": 30,
-                "due_date": (date.today() + timedelta(days=20)).isoformat(),
+                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
             },
         },
         "last_exercise": {

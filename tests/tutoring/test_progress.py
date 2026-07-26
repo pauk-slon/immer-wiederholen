@@ -1,8 +1,7 @@
-from datetime import date, timedelta
-
-from wiederholen.tutoring import Course, Tutor
+from datetime import UTC, datetime, timedelta
 
 from tests.plugins.tutoring import make_exercise
+from wiederholen.tutoring import Course, Tutor
 
 
 def test_progress_total_counts_distinct_schedule_keys() -> None:
@@ -34,7 +33,7 @@ def test_progress_topic_below_max_interval_is_learning() -> None:
         "word_schedule": {
             "warten:government": {
                 "interval_days": 30,
-                "due_date": (date.today() + timedelta(days=20)).isoformat(),
+                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
             },
         }
     }
@@ -52,7 +51,7 @@ def test_progress_topic_at_max_interval_is_mastered() -> None:
         "word_schedule": {
             "warten:government": {
                 "interval_days": 60,
-                "due_date": (date.today() + timedelta(days=60)).isoformat(),
+                "due_date": (datetime.now(UTC).date() + timedelta(days=60)).isoformat(),
             },
         }
     }
@@ -70,7 +69,7 @@ def test_progress_due_matches_due_topics_count() -> None:
         "word_schedule": {
             "warten:government": {
                 "interval_days": 30,
-                "due_date": (date.today() - timedelta(days=1)).isoformat(),
+                "due_date": (datetime.now(UTC).date() - timedelta(days=1)).isoformat(),
             },
         }
     }

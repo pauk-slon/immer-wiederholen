@@ -1,10 +1,8 @@
 import pytest
-
 from aiogram.fsm.context import FSMContext
 
-from wiederholen.bot.l10n import EN, RU
-
 from tests.plugins.aiogram import FeedMessage
+from wiederholen.bot.l10n import EN, RU
 
 
 async def test_defaults_to_ru(

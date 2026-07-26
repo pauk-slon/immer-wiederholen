@@ -1,12 +1,11 @@
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 
 from aiogram.fsm.context import FSMContext
 
-from wiederholen.bot.l10n import EN, RU
-from wiederholen.tutoring import Course
-
 from tests.plugins.aiogram import FeedMessage
 from tests.plugins.tutoring import make_exercise
+from wiederholen.bot.l10n import EN, RU
+from wiederholen.tutoring import Course
 
 
 async def test_defaults_to_ru(feed_message: FeedMessage) -> None:
@@ -44,11 +43,11 @@ async def test_reflects_journal_breakdown(
         "word_schedule": {
             "hoffen:government": {
                 "interval_days": 30,
-                "due_date": (date.today() + timedelta(days=20)).isoformat(),
+                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
             },
             "helfen:government": {
                 "interval_days": 60,
-                "due_date": (date.today() + timedelta(days=60)).isoformat(),
+                "due_date": (datetime.now(UTC).date() + timedelta(days=60)).isoformat(),
             },
         }
     }

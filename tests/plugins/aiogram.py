@@ -15,7 +15,6 @@ from wiederholen.bot.redis_storage import ScanningRedisStorage
 
 from .telegram import CallbackQueryFactory, MessageFactory
 
-
 type FeedRawUpdate = Callable[..., Awaitable[list[Any]]]
 type FeedCallbackQuery = Callable[..., Awaitable[list[Any]]]
 type FeedMessage = Callable[..., Awaitable[list[Any]]]
