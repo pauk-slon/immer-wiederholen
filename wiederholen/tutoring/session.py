@@ -6,7 +6,7 @@ from functools import cached_property
 from typing import Final
 
 from wiederholen.tutoring.curriculum import Course, Exercise, Recall
-from wiederholen.tutoring.journal import Journal, _ScheduleEntry
+from wiederholen.tutoring.journal import Journal, ScheduleEntry
 
 
 class RecallMode(Enum):
@@ -143,7 +143,7 @@ class Tutor:
             dependent_entry = self._journal.get_schedule_entry(dependent_key)
             if dependent_entry is None:
                 word_schedule = self._journal.get_word_schedule(create_if_missing=True)
-                word_schedule[dependent_key] = _ScheduleEntry(
+                word_schedule[dependent_key] = ScheduleEntry(
                     interval_days=0,
                     due_date=today.isoformat(),
                 )
