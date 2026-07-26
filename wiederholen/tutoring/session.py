@@ -152,13 +152,14 @@ class Tutor:
     def _expedite_chained_topics(self, exercise: Exercise) -> None:
         for dependent_topic in self._course.word_chained_topics.get(exercise.topic, []):
             self._expedite_dependent(
-                self._compose_schedule_key(exercise.word, dependent_topic)
+                self._compose_schedule_key(exercise.word, dependent_topic),
             )
         for dependent_topic in self._course.answer_chained_topics.get(
-            exercise.topic, []
+            exercise.topic,
+            [],
         ):
             self._expedite_dependent(
-                self._compose_schedule_key(exercise.answer, dependent_topic)
+                self._compose_schedule_key(exercise.answer, dependent_topic),
             )
 
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
