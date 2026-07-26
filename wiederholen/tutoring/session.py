@@ -39,8 +39,8 @@ class Tutor:
         self._journal = Journal(journal)
 
     @staticmethod
-    def _compose_schedule_key(exercise: Exercise) -> str:
-        return f"{exercise.word}:{exercise.topic}"
+    def _compose_schedule_key(word: str, topic: str) -> str:
+        return f"{word}:{topic}"
 
     def _get_due_date(self, key: str) -> date:
         entry = self._journal.get_schedule_entry(key)
@@ -55,7 +55,8 @@ class Tutor:
     def _exercises_by_schedule_key(self) -> dict[str, list[Exercise]]:
         result: dict[str, list[Exercise]] = {}
         for exercise in self._course.exercises:
-            result.setdefault(self._compose_schedule_key(exercise), []).append(exercise)
+            key = self._compose_schedule_key(exercise.word, exercise.topic)
+            result.setdefault(key, []).append(exercise)
         return result
 
     def next_exercise(self) -> Exercise:
@@ -120,7 +121,7 @@ class Tutor:
 
     def _schedule_next_repetition(self, exercise: Exercise, correct: bool) -> None:
         schedule_entry = self._journal.get_schedule_entry(
-            self._compose_schedule_key(exercise),
+            self._compose_schedule_key(exercise.word, exercise.topic),
             create_if_missing=True,
         )
         if correct:
@@ -134,21 +135,32 @@ class Tutor:
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
 
-    def _expedite_chained_topics(self, exercise: Exercise) -> None:
+    def _expedite_dependent(self, dependent_key: str) -> None:
+        if dependent_key not in self._exercises_by_schedule_key:
+            return
         today = datetime.now(UTC).date()
-        for dependent_topic in self._course.chained_topics.get(exercise.topic, []):
-            dependent_key = f"{exercise.word}:{dependent_topic}"
-            if dependent_key not in self._exercises_by_schedule_key:
-                continue
-            dependent_entry = self._journal.get_schedule_entry(dependent_key)
-            if dependent_entry is None:
-                word_schedule = self._journal.get_word_schedule(create_if_missing=True)
-                word_schedule[dependent_key] = ScheduleEntry(
-                    interval_days=0,
-                    due_date=today.isoformat(),
-                )
-            elif date.fromisoformat(dependent_entry["due_date"]) > today:
-                dependent_entry["due_date"] = today.isoformat()
+        dependent_entry = self._journal.get_schedule_entry(dependent_key)
+        if dependent_entry is None:
+            word_schedule = self._journal.get_word_schedule(create_if_missing=True)
+            word_schedule[dependent_key] = ScheduleEntry(
+                interval_days=0,
+                due_date=today.isoformat(),
+            )
+        elif date.fromisoformat(dependent_entry["due_date"]) > today:
+            dependent_entry["due_date"] = today.isoformat()
+
+    def _expedite_chained_topics(self, exercise: Exercise) -> None:
+        for dependent_topic in self._course.word_chained_topics.get(exercise.topic, []):
+            self._expedite_dependent(
+                self._compose_schedule_key(exercise.word, dependent_topic),
+            )
+        for dependent_topic in self._course.answer_chained_topics.get(
+            exercise.topic,
+            [],
+        ):
+            self._expedite_dependent(
+                self._compose_schedule_key(exercise.answer, dependent_topic),
+            )
 
     def check_answer(self, exercise: Exercise, answer: str) -> Mark:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
@@ -182,7 +194,7 @@ class Tutor:
             and last_exercise.get("recall_question") is None
         ):
             schedule_entry = self._journal.get_schedule_entry(
-                self._compose_schedule_key(exercise),
+                self._compose_schedule_key(exercise.word, exercise.topic),
                 create_if_missing=True,
             )
             interval = max(schedule_entry["interval_days"] // 2, 1)

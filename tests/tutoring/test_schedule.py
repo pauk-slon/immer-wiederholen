@@ -347,7 +347,13 @@ class TestChainedTopics:
             }
         }
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_topics), state)
+        tutor = Tutor(
+            Course(
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
+            ),
+            state,
+        )
 
         tutor.check_answer(case_exercise, "Freund")
 
@@ -372,7 +378,13 @@ class TestChainedTopics:
             }
         }
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_topics), state)
+        tutor = Tutor(
+            Course(
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
+            ),
+            state,
+        )
 
         tutor.check_answer(case_exercise, "wrong answer")
 
@@ -397,7 +409,13 @@ class TestChainedTopics:
             }
         }
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_topics), state)
+        tutor = Tutor(
+            Course(
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
+            ),
+            state,
+        )
 
         tutor.check_answer(case_exercise, "Freund")
 
@@ -415,7 +433,13 @@ class TestChainedTopics:
         )
         state: dict = {}
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        tutor = Tutor(Course([case_exercise, meaning_exercise], chained_topics), state)
+        tutor = Tutor(
+            Course(
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
+            ),
+            state,
+        )
 
         tutor.check_answer(case_exercise, "Freund")
 
@@ -428,7 +452,10 @@ class TestChainedTopics:
         )
         state: dict = {}
         chained_topics = {"preposition_case": ["preposition_meaning"]}
-        tutor = Tutor(Course([case_exercise], chained_topics), state)
+        tutor = Tutor(
+            Course([case_exercise], word_chained_topics=chained_topics),
+            state,
+        )
 
         tutor.check_answer(case_exercise, "Freund")
 
@@ -452,7 +479,11 @@ class TestChainedTopics:
         }
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         tutor = Tutor(
-            Course([government_exercise, meaning_exercise], chained_topics), state
+            Course(
+                [government_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
+            ),
+            state,
         )
 
         tutor.check_answer(government_exercise, "auf")
@@ -472,10 +503,90 @@ class TestChainedTopics:
             "preteritum": ["partizip_ii"],
         }
         tutor = Tutor(
-            Course([partizip_exercise, preteritum_exercise], chained_topics), {}
+            Course(
+                [partizip_exercise, preteritum_exercise],
+                word_chained_topics=chained_topics,
+            ),
+            {},
         )
 
         assert tutor.progress().due == 2
+
+
+class TestAnswerChainedTopics:
+    def test_advances_chained_topic_keyed_by_answer_not_word(self) -> None:
+        government_exercise = make_exercise(
+            word="warten", topic="government", answer="auf"
+        )
+        meaning_exercise = make_exercise(word="auf", topic="preposition_meaning")
+        today = datetime.now(UTC).date()
+        state = {
+            "word_schedule": {
+                "auf:preposition_meaning": {
+                    "interval_days": 8,
+                    "due_date": (today + timedelta(days=8)).isoformat(),
+                },
+            }
+        }
+        answer_chained_topics = {"government": ["preposition_meaning"]}
+        tutor = Tutor(
+            Course(
+                [government_exercise, meaning_exercise],
+                answer_chained_topics=answer_chained_topics,
+            ),
+            state,
+        )
+
+        tutor.check_answer(government_exercise, "auf")
+
+        entry = state["word_schedule"]["auf:preposition_meaning"]
+        assert entry["due_date"] == today.isoformat()
+        assert entry["interval_days"] == 8
+
+    def test_creates_a_due_today_entry_for_a_never_scheduled_answer_chained_topic(
+        self,
+    ) -> None:
+        government_exercise = make_exercise(
+            word="warten", topic="government", answer="auf"
+        )
+        meaning_exercise = make_exercise(word="auf", topic="preposition_meaning")
+        case_exercise = make_exercise(word="auf", topic="preposition_case")
+        answer_chained_topics = {
+            "government": ["preposition_meaning", "preposition_case"],
+        }
+        state: dict = {}
+        tutor = Tutor(
+            Course(
+                [government_exercise, meaning_exercise, case_exercise],
+                answer_chained_topics=answer_chained_topics,
+            ),
+            state,
+        )
+
+        tutor.check_answer(government_exercise, "auf")
+
+        today = datetime.now(UTC).date().isoformat()
+        assert state["word_schedule"]["auf:preposition_meaning"]["due_date"] == today
+        assert state["word_schedule"]["auf:preposition_case"]["due_date"] == today
+
+    def test_does_not_expedite_by_word_when_only_chained_by_answer(self) -> None:
+        government_exercise = make_exercise(
+            word="warten", topic="government", answer="auf"
+        )
+        meaning_exercise = make_exercise(word="warten", topic="preposition_meaning")
+        answer_chained_topics = {"government": ["preposition_meaning"]}
+        state: dict = {}
+        tutor = Tutor(
+            Course(
+                [government_exercise, meaning_exercise],
+                answer_chained_topics=answer_chained_topics,
+            ),
+            state,
+        )
+
+        tutor.check_answer(government_exercise, "auf")
+
+        assert "warten:preposition_meaning" not in state.get("word_schedule", {})
 
 
 class TestChainedTopicGating:
@@ -489,7 +600,12 @@ class TestChainedTopicGating:
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         gated_topics = frozenset({"preposition_meaning"})
         tutor = Tutor(
-            Course([case_exercise, meaning_exercise], chained_topics, gated_topics), {}
+            Course(
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
+                gated_topics=gated_topics,
+            ),
+            {},
         )
 
         assert tutor.next_exercise().topic == "preposition_case"
@@ -503,7 +619,11 @@ class TestChainedTopicGating:
         )
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         gated_topics = frozenset({"preposition_meaning"})
-        course = Course([case_exercise, meaning_exercise], chained_topics, gated_topics)
+        course = Course(
+            [case_exercise, meaning_exercise],
+            word_chained_topics=chained_topics,
+            gated_topics=gated_topics,
+        )
         state: dict = {}
         Tutor(course, state).check_answer(case_exercise, "Freund")
 
@@ -524,7 +644,12 @@ class TestChainedTopicGating:
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         gated_topics = frozenset({"preposition_meaning"})
         tutor = Tutor(
-            Course([case_exercise, meaning_exercise], chained_topics, gated_topics), {}
+            Course(
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
+                gated_topics=gated_topics,
+            ),
+            {},
         )
 
         for _ in range(50):
@@ -540,7 +665,12 @@ class TestChainedTopicGating:
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         gated_topics = frozenset({"preposition_meaning"})
         tutor = Tutor(
-            Course([case_exercise, meaning_exercise], chained_topics, gated_topics), {}
+            Course(
+                [case_exercise, meaning_exercise],
+                word_chained_topics=chained_topics,
+                gated_topics=gated_topics,
+            ),
+            {},
         )
 
         assert tutor.progress().due == 1
@@ -549,7 +679,14 @@ class TestChainedTopicGating:
         government_exercise = make_exercise(word="warten", topic="government")
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         gated_topics = frozenset({"preposition_meaning"})
-        tutor = Tutor(Course([government_exercise], chained_topics, gated_topics), {})
+        tutor = Tutor(
+            Course(
+                [government_exercise],
+                word_chained_topics=chained_topics,
+                gated_topics=gated_topics,
+            ),
+            {},
+        )
 
         assert tutor.next_exercise().word == "warten"
 

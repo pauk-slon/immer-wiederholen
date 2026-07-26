@@ -1,7 +1,7 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Self
+from typing import Self, TypedDict
 
 import yaml
 
@@ -66,11 +66,24 @@ class Exercise:
         return cls(**d)
 
 
+class _TopicsConfig(TypedDict):
+    word_chained_topics: dict[str, list[str]]
+    answer_chained_topics: dict[str, list[str]]
+    gated_topics: frozenset[str]
+
+
 @dataclass(frozen=True)
 class Course:
     exercises: Sequence[Exercise]
-    chained_topics: Mapping[str, Sequence[str]] = field(default_factory=dict)
-    gated_topics: frozenset[str] = field(default_factory=frozenset)
+    word_chained_topics: Mapping[str, Sequence[str]] = field(
+        default_factory=dict,
+        kw_only=True,
+    )
+    answer_chained_topics: Mapping[str, Sequence[str]] = field(
+        default_factory=dict,
+        kw_only=True,
+    )
+    gated_topics: frozenset[str] = field(default_factory=frozenset, kw_only=True)
 
     @staticmethod
     def _load_exercises(path: Path) -> list[Exercise]:
@@ -79,23 +92,34 @@ class Course:
         return [Exercise.from_dict(item) for item in items]
 
     @staticmethod
-    def _load_topics(path: Path) -> tuple[dict[str, list[str]], frozenset[str]]:
+    def _load_topics(path: Path) -> _TopicsConfig:
         if not path.exists():
-            return {}, frozenset()
+            return _TopicsConfig(
+                word_chained_topics={},
+                answer_chained_topics={},
+                gated_topics=frozenset(),
+            )
         with open(path) as f:
             data = yaml.safe_load(f) or {}
-        chained_topics: dict[str, list[str]] = {}
+        word_chained_topics: dict[str, list[str]] = {}
         gated_topics: set[str] = set()
+        answer_chained_topics: dict[str, list[str]] = {}
         for source, relations in data.items():
             chains = relations.get("chains", [])
             gates = relations.get("gates", [])
-            chained_topics[source] = list(dict.fromkeys([*chains, *gates]))
+            word_chained_topics[source] = list(dict.fromkeys([*chains, *gates]))
             gated_topics.update(gates)
-        return chained_topics, frozenset(gated_topics)
+            if chains_by_answer := relations.get("chains_by_answer", []):
+                answer_chained_topics[source] = list(dict.fromkeys(chains_by_answer))
+        return _TopicsConfig(
+            word_chained_topics=word_chained_topics,
+            answer_chained_topics=answer_chained_topics,
+            gated_topics=frozenset(gated_topics),
+        )
 
     @classmethod
     def load(cls, path: Path) -> Self:
         return cls(
             cls._load_exercises(path / "exercises.yaml"),
-            *cls._load_topics(path / "topics.yaml"),
+            **cls._load_topics(path / "topics.yaml"),
         )
