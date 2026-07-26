@@ -22,9 +22,9 @@ from aiogram.methods.base import TelegramType
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
-from wiederholen.exercises import Course, Tutor
+from wiederholen.tutoring import Course, Tutor
 
-from tests.plugins.exercises import make_exercise_data, ExerciseData
+from tests.plugins.tutoring import make_exercise_data, ExerciseData
 from tests.conftest import TmpYamlFile
 
 

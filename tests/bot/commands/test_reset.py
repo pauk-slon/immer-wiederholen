@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardMarkup
 
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.exercises import Course
+from wiederholen.tutoring import Course
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 
@@ -40,7 +40,7 @@ async def test_confirming_reset_clears_schedule_only(
     await state.update_data(
         journal={
             "word_schedule": {"warten:government": {}},
-            "last_mark": {"correct": True, "recall": "none"},
+            "last_exercise": {"is_recall_optional": False},
         }
     )
 
@@ -50,7 +50,7 @@ async def test_confirming_reset_clears_schedule_only(
     assert requests[0].text == RU.reset_done
     data = await state.get_data()
     assert data["journal"]["word_schedule"] == {}
-    assert data["journal"]["last_mark"] == {"correct": True, "recall": "none"}
+    assert data["journal"]["last_exercise"]["is_recall_optional"] is False
 
 
 async def test_confirming_reset_preserves_language(

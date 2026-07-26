@@ -1,8 +1,8 @@
 from datetime import date, timedelta
 
-from wiederholen.exercises import Course, Tutor
+from wiederholen.tutoring import Course, Tutor
 
-from tests.plugins.exercises import make_exercise
+from tests.plugins.tutoring import make_exercise
 
 
 def test_progress_total_counts_distinct_schedule_keys() -> None:

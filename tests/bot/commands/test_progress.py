@@ -3,10 +3,10 @@ from datetime import date, timedelta
 from aiogram.fsm.context import FSMContext
 
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.exercises import Course
+from wiederholen.tutoring import Course
 
 from tests.plugins.aiogram import FeedMessage
-from tests.plugins.exercises import make_exercise
+from tests.plugins.tutoring import make_exercise
 
 
 async def test_defaults_to_ru(feed_message: FeedMessage) -> None:

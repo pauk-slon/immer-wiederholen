@@ -4,9 +4,9 @@ from datetime import date, timedelta
 
 import pytest
 
-from wiederholen.exercises import Course, Exercise, Tutor
+from wiederholen.tutoring import Course, Exercise, Tutor
 
-from tests.plugins.exercises import make_exercise
+from tests.plugins.tutoring import make_exercise
 
 
 def test_next_exercise_only_picks_due_topics() -> None:
@@ -150,7 +150,7 @@ def test_check_answer_records_last_answered_question() -> None:
 
     Tutor(Course([exercise]), journal).check_answer(exercise, "auf")
 
-    assert journal["last_answered_question"] == exercise.question
+    assert journal["last_exercise"]["question"] == exercise.question
 
 
 def test_check_answer_records_last_answered_at() -> None:
@@ -159,7 +159,7 @@ def test_check_answer_records_last_answered_at() -> None:
 
     Tutor(Course([exercise]), journal).check_answer(exercise, "auf")
 
-    assert "last_answered_at" in journal
+    assert "answered_at" in journal["last_exercise"]
 
 
 @pytest.mark.parametrize(
@@ -221,7 +221,7 @@ def test_next_exercise_avoids_repeating_last_answered_question() -> None:
         distractors=["mit", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )
-    state = {"last_answered_question": mit.question}
+    state = {"last_exercise": {"question": mit.question}}
     tutor = Tutor(Course([mit, ueber]), state)
 
     result = tutor.next_exercise()
@@ -235,7 +235,7 @@ def test_next_exercise_repeats_question_when_no_other_variant_is_available() -> 
     # the repeat is unavoidable rather than something to filter out.
     duplicate_1 = make_exercise(word="helfen")
     duplicate_2 = make_exercise(word="helfen")
-    state = {"last_answered_question": duplicate_1.question}
+    state = {"last_exercise": {"question": duplicate_1.question}}
     tutor = Tutor(Course([duplicate_1, duplicate_2]), state)
 
     result = tutor.next_exercise()
@@ -566,7 +566,7 @@ class TestRequestRecallInterval:
         exercise = make_exercise(recalls=True)
         today = date.today()
         journal = {
-            "last_mark": {"correct": False, "recall": "required"},
+            "last_exercise": {"is_recall_optional": False},
             "word_schedule": {
                 "warten:government": {
                     "interval_days": 8,

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from aiogram import Bot
 
-from wiederholen.exercises import Course
+from wiederholen.tutoring import Course
 
 from .redis_storage import ScanningRedisStorage
 

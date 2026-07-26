@@ -1,0 +1,94 @@
+from datetime import UTC, date, datetime
+from typing import Annotated, Final, Literal, NotRequired, TypedDict, overload
+
+from pydantic import AfterValidator, TypeAdapter, ValidationError
+
+
+def _parse_iso_date(value: str) -> str:
+    date.fromisoformat(value)
+    return value
+
+
+class _ScheduleEntry(TypedDict):
+    interval_days: int
+    due_date: Annotated[str, AfterValidator(_parse_iso_date)]
+
+
+class _LastExercise(TypedDict):
+    question: str
+    answered_at: str
+    is_recall_optional: bool
+    recall_question: NotRequired[str]
+
+
+class Journal:
+    _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(_ScheduleEntry)
+
+    def __init__(self, data: dict) -> None:
+        self._data = data
+
+    def get_last_exercise(self) -> _LastExercise | None:
+        return self._data.get("last_exercise")
+
+    def record_mark(self, question: str, *, was_recall_optional: bool) -> None:
+        self._data["last_exercise"] = _LastExercise(
+            question=question,
+            answered_at=datetime.now(UTC).isoformat(),
+            is_recall_optional=was_recall_optional,
+        )
+
+    @property
+    def last_reminded_at(self) -> datetime | None:
+        if (raw_value := self._data.get("last_reminded_at")) is not None:
+            return datetime.fromisoformat(raw_value)
+
+    @last_reminded_at.setter
+    def last_reminded_at(self, value: datetime) -> None:
+        self._data["last_reminded_at"] = value.isoformat()
+
+    def get_word_schedule(self, *, create_if_missing: bool = False) -> dict:
+        if create_if_missing:
+            return self._data.setdefault("word_schedule", {})
+        return self._data.get("word_schedule", {})
+
+    def reset_schedule(self) -> None:
+        self._data["word_schedule"] = {}
+
+    @classmethod
+    def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
+        try:
+            cls._SCHEDULE_ENTRY_ADAPTER.validate_python(schedule_entry, strict=True)
+        except ValidationError:
+            return False
+        return True
+
+    @overload
+    def get_schedule_entry(
+        self,
+        key: str,
+        *,
+        create_if_missing: Literal[True],
+    ) -> _ScheduleEntry: ...
+    @overload
+    def get_schedule_entry(
+        self,
+        key: str,
+        *,
+        create_if_missing: Literal[False] = False,
+    ) -> _ScheduleEntry | None: ...
+    def get_schedule_entry(
+        self,
+        key: str,
+        *,
+        create_if_missing: bool = False,
+    ) -> _ScheduleEntry | None:
+        default = _ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
+        if create_if_missing:
+            word_schedule = self.get_word_schedule(create_if_missing=True)
+            schedule_entry = word_schedule.get(key)
+            if not self._is_valid_schedule_entry(schedule_entry):
+                schedule_entry = word_schedule[key] = default
+            return schedule_entry
+        word_schedule = self.get_word_schedule()
+        schedule_entry = word_schedule.get(key)
+        return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None

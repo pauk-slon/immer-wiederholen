@@ -11,7 +11,7 @@ from aiogram.types import (
 )
 
 from wiederholen.bot.l10n import Locale, LOCALES, get_language
-from wiederholen.exercises import Journal
+from wiederholen.tutoring import Journal
 
 router = Router()
 

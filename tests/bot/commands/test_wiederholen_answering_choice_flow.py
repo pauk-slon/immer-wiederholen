@@ -3,10 +3,10 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.exercises import Exercise, Course
+from wiederholen.tutoring import Exercise, Course
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.exercises import make_exercise
+from tests.plugins.tutoring import make_exercise
 
 
 class TestHandleAnswer:
@@ -201,7 +201,7 @@ class TestNextExerciseButton:
             explanation={"ru": "x", "en": "y"},
         )
         await state.update_data(
-            language="ru", journal={"last_answered_question": mit.question}
+            language="ru", journal={"last_exercise": {"question": mit.question}}
         )
 
         requests = await feed_callback_query(NEXT_EXERCISE, course=Course([mit, ueber]))

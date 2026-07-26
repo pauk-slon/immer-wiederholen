@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import TypedDict, NotRequired, Literal, Unpack
 
-from wiederholen.exercises import Exercise, Recall, Topic
+from wiederholen.tutoring import Exercise, Recall, Topic
 
 
 type Language = Literal["ru", "en"]

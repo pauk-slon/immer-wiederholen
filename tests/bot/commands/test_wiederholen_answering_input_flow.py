@@ -3,10 +3,10 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardRemove
 
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.exercises import Course
+from wiederholen.tutoring import Course
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.exercises import make_exercise
+from tests.plugins.tutoring import make_exercise
 
 
 async def test_correct_answer_shows_success_text(
