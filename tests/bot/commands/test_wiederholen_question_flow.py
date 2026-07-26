@@ -3,10 +3,10 @@ from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from wiederholen.bot.commands.wiederholen import UserState
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.exercises import Exercise, Course
+from wiederholen.tutoring import Exercise, Course
 
 from tests.plugins.aiogram import FeedMessage
-from tests.plugins.exercises import make_exercise
+from tests.plugins.tutoring import make_exercise
 
 
 async def test_sends_exercise_question(
@@ -134,7 +134,7 @@ async def test_avoids_repeating_previously_shown_question(
         distractors=["mit", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )
-    await state.update_data(journal={"last_answered_question": mit.question})
+    await state.update_data(journal={"last_exercise": {"question": mit.question}})
 
     requests = await feed_message("/wiederholen", course=Course([mit, ueber]))
 

@@ -17,7 +17,7 @@ from aiogram.types import (
     ReplyKeyboardRemove,
 )
 
-from wiederholen.exercises import Course, Exercise, Recall, RecallMode, Tutor
+from wiederholen.tutoring import Course, Exercise, Recall, RecallMode, Tutor
 from wiederholen.i18n import Language
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 

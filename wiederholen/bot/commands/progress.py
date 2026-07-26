@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from wiederholen.bot.l10n import LOCALES, get_language
-from wiederholen.exercises import Course, Tutor
+from wiederholen.tutoring import Course, Tutor
 
 router = Router()
 

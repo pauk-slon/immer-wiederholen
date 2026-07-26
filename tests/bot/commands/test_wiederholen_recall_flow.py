@@ -6,10 +6,10 @@ from aiogram.types import InlineKeyboardMarkup
 
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.exercises import Course
+from wiederholen.tutoring import Course
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.exercises import make_exercise
+from tests.plugins.tutoring import make_exercise
 
 
 def _strip_tags(text: str) -> str:
@@ -205,7 +205,7 @@ async def test_clicking_retry_starts_recall_again(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
-        journal={"last_mark": {"correct": False, "recall": "required"}},
+        journal={"last_exercise": {"is_recall_optional": False}},
     )
 
     await feed_message("Es hängt alles in der Situation ab.", course=Course([exercise]))
@@ -238,8 +238,10 @@ async def test_retry_avoids_repeating_last_recall_variant(
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
         journal={
-            "last_mark": {"correct": False, "recall": "required"},
-            "last_recall_question": exercise.recalls[0].question,
+            "last_exercise": {
+                "is_recall_optional": False,
+                "recall_question": exercise.recalls[0].question,
+            }
         },
     )
 

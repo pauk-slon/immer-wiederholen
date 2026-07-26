@@ -9,7 +9,7 @@ import yaml
 pytest_plugins = [
     "tests.plugins.telegram",
     "tests.plugins.aiogram",
-    "tests.plugins.exercises",
+    "tests.plugins.tutoring",
 ]
 
 

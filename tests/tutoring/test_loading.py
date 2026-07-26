@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from wiederholen.exercises import Course
+from wiederholen.tutoring import Course
 
 from tests.conftest import TmpYamlFile
-from tests.plugins.exercises import make_exercise_data
+from tests.plugins.tutoring import make_exercise_data
 
 
 class TestExerciseValidation:

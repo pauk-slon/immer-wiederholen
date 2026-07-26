@@ -11,10 +11,10 @@ from aiogram.methods import SendMessage
 
 from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
 from wiederholen.bot.redis_storage import ScanningRedisStorage
-from wiederholen.exercises import Course
+from wiederholen.tutoring import Course
 
 from tests.conftest import TmpYamlFile
-from tests.plugins.exercises import ExerciseData, make_exercise, make_exercise_data
+from tests.plugins.tutoring import ExerciseData, make_exercise, make_exercise_data
 
 
 def _state(bot: Bot, storage: ScanningRedisStorage, chat_id: int) -> FSMContext:
@@ -35,7 +35,7 @@ async def test_tick_sends_reminder_and_records_it(
     bot = Bot(token=bot_token)
     state = _state(bot, redis_storage, 1)
     await state.update_data(
-        journal={"last_answered_at": _stale_answer()}, language="ru"
+        journal={"last_exercise": {"answered_at": _stale_answer()}}, language="ru"
     )
 
     mock_request = AsyncMock(return_value=True)
@@ -67,7 +67,7 @@ async def test_tick_skips_chat_with_nothing_due(
                     "due_date": (date.today() + timedelta(days=20)).isoformat(),
                 }
             },
-            "last_answered_at": _stale_answer(),
+            "last_exercise": {"answered_at": _stale_answer()},
         }
     )
 
@@ -84,7 +84,7 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
     exercise = make_exercise()
     bot = Bot(token=bot_token)
     state = _state(bot, redis_storage, 1)
-    await state.update_data(journal={"last_answered_at": _stale_answer()})
+    await state.update_data(journal={"last_exercise": {"answered_at": _stale_answer()}})
 
     async def make_request_side_effect(bot, method, timeout=None):
         if isinstance(method, SendMessage):
@@ -107,11 +107,11 @@ async def test_tick_continues_after_one_chat_fails(
     exercise = make_exercise()
     bot = Bot(token=bot_token)
     await _state(bot, redis_storage, 1).update_data(
-        journal={"last_answered_at": _stale_answer()}
+        journal={"last_exercise": {"answered_at": _stale_answer()}}
     )
     # malformed data for chat 2 raises while parsing, must not affect chat 1
     await _state(bot, redis_storage, 2).update_data(
-        journal={"last_answered_at": "not-a-valid-datetime"}
+        journal={"last_exercise": {"answered_at": "not-a-valid-datetime"}}
     )
 
     mock_request = AsyncMock(return_value=True)

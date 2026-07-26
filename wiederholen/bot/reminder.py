@@ -6,7 +6,7 @@ from aiogram.exceptions import TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import BaseStorage, StorageKey
 
-from wiederholen.exercises import Course, Tutor
+from wiederholen.tutoring import Course, Tutor
 
 from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES, get_language
