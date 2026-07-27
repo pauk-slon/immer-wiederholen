@@ -38,7 +38,7 @@ async def test_confirming_reset_clears_schedule_only(
 ) -> None:
     await state.update_data(
         journal={
-            "word_schedule": {"warten:government": {}},
+            "word_schedule": {"warten": {"government": {}}},
             "last_exercise": {"is_recall_optional": False},
         }
     )
@@ -56,7 +56,7 @@ async def test_confirming_reset_preserves_language(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
-    await state.update_data(language="en", journal={"word_schedule": {"x": {}}})
+    await state.update_data(language="en", journal={"word_schedule": {"x": {"y": {}}}})
 
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
@@ -71,7 +71,7 @@ async def test_cancelling_reset_keeps_journal(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
-    journal = {"word_schedule": {"warten:government": {}}}
+    journal = {"word_schedule": {"warten": {"government": {}}}}
     await state.update_data(journal=journal)
 
     requests = await feed_callback_query(RESET_CANCEL, course=Course([]))

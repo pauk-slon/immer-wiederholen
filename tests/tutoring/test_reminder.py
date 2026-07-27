@@ -19,9 +19,11 @@ def test_should_remind_is_false_when_nothing_is_due() -> None:
     exercise = make_exercise(word="warten")
     journal = {
         "word_schedule": {
-            "warten:government": {
-                "interval_days": 30,
-                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+            "warten": {
+                "government": {
+                    "interval_days": 30,
+                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                },
             },
         },
         "last_exercise": {

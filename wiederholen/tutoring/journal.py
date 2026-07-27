@@ -60,30 +60,37 @@ class Journal:
     @overload
     def get_schedule_entry(
         self,
-        key: str,
+        word: str,
+        topic: str,
         *,
         create_if_missing: Literal[True],
     ) -> ScheduleEntry: ...
     @overload
     def get_schedule_entry(
         self,
-        key: str,
+        word: str,
+        topic: str,
         *,
         create_if_missing: Literal[False] = False,
     ) -> ScheduleEntry | None: ...
     def get_schedule_entry(
         self,
-        key: str,
+        word: str,
+        topic: str,
         *,
         create_if_missing: bool = False,
     ) -> ScheduleEntry | None:
         default = ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
         if create_if_missing:
             word_schedule = self.get_word_schedule(create_if_missing=True)
-            schedule_entry = word_schedule.get(key)
+            topic_schedule = word_schedule.setdefault(word, {})
+            schedule_entry = topic_schedule.get(topic)
             if not self._is_valid_schedule_entry(schedule_entry):
-                schedule_entry = word_schedule[key] = default
+                schedule_entry = topic_schedule[topic] = default
             return schedule_entry
         word_schedule = self.get_word_schedule()
-        schedule_entry = word_schedule.get(key)
+        topic_schedule = word_schedule.get(word)
+        if not isinstance(topic_schedule, dict):
+            return None
+        schedule_entry = topic_schedule.get(topic)
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None

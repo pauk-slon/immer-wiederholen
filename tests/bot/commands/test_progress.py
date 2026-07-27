@@ -41,13 +41,17 @@ async def test_reflects_journal_breakdown(
     mastered = make_exercise(word="helfen")
     journal = {
         "word_schedule": {
-            "hoffen:government": {
-                "interval_days": 30,
-                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+            "hoffen": {
+                "government": {
+                    "interval_days": 30,
+                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                },
             },
-            "helfen:government": {
-                "interval_days": 60,
-                "due_date": (datetime.now(UTC).date() + timedelta(days=60)).isoformat(),
+            "helfen": {
+                "government": {
+                    "interval_days": 60,
+                    "due_date": (datetime.now(UTC).date() + timedelta(days=60)).isoformat(),
+                },
             },
         }
     }
