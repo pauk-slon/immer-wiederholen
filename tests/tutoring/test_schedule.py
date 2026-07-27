@@ -239,6 +239,35 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
     assert tutor.next_exercise().word == "warten"
 
 
+def test_malformed_word_schedule_is_treated_as_unscheduled() -> None:
+    # The word-level container itself (not just a leaf entry) can be malformed.
+    exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
+    state = {
+        "word_schedule": {
+            "warten": "not a dict",
+            "hoffen": {
+                "government": {
+                    "interval_days": 30,
+                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                },
+            },
+        }
+    }
+    tutor = Tutor(Course(exercises), state)
+    assert tutor.next_exercise().word == "warten"
+
+
+def test_malformed_word_schedule_is_overwritten_on_check_answer() -> None:
+    exercise = make_exercise(word="warten", answer="auf")
+    today = datetime.now(UTC).date()
+    state: dict = {"word_schedule": {}}
+    state["word_schedule"]["warten"] = "not a dict"
+    Tutor(Course([exercise]), state).check_answer(exercise, "auf")
+    entry = state["word_schedule"]["warten"]["government"]  # ty: ignore[invalid-argument-type]
+    assert entry["interval_days"] == 1
+    assert entry["due_date"] == (today + timedelta(days=1)).isoformat()
+
+
 def test_exercises_selected_evenly_across_words() -> None:
     # "helfen" has two YAML entries for one word (e.g. two recall variants),
     # "warten" has one. A fixed seed makes the pick counts reproducible: if

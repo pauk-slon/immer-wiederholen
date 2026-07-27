@@ -146,8 +146,8 @@ class Tutor:
         today = datetime.now(UTC).date()
         dependent_entry = self._journal.get_schedule_entry(word, topic)
         if dependent_entry is None:
-            word_schedule = self._journal.get_word_schedule(create_if_missing=True)
-            word_schedule.setdefault(word, {})[topic] = ScheduleEntry(
+            topic_schedule = self._journal.get_topic_schedule(word, create_if_missing=True)
+            topic_schedule[topic] = ScheduleEntry(
                 interval_days=0,
                 due_date=today.isoformat(),
             )
