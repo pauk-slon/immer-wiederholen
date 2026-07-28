@@ -7,6 +7,7 @@ from pydantic import AfterValidator, TypeAdapter, ValidationError
 class ScheduleEntry(TypedDict):
     interval_days: int
     due_date: Annotated[str, AfterValidator(date.fromisoformat)]
+    introduced_at: NotRequired[Annotated[str, AfterValidator(date.fromisoformat)]]
 
 
 class LastExercise(TypedDict):
@@ -58,20 +59,6 @@ class Journal:
 
     def reset_schedule(self) -> None:
         self._data["word_schedule"] = {}
-        self._data.pop("new_introduced", None)
-
-    def get_new_introduced_count(self, today: date) -> int:
-        record = self._data.get("new_introduced")
-        if not isinstance(record, dict) or record.get("date") != today.isoformat():
-            return 0
-        count = record.get("count")
-        return count if isinstance(count, int) else 0
-
-    def record_new_introduced(self, today: date) -> None:
-        if self.get_new_introduced_count(today) == 0:
-            self._data["new_introduced"] = {"date": today.isoformat(), "count": 1}
-        else:
-            self._data["new_introduced"]["count"] += 1
 
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:

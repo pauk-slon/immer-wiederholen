@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
@@ -217,19 +217,29 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
-        exercise = make_exercise()
+        exercise = make_exercise(word="warten")
         today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+        ]
+        word_schedule = {
+            f"introduced{i}": {
+                "government": {
+                    "interval_days": 1,
+                    "due_date": (today + timedelta(days=30)).isoformat(),
+                    "introduced_at": today.isoformat(),
+                },
+            }
+            for i in range(Tutor.NEW_PER_DAY)
+        }
         await state.update_data(
             language="ru",
-            journal={
-                "new_introduced": {
-                    "date": today.isoformat(),
-                    "count": Tutor.NEW_PER_DAY,
-                },
-            },
+            journal={"word_schedule": word_schedule},
         )
 
-        requests = await feed_callback_query(NEXT_EXERCISE, course=Course([exercise]))
+        requests = await feed_callback_query(
+            NEXT_EXERCISE, course=Course([exercise, *capped_exercises])
+        )
 
         send_message = next(r for r in requests if hasattr(r, "text"))
         assert send_message.text == RU.nothing_due_text

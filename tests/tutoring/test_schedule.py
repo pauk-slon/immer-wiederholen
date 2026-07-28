@@ -762,109 +762,199 @@ class TestChainedTopicGating:
         assert _next(tutor).word == "warten"
 
 
+def _introduced_today_schedule(count: int, today: date) -> dict:
+    return {
+        f"introduced{i}": {
+            "government": {
+                "interval_days": 1,
+                "due_date": (today + timedelta(days=30)).isoformat(),
+                "introduced_at": today.isoformat(),
+            },
+        }
+        for i in range(count)
+    }
+
+
 class TestNewWordDailyCap:
     def test_returns_none_when_cap_reached_and_nothing_else_due(self) -> None:
-        exercises = [make_exercise(word="warten")]
         today = datetime.now(UTC).date()
-        state = {
-            "new_introduced": {"date": today.isoformat(), "count": Tutor.NEW_PER_DAY},
-        }
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+        ]
+        exercises = [*capped_exercises, make_exercise(word="warten")]
+        state = {"word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY, today)}
         tutor = Tutor(Course(exercises), state)
 
         assert tutor.next_exercise() is None
 
     def test_still_returns_a_due_review_when_cap_reached(self) -> None:
+        today = datetime.now(UTC).date()
         new_exercise = make_exercise(word="warten")
         review_exercise = make_exercise(word="hoffen")
-        today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+        ]
         state = {
-            "new_introduced": {"date": today.isoformat(), "count": Tutor.NEW_PER_DAY},
             "word_schedule": {
+                **_introduced_today_schedule(Tutor.NEW_PER_DAY, today),
                 "hoffen": {
-                    "government": {"interval_days": 1, "due_date": today.isoformat()},
+                    "government": {
+                        "interval_days": 1,
+                        "due_date": today.isoformat(),
+                        "introduced_at": (today - timedelta(days=5)).isoformat(),
+                    },
                 },
-            },
+            }
         }
-        tutor = Tutor(Course([new_exercise, review_exercise]), state)
+        tutor = Tutor(
+            Course([new_exercise, review_exercise, *capped_exercises]), state
+        )
 
         assert _next(tutor).word == "hoffen"
 
     def test_still_offers_new_topics_below_the_cap(self) -> None:
-        exercises = [make_exercise(word="warten")]
         today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY - 1)
+        ]
+        exercises = [*capped_exercises, make_exercise(word="warten")]
         state = {
-            "new_introduced": {
-                "date": today.isoformat(),
-                "count": Tutor.NEW_PER_DAY - 1,
-            },
+            "word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY - 1, today),
         }
         tutor = Tutor(Course(exercises), state)
 
         assert _next(tutor).word == "warten"
 
-    def test_a_stale_count_from_a_previous_day_does_not_count_toward_todays_cap(
+    def test_a_stale_introduced_at_from_a_previous_day_does_not_count_toward_the_cap(
         self,
     ) -> None:
-        exercise = make_exercise(word="warten")
-        yesterday = datetime.now(UTC).date() - timedelta(days=1)
-        state = {
-            "new_introduced": {"date": yesterday.isoformat(), "count": Tutor.NEW_PER_DAY},
-        }
-        tutor = Tutor(Course([exercise]), state)
+        today = datetime.now(UTC).date()
+        yesterday = today - timedelta(days=1)
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+        ]
+        exercises = [*capped_exercises, make_exercise(word="warten")]
+        state = {"word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY, yesterday)}
+        tutor = Tutor(Course(exercises), state)
 
         assert _next(tutor).word == "warten"
 
-    def test_check_answer_counts_a_new_topic_toward_the_daily_cap(self) -> None:
+    def test_check_answer_sets_introduced_at_for_a_brand_new_pair(self) -> None:
         exercise = make_exercise(word="warten", answer="auf")
         today = datetime.now(UTC).date()
         state: dict = {}
 
         Tutor(Course([exercise]), state).check_answer(exercise, "auf")
 
-        assert state["new_introduced"] == {"date": today.isoformat(), "count": 1}
+        entry = state["word_schedule"]["warten"]["government"]
+        assert entry["introduced_at"] == today.isoformat()
 
-    def test_check_answer_counts_a_new_topic_even_on_a_wrong_answer(self) -> None:
+    def test_check_answer_sets_introduced_at_even_on_a_wrong_answer(self) -> None:
         exercise = make_exercise(word="warten", answer="auf")
         today = datetime.now(UTC).date()
         state: dict = {}
 
         Tutor(Course([exercise]), state).check_answer(exercise, "wrong")
 
-        assert state["new_introduced"] == {"date": today.isoformat(), "count": 1}
+        entry = state["word_schedule"]["warten"]["government"]
+        assert entry["introduced_at"] == today.isoformat()
 
-    def test_check_answer_does_not_count_an_already_scheduled_topic_as_new(self) -> None:
+    def test_check_answer_does_not_overwrite_an_existing_introduced_at(self) -> None:
         exercise = make_exercise(word="warten", answer="auf")
         today = datetime.now(UTC).date()
+        original = (today - timedelta(days=10)).isoformat()
         state = {
             "word_schedule": {
                 "warten": {
-                    "government": {"interval_days": 4, "due_date": today.isoformat()},
+                    "government": {
+                        "interval_days": 4,
+                        "due_date": today.isoformat(),
+                        "introduced_at": original,
+                    },
                 },
             },
         }
 
         Tutor(Course([exercise]), state).check_answer(exercise, "auf")
 
-        assert "new_introduced" not in state
+        assert state["word_schedule"]["warten"]["government"]["introduced_at"] == original
 
-    def test_check_answer_increments_an_existing_same_day_count(self) -> None:
-        warten = make_exercise(word="warten", answer="auf")
-        hoffen = make_exercise(word="hoffen", answer="auf")
-        today = datetime.now(UTC).date()
-        state: dict = {}
-        tutor = Tutor(Course([warten, hoffen]), state)
-
-        tutor.check_answer(warten, "auf")
-        tutor.check_answer(hoffen, "auf")
-
-        assert state["new_introduced"] == {"date": today.isoformat(), "count": 2}
-
-    def test_reset_schedule_clears_the_daily_new_word_count(self) -> None:
-        journal = Journal({"new_introduced": {"date": "2026-01-01", "count": 3}})
+    def test_reset_schedule_clears_introduced_at_along_with_the_schedule(self) -> None:
+        journal = Journal(
+            {
+                "word_schedule": {
+                    "warten": {
+                        "government": {
+                            "interval_days": 1,
+                            "due_date": "2026-01-01",
+                            "introduced_at": "2026-01-01",
+                        },
+                    },
+                },
+            }
+        )
 
         journal.reset_schedule()
 
-        assert journal.get_new_introduced_count(date(2026, 1, 1)) == 0
+        assert journal.get_schedule_entry("warten", "government") is None
+
+    def test_expedited_dependent_still_counts_as_new_until_actually_answered(
+        self,
+    ) -> None:
+        # _expedite_dependent() creates a schedule entry to unlock/advance a chained
+        # topic, but that's not the same as the learner having seen it — it must
+        # still be capped like any other never-shown pair.
+        case_exercise = make_exercise(
+            word="mit", topic="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            word="mit", topic="preposition_meaning", answer="mit"
+        )
+        chained_topics = {"preposition_case": ["preposition_meaning"]}
+        today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY - 1)
+        ]
+        state = {
+            "word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY - 1, today),
+        }
+        tutor = Tutor(
+            Course(
+                [case_exercise, meaning_exercise, *capped_exercises],
+                word_chained_topics=chained_topics,
+            ),
+            state,
+        )
+
+        tutor.check_answer(case_exercise, "Freund")
+
+        assert "introduced_at" not in state["word_schedule"]["mit"]["preposition_meaning"]
+        assert tutor.next_exercise() is None
+
+    def test_expedited_dependent_gets_introduced_at_only_once_actually_answered(
+        self,
+    ) -> None:
+        case_exercise = make_exercise(
+            word="mit", topic="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            word="mit", topic="preposition_meaning", answer="mit"
+        )
+        chained_topics = {"preposition_case": ["preposition_meaning"]}
+        today = datetime.now(UTC).date()
+        state: dict = {}
+        tutor = Tutor(
+            Course(
+                [case_exercise, meaning_exercise], word_chained_topics=chained_topics
+            ),
+            state,
+        )
+
+        tutor.check_answer(case_exercise, "Freund")
+        tutor.check_answer(meaning_exercise, "mit")
+
+        entry = state["word_schedule"]["mit"]["preposition_meaning"]
+        assert entry["introduced_at"] == today.isoformat()
 
 
 class TestRequestRecallInterval:

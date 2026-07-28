@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
@@ -147,15 +147,26 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
-    exercise = make_exercise()
+    exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date()
-    await state.update_data(
-        journal={
-            "new_introduced": {"date": today.isoformat(), "count": Tutor.NEW_PER_DAY},
+    capped_exercises = [
+        make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+    ]
+    word_schedule = {
+        f"introduced{i}": {
+            "government": {
+                "interval_days": 1,
+                "due_date": (today + timedelta(days=30)).isoformat(),
+                "introduced_at": today.isoformat(),
+            },
         }
-    )
+        for i in range(Tutor.NEW_PER_DAY)
+    }
+    await state.update_data(journal={"word_schedule": word_schedule})
 
-    requests = await feed_message("/wiederholen", course=Course([exercise]))
+    requests = await feed_message(
+        "/wiederholen", course=Course([exercise, *capped_exercises])
+    )
 
     assert len(requests) == 1
     assert requests[0].text == RU.nothing_due_text
