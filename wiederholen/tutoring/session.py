@@ -33,6 +33,7 @@ class Progress:
 class Tutor:
     MAX_INTERVAL_DAYS: Final = 60
     REMIND_AFTER: Final = timedelta(hours=24)
+    NEW_PER_DAY: Final = 7
 
     def __init__(self, course: Course, journal: dict) -> None:
         self._course = course
@@ -64,7 +65,20 @@ class Tutor:
             for topic in topics
         ]
 
-    def next_exercise(self) -> Exercise:
+    def _is_new(self, word: str, topic: str) -> bool:
+        entry = self._journal.get_schedule_entry(word, topic)
+        return entry is None or "introduced_at" not in entry
+
+    def _new_introduced_today_count(self) -> int:
+        today = datetime.now(UTC).date().isoformat()
+        return sum(
+            1
+            for word, topic in self._word_topics
+            if (entry := self._journal.get_schedule_entry(word, topic)) is not None
+            and entry.get("introduced_at") == today
+        )
+
+    def next_exercise(self) -> Exercise | None:
         today = datetime.now(UTC).date()
         due_word_topics = [
             (word, topic)
@@ -72,6 +86,14 @@ class Tutor:
             if self._get_due_date(word, topic) <= today
         ]
         if due_word_topics:
+            if self._new_introduced_today_count() >= self.NEW_PER_DAY:
+                due_word_topics = [
+                    (word, topic)
+                    for word, topic in due_word_topics
+                    if not self._is_new(word, topic)
+                ]
+                if not due_word_topics:
+                    return None
             word, topic = random.choice(due_word_topics)
         else:
             earliest_due_date = min(
@@ -123,12 +145,16 @@ class Tutor:
             due=self._due_topics_count(),
         )
 
-    def _schedule_next_repetition(self, exercise: Exercise, correct: bool) -> None:
+    def _schedule_next_repetition(
+        self, exercise: Exercise, correct: bool, *, is_new: bool
+    ) -> None:
         schedule_entry = self._journal.get_schedule_entry(
             exercise.word,
             exercise.topic,
             create_if_missing=True,
         )
+        if is_new:
+            schedule_entry["introduced_at"] = datetime.now(UTC).date().isoformat()
         if correct:
             interval = min(
                 max(schedule_entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS
@@ -172,11 +198,12 @@ class Tutor:
         else:
             recall_mode = RecallMode.required
         mark = Mark(correct=correct, recall=recall_mode)
+        is_new = self._is_new(exercise.word, exercise.topic)
         self._journal.record_mark(
             exercise.question,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
-        self._schedule_next_repetition(exercise, correct)
+        self._schedule_next_repetition(exercise, correct, is_new=is_new)
         self._expedite_chained_topics(exercise)
         return mark
 

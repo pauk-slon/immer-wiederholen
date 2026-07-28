@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
@@ -5,7 +7,7 @@ from tests.plugins.aiogram import FeedMessage
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import UserState
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.tutoring import Course, Exercise
+from wiederholen.tutoring import Course, Exercise, Tutor
 
 
 async def test_sends_exercise_question(
@@ -139,3 +141,33 @@ async def test_avoids_repeating_previously_shown_question(
 
     assert len(requests) == 1
     assert ueber.question in requests[0].text
+
+
+async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(word="warten")
+    today = datetime.now(UTC).date()
+    capped_exercises = [
+        make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+    ]
+    word_schedule = {
+        f"introduced{i}": {
+            "government": {
+                "interval_days": 1,
+                "due_date": (today + timedelta(days=30)).isoformat(),
+                "introduced_at": today.isoformat(),
+            },
+        }
+        for i in range(Tutor.NEW_PER_DAY)
+    }
+    await state.update_data(journal={"word_schedule": word_schedule})
+
+    requests = await feed_message(
+        "/wiederholen", course=Course([exercise, *capped_exercises])
+    )
+
+    assert len(requests) == 1
+    assert requests[0].text == RU.nothing_due_text
+    assert await state.get_state() is None

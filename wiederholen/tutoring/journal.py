@@ -7,6 +7,7 @@ from pydantic import AfterValidator, TypeAdapter, ValidationError
 class ScheduleEntry(TypedDict):
     interval_days: int
     due_date: Annotated[str, AfterValidator(date.fromisoformat)]
+    introduced_at: NotRequired[Annotated[str, AfterValidator(date.fromisoformat)]]
 
 
 class LastExercise(TypedDict):

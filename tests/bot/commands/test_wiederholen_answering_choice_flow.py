@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
@@ -5,7 +7,7 @@ from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.tutoring import Course, Exercise
+from wiederholen.tutoring import Course, Exercise, Tutor
 
 
 class TestHandleAnswer:
@@ -209,3 +211,36 @@ class TestNextExerciseButton:
             r for r in requests if hasattr(r, "text") and ueber.question in r.text
         )
         assert ueber.question in send_message.text
+
+    async def test_clicking_shows_nothing_due_message_once_cap_is_reached(
+        self,
+        state: FSMContext,
+        feed_callback_query: FeedCallbackQuery,
+    ) -> None:
+        exercise = make_exercise(word="warten")
+        today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+        ]
+        word_schedule = {
+            f"introduced{i}": {
+                "government": {
+                    "interval_days": 1,
+                    "due_date": (today + timedelta(days=30)).isoformat(),
+                    "introduced_at": today.isoformat(),
+                },
+            }
+            for i in range(Tutor.NEW_PER_DAY)
+        }
+        await state.update_data(
+            language="ru",
+            journal={"word_schedule": word_schedule},
+        )
+
+        requests = await feed_callback_query(
+            NEXT_EXERCISE, course=Course([exercise, *capped_exercises])
+        )
+
+        send_message = next(r for r in requests if hasattr(r, "text"))
+        assert send_message.text == RU.nothing_due_text
+        assert await state.get_state() is None
