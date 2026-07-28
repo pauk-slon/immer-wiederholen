@@ -103,7 +103,9 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert isinstance(args[0], Bot)
     assert args[0].token == bot_token
     assert isinstance(kwargs["course"], Course)
-    loaded_exercise = Tutor(kwargs["course"], {}).next_exercise().to_dict()
+    exercise = Tutor(kwargs["course"], {}).next_exercise()
+    assert exercise is not None
+    loaded_exercise = exercise.to_dict()
     if not loaded_exercise["recalls"]:
         del loaded_exercise["recalls"]
     if loaded_exercise["description"] is None:

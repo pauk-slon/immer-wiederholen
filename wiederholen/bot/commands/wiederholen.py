@@ -133,14 +133,19 @@ async def command_wiederholen(
     data = await state.get_data()
     language = get_language(data)
     journal = data.get("journal", {})
+    locale = LOCALES[language]
     tutor = Tutor(course, journal)
     exercise = tutor.next_exercise()
+    if exercise is None:
+        await state.update_data(journal=journal)
+        await message.answer(locale.nothing_due_text)
+        return
     await state.set_state(UserState.answering)
     await state.update_data(
         shown_exercise=exercise.to_dict(),
         journal=journal,
     )
-    question_text = _format_question(exercise, language, LOCALES[language])
+    question_text = _format_question(exercise, language, locale)
     await message.answer(question_text, **_show_exercise_kwargs(exercise))
 
 
@@ -230,13 +235,21 @@ async def handle_next_exercise(
     state_data = await state.get_data()
     language = get_language(state_data)
     journal = state_data.get("journal", {})
+    locale = LOCALES[language]
     tutor = Tutor(course, journal)
     exercise = tutor.next_exercise()
+    if exercise is None:
+        await state.update_data(journal=journal)
+        if isinstance(callback.message, Message):
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.answer(locale.nothing_due_text)
+        await callback.answer()
+        return
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
-        question_text = _format_question(exercise, language, LOCALES[language])
+        question_text = _format_question(exercise, language, locale)
         await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
     await callback.answer()
 

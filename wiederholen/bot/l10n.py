@@ -29,6 +29,7 @@ class Locale:
     reminder_text: str
     progress_text: str
     description_prompt: str
+    nothing_due_text: str
 
 
 RU: Final = Locale(
@@ -64,6 +65,7 @@ RU: Final = Locale(
         "Всего тем: {total}"
     ),
     description_prompt="💭 {description} Введи пропущенное слово.",
+    nothing_due_text="🎉 На сегодня всё! Загляни завтра — будут новые слова и повторения.",
 )
 
 EN: Final = Locale(
@@ -99,6 +101,7 @@ EN: Final = Locale(
         "Total topics: {total}"
     ),
     description_prompt="💭 {description} Enter the missing word.",
+    nothing_due_text="🎉 That's all for today! Come back tomorrow for new words and reviews.",
 )
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}

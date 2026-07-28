@@ -1,11 +1,17 @@
 import random
 from collections import Counter
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
 from tests.plugins.tutoring import make_exercise
-from wiederholen.tutoring import Course, Exercise, Tutor
+from wiederholen.tutoring import Course, Exercise, Journal, Tutor
+
+
+def _next(tutor: Tutor) -> Exercise:
+    exercise = tutor.next_exercise()
+    assert exercise is not None
+    return exercise
 
 
 def test_next_exercise_only_picks_due_topics() -> None:
@@ -22,7 +28,7 @@ def test_next_exercise_only_picks_due_topics() -> None:
         }
     }
     tutor = Tutor(Course(exercises), state)
-    assert tutor.next_exercise().word == "hoffen"
+    assert _next(tutor).word == "hoffen"
 
 
 def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
@@ -45,7 +51,7 @@ def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
         }
     }
     tutor = Tutor(Course(exercises), state)
-    assert tutor.next_exercise().word == "hoffen"
+    assert _next(tutor).word == "hoffen"
 
 
 def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
@@ -61,7 +67,7 @@ def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
     tutor = Tutor(Course(exercises), state)
 
     random.seed(1234)
-    picks = Counter(tutor.next_exercise().word for _ in range(2000))
+    picks = Counter(_next(tutor).word for _ in range(2000))
 
     assert 0.8 < picks["warten"] / picks["hoffen"] < 1.25
 
@@ -103,7 +109,7 @@ def test_due_topics_count_counts_shared_schedule_key_once() -> None:
 def test_new_topic_is_always_due() -> None:
     exercise = make_exercise(word="warten")
     tutor = Tutor(Course([exercise]), {})
-    assert tutor.next_exercise().word == "warten"
+    assert _next(tutor).word == "warten"
 
 
 def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None:
@@ -236,7 +242,7 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
         }
     }
     tutor = Tutor(Course(exercises), state)
-    assert tutor.next_exercise().word == "warten"
+    assert _next(tutor).word == "warten"
 
 
 def test_malformed_word_schedule_is_treated_as_unscheduled() -> None:
@@ -254,7 +260,7 @@ def test_malformed_word_schedule_is_treated_as_unscheduled() -> None:
         }
     }
     tutor = Tutor(Course(exercises), state)
-    assert tutor.next_exercise().word == "warten"
+    assert _next(tutor).word == "warten"
 
 
 def test_malformed_word_schedule_is_overwritten_on_check_answer() -> None:
@@ -279,7 +285,7 @@ def test_exercises_selected_evenly_across_words() -> None:
     tutor = Tutor(Course([single, duplicate_1, duplicate_2]), {})
 
     random.seed(1234)
-    picks = Counter(tutor.next_exercise().word for _ in range(2000))
+    picks = Counter(_next(tutor).word for _ in range(2000))
 
     assert 0.8 < picks["warten"] / picks["helfen"] < 1.25
 
@@ -304,7 +310,7 @@ def test_next_exercise_avoids_repeating_last_answered_question() -> None:
     state = {"last_exercise": {"question": mit.question}}
     tutor = Tutor(Course([mit, ueber]), state)
 
-    result = tutor.next_exercise()
+    result = _next(tutor)
 
     assert result.question == ueber.question
 
@@ -318,7 +324,7 @@ def test_next_exercise_repeats_question_when_no_other_variant_is_available() -> 
     state = {"last_exercise": {"question": duplicate_1.question}}
     tutor = Tutor(Course([duplicate_1, duplicate_2]), state)
 
-    result = tutor.next_exercise()
+    result = _next(tutor)
 
     assert result.question == duplicate_1.question
 
@@ -356,7 +362,7 @@ def test_schedule_entry_with_unknown_extra_key_is_still_respected() -> None:
         }
     }
     tutor = Tutor(Course(exercises), state)
-    assert tutor.next_exercise().word == "hoffen"
+    assert _next(tutor).word == "hoffen"
 
 
 @pytest.mark.parametrize(
@@ -673,7 +679,7 @@ class TestChainedTopicGating:
             {},
         )
 
-        assert tutor.next_exercise().topic == "preposition_case"
+        assert _next(tutor).topic == "preposition_case"
 
     def test_answering_the_parent_unlocks_the_chained_topic(self) -> None:
         case_exercise = make_exercise(
@@ -692,7 +698,7 @@ class TestChainedTopicGating:
         state: dict = {}
         Tutor(course, state).check_answer(case_exercise, "Freund")
 
-        assert Tutor(course, state).next_exercise().topic == "preposition_meaning"
+        assert _next(Tutor(course, state)).topic == "preposition_meaning"
 
     def test_locked_topic_is_excluded_even_when_it_would_otherwise_tie_for_due(
         self,
@@ -718,7 +724,7 @@ class TestChainedTopicGating:
         )
 
         for _ in range(50):
-            assert tutor.next_exercise().topic == "preposition_case"
+            assert _next(tutor).topic == "preposition_case"
 
     def test_due_topics_count_excludes_locked_topics(self) -> None:
         case_exercise = make_exercise(
@@ -753,7 +759,112 @@ class TestChainedTopicGating:
             {},
         )
 
-        assert tutor.next_exercise().word == "warten"
+        assert _next(tutor).word == "warten"
+
+
+class TestNewWordDailyCap:
+    def test_returns_none_when_cap_reached_and_nothing_else_due(self) -> None:
+        exercises = [make_exercise(word="warten")]
+        today = datetime.now(UTC).date()
+        state = {
+            "new_introduced": {"date": today.isoformat(), "count": Tutor.NEW_PER_DAY},
+        }
+        tutor = Tutor(Course(exercises), state)
+
+        assert tutor.next_exercise() is None
+
+    def test_still_returns_a_due_review_when_cap_reached(self) -> None:
+        new_exercise = make_exercise(word="warten")
+        review_exercise = make_exercise(word="hoffen")
+        today = datetime.now(UTC).date()
+        state = {
+            "new_introduced": {"date": today.isoformat(), "count": Tutor.NEW_PER_DAY},
+            "word_schedule": {
+                "hoffen": {
+                    "government": {"interval_days": 1, "due_date": today.isoformat()},
+                },
+            },
+        }
+        tutor = Tutor(Course([new_exercise, review_exercise]), state)
+
+        assert _next(tutor).word == "hoffen"
+
+    def test_still_offers_new_topics_below_the_cap(self) -> None:
+        exercises = [make_exercise(word="warten")]
+        today = datetime.now(UTC).date()
+        state = {
+            "new_introduced": {
+                "date": today.isoformat(),
+                "count": Tutor.NEW_PER_DAY - 1,
+            },
+        }
+        tutor = Tutor(Course(exercises), state)
+
+        assert _next(tutor).word == "warten"
+
+    def test_a_stale_count_from_a_previous_day_does_not_count_toward_todays_cap(
+        self,
+    ) -> None:
+        exercise = make_exercise(word="warten")
+        yesterday = datetime.now(UTC).date() - timedelta(days=1)
+        state = {
+            "new_introduced": {"date": yesterday.isoformat(), "count": Tutor.NEW_PER_DAY},
+        }
+        tutor = Tutor(Course([exercise]), state)
+
+        assert _next(tutor).word == "warten"
+
+    def test_check_answer_counts_a_new_topic_toward_the_daily_cap(self) -> None:
+        exercise = make_exercise(word="warten", answer="auf")
+        today = datetime.now(UTC).date()
+        state: dict = {}
+
+        Tutor(Course([exercise]), state).check_answer(exercise, "auf")
+
+        assert state["new_introduced"] == {"date": today.isoformat(), "count": 1}
+
+    def test_check_answer_counts_a_new_topic_even_on_a_wrong_answer(self) -> None:
+        exercise = make_exercise(word="warten", answer="auf")
+        today = datetime.now(UTC).date()
+        state: dict = {}
+
+        Tutor(Course([exercise]), state).check_answer(exercise, "wrong")
+
+        assert state["new_introduced"] == {"date": today.isoformat(), "count": 1}
+
+    def test_check_answer_does_not_count_an_already_scheduled_topic_as_new(self) -> None:
+        exercise = make_exercise(word="warten", answer="auf")
+        today = datetime.now(UTC).date()
+        state = {
+            "word_schedule": {
+                "warten": {
+                    "government": {"interval_days": 4, "due_date": today.isoformat()},
+                },
+            },
+        }
+
+        Tutor(Course([exercise]), state).check_answer(exercise, "auf")
+
+        assert "new_introduced" not in state
+
+    def test_check_answer_increments_an_existing_same_day_count(self) -> None:
+        warten = make_exercise(word="warten", answer="auf")
+        hoffen = make_exercise(word="hoffen", answer="auf")
+        today = datetime.now(UTC).date()
+        state: dict = {}
+        tutor = Tutor(Course([warten, hoffen]), state)
+
+        tutor.check_answer(warten, "auf")
+        tutor.check_answer(hoffen, "auf")
+
+        assert state["new_introduced"] == {"date": today.isoformat(), "count": 2}
+
+    def test_reset_schedule_clears_the_daily_new_word_count(self) -> None:
+        journal = Journal({"new_introduced": {"date": "2026-01-01", "count": 3}})
+
+        journal.reset_schedule()
+
+        assert journal.get_new_introduced_count(date(2026, 1, 1)) == 0
 
 
 class TestRequestRecallInterval:
