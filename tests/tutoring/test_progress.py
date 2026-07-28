@@ -31,9 +31,11 @@ def test_progress_topic_below_max_interval_is_learning() -> None:
     exercise = make_exercise(word="warten")
     journal = {
         "word_schedule": {
-            "warten:government": {
-                "interval_days": 30,
-                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+            "warten": {
+                "government": {
+                    "interval_days": 30,
+                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                },
             },
         }
     }
@@ -49,9 +51,11 @@ def test_progress_topic_at_max_interval_is_mastered() -> None:
     exercise = make_exercise(word="warten")
     journal = {
         "word_schedule": {
-            "warten:government": {
-                "interval_days": 60,
-                "due_date": (datetime.now(UTC).date() + timedelta(days=60)).isoformat(),
+            "warten": {
+                "government": {
+                    "interval_days": 60,
+                    "due_date": (datetime.now(UTC).date() + timedelta(days=60)).isoformat(),
+                },
             },
         }
     }
@@ -67,9 +71,11 @@ def test_progress_counts_overdue_topic_as_due() -> None:
     exercise = make_exercise(word="warten")
     journal = {
         "word_schedule": {
-            "warten:government": {
-                "interval_days": 30,
-                "due_date": (datetime.now(UTC).date() - timedelta(days=1)).isoformat(),
+            "warten": {
+                "government": {
+                    "interval_days": 30,
+                    "due_date": (datetime.now(UTC).date() - timedelta(days=1)).isoformat(),
+                },
             },
         }
     }

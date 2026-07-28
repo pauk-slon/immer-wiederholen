@@ -46,6 +46,16 @@ class Journal:
             return self._data.setdefault("word_schedule", {})
         return self._data.get("word_schedule", {})
 
+    def get_topic_schedule(self, word: str, *, create_if_missing: bool = False) -> dict:
+        word_schedule = self.get_word_schedule(create_if_missing=create_if_missing)
+        topic_schedule = word_schedule.get(word)
+        if isinstance(topic_schedule, dict):
+            return topic_schedule
+        if not create_if_missing:
+            return {}
+        topic_schedule = word_schedule[word] = {}
+        return topic_schedule
+
     def reset_schedule(self) -> None:
         self._data["word_schedule"] = {}
 
@@ -60,30 +70,31 @@ class Journal:
     @overload
     def get_schedule_entry(
         self,
-        key: str,
+        word: str,
+        topic: str,
         *,
         create_if_missing: Literal[True],
     ) -> ScheduleEntry: ...
     @overload
     def get_schedule_entry(
         self,
-        key: str,
+        word: str,
+        topic: str,
         *,
         create_if_missing: Literal[False] = False,
     ) -> ScheduleEntry | None: ...
     def get_schedule_entry(
         self,
-        key: str,
+        word: str,
+        topic: str,
         *,
         create_if_missing: bool = False,
     ) -> ScheduleEntry | None:
         default = ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
+        topic_schedule = self.get_topic_schedule(word, create_if_missing=create_if_missing)
+        schedule_entry = topic_schedule.get(topic)
         if create_if_missing:
-            word_schedule = self.get_word_schedule(create_if_missing=True)
-            schedule_entry = word_schedule.get(key)
             if not self._is_valid_schedule_entry(schedule_entry):
-                schedule_entry = word_schedule[key] = default
+                schedule_entry = topic_schedule[topic] = default
             return schedule_entry
-        word_schedule = self.get_word_schedule()
-        schedule_entry = word_schedule.get(key)
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None

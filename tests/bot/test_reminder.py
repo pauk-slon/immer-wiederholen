@@ -61,12 +61,14 @@ async def test_tick_skips_chat_with_nothing_due(
     await state.update_data(
         journal={
             "word_schedule": {
-                "warten:government": {
-                    "interval_days": 30,
-                    "due_date": (
-                        datetime.now(UTC).date() + timedelta(days=20)
-                    ).isoformat(),
-                }
+                "warten": {
+                    "government": {
+                        "interval_days": 30,
+                        "due_date": (
+                            datetime.now(UTC).date() + timedelta(days=20)
+                        ).isoformat(),
+                    },
+                },
             },
             "last_exercise": {"answered_at": _stale_answer()},
         }
