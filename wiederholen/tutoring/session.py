@@ -119,8 +119,7 @@ class Tutor:
         if due_word_topics:
             word, topic = random.choice(due_word_topics)
         else:
-            pair = self._earliest_review_pair()
-            if pair is None:
+            if (pair:= self._earliest_review_pair()) is None:
                 return None
             word, topic = pair
         candidates = self._exercises_by_word_topic[word][topic]
