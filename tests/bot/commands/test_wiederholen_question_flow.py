@@ -194,7 +194,7 @@ async def test_avoids_repeating_previously_shown_question(
     assert ueber.question in requests[0].text
 
 
-async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
+async def test_offers_earliest_upcoming_review_once_daily_new_word_cap_is_reached(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
@@ -218,6 +218,18 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
     requests = await feed_message(
         "/wiederholen", course=Course([exercise, *capped_exercises])
     )
+
+    assert len(requests) == 1
+    assert await state.get_state() == UserState.answering
+    data = await state.get_data()
+    assert data["shown_exercise"]["word"].startswith("introduced")
+
+
+async def test_shows_nothing_due_message_for_an_empty_course(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    requests = await feed_message("/wiederholen", course=Course([]))
 
     assert len(requests) == 1
     assert requests[0].text == RU.nothing_due_text
