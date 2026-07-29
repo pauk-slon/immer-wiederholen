@@ -44,13 +44,17 @@ async def test_reflects_journal_breakdown(
             "hoffen": {
                 "government": {
                     "interval_days": 30,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=20)
+                    ).isoformat(),
                 },
             },
             "helfen": {
                 "government": {
                     "interval_days": 60,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=60)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=60)
+                    ).isoformat(),
                 },
             },
         }

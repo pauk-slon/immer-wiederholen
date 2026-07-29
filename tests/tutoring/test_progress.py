@@ -4,7 +4,9 @@ from tests.plugins.tutoring import make_exercise
 from wiederholen.tutoring import Course, Tutor
 
 
-def test_progress_word_with_no_scheduled_topics_is_neither_learning_nor_mastered() -> None:
+def test_progress_word_with_no_scheduled_topics_is_neither_learning_nor_mastered() -> (
+    None
+):
     exercise = make_exercise(word="warten")
 
     progress = Tutor(Course([exercise]), {}).progress()
@@ -20,7 +22,9 @@ def test_progress_word_below_max_interval_is_learning() -> None:
             "warten": {
                 "government": {
                     "interval_days": 30,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=20)
+                    ).isoformat(),
                 },
             },
         }
@@ -39,7 +43,9 @@ def test_progress_word_at_max_interval_is_mastered() -> None:
             "warten": {
                 "government": {
                     "interval_days": 60,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=60)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=60)
+                    ).isoformat(),
                 },
             },
         }
@@ -99,7 +105,9 @@ def test_progress_counts_distinct_words_not_schedule_keys() -> None:
             "helfen": {
                 "government": {
                     "interval_days": 30,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=20)
+                    ).isoformat(),
                 },
             },
         }

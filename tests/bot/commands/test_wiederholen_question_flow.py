@@ -140,7 +140,9 @@ async def test_shows_topic_instruction_in_current_language(
     )
 
     assert len(requests) == 1
-    assert "ℹ️ Fill in the blank with the words in the correct order." in requests[0].text
+    assert (
+        "ℹ️ Fill in the blank with the words in the correct order." in requests[0].text
+    )
 
 
 async def test_shows_both_description_and_topic_instruction_independently(

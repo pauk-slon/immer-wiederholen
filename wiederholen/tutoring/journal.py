@@ -92,7 +92,10 @@ class Journal:
         create_if_missing: bool = False,
     ) -> ScheduleEntry | None:
         default = ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
-        topic_schedule = self.get_topic_schedule(word, create_if_missing=create_if_missing)
+        topic_schedule = self.get_topic_schedule(
+            word,
+            create_if_missing=create_if_missing,
+        )
         schedule_entry = topic_schedule.get(topic)
         if create_if_missing:
             if not self._is_valid_schedule_entry(schedule_entry):
