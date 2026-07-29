@@ -395,7 +395,11 @@ def test_malformed_schedule_entry_is_overwritten_on_check_answer(
 
 
 class TestChainedTopics:
-    def test_advances_chained_topic_due_date_to_today(self) -> None:
+    def test_does_not_advance_an_already_progressing_chained_topic(self) -> None:
+        # A dependent with its own earned schedule (already answered at least
+        # once) must not be yanked back to today just because the source was
+        # answered again — that would erase progress the dependent made on its
+        # own, and for a *mutual* chain (see below) would loop forever.
         case_exercise = make_exercise(
             word="mit", topic="preposition_case", answer="Freund"
         )
@@ -425,27 +429,19 @@ class TestChainedTopics:
         tutor.check_answer(case_exercise, "Freund")
 
         entry = state["word_schedule"]["mit"]["preposition_meaning"]
-        assert entry["due_date"] == today.isoformat()
+        assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
         assert entry["interval_days"] == 8
 
-    def test_advances_regardless_of_answer_correctness(self) -> None:
+    def test_creates_a_never_scheduled_dependent_regardless_of_answer_correctness(
+        self,
+    ) -> None:
         case_exercise = make_exercise(
             word="mit", topic="preposition_case", answer="Freund"
         )
         meaning_exercise = make_exercise(
             word="mit", topic="preposition_meaning", answer="mit"
         )
-        today = datetime.now(UTC).date()
-        state = {
-            "word_schedule": {
-                "mit": {
-                    "preposition_meaning": {
-                        "interval_days": 8,
-                        "due_date": (today + timedelta(days=8)).isoformat(),
-                    },
-                },
-            }
-        }
+        state: dict = {}
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         tutor = Tutor(
             Course(
@@ -458,7 +454,46 @@ class TestChainedTopics:
         tutor.check_answer(case_exercise, "wrong answer")
 
         entry = state["word_schedule"]["mit"]["preposition_meaning"]
-        assert entry["due_date"] == today.isoformat()
+        assert entry["due_date"] == datetime.now(UTC).date().isoformat()
+
+    def test_mutual_chain_does_not_reset_an_already_progressing_sibling(self) -> None:
+        # Regression test: partizip_ii/praeteritum-style topics chain to each
+        # other. Before the fix, answering either one unconditionally pulled
+        # the other's due_date back to today if it was scheduled in the
+        # future — so once both had been answered once, every subsequent
+        # correct answer to either erased the other's just-earned interval,
+        # trapping both in a "due today" loop forever.
+        partizip_exercise = make_exercise(
+            word="sprechen", topic="partizip_ii", answer="gesprochen"
+        )
+        preteritum_exercise = make_exercise(
+            word="sprechen", topic="preteritum", answer="sprach"
+        )
+        chained_topics = {
+            "partizip_ii": ["preteritum"],
+            "preteritum": ["partizip_ii"],
+        }
+        state: dict = {}
+        tutor = Tutor(
+            Course(
+                [partizip_exercise, preteritum_exercise],
+                word_chained_topics=chained_topics,
+            ),
+            state,
+        )
+
+        tutor.check_answer(partizip_exercise, "gesprochen")
+        tutor.check_answer(preteritum_exercise, "sprach")
+        preteritum_due_after_own_answer = state["word_schedule"]["sprechen"][
+            "preteritum"
+        ]["due_date"]
+
+        tutor.check_answer(partizip_exercise, "gesprochen")
+
+        assert (
+            state["word_schedule"]["sprechen"]["preteritum"]["due_date"]
+            == preteritum_due_after_own_answer
+        )
 
     def test_does_not_push_back_an_already_due_chained_topic(self) -> None:
         case_exercise = make_exercise(
@@ -589,7 +624,9 @@ class TestChainedTopics:
 
 
 class TestAnswerChainedTopics:
-    def test_advances_chained_topic_keyed_by_answer_not_word(self) -> None:
+    def test_does_not_advance_an_already_progressing_answer_chained_topic(
+        self,
+    ) -> None:
         government_exercise = make_exercise(
             word="warten", topic="government", answer="auf"
         )
@@ -617,7 +654,7 @@ class TestAnswerChainedTopics:
         tutor.check_answer(government_exercise, "auf")
 
         entry = state["word_schedule"]["auf"]["preposition_meaning"]
-        assert entry["due_date"] == today.isoformat()
+        assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
         assert entry["interval_days"] == 8
 
     def test_creates_a_due_today_entry_for_a_never_scheduled_answer_chained_topic(

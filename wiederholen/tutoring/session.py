@@ -178,18 +178,13 @@ class Tutor:
     def _expedite_dependent(self, word: str, topic: str) -> None:
         if topic not in self._exercises_by_word_topic.get(word, {}):
             return
-        today = datetime.now(UTC).date()
-        dependent_entry = self._journal.get_schedule_entry(word, topic)
-        if dependent_entry is None:
-            topic_schedule = self._journal.get_topic_schedule(
-                word, create_if_missing=True
-            )
-            topic_schedule[topic] = ScheduleEntry(
-                interval_days=0,
-                due_date=today.isoformat(),
-            )
-        elif date.fromisoformat(dependent_entry["due_date"]) > today:
-            dependent_entry["due_date"] = today.isoformat()
+        if self._journal.get_schedule_entry(word, topic) is not None:
+            return
+        topic_schedule = self._journal.get_topic_schedule(word, create_if_missing=True)
+        topic_schedule[topic] = ScheduleEntry(
+            interval_days=0,
+            due_date=datetime.now(UTC).date().isoformat(),
+        )
 
     def _expedite_chained_topics(self, exercise: Exercise) -> None:
         for dependent_topic in self._course.word_chained_topics.get(exercise.topic, []):
