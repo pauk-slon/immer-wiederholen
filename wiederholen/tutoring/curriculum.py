@@ -70,6 +70,7 @@ class _TopicsConfig(TypedDict):
     word_chained_topics: dict[str, list[str]]
     answer_chained_topics: dict[str, list[str]]
     gated_topics: frozenset[str]
+    topic_instructions: dict[str, dict[Language, str]]
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,10 @@ class Course:
         kw_only=True,
     )
     gated_topics: frozenset[str] = field(default_factory=frozenset, kw_only=True)
+    topic_instructions: Mapping[str, Mapping[Language, str]] = field(
+        default_factory=dict,
+        kw_only=True,
+    )
 
     @staticmethod
     def _load_exercises(path: Path) -> list[Exercise]:
@@ -98,12 +103,14 @@ class Course:
                 word_chained_topics={},
                 answer_chained_topics={},
                 gated_topics=frozenset(),
+                topic_instructions={},
             )
         with open(path) as f:
             data = yaml.safe_load(f) or {}
         word_chained_topics: dict[str, list[str]] = {}
         gated_topics: set[str] = set()
         answer_chained_topics: dict[str, list[str]] = {}
+        topic_instructions: dict[str, dict[Language, str]] = {}
         for source, relations in data.items():
             chains = relations.get("chains", [])
             gates = relations.get("gates", [])
@@ -111,10 +118,13 @@ class Course:
             gated_topics.update(gates)
             if chains_by_answer := relations.get("chains_by_answer", []):
                 answer_chained_topics[source] = list(dict.fromkeys(chains_by_answer))
+            if instruction := relations.get("instruction"):
+                topic_instructions[source] = instruction
         return _TopicsConfig(
             word_chained_topics=word_chained_topics,
             answer_chained_topics=answer_chained_topics,
             gated_topics=frozenset(gated_topics),
+            topic_instructions=topic_instructions,
         )
 
     @classmethod

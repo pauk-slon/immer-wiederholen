@@ -6,7 +6,8 @@ from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from tests.plugins.aiogram import FeedMessage
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import UserState
-from wiederholen.bot.l10n import EN, RU
+from wiederholen.bot.l10n import RU
+from wiederholen.i18n import Language
 from wiederholen.tutoring import Course, Exercise, Tutor
 
 
@@ -89,8 +90,7 @@ async def test_shows_description_in_ru_by_default(
     requests = await feed_message("/wiederholen", course=Course([exercise]))
 
     assert len(requests) == 1
-    expected = RU.description_prompt.format(description="Поезд едет через туннель.")
-    assert expected in requests[0].text
+    assert "💭 Поезд едет через туннель." in requests[0].text
 
 
 async def test_shows_description_in_current_language(
@@ -109,10 +109,59 @@ async def test_shows_description_in_current_language(
     requests = await feed_message("/wiederholen", course=Course([exercise]))
 
     assert len(requests) == 1
-    expected = EN.description_prompt.format(
-        description="The train goes through the tunnel."
+    assert "💭 The train goes through the tunnel." in requests[0].text
+
+
+async def test_omits_topic_instruction_when_topic_has_none(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise()
+    requests = await feed_message("/wiederholen", course=Course([exercise]))
+
+    assert len(requests) == 1
+    assert "ℹ️" not in requests[0].text
+
+
+async def test_shows_topic_instruction_in_current_language(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    await state.update_data(language="en")
+    exercise = make_exercise(topic="konjunktion_wortstellung", distractors=[])
+    topic_instructions: dict[str, dict[Language, str]] = {
+        "konjunktion_wortstellung": {
+            "ru": "Заполни пропуски в правильном порядке.",
+            "en": "Fill in the blank with the words in the correct order.",
+        },
+    }
+    requests = await feed_message(
+        "/wiederholen",
+        course=Course([exercise], topic_instructions=topic_instructions),
     )
-    assert expected in requests[0].text
+
+    assert len(requests) == 1
+    assert "ℹ️ Fill in the blank with the words in the correct order." in requests[0].text
+
+
+async def test_shows_both_description_and_topic_instruction_independently(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        topic="preposition_meaning",
+        distractors=[],
+        description={"ru": "Поезд едет через туннель.", "en": "..."},
+    )
+    topic_instructions: dict[str, dict[Language, str]] = {
+        "preposition_meaning": {"ru": "Введи пропущенное слово.", "en": "..."},
+    }
+    requests = await feed_message(
+        "/wiederholen",
+        course=Course([exercise], topic_instructions=topic_instructions),
+    )
+
+    assert len(requests) == 1
+    assert "💭 Поезд едет через туннель." in requests[0].text
+    assert "ℹ️ Введи пропущенное слово." in requests[0].text
 
 
 async def test_avoids_repeating_previously_shown_question(

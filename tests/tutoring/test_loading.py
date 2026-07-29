@@ -53,6 +53,7 @@ class TestTopicsConfigLoading:
         assert course.word_chained_topics == {}
         assert course.gated_topics == frozenset()
         assert course.answer_chained_topics == {}
+        assert course.topic_instructions == {}
 
     def test_loads_chains_and_gates(
         self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
@@ -103,6 +104,41 @@ class TestTopicsConfigLoading:
         assert course.word_chained_topics == {}
         assert course.gated_topics == frozenset()
         assert course.answer_chained_topics == {}
+        assert course.topic_instructions == {}
+
+    def test_loads_topic_instructions(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
+        data = {
+            "konjunktion_wortstellung": {
+                "instruction": {
+                    "ru": "Заполни пропуски в правильном порядке.",
+                    "en": "Fill in the blank with the words in the correct order.",
+                },
+            }
+        }
+        with (
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            course = Course.load(tmp_path)
+        assert course.topic_instructions == {
+            "konjunktion_wortstellung": {
+                "ru": "Заполни пропуски в правильном порядке.",
+                "en": "Fill in the blank with the words in the correct order.",
+            },
+        }
+
+    def test_topic_without_instruction_is_absent(
+        self, tmp_path: Path, tmp_yaml_file: TmpYamlFile
+    ) -> None:
+        data = {"partizip_ii": {"chains": ["preteritum"]}}
+        with (
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            course = Course.load(tmp_path)
+        assert course.topic_instructions == {}
 
 
 class TestRecallValidation:
