@@ -94,24 +94,35 @@ class Tutor:
             if self._is_new(word, topic) and self._get_due_date(word, topic) <= today
         ]
 
+    def _earliest_review_pair(self) -> tuple[str, str] | None:
+        review_pairs = [
+            (word, topic)
+            for word, topic in self._word_topics
+            if not self._is_new(word, topic)
+        ]
+        if not review_pairs:
+            return None
+        earliest_due_date = min(
+            self._get_due_date(word, topic) for word, topic in review_pairs
+        )
+        earliest = [
+            (word, topic)
+            for word, topic in review_pairs
+            if self._get_due_date(word, topic) == earliest_due_date
+        ]
+        return random.choice(earliest)
+
     def next_exercise(self) -> Exercise | None:
-        due_word_topics = self._due_review_pairs() + self._available_new_pairs()
+        due_word_topics = self._due_review_pairs()
+        if self._new_introduced_today_count() < self.NEW_PER_DAY:
+            due_word_topics = due_word_topics + self._available_new_pairs()
         if due_word_topics:
-            if self._new_introduced_today_count() >= self.NEW_PER_DAY:
-                due_word_topics = self._due_review_pairs()
-                if not due_word_topics:
-                    return None
             word, topic = random.choice(due_word_topics)
         else:
-            earliest_due_date = min(
-                self._get_due_date(word, topic) for word, topic in self._word_topics
-            )
-            earliest_word_topics = [
-                (word, topic)
-                for word, topic in self._word_topics
-                if self._get_due_date(word, topic) == earliest_due_date
-            ]
-            word, topic = random.choice(earliest_word_topics)
+            pair = self._earliest_review_pair()
+            if pair is None:
+                return None
+            word, topic = pair
         candidates = self._exercises_by_word_topic[word][topic]
         last_exercise = self._journal.get_last_exercise()
         if last_exercise is not None and (
