@@ -89,7 +89,9 @@ def test_due_topics_count_excludes_not_yet_due_topics() -> None:
             "warten": {
                 "government": {
                     "interval_days": 30,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=20)
+                    ).isoformat(),
                 },
             },
         }
@@ -119,7 +121,9 @@ def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None
             "warten": {
                 "government": {
                     "interval_days": 5,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=20)
+                    ).isoformat(),
                 },
             },
         }
@@ -236,7 +240,9 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
             "hoffen": {
                 "government": {
                     "interval_days": 30,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=20)
+                    ).isoformat(),
                 },
             },
         }
@@ -254,7 +260,9 @@ def test_malformed_word_schedule_is_treated_as_unscheduled() -> None:
             "hoffen": {
                 "government": {
                     "interval_days": 30,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=20)
+                    ).isoformat(),
                 },
             },
         }
@@ -806,9 +814,7 @@ class TestNewWordDailyCap:
                 },
             }
         }
-        tutor = Tutor(
-            Course([new_exercise, review_exercise, *capped_exercises]), state
-        )
+        tutor = Tutor(Course([new_exercise, review_exercise, *capped_exercises]), state)
 
         assert _next(tutor).word == "hoffen"
 
@@ -834,7 +840,9 @@ class TestNewWordDailyCap:
             make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
         ]
         exercises = [*capped_exercises, make_exercise(word="warten")]
-        state = {"word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY, yesterday)}
+        state = {
+            "word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY, yesterday)
+        }
         tutor = Tutor(Course(exercises), state)
 
         assert _next(tutor).word == "warten"
@@ -877,7 +885,9 @@ class TestNewWordDailyCap:
 
         Tutor(Course([exercise]), state).check_answer(exercise, "auf")
 
-        assert state["word_schedule"]["warten"]["government"]["introduced_at"] == original
+        assert (
+            state["word_schedule"]["warten"]["government"]["introduced_at"] == original
+        )
 
     def test_legacy_entry_without_introduced_at_is_not_treated_as_new(self) -> None:
         # A schedule entry created before introduced_at existed has no way to know
@@ -951,7 +961,9 @@ class TestNewWordDailyCap:
 
         tutor.check_answer(case_exercise, "Freund")
 
-        assert "introduced_at" not in state["word_schedule"]["mit"]["preposition_meaning"]
+        assert (
+            "introduced_at" not in state["word_schedule"]["mit"]["preposition_meaning"]
+        )
         assert tutor.next_exercise() is None
 
     def test_expedited_dependent_gets_introduced_at_only_once_actually_answered(

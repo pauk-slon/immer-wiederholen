@@ -28,7 +28,6 @@ class Locale:
     bot_short_description: str
     reminder_text: str
     progress_text: str
-    description_prompt: str
     nothing_due_text: str
 
 
@@ -62,7 +61,6 @@ RU: Final = Locale(
         "📈 В процессе: {learning}\n"
         "✅ Выучено: {mastered}"
     ),
-    description_prompt="💭 {description} Введи пропущенное слово.",
     nothing_due_text="🎉 На сегодня всё! Загляни завтра — будут новые слова и повторения.",
 )
 
@@ -96,7 +94,6 @@ EN: Final = Locale(
         "📈 Learning: {learning}\n"
         "✅ Mastered: {mastered}"
     ),
-    description_prompt="💭 {description} Enter the missing word.",
     nothing_due_text="🎉 That's all for today! Come back tomorrow for new words and reviews.",
 )
 

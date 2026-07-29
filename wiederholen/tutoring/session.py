@@ -82,7 +82,8 @@ class Tutor:
         return [
             (word, topic)
             for word, topic in self._word_topics
-            if not self._is_new(word, topic) and self._get_due_date(word, topic) <= today
+            if not self._is_new(word, topic)
+            and self._get_due_date(word, topic) <= today
         ]
 
     def _available_new_pairs(self) -> list[tuple[str, str]]:
@@ -134,7 +135,9 @@ class Tutor:
         learning = 0
         mastered = 0
         for word, topics in self._exercises_by_word_topic.items():
-            entries = [self._journal.get_schedule_entry(word, topic) for topic in topics]
+            entries = [
+                self._journal.get_schedule_entry(word, topic) for topic in topics
+            ]
             if all(entry is None for entry in entries):
                 continue
             if all(
@@ -178,7 +181,9 @@ class Tutor:
         today = datetime.now(UTC).date()
         dependent_entry = self._journal.get_schedule_entry(word, topic)
         if dependent_entry is None:
-            topic_schedule = self._journal.get_topic_schedule(word, create_if_missing=True)
+            topic_schedule = self._journal.get_topic_schedule(
+                word, create_if_missing=True
+            )
             topic_schedule[topic] = ScheduleEntry(
                 interval_days=0,
                 due_date=today.isoformat(),

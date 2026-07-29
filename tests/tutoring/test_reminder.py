@@ -22,7 +22,9 @@ def test_should_remind_is_false_when_nothing_is_due() -> None:
             "warten": {
                 "government": {
                     "interval_days": 30,
-                    "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+                    "due_date": (
+                        datetime.now(UTC).date() + timedelta(days=20)
+                    ).isoformat(),
                 },
             },
         },

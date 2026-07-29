@@ -96,13 +96,13 @@ async def _start_recall(
         await message.answer(recall_text)
 
 
-def _format_question(exercise: Exercise, language: Language, locale: Locale) -> str:
+def _format_question(exercise: Exercise, language: Language, course: Course) -> str:
     text = f"❓ {exercise.question}"
     if exercise.description:
-        description_line = locale.description_prompt.format(
-            description=exercise.description[language]
-        )
-        text += f"\n{description_line}"
+        text += f"\n💭 {exercise.description[language]}"
+    instruction = course.topic_instructions.get(exercise.topic, {}).get(language)
+    if instruction:
+        text += f"\nℹ️ {instruction}"
     return text
 
 
@@ -145,7 +145,7 @@ async def command_wiederholen(
         shown_exercise=exercise.to_dict(),
         journal=journal,
     )
-    question_text = _format_question(exercise, language, locale)
+    question_text = _format_question(exercise, language, course)
     await message.answer(question_text, **_show_exercise_kwargs(exercise))
 
 
@@ -249,7 +249,7 @@ async def handle_next_exercise(
     await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
-        question_text = _format_question(exercise, language, locale)
+        question_text = _format_question(exercise, language, course)
         await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
     await callback.answer()
 
