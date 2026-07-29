@@ -14,7 +14,7 @@ async def test_defaults_to_ru(feed_message: FeedMessage) -> None:
 
     assert len(requests) == 1
     assert requests[0].text == RU.progress_text.format(
-        due=2, new=2, learning=0, mastered=0, total=2
+        remaining_today=2, new_today=0, learning=0, mastered=0
     )
 
 
@@ -28,7 +28,7 @@ async def test_responds_in_current_language(
 
     assert len(requests) == 1
     assert requests[0].text == EN.progress_text.format(
-        due=1, new=1, learning=0, mastered=0, total=1
+        remaining_today=1, new_today=0, learning=0, mastered=0
     )
 
 
@@ -61,5 +61,5 @@ async def test_reflects_journal_breakdown(
 
     assert len(requests) == 1
     assert requests[0].text == RU.progress_text.format(
-        due=1, new=1, learning=1, mastered=1, total=3
+        remaining_today=1, new_today=0, learning=1, mastered=1
     )

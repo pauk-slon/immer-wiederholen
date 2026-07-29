@@ -73,13 +73,13 @@ def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
 
 
 def test_due_topics_count_is_zero_for_empty_course() -> None:
-    assert Tutor(Course([]), {}).progress().due == 0
+    assert Tutor(Course([]), {}).progress().remaining_today == 0
 
 
 def test_due_topics_count_counts_new_topics_as_due() -> None:
     exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
 
-    assert Tutor(Course(exercises), {}).progress().due == 2
+    assert Tutor(Course(exercises), {}).progress().remaining_today == 2
 
 
 def test_due_topics_count_excludes_not_yet_due_topics() -> None:
@@ -95,7 +95,7 @@ def test_due_topics_count_excludes_not_yet_due_topics() -> None:
         }
     }
 
-    assert Tutor(Course([exercise]), journal).progress().due == 0
+    assert Tutor(Course([exercise]), journal).progress().remaining_today == 0
 
 
 def test_due_topics_count_counts_shared_schedule_key_once() -> None:
@@ -103,7 +103,7 @@ def test_due_topics_count_counts_shared_schedule_key_once() -> None:
     duplicate_1 = make_exercise(word="helfen")
     duplicate_2 = make_exercise(word="helfen")
 
-    assert Tutor(Course([duplicate_1, duplicate_2]), {}).progress().due == 1
+    assert Tutor(Course([duplicate_1, duplicate_2]), {}).progress().remaining_today == 1
 
 
 def test_new_topic_is_always_due() -> None:
@@ -577,7 +577,7 @@ class TestChainedTopics:
             {},
         )
 
-        assert tutor.progress().due == 2
+        assert tutor.progress().remaining_today == 2
 
 
 class TestAnswerChainedTopics:
@@ -744,7 +744,7 @@ class TestChainedTopicGating:
             {},
         )
 
-        assert tutor.progress().due == 1
+        assert tutor.progress().remaining_today == 1
 
     def test_unrelated_topic_is_never_locked(self) -> None:
         government_exercise = make_exercise(word="warten", topic="government")
@@ -878,6 +878,29 @@ class TestNewWordDailyCap:
         Tutor(Course([exercise]), state).check_answer(exercise, "auf")
 
         assert state["word_schedule"]["warten"]["government"]["introduced_at"] == original
+
+    def test_legacy_entry_without_introduced_at_is_not_treated_as_new(self) -> None:
+        # A schedule entry created before introduced_at existed has no way to know
+        # when it was first introduced, but it clearly isn't new — it already has
+        # real interval_days from being reviewed. It must not be misclassified as
+        # new (which would both wrongly consume the daily cap and let it get
+        # excluded from the due pool once that cap is reached).
+        exercise = make_exercise(word="warten", answer="auf")
+        today = datetime.now(UTC).date()
+        state = {
+            "word_schedule": {
+                "warten": {
+                    "government": {
+                        "interval_days": 30,
+                        "due_date": today.isoformat(),
+                    },
+                },
+            },
+        }
+
+        Tutor(Course([exercise]), state).check_answer(exercise, "auf")
+
+        assert "introduced_at" not in state["word_schedule"]["warten"]["government"]
 
     def test_reset_schedule_clears_introduced_at_along_with_the_schedule(self) -> None:
         journal = Journal(

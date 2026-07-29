@@ -57,12 +57,10 @@ RU: Final = Locale(
     progress_text=(
         "📊 Твой прогресс\n"
         "\n"
-        "⏰ Готово к повторению: {due}\n"
-        "🆕 Новые темы: {new}\n"
+        "🎯 Осталось сегодня: {remaining_today}\n"
+        "🆕 Новых сегодня: {new_today}\n"
         "📈 В процессе: {learning}\n"
-        "✅ Выучено: {mastered}\n"
-        "\n"
-        "Всего тем: {total}"
+        "✅ Выучено: {mastered}"
     ),
     description_prompt="💭 {description} Введи пропущенное слово.",
     nothing_due_text="🎉 На сегодня всё! Загляни завтра — будут новые слова и повторения.",
@@ -93,12 +91,10 @@ EN: Final = Locale(
     progress_text=(
         "📊 Your progress\n"
         "\n"
-        "⏰ Due now: {due}\n"
-        "🆕 New topics: {new}\n"
+        "🎯 Left today: {remaining_today}\n"
+        "🆕 New today: {new_today}\n"
         "📈 Learning: {learning}\n"
-        "✅ Mastered: {mastered}\n"
-        "\n"
-        "Total topics: {total}"
+        "✅ Mastered: {mastered}"
     ),
     description_prompt="💭 {description} Enter the missing word.",
     nothing_due_text="🎉 That's all for today! Come back tomorrow for new words and reviews.",
