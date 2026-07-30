@@ -153,7 +153,7 @@ def test_progress_remaining_today_counts_available_new_pairs() -> None:
 def test_progress_remaining_today_is_capped_by_the_daily_new_word_limit() -> None:
     today = datetime.now(UTC).date()
     capped_exercises = [
-        make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+        make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
     ]
     exercises = [*capped_exercises, make_exercise(word="warten")]
     word_schedule = {
@@ -164,19 +164,33 @@ def test_progress_remaining_today_is_capped_by_the_daily_new_word_limit() -> Non
                 "introduced_at": today.isoformat(),
             },
         }
-        for i in range(Tutor.NEW_PER_DAY)
+        for i in range(Tutor.NEW_WORDS_PER_DAY)
     }
     journal = {"word_schedule": word_schedule}
 
     assert Tutor(Course(exercises), journal).progress().remaining_today == 0
 
 
-def test_progress_new_today_counts_pairs_introduced_today() -> None:
+def test_progress_new_today_counts_words_introduced_today() -> None:
     exercise = make_exercise(word="warten", answer="auf")
     journal: dict = {}
     tutor = Tutor(Course([exercise]), journal)
 
     tutor.check_answer(exercise, "auf")
+
+    assert tutor.progress().new_today == 1
+
+
+def test_progress_new_today_counts_distinct_words_not_pairs() -> None:
+    # sprechen has two independently scheduled topics; answering both today
+    # is still just one new word for the day, not two.
+    government = make_exercise(word="sprechen", topic="government", answer="auf")
+    partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
+    journal: dict = {}
+    tutor = Tutor(Course([government, partizip]), journal)
+
+    tutor.check_answer(government, "auf")
+    tutor.check_answer(partizip, "gesprochen")
 
     assert tutor.progress().new_today == 1
 

@@ -32,7 +32,7 @@ class Progress:
 class Tutor:
     MAX_INTERVAL_DAYS: Final = 60
     REMIND_AFTER: Final = timedelta(hours=24)
-    NEW_PER_DAY: Final = 7
+    NEW_WORDS_PER_DAY: Final = 7
 
     def __init__(self, course: Course, journal: dict) -> None:
         self._course = course
@@ -68,14 +68,17 @@ class Tutor:
         entry = self._journal.get_schedule_entry(word, topic)
         return entry is None or entry["interval_days"] == 0
 
-    def _new_introduced_today_count(self) -> int:
+    def _words_introduced_today(self) -> set[str]:
         today = datetime.now(UTC).date().isoformat()
-        return sum(
-            1
+        return {
+            word
             for word, topic in self._word_topics
             if (entry := self._journal.get_schedule_entry(word, topic)) is not None
             and entry.get("introduced_at") == today
-        )
+        }
+
+    def _new_words_introduced_today_count(self) -> int:
+        return len(self._words_introduced_today())
 
     def _due_review_pairs(self) -> list[tuple[str, str]]:
         today = datetime.now(UTC).date()
@@ -94,13 +97,21 @@ class Tutor:
             if self._is_new(word, topic) and self._get_due_date(word, topic) <= today
         ]
 
+    def _new_pairs_eligible_today(self) -> list[tuple[str, str]]:
+        today_words = self._words_introduced_today()
+        under_cap = len(today_words) < self.NEW_WORDS_PER_DAY
+        return [
+            (word, topic)
+            for word, topic in self._available_new_pairs()
+            if word in today_words or under_cap
+        ]
+
     def next_exercise(self) -> Exercise | None:
         due_word_topics = self._due_review_pairs() + self._available_new_pairs()
         if due_word_topics:
-            if self._new_introduced_today_count() >= self.NEW_PER_DAY:
-                due_word_topics = self._due_review_pairs()
-                if not due_word_topics:
-                    return None
+            due_word_topics = self._due_review_pairs() + self._new_pairs_eligible_today()
+            if not due_word_topics:
+                return None
             word, topic = random.choice(due_word_topics)
         else:
             earliest_due_date = min(
@@ -128,8 +139,7 @@ class Tutor:
         return len(self._due_review_pairs()) + len(self._available_new_pairs())
 
     def _new_remaining_today(self) -> int:
-        quota_left = max(self.NEW_PER_DAY - self._new_introduced_today_count(), 0)
-        return min(len(self._available_new_pairs()), quota_left)
+        return len(self._new_pairs_eligible_today())
 
     def progress(self) -> Progress:
         learning = 0
@@ -149,7 +159,7 @@ class Tutor:
                 learning += 1
         return Progress(
             remaining_today=len(self._due_review_pairs()) + self._new_remaining_today(),
-            new_today=self._new_introduced_today_count(),
+            new_today=self._new_words_introduced_today_count(),
             learning=learning,
             mastered=mastered,
         )

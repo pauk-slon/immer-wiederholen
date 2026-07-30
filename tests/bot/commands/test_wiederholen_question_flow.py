@@ -201,7 +201,7 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date()
     capped_exercises = [
-        make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+        make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
     ]
     word_schedule = {
         f"introduced{i}": {
@@ -211,7 +211,7 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
                 "introduced_at": today.isoformat(),
             },
         }
-        for i in range(Tutor.NEW_PER_DAY)
+        for i in range(Tutor.NEW_WORDS_PER_DAY)
     }
     await state.update_data(journal={"word_schedule": word_schedule})
 
