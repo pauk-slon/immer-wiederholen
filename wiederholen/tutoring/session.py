@@ -89,12 +89,17 @@ class Tutor:
         return extra["count"]
 
     def grant_extra_new_words(self) -> None:
+        extra_today = self._extra_new_words_today()
+        cap = self.NEW_WORDS_PER_DAY + extra_today
+        if len(self._words_introduced_today()) < cap:
+            # The cap isn't actually binding right now — most likely a stale
+            # "study more" button clicked after the cap reset for a new day.
+            # Granting here would silently raise today's cap without the
+            # learner having asked for it today.
+            return
         today = datetime.now(UTC).date().isoformat()
         self._journal.set_extra_new_words(
-            ExtraNewWords(
-                date=today,
-                count=self._extra_new_words_today() + self.EXTRA_NEW_WORDS_GRANT,
-            )
+            ExtraNewWords(date=today, count=extra_today + self.EXTRA_NEW_WORDS_GRANT)
         )
 
     def _due_review_pairs(self) -> list[tuple[str, str]]:

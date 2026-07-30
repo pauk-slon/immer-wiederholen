@@ -1123,6 +1123,30 @@ class TestExtraNewWords:
 
         assert tutor.next_exercise() is None
 
+    def test_grant_is_a_noop_when_the_cap_is_not_currently_reached(self) -> None:
+        exercise = make_exercise(word="warten")
+        state: dict = {}
+        tutor = Tutor(Course([exercise]), state)
+
+        tutor.grant_extra_new_words()
+
+        assert "extra_new_words" not in state
+
+    def test_grant_ignores_a_stale_click_after_the_cap_has_reset_for_a_new_day(
+        self,
+    ) -> None:
+        # A "study more" button left over from a previous day's message is
+        # still clickable in Telegram — clicking it after the cap has already
+        # reset for today must not silently raise today's cap.
+        exercise = make_exercise(word="warten")
+        yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+        state = {"extra_new_words": {"date": yesterday, "count": 3}}
+        tutor = Tutor(Course([exercise]), state)
+
+        tutor.grant_extra_new_words()
+
+        assert state["extra_new_words"] == {"date": yesterday, "count": 3}
+
 
 class TestRequestRecallInterval:
     def test_halves_the_interval_after_a_correct_answer(self) -> None:
