@@ -72,12 +72,6 @@ def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
     assert 0.8 < picks["warten"] / picks["hoffen"] < 1.25
 
 
-def test_next_exercise_returns_none_for_an_empty_course() -> None:
-    # The only remaining case where next_exercise() can't fall back to an
-    # earliest-upcoming review either: there's nothing scheduled anywhere yet.
-    assert Tutor(Course([]), {}).next_exercise() is None
-
-
 def test_due_topics_count_is_zero_for_empty_course() -> None:
     assert Tutor(Course([]), {}).progress().remaining_today == 0
 
@@ -788,13 +782,7 @@ def _introduced_today_schedule(count: int, today: date) -> dict:
 
 
 class TestNewWordDailyCap:
-    def test_falls_back_to_earliest_review_when_cap_reached_and_nothing_due(
-        self,
-    ) -> None:
-        # Once the cap is reached and nothing is genuinely due, next_exercise()
-        # borrows from the nearest upcoming review rather than reporting nothing
-        # to do — but it still must not offer the still-uncapped "warten" pair,
-        # since that would defeat the cap.
+    def test_returns_none_when_cap_reached_and_nothing_else_due(self) -> None:
         today = datetime.now(UTC).date()
         capped_exercises = [
             make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
@@ -803,7 +791,7 @@ class TestNewWordDailyCap:
         state = {"word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY, today)}
         tutor = Tutor(Course(exercises), state)
 
-        assert _next(tutor).word.startswith("introduced")
+        assert tutor.next_exercise() is None
 
     def test_still_returns_a_due_review_when_cap_reached(self) -> None:
         today = datetime.now(UTC).date()
@@ -941,41 +929,12 @@ class TestNewWordDailyCap:
 
         assert journal.get_schedule_entry("warten", "government") is None
 
-    def test_expedited_dependent_does_not_count_as_new_until_actually_answered(
+    def test_expedited_dependent_still_counts_as_new_until_actually_answered(
         self,
     ) -> None:
         # _expedite_dependent() creates a schedule entry to unlock/advance a chained
-        # topic, but that's not the same as the learner having seen it — introduced_at
-        # (and the daily new-word count it feeds) must wait for a real answer.
-        case_exercise = make_exercise(
-            word="mit", topic="preposition_case", answer="Freund"
-        )
-        meaning_exercise = make_exercise(
-            word="mit", topic="preposition_meaning", answer="mit"
-        )
-        chained_topics = {"preposition_case": ["preposition_meaning"]}
-        state: dict = {}
-        tutor = Tutor(
-            Course(
-                [case_exercise, meaning_exercise],
-                word_chained_topics=chained_topics,
-            ),
-            state,
-        )
-
-        tutor.check_answer(case_exercise, "Freund")
-
-        assert (
-            "introduced_at" not in state["word_schedule"]["mit"]["preposition_meaning"]
-        )
-
-    def test_fallback_prefers_a_just_expedited_chained_topic_over_other_reviews(
-        self,
-    ) -> None:
-        # Once nothing else is due, showing the dependent just unlocked by the
-        # answer that was just given is more useful than repeating an unrelated
-        # old review — even though it's technically still "new" (and would
-        # still be excluded from the everyday, cap-respecting pool).
+        # topic, but that's not the same as the learner having seen it — it must
+        # still be capped like any other never-shown pair.
         case_exercise = make_exercise(
             word="mit", topic="preposition_case", answer="Freund"
         )
@@ -1000,7 +959,10 @@ class TestNewWordDailyCap:
 
         tutor.check_answer(case_exercise, "Freund")
 
-        assert _next(tutor).topic == "preposition_meaning"
+        assert (
+            "introduced_at" not in state["word_schedule"]["mit"]["preposition_meaning"]
+        )
+        assert tutor.next_exercise() is None
 
     def test_expedited_dependent_gets_introduced_at_only_once_actually_answered(
         self,

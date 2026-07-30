@@ -212,7 +212,7 @@ class TestNextExerciseButton:
         )
         assert ueber.question in send_message.text
 
-    async def test_clicking_offers_earliest_upcoming_review_once_cap_is_reached(
+    async def test_clicking_shows_nothing_due_message_once_cap_is_reached(
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
@@ -237,22 +237,9 @@ class TestNextExerciseButton:
             journal={"word_schedule": word_schedule},
         )
 
-        await feed_callback_query(
+        requests = await feed_callback_query(
             NEXT_EXERCISE, course=Course([exercise, *capped_exercises])
         )
-
-        assert await state.get_state() == UserState.answering
-        data = await state.get_data()
-        assert data["shown_exercise"]["word"].startswith("introduced")
-
-    async def test_clicking_shows_nothing_due_message_for_an_empty_course(
-        self,
-        state: FSMContext,
-        feed_callback_query: FeedCallbackQuery,
-    ) -> None:
-        await state.update_data(language="ru")
-
-        requests = await feed_callback_query(NEXT_EXERCISE, course=Course([]))
 
         send_message = next(r for r in requests if hasattr(r, "text"))
         assert send_message.text == RU.nothing_due_text
