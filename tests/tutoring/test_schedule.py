@@ -941,41 +941,12 @@ class TestNewWordDailyCap:
 
         assert journal.get_schedule_entry("warten", "government") is None
 
-    def test_expedited_dependent_does_not_count_as_new_until_actually_answered(
+    def test_expedited_dependent_still_counts_as_new_until_actually_answered(
         self,
     ) -> None:
         # _expedite_dependent() creates a schedule entry to unlock/advance a chained
-        # topic, but that's not the same as the learner having seen it — introduced_at
-        # (and the daily new-word count it feeds) must wait for a real answer.
-        case_exercise = make_exercise(
-            word="mit", topic="preposition_case", answer="Freund"
-        )
-        meaning_exercise = make_exercise(
-            word="mit", topic="preposition_meaning", answer="mit"
-        )
-        chained_topics = {"preposition_case": ["preposition_meaning"]}
-        state: dict = {}
-        tutor = Tutor(
-            Course(
-                [case_exercise, meaning_exercise],
-                word_chained_topics=chained_topics,
-            ),
-            state,
-        )
-
-        tutor.check_answer(case_exercise, "Freund")
-
-        assert (
-            "introduced_at" not in state["word_schedule"]["mit"]["preposition_meaning"]
-        )
-
-    def test_fallback_prefers_a_just_expedited_chained_topic_over_other_reviews(
-        self,
-    ) -> None:
-        # Once nothing else is due, showing the dependent just unlocked by the
-        # answer that was just given is more useful than repeating an unrelated
-        # old review — even though it's technically still "new" (and would
-        # still be excluded from the everyday, cap-respecting pool).
+        # topic, but that's not the same as the learner having seen it — it must
+        # still be capped like any other never-shown pair.
         case_exercise = make_exercise(
             word="mit", topic="preposition_case", answer="Freund"
         )
@@ -1000,7 +971,14 @@ class TestNewWordDailyCap:
 
         tutor.check_answer(case_exercise, "Freund")
 
-        assert _next(tutor).topic == "preposition_meaning"
+        assert (
+            "introduced_at" not in state["word_schedule"]["mit"]["preposition_meaning"]
+        )
+        # The cap is now exhausted and nothing is genuinely due, so
+        # next_exercise() falls back to the earliest upcoming review — but the
+        # expedited-and-still-unanswered dependent must not sneak through that
+        # fallback either, since it was never actually introduced.
+        assert _next(tutor).topic != "preposition_meaning"
 
     def test_expedited_dependent_gets_introduced_at_only_once_actually_answered(
         self,
