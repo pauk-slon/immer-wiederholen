@@ -5,7 +5,12 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.tutoring import make_exercise
-from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
+from wiederholen.bot.commands.wiederholen import (
+    NEXT_EXERCISE,
+    RECALL,
+    STUDY_MORE,
+    UserState,
+)
 from wiederholen.bot.l10n import RU
 from wiederholen.tutoring import Course, Exercise, Tutor
 
@@ -243,4 +248,81 @@ class TestNextExerciseButton:
 
         send_message = next(r for r in requests if hasattr(r, "text"))
         assert send_message.text == RU.nothing_due_text
+        assert isinstance(send_message.reply_markup, InlineKeyboardMarkup)
+        buttons = [
+            btn.callback_data
+            for row in send_message.reply_markup.inline_keyboard
+            for btn in row
+        ]
+        assert STUDY_MORE in buttons
         assert await state.get_state() is None
+
+
+class TestStudyMoreButton:
+    async def test_clicking_grants_extra_words_and_shows_an_exercise(
+        self,
+        state: FSMContext,
+        feed_callback_query: FeedCallbackQuery,
+    ) -> None:
+        exercise = make_exercise(word="warten")
+        today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
+        ]
+        word_schedule = {
+            f"introduced{i}": {
+                "government": {
+                    "interval_days": 1,
+                    "due_date": (today + timedelta(days=30)).isoformat(),
+                    "introduced_at": today.isoformat(),
+                },
+            }
+            for i in range(Tutor.NEW_WORDS_PER_DAY)
+        }
+        await state.update_data(
+            language="ru",
+            journal={"word_schedule": word_schedule},
+        )
+
+        requests = await feed_callback_query(
+            STUDY_MORE, course=Course([exercise, *capped_exercises])
+        )
+
+        send_message = next(
+            r for r in requests if hasattr(r, "text") and exercise.question in r.text
+        )
+        assert exercise.question in send_message.text
+        assert await state.get_state() == UserState.answering
+
+    async def test_clicking_persists_the_grant_in_the_journal(
+        self,
+        state: FSMContext,
+        feed_callback_query: FeedCallbackQuery,
+    ) -> None:
+        exercise = make_exercise(word="warten")
+        today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
+        ]
+        word_schedule = {
+            f"introduced{i}": {
+                "government": {
+                    "interval_days": 1,
+                    "due_date": (today + timedelta(days=30)).isoformat(),
+                    "introduced_at": today.isoformat(),
+                },
+            }
+            for i in range(Tutor.NEW_WORDS_PER_DAY)
+        }
+        await state.update_data(
+            language="ru",
+            journal={"word_schedule": word_schedule},
+        )
+
+        await feed_callback_query(STUDY_MORE, course=Course([exercise, *capped_exercises]))
+
+        data = await state.get_data()
+        assert data["journal"]["extra_new_words"] == {
+            "date": today.isoformat(),
+            "count": Tutor.EXTRA_NEW_WORDS_GRANT,
+        }

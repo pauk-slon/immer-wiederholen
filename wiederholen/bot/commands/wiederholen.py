@@ -25,6 +25,7 @@ router = Router()
 
 NEXT_EXERCISE: Final = "__next__"
 RECALL: Final = "__recall__"
+STUDY_MORE: Final = "__study_more__"
 
 
 class UserState(StatesGroup):
@@ -49,6 +50,19 @@ def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text=locale.cmd_wiederholen,
                     callback_data=NEXT_EXERCISE,
+                )
+            ]
+        ]
+    )
+
+
+def _make_study_more_button(locale: Locale) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=locale.btn_study_more,
+                    callback_data=STUDY_MORE,
                 )
             ]
         ]
@@ -138,7 +152,9 @@ async def command_wiederholen(
     exercise = tutor.next_exercise()
     if exercise is None:
         await state.update_data(journal=journal)
-        await message.answer(locale.nothing_due_text)
+        await message.answer(
+            locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
+        )
         return
     await state.set_state(UserState.answering)
     await state.update_data(
@@ -226,6 +242,34 @@ async def handle_recall(message: Message, state: FSMContext, course: Course) -> 
         )
 
 
+async def _respond_with_next_exercise(
+    callback: CallbackQuery,
+    state: FSMContext,
+    course: Course,
+    tutor: Tutor,
+    journal: dict,
+    language: Language,
+    locale: Locale,
+) -> None:
+    exercise = tutor.next_exercise()
+    if exercise is None:
+        await state.update_data(journal=journal)
+        if isinstance(callback.message, Message):
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.answer(
+                locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
+            )
+        await callback.answer()
+        return
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
+    if isinstance(callback.message, Message):
+        await callback.message.edit_reply_markup(reply_markup=None)
+        question_text = _format_question(exercise, language, course)
+        await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
+    await callback.answer()
+
+
 @router.callback_query(F.data == NEXT_EXERCISE)
 async def handle_next_exercise(
     callback: CallbackQuery,
@@ -237,21 +281,26 @@ async def handle_next_exercise(
     journal = state_data.get("journal", {})
     locale = LOCALES[language]
     tutor = Tutor(course, journal)
-    exercise = tutor.next_exercise()
-    if exercise is None:
-        await state.update_data(journal=journal)
-        if isinstance(callback.message, Message):
-            await callback.message.edit_reply_markup(reply_markup=None)
-            await callback.message.answer(locale.nothing_due_text)
-        await callback.answer()
-        return
-    await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
-    if isinstance(callback.message, Message):
-        await callback.message.edit_reply_markup(reply_markup=None)
-        question_text = _format_question(exercise, language, course)
-        await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
-    await callback.answer()
+    await _respond_with_next_exercise(
+        callback, state, course, tutor, journal, language, locale
+    )
+
+
+@router.callback_query(F.data == STUDY_MORE)
+async def handle_study_more(
+    callback: CallbackQuery,
+    state: FSMContext,
+    course: Course,
+) -> None:
+    state_data = await state.get_data()
+    language = get_language(state_data)
+    journal = state_data.get("journal", {})
+    locale = LOCALES[language]
+    tutor = Tutor(course, journal)
+    tutor.grant_extra_new_words()
+    await _respond_with_next_exercise(
+        callback, state, course, tutor, journal, language, locale
+    )
 
 
 @router.callback_query(F.data == RECALL)

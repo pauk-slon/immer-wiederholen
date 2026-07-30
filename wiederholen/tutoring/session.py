@@ -6,7 +6,7 @@ from functools import cached_property
 from typing import Final
 
 from wiederholen.tutoring.curriculum import Course, Exercise, Recall
-from wiederholen.tutoring.journal import Journal, ScheduleEntry
+from wiederholen.tutoring.journal import ExtraNewWords, Journal, ScheduleEntry
 
 
 class RecallMode(Enum):
@@ -33,6 +33,7 @@ class Tutor:
     MAX_INTERVAL_DAYS: Final = 60
     REMIND_AFTER: Final = timedelta(hours=24)
     NEW_WORDS_PER_DAY: Final = 7
+    EXTRA_NEW_WORDS_GRANT: Final = 3
 
     def __init__(self, course: Course, journal: dict) -> None:
         self._course = course
@@ -80,6 +81,22 @@ class Tutor:
     def _new_words_introduced_today_count(self) -> int:
         return len(self._words_introduced_today())
 
+    def _extra_new_words_today(self) -> int:
+        extra = self._journal.get_extra_new_words()
+        today = datetime.now(UTC).date().isoformat()
+        if extra is None or extra["date"] != today:
+            return 0
+        return extra["count"]
+
+    def grant_extra_new_words(self) -> None:
+        today = datetime.now(UTC).date().isoformat()
+        self._journal.set_extra_new_words(
+            ExtraNewWords(
+                date=today,
+                count=self._extra_new_words_today() + self.EXTRA_NEW_WORDS_GRANT,
+            )
+        )
+
     def _due_review_pairs(self) -> list[tuple[str, str]]:
         today = datetime.now(UTC).date()
         return [
@@ -99,7 +116,8 @@ class Tutor:
 
     def _new_pairs_eligible_today(self) -> list[tuple[str, str]]:
         today_words = self._words_introduced_today()
-        under_cap = len(today_words) < self.NEW_WORDS_PER_DAY
+        cap = self.NEW_WORDS_PER_DAY + self._extra_new_words_today()
+        under_cap = len(today_words) < cap
         return [
             (word, topic)
             for word, topic in self._available_new_pairs()

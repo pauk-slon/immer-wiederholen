@@ -1073,6 +1073,57 @@ class TestNewWordDailyCap:
         assert entry["introduced_at"] == today.isoformat()
 
 
+class TestExtraNewWords:
+    def test_grant_lifts_the_cap_for_a_genuinely_new_word(self) -> None:
+        today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
+        ]
+        exercises = [*capped_exercises, make_exercise(word="warten")]
+        state = {"word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today)}
+        tutor = Tutor(Course(exercises), state)
+        assert tutor.next_exercise() is None
+
+        tutor.grant_extra_new_words()
+
+        assert _next(tutor).word == "warten"
+
+    def test_grant_stacks_across_multiple_calls(self) -> None:
+        today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}")
+            for i in range(Tutor.NEW_WORDS_PER_DAY + Tutor.EXTRA_NEW_WORDS_GRANT)
+        ]
+        exercises = [*capped_exercises, make_exercise(word="warten")]
+        state = {
+            "word_schedule": _introduced_today_schedule(
+                Tutor.NEW_WORDS_PER_DAY + Tutor.EXTRA_NEW_WORDS_GRANT, today
+            ),
+        }
+        tutor = Tutor(Course(exercises), state)
+        tutor.grant_extra_new_words()
+        assert tutor.next_exercise() is None
+
+        tutor.grant_extra_new_words()
+
+        assert _next(tutor).word == "warten"
+
+    def test_grant_from_a_previous_day_does_not_carry_over(self) -> None:
+        today = datetime.now(UTC).date()
+        yesterday = today - timedelta(days=1)
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
+        ]
+        exercises = [*capped_exercises, make_exercise(word="warten")]
+        state = {
+            "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today),
+            "extra_new_words": {"date": yesterday.isoformat(), "count": 3},
+        }
+        tutor = Tutor(Course(exercises), state)
+
+        assert tutor.next_exercise() is None
+
+
 class TestRequestRecallInterval:
     def test_halves_the_interval_after_a_correct_answer(self) -> None:
         exercise = make_exercise(recalls=True)

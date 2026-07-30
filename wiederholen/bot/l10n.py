@@ -16,6 +16,7 @@ class Locale:
     cmd_wiederholen: str
     btn_recall: str
     btn_recall_retry: str
+    btn_study_more: str
     cmd_language: str
     cmd_progress: str
     cmd_reset: str
@@ -42,6 +43,7 @@ RU: Final = Locale(
     cmd_wiederholen="Следующее задание",
     btn_recall="Закрепить",
     btn_recall_retry="Попробовать ещё раз",
+    btn_study_more="Позаниматься ещё",
     cmd_language="Сменить язык",
     cmd_progress="Прогресс",
     cmd_reset="Сбросить прогресс",
@@ -75,6 +77,7 @@ EN: Final = Locale(
     cmd_wiederholen="Next exercise",
     btn_recall="Drill",
     btn_recall_retry="Try again",
+    btn_study_more="Study more",
     cmd_language="Change language",
     cmd_progress="Progress",
     cmd_reset="Reset progress",
