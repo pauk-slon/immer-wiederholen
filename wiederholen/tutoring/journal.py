@@ -17,6 +17,11 @@ class LastExercise(TypedDict):
     recall_question: NotRequired[str]
 
 
+class ExtraNewWords(TypedDict):
+    date: str
+    count: int
+
+
 class Journal:
     _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(ScheduleEntry)
 
@@ -41,6 +46,12 @@ class Journal:
     @last_reminded_at.setter
     def last_reminded_at(self, value: datetime) -> None:
         self._data["last_reminded_at"] = value.isoformat()
+
+    def get_extra_new_words(self) -> ExtraNewWords | None:
+        return self._data.get("extra_new_words")
+
+    def set_extra_new_words(self, extra: ExtraNewWords) -> None:
+        self._data["extra_new_words"] = extra
 
     def get_word_schedule(self, *, create_if_missing: bool = False) -> dict:
         if create_if_missing:

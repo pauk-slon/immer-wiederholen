@@ -1,11 +1,15 @@
 from datetime import UTC, datetime, timedelta
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from aiogram.types import (
+    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+)
 
 from tests.plugins.aiogram import FeedMessage
 from tests.plugins.tutoring import make_exercise
-from wiederholen.bot.commands.wiederholen import UserState
+from wiederholen.bot.commands.wiederholen import STUDY_MORE, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.i18n import Language
 from wiederholen.tutoring import Course, Exercise, Tutor
@@ -222,3 +226,10 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
     assert len(requests) == 1
     assert requests[0].text == RU.nothing_due_text
     assert await state.get_state() is None
+    assert isinstance(requests[0].reply_markup, InlineKeyboardMarkup)
+    buttons = [
+        btn.callback_data
+        for row in requests[0].reply_markup.inline_keyboard
+        for btn in row
+    ]
+    assert STUDY_MORE in buttons
