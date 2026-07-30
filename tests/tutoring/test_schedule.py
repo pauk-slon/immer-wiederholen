@@ -785,10 +785,10 @@ class TestNewWordDailyCap:
     def test_returns_none_when_cap_reached_and_nothing_else_due(self) -> None:
         today = datetime.now(UTC).date()
         capped_exercises = [
-            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
         ]
         exercises = [*capped_exercises, make_exercise(word="warten")]
-        state = {"word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY, today)}
+        state = {"word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today)}
         tutor = Tutor(Course(exercises), state)
 
         assert tutor.next_exercise() is None
@@ -798,11 +798,11 @@ class TestNewWordDailyCap:
         new_exercise = make_exercise(word="warten")
         review_exercise = make_exercise(word="hoffen")
         capped_exercises = [
-            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
         ]
         state = {
             "word_schedule": {
-                **_introduced_today_schedule(Tutor.NEW_PER_DAY, today),
+                **_introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today),
                 "hoffen": {
                     "government": {
                         "interval_days": 1,
@@ -819,15 +819,38 @@ class TestNewWordDailyCap:
     def test_still_offers_new_topics_below_the_cap(self) -> None:
         today = datetime.now(UTC).date()
         capped_exercises = [
-            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY - 1)
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY - 1)
         ]
         exercises = [*capped_exercises, make_exercise(word="warten")]
         state = {
-            "word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY - 1, today),
+            "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY - 1, today),
         }
         tutor = Tutor(Course(exercises), state)
 
         assert _next(tutor).word == "warten"
+
+    def test_a_multi_topic_word_only_uses_one_slot_of_the_cap(self) -> None:
+        # The cap counts distinct words, not (word, topic) pairs — sprechen's
+        # second topic shouldn't need a slot of its own.
+        government = make_exercise(word="sprechen", topic="government", answer="auf")
+        partizip = make_exercise(
+            word="sprechen", topic="partizip_ii", answer="gesprochen"
+        )
+        today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}")
+            for i in range(Tutor.NEW_WORDS_PER_DAY - 1)
+        ]
+        state = {
+            "word_schedule": _introduced_today_schedule(
+                Tutor.NEW_WORDS_PER_DAY - 1, today
+            ),
+        }
+        tutor = Tutor(Course([government, partizip, *capped_exercises]), state)
+
+        tutor.check_answer(government, "auf")
+
+        assert _next(tutor).word == "sprechen"
 
     def test_a_stale_introduced_at_from_a_previous_day_does_not_count_toward_the_cap(
         self,
@@ -835,11 +858,11 @@ class TestNewWordDailyCap:
         today = datetime.now(UTC).date()
         yesterday = today - timedelta(days=1)
         capped_exercises = [
-            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
         ]
         exercises = [*capped_exercises, make_exercise(word="warten")]
         state = {
-            "word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY, yesterday)
+            "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, yesterday)
         }
         tutor = Tutor(Course(exercises), state)
 
@@ -929,12 +952,39 @@ class TestNewWordDailyCap:
 
         assert journal.get_schedule_entry("warten", "government") is None
 
-    def test_expedited_dependent_still_counts_as_new_until_actually_answered(
+    def test_expedited_dependent_is_not_stamped_as_introduced_until_answered(
         self,
     ) -> None:
         # _expedite_dependent() creates a schedule entry to unlock/advance a chained
-        # topic, but that's not the same as the learner having seen it — it must
-        # still be capped like any other never-shown pair.
+        # topic, but that's not the same as the learner having seen it.
+        case_exercise = make_exercise(
+            word="mit", topic="preposition_case", answer="Freund"
+        )
+        meaning_exercise = make_exercise(
+            word="mit", topic="preposition_meaning", answer="mit"
+        )
+        chained_topics = {"preposition_case": ["preposition_meaning"]}
+        state: dict = {}
+        tutor = Tutor(
+            Course(
+                [case_exercise, meaning_exercise], word_chained_topics=chained_topics
+            ),
+            state,
+        )
+
+        tutor.check_answer(case_exercise, "Freund")
+
+        assert (
+            "introduced_at" not in state["word_schedule"]["mit"]["preposition_meaning"]
+        )
+
+    def test_expedited_dependent_for_the_same_word_is_offered_despite_the_cap(
+        self,
+    ) -> None:
+        # The cap is per word, not per (word, topic) pair: "mit" already used its
+        # one slot for the day via case_exercise, so its chained dependent isn't
+        # a *new* word and must still be offered even once the cap is otherwise
+        # exhausted by unrelated words.
         case_exercise = make_exercise(
             word="mit", topic="preposition_case", answer="Freund"
         )
@@ -944,10 +994,13 @@ class TestNewWordDailyCap:
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         today = datetime.now(UTC).date()
         capped_exercises = [
-            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY - 1)
+            make_exercise(word=f"introduced{i}")
+            for i in range(Tutor.NEW_WORDS_PER_DAY - 1)
         ]
         state = {
-            "word_schedule": _introduced_today_schedule(Tutor.NEW_PER_DAY - 1, today),
+            "word_schedule": _introduced_today_schedule(
+                Tutor.NEW_WORDS_PER_DAY - 1, today
+            ),
         }
         tutor = Tutor(
             Course(
@@ -959,9 +1012,39 @@ class TestNewWordDailyCap:
 
         tutor.check_answer(case_exercise, "Freund")
 
-        assert (
-            "introduced_at" not in state["word_schedule"]["mit"]["preposition_meaning"]
+        assert _next(tutor).word == "mit"
+
+    def test_expedited_dependent_for_a_different_word_still_respects_the_cap(
+        self,
+    ) -> None:
+        # chains_by_answer keys the dependent by the source's *answer*, which can
+        # be an entirely different word than the source — that dependent is
+        # genuinely new and must not bypass an already-exhausted daily cap just
+        # because some other word happened to trigger it.
+        source_exercise = make_exercise(
+            word="etwas", topic="government", answer="mit"
         )
+        meaning_exercise = make_exercise(
+            word="mit", topic="preposition_meaning", answer="mit"
+        )
+        chained_topics = {"government": ["preposition_meaning"]}
+        today = datetime.now(UTC).date()
+        capped_exercises = [
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
+        ]
+        state = {
+            "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today),
+        }
+        tutor = Tutor(
+            Course(
+                [source_exercise, meaning_exercise, *capped_exercises],
+                answer_chained_topics=chained_topics,
+            ),
+            state,
+        )
+
+        tutor.check_answer(source_exercise, "mit")
+
         assert tutor.next_exercise() is None
 
     def test_expedited_dependent_gets_introduced_at_only_once_actually_answered(

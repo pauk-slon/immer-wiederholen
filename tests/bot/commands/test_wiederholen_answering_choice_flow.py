@@ -220,7 +220,7 @@ class TestNextExerciseButton:
         exercise = make_exercise(word="warten")
         today = datetime.now(UTC).date()
         capped_exercises = [
-            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_PER_DAY)
+            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
         ]
         word_schedule = {
             f"introduced{i}": {
@@ -230,7 +230,7 @@ class TestNextExerciseButton:
                     "introduced_at": today.isoformat(),
                 },
             }
-            for i in range(Tutor.NEW_PER_DAY)
+            for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(
             language="ru",
