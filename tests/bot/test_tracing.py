@@ -7,6 +7,7 @@ from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+from wiederholen.bot import tracing
 from wiederholen.bot.tracing import TracingMiddleware
 
 
@@ -145,3 +146,21 @@ async def test_handler_exception_propagates_and_is_recorded(
 
     span = exporter.get_finished_spans()[0]
     assert span.status.status_code.name == "ERROR"
+
+
+def test_resource_attributes_fall_back_when_env_var_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+
+    assert tracing._resource_attributes() == {
+        "service.name": tracing.FALLBACK_SERVICE_NAME
+    }
+
+
+def test_resource_attributes_defer_to_env_var_when_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OTEL_SERVICE_NAME", "bot")
+
+    assert tracing._resource_attributes() == {}
