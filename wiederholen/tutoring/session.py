@@ -132,7 +132,9 @@ class Tutor:
     def next_exercise(self) -> Exercise | None:
         due_word_topics = self._due_review_pairs() + self._available_new_pairs()
         if due_word_topics:
-            due_word_topics = self._due_review_pairs() + self._new_pairs_eligible_today()
+            due_word_topics = (
+                self._due_review_pairs() + self._new_pairs_eligible_today()
+            )
             if not due_word_topics:
                 return None
             word, topic = random.choice(due_word_topics)

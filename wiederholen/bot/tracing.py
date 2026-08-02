@@ -16,9 +16,7 @@ default_tracer: Final = trace.get_tracer(__name__)
 
 
 def configure_tracing() -> None:
-    provider = TracerProvider(
-        resource=Resource.create({"service.name": SERVICE_NAME})
-    )
+    provider = TracerProvider(resource=Resource.create({"service.name": SERVICE_NAME}))
     provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
     trace.set_tracer_provider(provider)
 

@@ -285,7 +285,8 @@ class TestStudyMoreButton:
         )
 
         requests = await feed_callback_query(
-            STUDY_MORE, course=Course([exercise, *capped_exercises])
+            STUDY_MORE,
+            course=Course([exercise, *capped_exercises]),
         )
 
         send_message = next(
@@ -319,7 +320,10 @@ class TestStudyMoreButton:
             journal={"word_schedule": word_schedule},
         )
 
-        await feed_callback_query(STUDY_MORE, course=Course([exercise, *capped_exercises]))
+        await feed_callback_query(
+            STUDY_MORE,
+            course=Course([exercise, *capped_exercises]),
+        )
 
         data = await state.get_data()
         assert data["journal"]["extra_new_words"] == {

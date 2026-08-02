@@ -788,7 +788,9 @@ class TestNewWordDailyCap:
             make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
         ]
         exercises = [*capped_exercises, make_exercise(word="warten")]
-        state = {"word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today)}
+        state = {
+            "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today),
+        }
         tutor = Tutor(Course(exercises), state)
 
         assert tutor.next_exercise() is None
@@ -819,11 +821,14 @@ class TestNewWordDailyCap:
     def test_still_offers_new_topics_below_the_cap(self) -> None:
         today = datetime.now(UTC).date()
         capped_exercises = [
-            make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY - 1)
+            make_exercise(word=f"introduced{i}")
+            for i in range(Tutor.NEW_WORDS_PER_DAY - 1)
         ]
         exercises = [*capped_exercises, make_exercise(word="warten")]
         state = {
-            "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY - 1, today),
+            "word_schedule": _introduced_today_schedule(
+                Tutor.NEW_WORDS_PER_DAY - 1, today
+            ),
         }
         tutor = Tutor(Course(exercises), state)
 
@@ -862,7 +867,9 @@ class TestNewWordDailyCap:
         ]
         exercises = [*capped_exercises, make_exercise(word="warten")]
         state = {
-            "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, yesterday)
+            "word_schedule": _introduced_today_schedule(
+                Tutor.NEW_WORDS_PER_DAY, yesterday
+            )
         }
         tutor = Tutor(Course(exercises), state)
 
@@ -1021,9 +1028,7 @@ class TestNewWordDailyCap:
         # be an entirely different word than the source — that dependent is
         # genuinely new and must not bypass an already-exhausted daily cap just
         # because some other word happened to trigger it.
-        source_exercise = make_exercise(
-            word="etwas", topic="government", answer="mit"
-        )
+        source_exercise = make_exercise(word="etwas", topic="government", answer="mit")
         meaning_exercise = make_exercise(
             word="mit", topic="preposition_meaning", answer="mit"
         )
@@ -1080,7 +1085,9 @@ class TestExtraNewWords:
             make_exercise(word=f"introduced{i}") for i in range(Tutor.NEW_WORDS_PER_DAY)
         ]
         exercises = [*capped_exercises, make_exercise(word="warten")]
-        state = {"word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today)}
+        state = {
+            "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today),
+        }
         tutor = Tutor(Course(exercises), state)
         assert tutor.next_exercise() is None
 
