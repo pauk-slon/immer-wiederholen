@@ -1,7 +1,38 @@
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from wiederholen.i18n import LANGUAGES, Language
+
+_RU_UNIT_FORMS: Final[dict[str, tuple[str, str, str]]] = {
+    "exercises": ("упражнение", "упражнения", "упражнений"),
+    "words": ("слово", "слова", "слов"),
+}
+_EN_UNIT_FORMS: Final[dict[str, tuple[str, str]]] = {
+    "exercises": ("exercise", "exercises"),
+    "words": ("word", "words"),
+}
+
+
+def _ru_plural(n: int, one: str, few: str, many: str) -> str:
+    n_100 = n % 100
+    if 11 <= n_100 <= 14:
+        return many
+    n_10 = n % 10
+    if n_10 == 1:
+        return one
+    if 2 <= n_10 <= 4:
+        return few
+    return many
+
+
+def format_count(n: int, unit: Literal["exercises", "words"], language: Language) -> str:
+    if language == "ru":
+        one, few, many = _RU_UNIT_FORMS[unit]
+        word = _ru_plural(n, one, few, many)
+    else:
+        singular, plural = _EN_UNIT_FORMS[unit]
+        word = singular if n == 1 else plural
+    return f"{n} {word}"
 
 
 @dataclass(frozen=True)
@@ -58,8 +89,11 @@ RU: Final = Locale(
     progress_text=(
         "📊 Твой прогресс\n"
         "\n"
-        "🎯 Осталось сегодня: {remaining_today}\n"
-        "🆕 Новых сегодня: {new_today}\n"
+        "Сегодня\n"
+        "🆕 Новых пройдено: {new_today}\n"
+        "🎯 Осталось: {remaining_today}\n"
+        "\n"
+        "Всего\n"
         "📈 В процессе: {learning}\n"
         "✅ Выучено: {mastered}"
     ),
@@ -92,8 +126,11 @@ EN: Final = Locale(
     progress_text=(
         "📊 Your progress\n"
         "\n"
-        "🎯 Left today: {remaining_today}\n"
-        "🆕 New today: {new_today}\n"
+        "Today\n"
+        "🆕 New done: {new_today}\n"
+        "🎯 Left: {remaining_today}\n"
+        "\n"
+        "Overall\n"
         "📈 Learning: {learning}\n"
         "✅ Mastered: {mastered}"
     ),

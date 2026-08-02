@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 
 from tests.plugins.aiogram import FeedMessage
 from tests.plugins.tutoring import make_exercise
-from wiederholen.bot.l10n import EN, RU
+from wiederholen.bot.l10n import EN, RU, format_count
 from wiederholen.tutoring import Course
 
 
@@ -14,7 +14,10 @@ async def test_defaults_to_ru(feed_message: FeedMessage) -> None:
 
     assert len(requests) == 1
     assert requests[0].text == RU.progress_text.format(
-        remaining_today=2, new_today=0, learning=0, mastered=0
+        remaining_today=format_count(2, "exercises", "ru"),
+        new_today=format_count(0, "words", "ru"),
+        learning=format_count(0, "words", "ru"),
+        mastered=format_count(0, "words", "ru"),
     )
 
 
@@ -28,7 +31,10 @@ async def test_responds_in_current_language(
 
     assert len(requests) == 1
     assert requests[0].text == EN.progress_text.format(
-        remaining_today=1, new_today=0, learning=0, mastered=0
+        remaining_today=format_count(1, "exercises", "en"),
+        new_today=format_count(0, "words", "en"),
+        learning=format_count(0, "words", "en"),
+        mastered=format_count(0, "words", "en"),
     )
 
 
@@ -65,5 +71,8 @@ async def test_reflects_journal_breakdown(
 
     assert len(requests) == 1
     assert requests[0].text == RU.progress_text.format(
-        remaining_today=1, new_today=0, learning=1, mastered=1
+        remaining_today=format_count(1, "exercises", "ru"),
+        new_today=format_count(0, "words", "ru"),
+        learning=format_count(1, "words", "ru"),
+        mastered=format_count(1, "words", "ru"),
     )
