@@ -21,7 +21,15 @@ def exporter() -> InMemorySpanExporter:
 
 
 @pytest.fixture
-def middleware(exporter: InMemorySpanExporter) -> TracingMiddleware:
+def middleware(
+    exporter: InMemorySpanExporter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TracingMiddleware:
+    # The test session forces OTEL_SDK_DISABLED=true (tests/plugins/tracing.py)
+    # so nothing ever exports real telemetry — these tests need a live,
+    # recording provider of their own to verify span content, so opt back in
+    # for just this provider's construction.
+    monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     return TracingMiddleware(tracer=provider.get_tracer("test"))
