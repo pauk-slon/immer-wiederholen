@@ -1,4 +1,3 @@
-import os
 from collections.abc import Awaitable, Callable
 from typing import Any, Final
 
@@ -7,27 +6,16 @@ from aiogram.types import CallbackQuery, Message, TelegramObject
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.redis import RedisInstrumentor
-from opentelemetry.sdk.resources import SERVICE_NAME as SERVICE_NAME_ATTR
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Tracer
 
-FALLBACK_SERVICE_NAME: Final = "wiederholen-bot"
-
 default_tracer: Final = trace.get_tracer(__name__)
 
 
-def _resource_attributes() -> dict[str, str]:
-    # OTEL_SERVICE_NAME, if set, must win — Resource.create() otherwise lets an
-    # explicitly passed service.name override it, backwards from a fallback.
-    if "OTEL_SERVICE_NAME" in os.environ:
-        return {}
-    return {SERVICE_NAME_ATTR: FALLBACK_SERVICE_NAME}
-
-
 def configure_tracing() -> None:
-    provider = TracerProvider(resource=Resource.create(_resource_attributes()))
+    provider = TracerProvider(resource=Resource.create())
     provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
     trace.set_tracer_provider(provider)
 
@@ -64,6 +52,8 @@ class TracingMiddleware(BaseMiddleware):
     ) -> Any:
         span_name, attributes = _describe(event)
         with self._tracer.start_as_current_span(
-            span_name, kind=trace.SpanKind.SERVER, attributes=attributes
+            span_name,
+            kind=trace.SpanKind.SERVER,
+            attributes=attributes,
         ):
             return await handler(event, data)
