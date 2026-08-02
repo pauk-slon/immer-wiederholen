@@ -298,6 +298,33 @@ def test_exercises_selected_evenly_across_words() -> None:
     assert 0.8 < picks["warten"] / picks["helfen"] < 1.25
 
 
+def test_due_reviews_are_weighted_more_heavily_than_new_words() -> None:
+    review = make_exercise(word="warten")
+    new = make_exercise(word="hoffen")
+    today = datetime.now(UTC).date()
+    state = {
+        "word_schedule": {
+            "warten": {
+                "government": {
+                    "interval_days": 1,
+                    "due_date": today.isoformat(),
+                    "introduced_at": (today - timedelta(days=1)).isoformat(),
+                },
+            },
+        }
+    }
+    tutor = Tutor(Course([review, new]), state)
+
+    random.seed(1234)
+    picks = Counter(_next(tutor).word for _ in range(8000))
+
+    ratio = picks["warten"] / picks["hoffen"]
+    # Wide-ish tolerance: this is a fixed-seed sample, not an exact
+    # computation, and the minority class's sampling noise grows with the
+    # weight — just needs to clearly reflect REVIEW_WEIGHT, not pin it exactly.
+    assert Tutor.REVIEW_WEIGHT * 0.75 < ratio < Tutor.REVIEW_WEIGHT * 1.25
+
+
 def test_next_exercise_avoids_repeating_last_answered_question() -> None:
     mit = Exercise(
         word="sprechen",

@@ -34,6 +34,7 @@ class Tutor:
     REMIND_AFTER: Final = timedelta(hours=24)
     NEW_WORDS_PER_DAY: Final = 7
     EXTRA_NEW_WORDS_GRANT: Final = 3
+    REVIEW_WEIGHT: Final = 8
 
     def __init__(self, course: Course, journal: dict) -> None:
         self._course = course
@@ -132,12 +133,13 @@ class Tutor:
     def next_exercise(self) -> Exercise | None:
         due_word_topics = self._due_review_pairs() + self._available_new_pairs()
         if due_word_topics:
-            due_word_topics = (
-                self._due_review_pairs() + self._new_pairs_eligible_today()
-            )
+            due_review = self._due_review_pairs()
+            new_eligible = self._new_pairs_eligible_today()
+            due_word_topics = due_review + new_eligible
             if not due_word_topics:
                 return None
-            word, topic = random.choice(due_word_topics)
+            weights = [self.REVIEW_WEIGHT] * len(due_review) + [1] * len(new_eligible)
+            word, topic = random.choices(due_word_topics, weights=weights, k=1)[0]
         else:
             earliest_due_date = min(
                 self._get_due_date(word, topic) for word, topic in self._word_topics

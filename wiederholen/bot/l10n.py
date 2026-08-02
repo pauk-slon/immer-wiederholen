@@ -25,7 +25,11 @@ def _ru_plural(n: int, one: str, few: str, many: str) -> str:
     return many
 
 
-def format_count(n: int, unit: Literal["exercises", "words"], language: Language) -> str:
+def format_count(
+    n: int,
+    unit: Literal["exercises", "words"],
+    language: Language,
+) -> str:
     if language == "ru":
         one, few, many = _RU_UNIT_FORMS[unit]
         word = _ru_plural(n, one, few, many)

@@ -21,7 +21,11 @@ async def command_progress(
     progress = Tutor(course, journal).progress()
     await message.answer(
         LOCALES[language].progress_text.format(
-            remaining_today=format_count(progress.remaining_today, "exercises", language),
+            remaining_today=format_count(
+                progress.remaining_today,
+                "exercises",
+                language,
+            ),
             new_today=format_count(progress.new_today, "words", language),
             learning=format_count(progress.learning, "words", language),
             mastered=format_count(progress.mastered, "words", language),
