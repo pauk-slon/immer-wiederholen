@@ -11,6 +11,7 @@ from wiederholen.tutoring import Course, Tutor
 from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES, get_language
 from .redis_storage import ScanningRedisStorage
+from .tracing import configure_tracing, instrument_redis
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,8 @@ async def run(bot: Bot, storage: ScanningRedisStorage, course: Course) -> None:
 
 
 async def main() -> None:
+    configure_tracing()
+    instrument_redis()
     bot, course, storage = load_bot_course_and_storage()
     await run(bot, storage, course)
 

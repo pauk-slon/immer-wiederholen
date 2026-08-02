@@ -7,11 +7,14 @@ from aiogram.types import BotCommand
 from . import dispatcher
 from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES
+from .tracing import configure_tracing, instrument_redis
 
 logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
+    configure_tracing()
+    instrument_redis()
     bot, course, storage = load_bot_course_and_storage()
     dispatcher.fsm.storage = storage
     for language_code, locale in LOCALES.items():
