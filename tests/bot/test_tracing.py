@@ -3,10 +3,12 @@ from typing import Any
 
 import pytest
 from aiogram.types import CallbackQuery, Chat, Message, PollAnswer, Update, User
+from opentelemetry import trace
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+from wiederholen.bot import tracing
 from wiederholen.bot.tracing import TracingMiddleware
 
 
@@ -162,3 +164,42 @@ async def test_handler_exception_propagates_and_is_recorded(
 
     span = exporter.get_finished_spans()[0]
     assert span.status.status_code.name == "ERROR"
+
+
+def test_otlp_endpoint_not_configured_when_no_endpoint_env_vars_are_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+
+    assert tracing._otlp_endpoint_configured() is False
+
+
+def test_otlp_endpoint_configured_via_the_generic_endpoint_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+
+    assert tracing._otlp_endpoint_configured() is True
+
+
+def test_otlp_endpoint_configured_via_the_traces_specific_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://collector:4318")
+
+    assert tracing._otlp_endpoint_configured() is True
+
+
+def test_configure_tracing_is_a_noop_without_an_otlp_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+    provider_before = trace.get_tracer_provider()
+
+    tracing.configure_tracing()
+
+    assert trace.get_tracer_provider() is provider_before
