@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from aiogram.types import CallbackQuery, Chat, Message, Update, User
+from aiogram.types import CallbackQuery, Chat, Message, PollAnswer, Update, User
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -58,7 +58,7 @@ async def test_message_span_carries_chat_id_and_command(
     middleware: TracingMiddleware,
     exporter: InMemorySpanExporter,
 ) -> None:
-    event = _make_message("/wiederholen")
+    event = Update(update_id=1, message=_make_message("/wiederholen"))
 
     async def handler(event, data):
         return "result"
@@ -77,7 +77,7 @@ async def test_message_span_omits_command_for_free_text(
     middleware: TracingMiddleware,
     exporter: InMemorySpanExporter,
 ) -> None:
-    event = _make_message("gesprochen")
+    event = Update(update_id=1, message=_make_message("gesprochen"))
 
     async def handler(event, data):
         return None
@@ -92,7 +92,8 @@ async def test_callback_query_span_carries_chat_id_and_callback_data(
     middleware: TracingMiddleware,
     exporter: InMemorySpanExporter,
 ) -> None:
-    event = _make_callback_query("__next__", message=_make_message("question"))
+    callback_query = _make_callback_query("__next__", message=_make_message("question"))
+    event = Update(update_id=1, callback_query=callback_query)
 
     async def handler(event, data):
         return None
@@ -110,7 +111,8 @@ async def test_callback_query_span_omits_chat_id_when_message_is_inaccessible(
     middleware: TracingMiddleware,
     exporter: InMemorySpanExporter,
 ) -> None:
-    event = _make_callback_query("__next__", message=None)
+    callback_query = _make_callback_query("__next__", message=None)
+    event = Update(update_id=1, callback_query=callback_query)
 
     async def handler(event, data):
         return None
@@ -127,7 +129,14 @@ async def test_other_update_types_get_a_generic_span(
     middleware: TracingMiddleware,
     exporter: InMemorySpanExporter,
 ) -> None:
-    event = Update(update_id=1)
+    poll_answer = PollAnswer(
+        poll_id="1",
+        option_ids=[0],
+        option_persistent_ids=["a"],
+        voter_chat=None,
+        user=User(id=1, is_bot=False, first_name="Test"),
+    )
+    event = Update(update_id=1, poll_answer=poll_answer)
 
     async def handler(event, data):
         return None
@@ -143,7 +152,7 @@ async def test_handler_exception_propagates_and_is_recorded(
     middleware: TracingMiddleware,
     exporter: InMemorySpanExporter,
 ) -> None:
-    event = _make_message("/wiederholen")
+    event = Update(update_id=1, message=_make_message("/wiederholen"))
 
     async def handler(event, data):
         raise ValueError("boom")

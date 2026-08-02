@@ -2,7 +2,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, Final
 
 from aiogram import BaseMiddleware
-from aiogram.types import CallbackQuery, Message, TelegramObject
+from aiogram.types import CallbackQuery, Message, TelegramObject, Update
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.redis import RedisInstrumentor
@@ -24,7 +24,8 @@ def instrument_redis() -> None:
     RedisInstrumentor().instrument()
 
 
-def _describe(event: TelegramObject) -> tuple[str, dict[str, Any]]:
+def _describe(update: Update) -> tuple[str, dict[str, Any]]:
+    event = update.event
     if isinstance(event, Message):
         attributes: dict[str, Any] = {"telegram.chat_id": event.chat.id}
         if event.text and event.text.startswith("/"):
@@ -50,6 +51,7 @@ class TracingMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        assert isinstance(event, Update)
         span_name, attributes = _describe(event)
         with self._tracer.start_as_current_span(
             span_name,
