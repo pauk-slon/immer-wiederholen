@@ -3,7 +3,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from wiederholen.bot.l10n import LOCALES, get_language
+from wiederholen.bot.l10n import LOCALES, format_count, get_language
 from wiederholen.tutoring import Course, Tutor
 
 router = Router()
@@ -21,9 +21,9 @@ async def command_progress(
     progress = Tutor(course, journal).progress()
     await message.answer(
         LOCALES[language].progress_text.format(
-            remaining_today=progress.remaining_today,
-            new_today=progress.new_today,
-            learning=progress.learning,
-            mastered=progress.mastered,
+            remaining_today=format_count(progress.remaining_today, "exercises", language),
+            new_today=format_count(progress.new_today, "words", language),
+            learning=format_count(progress.learning, "words", language),
+            mastered=format_count(progress.mastered, "words", language),
         )
     )
