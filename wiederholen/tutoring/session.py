@@ -34,7 +34,7 @@ class Tutor:
     REMIND_AFTER: Final = timedelta(hours=24)
     NEW_WORDS_PER_DAY: Final = 7
     EXTRA_NEW_WORDS_GRANT: Final = 3
-    REVIEW_WEIGHT: Final = 3
+    REVIEW_WEIGHT: Final = 8
 
     def __init__(self, course: Course, journal: dict) -> None:
         self._course = course

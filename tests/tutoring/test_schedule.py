@@ -316,10 +316,13 @@ def test_due_reviews_are_weighted_more_heavily_than_new_words() -> None:
     tutor = Tutor(Course([review, new]), state)
 
     random.seed(1234)
-    picks = Counter(_next(tutor).word for _ in range(4000))
+    picks = Counter(_next(tutor).word for _ in range(8000))
 
     ratio = picks["warten"] / picks["hoffen"]
-    assert Tutor.REVIEW_WEIGHT - 0.5 < ratio < Tutor.REVIEW_WEIGHT + 0.5
+    # Wide-ish tolerance: this is a fixed-seed sample, not an exact
+    # computation, and the minority class's sampling noise grows with the
+    # weight — just needs to clearly reflect REVIEW_WEIGHT, not pin it exactly.
+    assert Tutor.REVIEW_WEIGHT * 0.75 < ratio < Tutor.REVIEW_WEIGHT * 1.25
 
 
 def test_next_exercise_avoids_repeating_last_answered_question() -> None:
