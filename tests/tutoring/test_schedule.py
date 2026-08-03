@@ -638,7 +638,14 @@ class TestChainedTopics:
             {},
         )
 
-        assert tutor.progress().remaining_today == 2
+        # remaining_today collapses both pairs to one word-budget slot (see
+        # #119), so it can't distinguish "both available" from "only one" —
+        # check next_exercise() selection directly instead, which is what
+        # this test actually guards against (neither topic ending up
+        # permanently locked/unreachable).
+        topics = {_next(tutor).topic for _ in range(50)}
+
+        assert topics == {"partizip_ii", "preteritum"}
 
 
 class TestAnswerChainedTopics:

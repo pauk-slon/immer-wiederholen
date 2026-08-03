@@ -171,6 +171,58 @@ def test_progress_remaining_today_is_capped_by_the_daily_new_word_limit() -> Non
     assert Tutor(Course(exercises), journal).progress().remaining_today == 0
 
 
+def test_progress_remaining_today_does_not_count_the_whole_untouched_course() -> None:
+    # Regression for #119: unlike next_exercise()'s selection pool (deliberately
+    # unbounded so word choice stays uniform), remaining_today must not blow up
+    # to the size of the whole course just because nothing has been answered
+    # yet — it's bounded by the actual remaining daily budget.
+    exercises = [make_exercise(word=f"untouched{i}") for i in range(50)]
+
+    assert (
+        Tutor(Course(exercises), {}).progress().remaining_today
+        == Tutor.NEW_WORDS_PER_DAY
+    )
+
+
+def test_progress_remaining_today_counts_all_pairs_of_an_already_started_word() -> None:
+    # An already-started word's remaining topics count in full even once the
+    # daily word budget is otherwise exhausted — they don't cost a new slot,
+    # mirroring _new_pairs_eligible_today()'s own "already current word"
+    # exception (see CLAUDE.md).
+    today = datetime.now(UTC).date()
+    government = make_exercise(word="sprechen", topic="government", answer="auf")
+    partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
+    filler_exercises = [
+        make_exercise(word=f"filler{i}") for i in range(Tutor.NEW_WORDS_PER_DAY - 1)
+    ]
+    word_schedule = {
+        "sprechen": {
+            "government": {
+                "interval_days": 4,
+                "due_date": (today + timedelta(days=4)).isoformat(),
+                "introduced_at": today.isoformat(),
+            },
+        },
+        **{
+            f"filler{i}": {
+                "government": {
+                    "interval_days": 1,
+                    "due_date": (today + timedelta(days=30)).isoformat(),
+                    "introduced_at": today.isoformat(),
+                },
+            }
+            for i in range(Tutor.NEW_WORDS_PER_DAY - 1)
+        },
+    }
+    journal = {"word_schedule": word_schedule}
+
+    progress = Tutor(
+        Course([government, partizip, *filler_exercises]), journal
+    ).progress()
+
+    assert progress.remaining_today == 1
+
+
 def test_progress_new_today_counts_words_introduced_today() -> None:
     exercise = make_exercise(word="warten", answer="auf")
     journal: dict = {}
