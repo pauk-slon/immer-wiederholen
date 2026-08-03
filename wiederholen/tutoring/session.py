@@ -135,11 +135,19 @@ class Tutor:
         if due_word_topics:
             due_review = self._due_review_pairs()
             new_eligible = self._new_pairs_eligible_today()
-            due_word_topics = due_review + new_eligible
-            if not due_word_topics:
+            if not due_review and not new_eligible:
                 return None
-            weights = [self.REVIEW_WEIGHT] * len(due_review) + [1] * len(new_eligible)
-            word, topic = random.choices(due_word_topics, weights=weights, k=1)[0]
+            if due_review and new_eligible:
+                # Category first, not a per-pair weight: _new_pairs_eligible_today()
+                # can dwarf due_review in size, which would swamp any per-pair weight.
+                pool = random.choices(
+                    [due_review, new_eligible],
+                    weights=[self.REVIEW_WEIGHT, 1],
+                    k=1,
+                )[0]
+            else:
+                pool = due_review or new_eligible
+            word, topic = random.choice(pool)
         else:
             earliest_due_date = min(
                 self._get_due_date(word, topic) for word, topic in self._word_topics

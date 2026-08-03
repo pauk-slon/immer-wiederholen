@@ -325,6 +325,36 @@ def test_due_reviews_are_weighted_more_heavily_than_new_words() -> None:
     assert Tutor.REVIEW_WEIGHT * 0.75 < ratio < Tutor.REVIEW_WEIGHT * 1.25
 
 
+def test_review_odds_are_independent_of_the_new_pool_size() -> None:
+    # A per-pair weight would be swamped by a large enough new-pair pool no
+    # matter how high REVIEW_WEIGHT is set — next_exercise() instead picks
+    # the review/new category first (at REVIEW_WEIGHT:1 odds) and only then
+    # picks a pair within it, so the category odds shouldn't depend on how
+    # many new pairs happen to be eligible.
+    review = make_exercise(word="warten")
+    new_words = [make_exercise(word=f"new{i}") for i in range(50)]
+    today = datetime.now(UTC).date()
+    state = {
+        "word_schedule": {
+            "warten": {
+                "government": {
+                    "interval_days": 1,
+                    "due_date": today.isoformat(),
+                    "introduced_at": (today - timedelta(days=1)).isoformat(),
+                },
+            },
+        }
+    }
+    tutor = Tutor(Course([review, *new_words]), state)
+
+    random.seed(1234)
+    picks = Counter(_next(tutor).word == "warten" for _ in range(8000))
+
+    observed_review_share = picks[True] / 8000
+    expected_review_share = Tutor.REVIEW_WEIGHT / (Tutor.REVIEW_WEIGHT + 1)
+    assert abs(observed_review_share - expected_review_share) < 0.05
+
+
 def test_next_exercise_avoids_repeating_last_answered_question() -> None:
     mit = Exercise(
         word="sprechen",
