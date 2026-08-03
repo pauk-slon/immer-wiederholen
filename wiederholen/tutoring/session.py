@@ -195,7 +195,26 @@ class Tutor:
         return len(self._due_review_pairs()) + len(self._available_new_pairs())
 
     def _new_remaining_today(self) -> int:
-        return len(self._new_pairs_eligible_today())
+        # Unlike _new_pairs_eligible_today() (next_exercise()'s selection pool,
+        # deliberately unbounded so word choice stays uniform across the whole
+        # course), this is meant to actually predict today's remaining work:
+        # pairs of an already-started word count in full (no budget left to
+        # spend on them), but not-yet-started words are capped to the
+        # remaining daily budget — one pair per slot, since we can't predict
+        # in advance how many topics a chain might cascade into — and further
+        # bounded by how many such words actually exist, so a small course
+        # doesn't get inflated up to the raw budget number.
+        today_words = self._words_introduced_today()
+        available = self._available_new_pairs()
+        started_word_pairs = sum(1 for word, _ in available if word in today_words)
+        not_yet_started_words = {
+            word for word, _ in available if word not in today_words
+        }
+        cap = self.NEW_WORDS_PER_DAY + self._extra_new_words_today()
+        remaining_word_budget = max(cap - len(today_words), 0)
+        return started_word_pairs + min(
+            remaining_word_budget, len(not_yet_started_words)
+        )
 
     def progress(self) -> Progress:
         learning = 0
