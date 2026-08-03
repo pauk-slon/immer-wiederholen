@@ -7,9 +7,11 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import Tracer
 
 from wiederholen.bot import tracing
 from wiederholen.bot.tracing import TracingMiddleware
+from wiederholen.tutoring import ExerciseAnswered, RecallMode, TopicUnlocked
 
 
 def _attributes(span: ReadableSpan) -> dict[str, Any]:
@@ -23,10 +25,10 @@ def exporter() -> InMemorySpanExporter:
 
 
 @pytest.fixture
-def middleware(
+def tracer(
     exporter: InMemorySpanExporter,
     monkeypatch: pytest.MonkeyPatch,
-) -> TracingMiddleware:
+) -> Tracer:
     # The test session forces OTEL_SDK_DISABLED=true (tests/plugins/tracing.py)
     # so nothing ever exports real telemetry — these tests need a live,
     # recording provider of their own to verify span content, so opt back in
@@ -34,7 +36,12 @@ def middleware(
     monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    return TracingMiddleware(tracer=provider.get_tracer("test"))
+    return provider.get_tracer("test")
+
+
+@pytest.fixture
+def middleware(tracer: Tracer) -> TracingMiddleware:
+    return TracingMiddleware(tracer=tracer)
 
 
 def _make_message(text: str) -> Message:
@@ -203,3 +210,78 @@ def test_configure_tracing_is_a_noop_without_an_otlp_endpoint(
     tracing.configure_tracing()
 
     assert trace.get_tracer_provider() is provider_before
+
+
+def test_record_tutoring_events_adds_one_span_event_per_event(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    events = [
+        ExerciseAnswered(
+            word="warten",
+            topic="government",
+            correct=True,
+            is_new=False,
+            recall_mode=RecallMode.optional,
+            interval_days_before=4,
+            interval_days_after=8,
+        ),
+        TopicUnlocked(
+            source_topic="government",
+            dependent_topic="preposition_meaning",
+            via="chain",
+        ),
+    ]
+
+    with tracer.start_as_current_span("test-span"):
+        tracing.record_tutoring_events(events)
+
+    span = exporter.get_finished_spans()[0]
+    assert [event.name for event in span.events] == [
+        "ExerciseAnswered",
+        "TopicUnlocked",
+    ]
+
+
+def test_record_tutoring_events_carries_dataclass_fields_as_attributes(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    event = TopicUnlocked(
+        source_topic="partizip_ii",
+        dependent_topic="praeteritum",
+        via="gate",
+    )
+
+    with tracer.start_as_current_span("test-span"):
+        tracing.record_tutoring_events([event])
+
+    span = exporter.get_finished_spans()[0]
+    attributes = dict(span.events[0].attributes or {})
+    assert attributes == {
+        "source_topic": "partizip_ii",
+        "dependent_topic": "praeteritum",
+        "via": "gate",
+    }
+
+
+def test_record_tutoring_events_unwraps_enum_attributes_to_their_value(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    event = ExerciseAnswered(
+        word="warten",
+        topic="government",
+        correct=True,
+        is_new=True,
+        recall_mode=RecallMode.required,
+        interval_days_before=0,
+        interval_days_after=1,
+    )
+
+    with tracer.start_as_current_span("test-span"):
+        tracing.record_tutoring_events([event])
+
+    span = exporter.get_finished_spans()[0]
+    attributes = dict(span.events[0].attributes or {})
+    assert attributes["recall_mode"] == "required"

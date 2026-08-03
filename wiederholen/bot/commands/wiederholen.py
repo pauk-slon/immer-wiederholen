@@ -18,6 +18,7 @@ from aiogram.types import (
 )
 
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
+from wiederholen.bot.tracing import record_tutoring_events
 from wiederholen.i18n import Language
 from wiederholen.tutoring import Course, Exercise, Recall, RecallMode, Tutor
 
@@ -179,7 +180,8 @@ async def handle_answer(
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
     tutor = Tutor(course, journal)
-    mark = tutor.check_answer(shown_exercise, message.text or "")
+    mark, events = tutor.check_answer(shown_exercise, message.text or "")
+    record_tutoring_events(events)
     result_line = (
         locale.correct
         if mark.correct

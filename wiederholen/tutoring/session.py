@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from typing import Final
+from typing import Final, Literal
 
 from wiederholen.tutoring.curriculum import Course, Exercise, Recall
 from wiederholen.tutoring.journal import ExtraNewWords, Journal, ScheduleEntry
@@ -27,6 +27,27 @@ class Progress:
     new_today: int
     learning: int
     mastered: int
+
+
+@dataclass(frozen=True)
+class ExerciseAnswered:
+    word: str
+    topic: str
+    correct: bool
+    is_new: bool
+    recall_mode: RecallMode
+    interval_days_before: int
+    interval_days_after: int
+
+
+@dataclass(frozen=True)
+class TopicUnlocked:
+    source_topic: str
+    dependent_topic: str
+    via: Literal["chain", "gate"]
+
+
+TutoringEvent = ExerciseAnswered | TopicUnlocked
 
 
 class Tutor:
@@ -201,7 +222,7 @@ class Tutor:
 
     def _schedule_next_repetition(
         self, exercise: Exercise, correct: bool, *, is_new: bool
-    ) -> None:
+    ) -> int:
         schedule_entry = self._journal.get_schedule_entry(
             exercise.word,
             exercise.topic,
@@ -219,28 +240,50 @@ class Tutor:
             due_date = datetime.now(UTC).date()
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
+        return interval
 
-    def _expedite_dependent(self, word: str, topic: str) -> None:
+    def _expedite_dependent(self, word: str, topic: str) -> bool:
         if topic not in self._exercises_by_word_topic.get(word, {}):
-            return
+            return False
         if self._journal.get_schedule_entry(word, topic) is not None:
-            return
+            return False
         topic_schedule = self._journal.get_topic_schedule(word, create_if_missing=True)
         topic_schedule[topic] = ScheduleEntry(
             interval_days=0,
             due_date=datetime.now(UTC).date().isoformat(),
         )
+        return True
 
-    def _expedite_chained_topics(self, exercise: Exercise) -> None:
+    def _topic_unlocked_event(
+        self, source_topic: str, dependent_topic: str
+    ) -> TopicUnlocked:
+        via: Literal["chain", "gate"] = (
+            "gate" if dependent_topic in self._course.gated_topics else "chain"
+        )
+        return TopicUnlocked(
+            source_topic=source_topic, dependent_topic=dependent_topic, via=via
+        )
+
+    def _expedite_chained_topics(self, exercise: Exercise) -> list[TopicUnlocked]:
+        events: list[TopicUnlocked] = []
         for dependent_topic in self._course.word_chained_topics.get(exercise.topic, []):
-            self._expedite_dependent(exercise.word, dependent_topic)
+            if self._expedite_dependent(exercise.word, dependent_topic):
+                events.append(
+                    self._topic_unlocked_event(exercise.topic, dependent_topic)
+                )
         for dependent_topic in self._course.answer_chained_topics.get(
             exercise.topic,
             [],
         ):
-            self._expedite_dependent(exercise.answer, dependent_topic)
+            if self._expedite_dependent(exercise.answer, dependent_topic):
+                events.append(
+                    self._topic_unlocked_event(exercise.topic, dependent_topic)
+                )
+        return events
 
-    def check_answer(self, exercise: Exercise, answer: str) -> Mark:
+    def check_answer(
+        self, exercise: Exercise, answer: str
+    ) -> tuple[Mark, list[TutoringEvent]]:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
         if not exercise.recalls:
             recall_mode = RecallMode.none
@@ -249,14 +292,31 @@ class Tutor:
         else:
             recall_mode = RecallMode.required
         mark = Mark(correct=correct, recall=recall_mode)
+        existing_entry = self._journal.get_schedule_entry(exercise.word, exercise.topic)
+        interval_days_before = (
+            existing_entry["interval_days"] if existing_entry is not None else 0
+        )
         is_new = self._is_new(exercise.word, exercise.topic)
         self._journal.record_mark(
             exercise.question,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
-        self._schedule_next_repetition(exercise, correct, is_new=is_new)
-        self._expedite_chained_topics(exercise)
-        return mark
+        interval_days_after = self._schedule_next_repetition(
+            exercise, correct, is_new=is_new
+        )
+        events: list[TutoringEvent] = [
+            ExerciseAnswered(
+                word=exercise.word,
+                topic=exercise.topic,
+                correct=correct,
+                is_new=is_new,
+                recall_mode=recall_mode,
+                interval_days_before=interval_days_before,
+                interval_days_after=interval_days_after,
+            ),
+            *self._expedite_chained_topics(exercise),
+        ]
+        return mark, events
 
     def check_recall(self, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:

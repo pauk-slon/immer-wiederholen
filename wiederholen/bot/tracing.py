@@ -1,5 +1,7 @@
+import dataclasses
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
+from enum import Enum
 from typing import Any, Final
 
 from aiogram import BaseMiddleware
@@ -15,6 +17,8 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Tracer
+
+from wiederholen.tutoring import TutoringEvent
 
 default_tracer: Final = trace.get_tracer(__name__)
 
@@ -40,6 +44,26 @@ def configure_tracing() -> None:
 
 def instrument_redis() -> None:
     RedisInstrumentor().instrument()
+
+
+def _event_attributes(event: TutoringEvent) -> dict[str, Any]:
+    # Enum values (e.g. RecallMode) aren't valid span event attribute types,
+    # so unwrap them to their plain value; everything else in a TutoringEvent
+    # is already a span-attribute-safe type (str/bool/int).
+    return {
+        key: value.value if isinstance(value, Enum) else value
+        for key, value in dataclasses.asdict(event).items()
+    }
+
+
+def record_tutoring_events(events: Sequence[TutoringEvent]) -> None:
+    # A generic bridge, deliberately with no knowledge of what any given
+    # TutoringEvent means — wiederholen.tutoring decides what counts as an
+    # event and when it fires; this just serializes whatever it hands back
+    # onto the current span.
+    span = trace.get_current_span()
+    for event in events:
+        span.add_event(type(event).__name__, attributes=_event_attributes(event))
 
 
 def _describe(update: Update) -> tuple[str, dict[str, Any]]:
