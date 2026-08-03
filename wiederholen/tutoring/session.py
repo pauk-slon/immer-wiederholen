@@ -138,14 +138,8 @@ class Tutor:
             if not due_review and not new_eligible:
                 return None
             if due_review and new_eligible:
-                # Weighting individual pairs (rather than picking a category
-                # first) would be at the mercy of how large each pool happens
-                # to be — _new_pairs_eligible_today() can include the whole
-                # untouched course, easily outnumbering due reviews by
-                # hundreds to one and drowning out REVIEW_WEIGHT regardless of
-                # its value. Picking the category first keeps the 8:1 odds
-                # independent of pool sizes, then a uniform pick within it
-                # keeps word selection random across the whole course.
+                # Category first, not a per-pair weight: _new_pairs_eligible_today()
+                # can dwarf due_review in size, which would swamp any per-pair weight.
                 pool = random.choices(
                     [due_review, new_eligible],
                     weights=[self.REVIEW_WEIGHT, 1],
