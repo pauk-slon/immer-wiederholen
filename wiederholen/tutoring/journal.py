@@ -15,6 +15,11 @@ class LastExercise(TypedDict):
     answered_at: str
     is_recall_optional: bool
     recall_question: NotRequired[str]
+    # NotRequired so a last_exercise recorded before this field existed stays
+    # valid rather than being treated as malformed — next_exercise()'s
+    # same-pair exclusion just no-ops until the next answer refreshes it.
+    word: NotRequired[str]
+    topic: NotRequired[str]
 
 
 class ExtraNewWords(TypedDict):
@@ -31,9 +36,13 @@ class Journal:
     def get_last_exercise(self) -> LastExercise | None:
         return self._data.get("last_exercise")
 
-    def record_mark(self, question: str, *, was_recall_optional: bool) -> None:
+    def record_mark(
+        self, question: str, word: str, topic: str, *, was_recall_optional: bool
+    ) -> None:
         self._data["last_exercise"] = LastExercise(
             question=question,
+            word=word,
+            topic=topic,
             answered_at=datetime.now(UTC).isoformat(),
             is_recall_optional=was_recall_optional,
         )

@@ -151,11 +151,35 @@ class Tutor:
             if word in today_words or under_cap
         ]
 
+    def _last_pair(self) -> tuple[str, str] | None:
+        last_exercise = self._journal.get_last_exercise()
+        if last_exercise is None:
+            return None
+        word = last_exercise.get("word")
+        topic = last_exercise.get("topic")
+        if word is None or topic is None:
+            return None
+        return (word, topic)
+
     def next_exercise(self) -> Exercise | None:
         due_word_topics = self._due_review_pairs() + self._available_new_pairs()
         if due_word_topics:
             due_review = self._due_review_pairs()
             new_eligible = self._new_pairs_eligible_today()
+            last_pair = self._last_pair()
+            if last_pair is not None:
+                # Avoid immediately repeating whatever pair was just answered
+                # — e.g. a pair that becomes due again today after its very
+                # first answer (see _schedule_next_repetition) can otherwise
+                # dominate REVIEW_WEIGHT-weighted selection and get shown
+                # again as literally the next exercise. Falls back to the
+                # unfiltered pools if excluding it would leave nothing —
+                # repeating is then unavoidable, not a bug, same fallback
+                # shape as the per-question exclusion below.
+                without_last = [p for p in due_review if p != last_pair]
+                new_without_last = [p for p in new_eligible if p != last_pair]
+                if without_last or new_without_last:
+                    due_review, new_eligible = without_last, new_without_last
             if not due_review and not new_eligible:
                 return None
             if due_review and new_eligible:
@@ -327,6 +351,8 @@ class Tutor:
         is_new = self._is_new(exercise.word, exercise.topic)
         self._journal.record_mark(
             exercise.question,
+            exercise.word,
+            exercise.topic,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
         interval_days_after = self._schedule_next_repetition(
