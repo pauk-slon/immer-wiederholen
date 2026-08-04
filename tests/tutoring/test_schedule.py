@@ -402,6 +402,49 @@ def test_next_exercise_repeats_question_when_no_other_variant_is_available() -> 
     assert result.question == duplicate_1.question
 
 
+def test_next_exercise_avoids_repeating_the_last_answered_pair() -> None:
+    # warten becomes due again today right after being answered (same-day
+    # first review), which could otherwise dominate REVIEW_WEIGHT-weighted
+    # selection and get picked again as literally the next exercise.
+    warten = make_exercise(word="warten", answer="auf")
+    hoffen = make_exercise(word="hoffen", answer="auf")
+    tutor = Tutor(Course([warten, hoffen]), {})
+
+    tutor.check_answer(warten, "auf")
+
+    assert _next(tutor).word == "hoffen"
+
+
+def test_next_exercise_repeats_the_last_pair_when_nothing_else_is_due() -> None:
+    exercise = make_exercise(word="warten", answer="auf")
+    tutor = Tutor(Course([exercise]), {})
+
+    tutor.check_answer(exercise, "auf")
+
+    assert _next(tutor).word == "warten"
+
+
+def test_next_exercise_pair_exclusion_tolerates_a_last_exercise_without_word_or_topic() -> (
+    None
+):
+    # Simulates a last_exercise recorded before word/topic were added to it —
+    # pair-level exclusion should just no-op, not raise.
+    warten = make_exercise(word="warten", answer="auf")
+    hoffen = make_exercise(word="hoffen", answer="auf")
+    state = {
+        "last_exercise": {
+            "question": "some old question",
+            "answered_at": datetime.now(UTC).isoformat(),
+            "is_recall_optional": False,
+        }
+    }
+    tutor = Tutor(Course([warten, hoffen]), state)
+
+    words = {_next(tutor).word for _ in range(50)}
+
+    assert words == {"warten", "hoffen"}
+
+
 def test_same_word_different_topics_are_scheduled_independently() -> None:
     government = make_exercise(word="sprechen", topic="government", answer="auf")
     partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
