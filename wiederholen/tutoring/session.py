@@ -253,10 +253,19 @@ class Tutor:
             interval = min(
                 max(schedule_entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS
             )
-            due_date = datetime.now(UTC).date() + timedelta(days=interval)
         else:
             interval = 1
-            due_date = datetime.now(UTC).date()
+        today = datetime.now(UTC).date()
+        # A wrong answer is always due again today (unchanged). A pair's very
+        # first answer is *also* always due today even if correct — a
+        # same-day "learning step" before real spacing kicks in, rather than
+        # pushing a correct first answer a full day out and leaving nothing
+        # to review again that same day (the first-day content shortage new
+        # learners used to hit). Only a correct answer on an already-started
+        # pair actually spaces out by the computed interval.
+        due_date = (
+            today if (is_new or not correct) else today + timedelta(days=interval)
+        )
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
         return interval
