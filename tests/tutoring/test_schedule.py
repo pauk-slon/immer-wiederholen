@@ -160,9 +160,17 @@ def test_correct_answer_on_new_topic_sets_interval_to_one() -> None:
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]
     assert entry["interval_days"] == 1
-    assert (
-        entry["due_date"] == (datetime.now(UTC).date() + timedelta(days=1)).isoformat()
-    )
+
+
+def test_correct_answer_on_new_topic_is_still_due_today() -> None:
+    # A pair's very first answer is a same-day "learning step" regardless of
+    # correctness — real spacing (interval_days-based due dates) only starts
+    # from the second answer onward (see test_correct_answer_doubles_interval).
+    exercise = make_exercise(word="warten", answer="auf")
+    state: dict = {}
+    Tutor(Course([exercise]), state).check_answer(exercise, "auf")
+    entry = state["word_schedule"]["warten"]["government"]
+    assert entry["due_date"] == datetime.now(UTC).date().isoformat()
 
 
 def test_correct_answer_caps_interval_at_max() -> None:
@@ -279,7 +287,7 @@ def test_malformed_word_schedule_is_overwritten_on_check_answer() -> None:
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]  # ty: ignore[invalid-argument-type]
     assert entry["interval_days"] == 1
-    assert entry["due_date"] == (today + timedelta(days=1)).isoformat()
+    assert entry["due_date"] == today.isoformat()
 
 
 def test_exercises_selected_evenly_across_words() -> None:
@@ -448,7 +456,7 @@ def test_malformed_schedule_entry_is_overwritten_on_check_answer(
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]
     assert entry["interval_days"] == 1
-    assert entry["due_date"] == (today + timedelta(days=1)).isoformat()
+    assert entry["due_date"] == today.isoformat()
 
 
 class TestChainedTopics:
@@ -768,7 +776,13 @@ class TestChainedTopicGating:
         state: dict = {}
         Tutor(course, state).check_answer(case_exercise, "Freund")
 
-        assert _next(Tutor(course, state)).topic == "preposition_meaning"
+        # The parent is also due again today now (same-day first review), so
+        # selection is weighted rather than deterministic — check the
+        # dependent is actually reachable, not locked out, rather than
+        # asserting it's the very next pick.
+        topics = {_next(Tutor(course, state)).topic for _ in range(50)}
+
+        assert "preposition_meaning" in topics
 
     def test_locked_topic_is_excluded_even_when_it_would_otherwise_tie_for_due(
         self,
@@ -1114,7 +1128,11 @@ class TestNewWordDailyCap:
 
         tutor.check_answer(source_exercise, "mit")
 
-        assert tutor.next_exercise() is None
+        # The source itself is due again today too (same-day first review),
+        # but the dependent it expedited must not leak through despite
+        # that — only the source ever comes back, never the dependent.
+        words = {_next(tutor).word for _ in range(50)}
+        assert words == {"etwas"}
 
     def test_expedited_dependent_gets_introduced_at_only_once_actually_answered(
         self,
