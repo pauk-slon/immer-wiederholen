@@ -1,4 +1,5 @@
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from enum import Enum
@@ -161,6 +162,18 @@ class Tutor:
             return None
         return (word, topic)
 
+    def _prefer(
+        self,
+        due_review: list[tuple[str, str]],
+        new_eligible: list[tuple[str, str]],
+        predicate: Callable[[tuple[str, str]], bool],
+    ) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+        filtered_due = [pair for pair in due_review if predicate(pair)]
+        filtered_new = [pair for pair in new_eligible if predicate(pair)]
+        if filtered_due or filtered_new:
+            return filtered_due, filtered_new
+        return due_review, new_eligible
+
     def next_exercise(self) -> Exercise | None:
         due_word_topics = self._due_review_pairs() + self._available_new_pairs()
         if due_word_topics:
@@ -168,18 +181,24 @@ class Tutor:
             new_eligible = self._new_pairs_eligible_today()
             last_pair = self._last_pair()
             if last_pair is not None:
-                # Avoid immediately repeating whatever pair was just answered
-                # — e.g. a pair that becomes due again today after its very
-                # first answer (see _schedule_next_repetition) can otherwise
+                # Avoid immediately repeating whatever was just answered — a
+                # pair that becomes due again today after its very first
+                # answer (see _schedule_next_repetition) can otherwise
                 # dominate REVIEW_WEIGHT-weighted selection and get shown
-                # again as literally the next exercise. Falls back to the
-                # unfiltered pools if excluding it would leave nothing —
-                # repeating is then unavoidable, not a bug, same fallback
-                # shape as the per-question exclusion below.
-                without_last = [p for p in due_review if p != last_pair]
-                new_without_last = [p for p in new_eligible if p != last_pair]
-                if without_last or new_without_last:
-                    due_review, new_eligible = without_last, new_without_last
+                # again as literally the next exercise. A three-tier priority
+                # ladder, each falling back to the next only if it would
+                # leave nothing: prefer a different *word* outright (even a
+                # due topic of the same word shouldn't win over an unrelated
+                # word); failing that, at least a different (word, topic)
+                # pair; the exact-question fallback below is the last tier.
+                # Repeating is then unavoidable, not a bug.
+                last_word, _ = last_pair
+                due_review, new_eligible = self._prefer(
+                    due_review, new_eligible, lambda pair: pair[0] != last_word
+                )
+                due_review, new_eligible = self._prefer(
+                    due_review, new_eligible, lambda pair: pair != last_pair
+                )
             if not due_review and not new_eligible:
                 return None
             if due_review and new_eligible:

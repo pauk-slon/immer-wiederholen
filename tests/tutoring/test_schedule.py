@@ -424,6 +424,24 @@ def test_next_exercise_repeats_the_last_pair_when_nothing_else_is_due() -> None:
     assert _next(tutor).word == "warten"
 
 
+def test_next_exercise_prefers_a_different_word_over_a_different_topic_of_the_same_word() -> (
+    None
+):
+    # sprechen has two independently-scheduled topics; warten is an unrelated
+    # word. After answering sprechen/government, both sprechen/partizip_ii
+    # (same word, different topic) and warten/government (different word)
+    # are eligible — a different word should win over a different topic of
+    # the same word, not just any non-matching pair.
+    government = make_exercise(word="sprechen", topic="government", answer="auf")
+    partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
+    warten = make_exercise(word="warten", answer="auf")
+    tutor = Tutor(Course([government, partizip, warten]), {})
+
+    tutor.check_answer(government, "auf")
+
+    assert _next(tutor).word == "warten"
+
+
 def test_next_exercise_pair_exclusion_tolerates_a_last_exercise_without_word_or_topic() -> (
     None
 ):
