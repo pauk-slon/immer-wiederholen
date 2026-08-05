@@ -1,5 +1,4 @@
 import random
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from enum import Enum
@@ -56,7 +55,6 @@ class Tutor:
     REMIND_AFTER: Final = timedelta(hours=24)
     NEW_WORDS_PER_DAY: Final = 7
     EXTRA_NEW_WORDS_GRANT: Final = 3
-    REVIEW_WEIGHT: Final = 8
 
     def __init__(self, course: Course, journal: dict) -> None:
         self._course = course
@@ -142,16 +140,6 @@ class Tutor:
             if self._is_new(word, topic) and self._get_due_date(word, topic) <= today
         ]
 
-    def _new_pairs_eligible_today(self) -> list[tuple[str, str]]:
-        today_words = self._words_introduced_today()
-        cap = self.NEW_WORDS_PER_DAY + self._extra_new_words_today()
-        under_cap = len(today_words) < cap
-        return [
-            (word, topic)
-            for word, topic in self._available_new_pairs()
-            if word in today_words or under_cap
-        ]
-
     def _last_pair(self) -> tuple[str, str] | None:
         last_exercise = self._journal.get_last_exercise()
         if last_exercise is None:
@@ -162,56 +150,116 @@ class Tutor:
             return None
         return (word, topic)
 
-    def _prefer(
+    def _has_introduced_topic(self, word: str) -> bool:
+        # True once the learner has actually answered *any* topic of this
+        # word at least once — not merely "has a schedule entry", which a
+        # chain/gate can create via _expedite_dependent() without the
+        # learner ever having seen it (see introduced_at's own rationale).
+        return any(
+            (entry := self._journal.get_schedule_entry(word, topic)) is not None
+            and entry.get("introduced_at") is not None
+            for topic in self._exercises_by_word_topic.get(word, {})
+        )
+
+    def _has_any_schedule_entry(self, word: str) -> bool:
+        return any(
+            self._journal.get_schedule_entry(word, topic) is not None
+            for topic in self._exercises_by_word_topic.get(word, {})
+        )
+
+    def _word_selection_pools(
         self,
         due_review: list[tuple[str, str]],
-        new_eligible: list[tuple[str, str]],
-        predicate: Callable[[tuple[str, str]], bool],
-    ) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
-        filtered_due = [pair for pair in due_review if predicate(pair)]
-        filtered_new = [pair for pair in new_eligible if predicate(pair)]
-        if filtered_due or filtered_new:
-            return filtered_due, filtered_new
-        return due_review, new_eligible
+        available_new: list[tuple[str, str]],
+    ) -> tuple[set[str], set[str], set[str]]:
+        # Three tiers, by how "free" a word is to select without spending the
+        # daily new-word budget:
+        # - free: relevant today (due, or has an available new topic — the
+        #   latter defaults to date.min so it's always "available", see
+        #   _get_due_date) AND has been actually introduced via some topic —
+        #   whether or not that's the same topic that's due/available today.
+        #   E.g. a word whose only progressing topic isn't due today, but
+        #   which also has a completely untouched topic, still counts as
+        #   free via that untouched topic's trivial availability.
+        # - queued: relevant today, never introduced, but already has a
+        #   schedule entry (expedited via a chain/gate) — prioritized over...
+        # - fresh: relevant today, no schedule entry anywhere — genuinely
+        #   never touched.
+        today_relevant_words = {word for word, _ in due_review + available_new}
+        free_words = {
+            word for word in today_relevant_words if self._has_introduced_topic(word)
+        }
+        remaining_words = today_relevant_words - free_words
+        queued_words = {
+            word for word in remaining_words if self._has_any_schedule_entry(word)
+        }
+        fresh_words = remaining_words - queued_words
+        return free_words, queued_words, fresh_words
+
+    def _select_word(
+        self,
+        due_review: list[tuple[str, str]],
+        available_new: list[tuple[str, str]],
+    ) -> str | None:
+        free_words, queued_words, fresh_words = self._word_selection_pools(
+            due_review, available_new
+        )
+        budget = max(
+            self.NEW_WORDS_PER_DAY
+            + self._extra_new_words_today()
+            - len(self._words_introduced_today()),
+            0,
+        )
+        queued_list = list(queued_words)
+        taken_queued = (
+            queued_list
+            if len(queued_list) <= budget
+            else random.sample(queued_list, budget)
+        )
+        remaining_budget = max(budget - len(taken_queued), 0)
+        fresh_list = list(fresh_words)
+        taken_fresh = (
+            fresh_list
+            if len(fresh_list) <= remaining_budget
+            else random.sample(fresh_list, remaining_budget)
+        )
+        candidates = free_words | set(taken_queued) | set(taken_fresh)
+        last_pair = self._last_pair()
+        if last_pair is not None:
+            last_word, _ = last_pair
+            without_last_word = {word for word in candidates if word != last_word}
+            if without_last_word:
+                candidates = without_last_word
+        if not candidates:
+            return None
+        return random.choice(list(candidates))
+
+    def _select_topic(
+        self,
+        word: str,
+        due_review: list[tuple[str, str]],
+        available_new: list[tuple[str, str]],
+    ) -> str:
+        due_topics = [topic for w, topic in due_review if w == word]
+        candidate_topics = due_topics or [
+            topic for w, topic in available_new if w == word
+        ]
+        last_pair = self._last_pair()
+        if last_pair is not None and last_pair[0] == word:
+            without_last_topic = [t for t in candidate_topics if t != last_pair[1]]
+            if without_last_topic:
+                candidate_topics = without_last_topic
+        return random.choice(candidate_topics)
 
     def next_exercise(self) -> Exercise | None:
-        due_word_topics = self._due_review_pairs() + self._available_new_pairs()
+        due_review = self._due_review_pairs()
+        available_new = self._available_new_pairs()
+        due_word_topics = due_review + available_new
         if due_word_topics:
-            due_review = self._due_review_pairs()
-            new_eligible = self._new_pairs_eligible_today()
-            last_pair = self._last_pair()
-            if last_pair is not None:
-                # Avoid immediately repeating whatever was just answered — a
-                # pair that becomes due again today after its very first
-                # answer (see _schedule_next_repetition) can otherwise
-                # dominate REVIEW_WEIGHT-weighted selection and get shown
-                # again as literally the next exercise. A three-tier priority
-                # ladder, each falling back to the next only if it would
-                # leave nothing: prefer a different *word* outright (even a
-                # due topic of the same word shouldn't win over an unrelated
-                # word); failing that, at least a different (word, topic)
-                # pair; the exact-question fallback below is the last tier.
-                # Repeating is then unavoidable, not a bug.
-                last_word, _ = last_pair
-                due_review, new_eligible = self._prefer(
-                    due_review, new_eligible, lambda pair: pair[0] != last_word
-                )
-                due_review, new_eligible = self._prefer(
-                    due_review, new_eligible, lambda pair: pair != last_pair
-                )
-            if not due_review and not new_eligible:
+            word = self._select_word(due_review, available_new)
+            if word is None:
                 return None
-            if due_review and new_eligible:
-                # Category first, not a per-pair weight: _new_pairs_eligible_today()
-                # can dwarf due_review in size, which would swamp any per-pair weight.
-                pool = random.choices(
-                    [due_review, new_eligible],
-                    weights=[self.REVIEW_WEIGHT, 1],
-                    k=1,
-                )[0]
-            else:
-                pool = due_review or new_eligible
-            word, topic = random.choice(pool)
+            topic = self._select_topic(word, due_review, available_new)
         else:
             earliest_due_date = min(
                 self._get_due_date(word, topic) for word, topic in self._word_topics
@@ -238,15 +286,15 @@ class Tutor:
         return len(self._due_review_pairs()) + len(self._available_new_pairs())
 
     def _new_remaining_today(self) -> int:
-        # Unlike _new_pairs_eligible_today() (next_exercise()'s selection pool,
-        # deliberately unbounded so word choice stays uniform across the whole
-        # course), this is meant to actually predict today's remaining work:
-        # pairs of an already-started word count in full (no budget left to
-        # spend on them), but not-yet-started words are capped to the
-        # remaining daily budget — one pair per slot, since we can't predict
-        # in advance how many topics a chain might cascade into — and further
-        # bounded by how many such words actually exist, so a small course
-        # doesn't get inflated up to the raw budget number.
+        # This is meant to actually predict today's remaining work, unlike
+        # next_exercise()'s own word-sampling (_select_word()), which only
+        # samples as many words as it needs for one pick at a time: pairs of
+        # an already-started word count in full (no budget left to spend on
+        # them), but not-yet-started words are capped to the remaining daily
+        # budget — one pair per slot, since we can't predict in advance how
+        # many topics a chain might cascade into — and further bounded by how
+        # many such words actually exist, so a small course doesn't get
+        # inflated up to the raw budget number.
         today_words = self._words_introduced_today()
         available = self._available_new_pairs()
         started_word_pairs = sum(1 for word, _ in available if word in today_words)
