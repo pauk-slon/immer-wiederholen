@@ -306,9 +306,13 @@ def test_exercises_selected_evenly_across_words() -> None:
     assert 0.8 < picks["warten"] / picks["helfen"] < 1.25
 
 
-def test_due_reviews_are_weighted_more_heavily_than_new_words() -> None:
+def test_a_due_word_is_not_swamped_by_a_large_fresh_word_pool() -> None:
+    # The fresh-word candidate pool per pick is bounded by the remaining
+    # daily budget (NEW_WORDS_PER_DAY), not by how large the course is — so
+    # a due word's chances of being picked stay roughly 1-in-(budget+1), not
+    # diluted down to 1-in-(course size) by hundreds of untouched words.
     review = make_exercise(word="warten")
-    new = make_exercise(word="hoffen")
+    fresh_words = [make_exercise(word=f"fresh{i}") for i in range(100)]
     today = datetime.now(UTC).date()
     state = {
         "word_schedule": {
@@ -321,46 +325,124 @@ def test_due_reviews_are_weighted_more_heavily_than_new_words() -> None:
             },
         }
     }
-    tutor = Tutor(Course([review, new]), state)
+    tutor = Tutor(Course([review, *fresh_words]), state)
 
     random.seed(1234)
-    picks = Counter(_next(tutor).word for _ in range(8000))
+    picks = Counter(_next(tutor).word == "warten" for _ in range(3000))
 
-    ratio = picks["warten"] / picks["hoffen"]
-    # Wide-ish tolerance: this is a fixed-seed sample, not an exact
-    # computation, and the minority class's sampling noise grows with the
-    # weight — just needs to clearly reflect REVIEW_WEIGHT, not pin it exactly.
-    assert Tutor.REVIEW_WEIGHT * 0.75 < ratio < Tutor.REVIEW_WEIGHT * 1.25
+    observed_review_share = picks[True] / 3000
+    expected_review_share = 1 / (Tutor.NEW_WORDS_PER_DAY + 1)
+    assert abs(observed_review_share - expected_review_share) < 0.03
 
 
-def test_review_odds_are_independent_of_the_new_pool_size() -> None:
-    # A per-pair weight would be swamped by a large enough new-pair pool no
-    # matter how high REVIEW_WEIGHT is set — next_exercise() instead picks
-    # the review/new category first (at REVIEW_WEIGHT:1 odds) and only then
-    # picks a pair within it, so the category odds shouldn't depend on how
-    # many new pairs happen to be eligible.
-    review = make_exercise(word="warten")
-    new_words = [make_exercise(word=f"new{i}") for i in range(50)]
+def test_queued_words_take_priority_and_can_exhaust_the_entire_budget() -> None:
+    # Words with an expedited-but-never-answered entry (e.g. via a
+    # chain/gate) fill the daily budget before any genuinely untouched word
+    # gets a chance — here they exactly fill it, leaving nothing for fresh.
+    queued_words = [
+        make_exercise(word=f"queued{i}", topic="government")
+        for i in range(Tutor.NEW_WORDS_PER_DAY)
+    ]
+    fresh_words = [make_exercise(word=f"fresh{i}") for i in range(20)]
+    today = datetime.now(UTC).date()
+    state = {
+        "word_schedule": {
+            f"queued{i}": {
+                "government": {"interval_days": 0, "due_date": today.isoformat()},
+            }
+            for i in range(Tutor.NEW_WORDS_PER_DAY)
+        }
+    }
+    tutor = Tutor(Course([*queued_words, *fresh_words]), state)
+
+    words = {_next(tutor).word for _ in range(200)}
+
+    assert words == {f"queued{i}" for i in range(Tutor.NEW_WORDS_PER_DAY)}
+
+
+def test_topic_selection_prefers_due_over_new_within_the_same_word() -> None:
+    government = make_exercise(word="sprechen", topic="government", answer="auf")
+    partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
+    today = datetime.now(UTC).date()
+    state = {
+        "word_schedule": {
+            "sprechen": {
+                "government": {
+                    "interval_days": 4,
+                    "due_date": (today - timedelta(days=1)).isoformat(),
+                    "introduced_at": (today - timedelta(days=10)).isoformat(),
+                },
+            },
+        }
+    }
+    tutor = Tutor(Course([government, partizip]), state)
+
+    topics = {_next(tutor).topic for _ in range(50)}
+
+    assert topics == {"government"}
+
+
+def test_a_word_with_an_untouched_topic_is_free_even_if_its_other_topic_is_not_due() -> (
+    None
+):
+    government = make_exercise(word="warten", topic="government", answer="auf")
+    verb_case = make_exercise(word="warten", topic="verb_case", answer="dem Freund")
+    fresh_words = [make_exercise(word=f"fresh{i}") for i in range(20)]
     today = datetime.now(UTC).date()
     state = {
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 1,
-                    "due_date": today.isoformat(),
+                    "interval_days": 10,
+                    "due_date": (today + timedelta(days=9)).isoformat(),
                     "introduced_at": (today - timedelta(days=1)).isoformat(),
                 },
             },
         }
     }
-    tutor = Tutor(Course([review, *new_words]), state)
+    tutor = Tutor(Course([government, verb_case, *fresh_words]), state)
 
-    random.seed(1234)
-    picks = Counter(_next(tutor).word == "warten" for _ in range(8000))
+    results = [_next(tutor) for _ in range(400)]
 
-    observed_review_share = picks[True] / 8000
-    expected_review_share = Tutor.REVIEW_WEIGHT / (Tutor.REVIEW_WEIGHT + 1)
-    assert abs(observed_review_share - expected_review_share) < 0.05
+    # Reachable at all despite its other topic not being due (not gated
+    # behind the fresh-word budget), and only the actually-eligible topic
+    # (government isn't due) is ever shown for it.
+    warten_topics = {ex.topic for ex in results if ex.word == "warten"}
+    assert warten_topics == {"verb_case"}
+
+
+def test_next_exercise_avoids_repeating_the_last_topic_when_word_repeat_is_forced() -> (
+    None
+):
+    government = make_exercise(word="sprechen", topic="government", answer="auf")
+    partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
+    today = datetime.now(UTC).date()
+    state = {
+        "word_schedule": {
+            "sprechen": {
+                "government": {
+                    "interval_days": 4,
+                    "due_date": (today - timedelta(days=1)).isoformat(),
+                    "introduced_at": (today - timedelta(days=10)).isoformat(),
+                },
+                "partizip_ii": {
+                    "interval_days": 2,
+                    "due_date": (today - timedelta(days=1)).isoformat(),
+                    "introduced_at": (today - timedelta(days=5)).isoformat(),
+                },
+            },
+        },
+        "last_exercise": {
+            "question": government.question,
+            "word": "sprechen",
+            "topic": "government",
+            "answered_at": datetime.now(UTC).isoformat(),
+            "is_recall_optional": False,
+        },
+    }
+    tutor = Tutor(Course([government, partizip]), state)
+
+    assert _next(tutor).topic == "partizip_ii"
 
 
 def test_next_exercise_avoids_repeating_last_answered_question() -> None:
@@ -837,13 +919,15 @@ class TestChainedTopicGating:
         state: dict = {}
         Tutor(course, state).check_answer(case_exercise, "Freund")
 
-        # The parent is also due again today now (same-day first review), so
-        # selection is weighted rather than deterministic — check the
-        # dependent is actually reachable, not locked out, rather than
-        # asserting it's the very next pick.
-        topics = {_next(Tutor(course, state)).topic for _ in range(50)}
-
-        assert "preposition_meaning" in topics
+        # The dependent now has a real entry, due today, instead of the
+        # gated date.max fallback — this is what "unlocked" means. Whether
+        # next_exercise() shows it *this same day* is a separate concern:
+        # preposition_case is also due today (same-day first review), and
+        # topic selection prefers a word's due topic over its new one, so
+        # preposition_meaning won't win today — it'll surface once
+        # preposition_case is no longer due.
+        entry = state["word_schedule"]["mit"]["preposition_meaning"]
+        assert entry["due_date"] == datetime.now(UTC).date().isoformat()
 
     def test_locked_topic_is_excluded_even_when_it_would_otherwise_tie_for_due(
         self,
