@@ -29,5 +29,11 @@ async def command_progress(
             new_today=format_count(progress.new_today, "words", language),
             learning=format_count(progress.learning, "words", language),
             mastered=format_count(progress.mastered, "words", language),
+            answered_today=format_count(
+                progress.answered_today,
+                "exercises",
+                language,
+            ),
+            correct_today=progress.correct_today,
         )
     )

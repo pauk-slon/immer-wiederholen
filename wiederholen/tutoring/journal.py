@@ -27,6 +27,12 @@ class ExtraNewWords(TypedDict):
     count: int
 
 
+class DailyAnswers(TypedDict):
+    date: str
+    answered: int
+    correct: int
+
+
 class Journal:
     _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(ScheduleEntry)
 
@@ -61,6 +67,12 @@ class Journal:
 
     def set_extra_new_words(self, extra: ExtraNewWords) -> None:
         self._data["extra_new_words"] = extra
+
+    def get_daily_answers(self) -> DailyAnswers | None:
+        return self._data.get("daily_answers")
+
+    def set_daily_answers(self, daily_answers: DailyAnswers) -> None:
+        self._data["daily_answers"] = daily_answers
 
     def get_word_schedule(self, *, create_if_missing: bool = False) -> dict:
         if create_if_missing:

@@ -18,6 +18,8 @@ async def test_defaults_to_ru(feed_message: FeedMessage) -> None:
         new_today=format_count(0, "words", "ru"),
         learning=format_count(0, "words", "ru"),
         mastered=format_count(0, "words", "ru"),
+        answered_today=format_count(0, "exercises", "ru"),
+        correct_today=0,
     )
 
 
@@ -35,6 +37,8 @@ async def test_responds_in_current_language(
         new_today=format_count(0, "words", "en"),
         learning=format_count(0, "words", "en"),
         mastered=format_count(0, "words", "en"),
+        answered_today=format_count(0, "exercises", "en"),
+        correct_today=0,
     )
 
 
@@ -75,4 +79,28 @@ async def test_reflects_journal_breakdown(
         new_today=format_count(0, "words", "ru"),
         learning=format_count(1, "words", "ru"),
         mastered=format_count(1, "words", "ru"),
+        answered_today=format_count(0, "exercises", "ru"),
+        correct_today=0,
+    )
+
+
+async def test_reflects_todays_answer_count(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(word="warten")
+    today = datetime.now(UTC).date().isoformat()
+    journal = {"daily_answers": {"date": today, "answered": 12, "correct": 9}}
+    await state.update_data(journal=journal)
+
+    requests = await feed_message("/progress", course=Course([exercise]))
+
+    assert len(requests) == 1
+    assert requests[0].text == RU.progress_text.format(
+        remaining_today=format_count(1, "exercises", "ru"),
+        new_today=format_count(0, "words", "ru"),
+        learning=format_count(0, "words", "ru"),
+        mastered=format_count(0, "words", "ru"),
+        answered_today=format_count(12, "exercises", "ru"),
+        correct_today=9,
     )

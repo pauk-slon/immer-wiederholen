@@ -6,7 +6,12 @@ from functools import cached_property
 from typing import Final, Literal
 
 from wiederholen.tutoring.curriculum import Course, Exercise, Recall
-from wiederholen.tutoring.journal import ExtraNewWords, Journal, ScheduleEntry
+from wiederholen.tutoring.journal import (
+    DailyAnswers,
+    ExtraNewWords,
+    Journal,
+    ScheduleEntry,
+)
 
 
 class RecallMode(Enum):
@@ -27,6 +32,8 @@ class Progress:
     new_today: int
     learning: int
     mastered: int
+    answered_today: int
+    correct_today: int
 
 
 @dataclass(frozen=True)
@@ -108,6 +115,27 @@ class Tutor:
         if extra is None or extra["date"] != today:
             return 0
         return extra["count"]
+
+    def _daily_answers_today(self) -> tuple[int, int]:
+        # (answered, correct), self-expiring like _extra_new_words_today() —
+        # a stale count from a previous day is simply treated as zero rather
+        # than needing explicit cleanup.
+        daily_answers = self._journal.get_daily_answers()
+        today = datetime.now(UTC).date().isoformat()
+        if daily_answers is None or daily_answers["date"] != today:
+            return 0, 0
+        return daily_answers["answered"], daily_answers["correct"]
+
+    def _record_answered(self, correct: bool) -> None:
+        answered, right = self._daily_answers_today()
+        today = datetime.now(UTC).date().isoformat()
+        self._journal.set_daily_answers(
+            DailyAnswers(
+                date=today,
+                answered=answered + 1,
+                correct=right + (1 if correct else 0),
+            )
+        )
 
     def grant_extra_new_words(self) -> None:
         extra_today = self._extra_new_words_today()
@@ -323,11 +351,14 @@ class Tutor:
                 mastered += 1
             else:
                 learning += 1
+        answered_today, correct_today = self._daily_answers_today()
         return Progress(
             remaining_today=len(self._due_review_pairs()) + self._new_remaining_today(),
             new_today=self._new_words_introduced_today_count(),
             learning=learning,
             mastered=mastered,
+            answered_today=answered_today,
+            correct_today=correct_today,
         )
 
     def _schedule_next_repetition(
@@ -411,6 +442,7 @@ class Tutor:
         else:
             recall_mode = RecallMode.required
         mark = Mark(correct=correct, recall=recall_mode)
+        self._record_answered(correct)
         existing_entry = self._journal.get_schedule_entry(exercise.word, exercise.topic)
         interval_days_before = (
             existing_entry["interval_days"] if existing_entry is not None else 0

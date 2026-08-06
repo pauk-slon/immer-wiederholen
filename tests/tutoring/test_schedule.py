@@ -1382,6 +1382,60 @@ class TestExtraNewWords:
         assert state["extra_new_words"] == {"date": yesterday, "count": 3}
 
 
+class TestDailyAnswers:
+    def test_check_answer_counts_a_correct_answer(self) -> None:
+        exercise = make_exercise(word="warten", answer="auf")
+        state: dict = {}
+        tutor = Tutor(Course([exercise]), state)
+
+        tutor.check_answer(exercise, "auf")
+
+        assert tutor.progress().answered_today == 1
+        assert tutor.progress().correct_today == 1
+
+    def test_check_answer_counts_a_wrong_answer_as_answered_but_not_correct(
+        self,
+    ) -> None:
+        exercise = make_exercise(word="warten", answer="auf")
+        state: dict = {}
+        tutor = Tutor(Course([exercise]), state)
+
+        tutor.check_answer(exercise, "für")
+
+        assert tutor.progress().answered_today == 1
+        assert tutor.progress().correct_today == 0
+
+    def test_check_answer_accumulates_across_multiple_answers(self) -> None:
+        exercise = make_exercise(word="warten", answer="auf")
+        state: dict = {}
+        tutor = Tutor(Course([exercise]), state)
+
+        tutor.check_answer(exercise, "auf")
+        tutor.check_answer(exercise, "für")
+        tutor.check_answer(exercise, "auf")
+
+        assert tutor.progress().answered_today == 3
+        assert tutor.progress().correct_today == 2
+
+    def test_daily_answers_from_a_previous_day_do_not_carry_over(self) -> None:
+        exercise = make_exercise(word="warten")
+        yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+        state = {"daily_answers": {"date": yesterday, "answered": 5, "correct": 4}}
+
+        progress = Tutor(Course([exercise]), state).progress()
+
+        assert progress.answered_today == 0
+        assert progress.correct_today == 0
+
+    def test_daily_answers_are_zero_before_anything_is_answered(self) -> None:
+        exercise = make_exercise(word="warten")
+
+        progress = Tutor(Course([exercise]), {}).progress()
+
+        assert progress.answered_today == 0
+        assert progress.correct_today == 0
+
+
 class TestRequestRecallInterval:
     def test_halves_the_interval_after_a_correct_answer(self) -> None:
         exercise = make_exercise(recalls=True)
