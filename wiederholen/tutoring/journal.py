@@ -45,7 +45,13 @@ class Journal:
         return self._data.get("last_exercise")
 
     def record_mark(
-        self, question: str, word: str, topic: str, *, was_recall_optional: bool
+        self,
+        question: str,
+        word: str,
+        topic: str,
+        *,
+        correct: bool,
+        was_recall_optional: bool,
     ) -> None:
         self._data["last_exercise"] = LastExercise(
             question=question,
@@ -53,6 +59,12 @@ class Journal:
             topic=topic,
             answered_at=datetime.now(UTC).isoformat(),
             is_recall_optional=was_recall_optional,
+        )
+        answered, right = self.get_answer_stats_today()
+        self._data["today_answers"] = AnswerStats(
+            date=self._today.isoformat(),
+            answered=answered + 1,
+            correct=right + (1 if correct else 0),
         )
 
     @property
@@ -86,14 +98,6 @@ class Journal:
         if stats is None or stats["date"] != self._today.isoformat():
             return 0, 0
         return stats["answered"], stats["correct"]
-
-    def record_answer(self, *, correct: bool) -> None:
-        answered, right = self.get_answer_stats_today()
-        self._data["today_answers"] = AnswerStats(
-            date=self._today.isoformat(),
-            answered=answered + 1,
-            correct=right + (1 if correct else 0),
-        )
 
     def get_word_schedule(self, *, create_if_missing: bool = False) -> dict:
         if create_if_missing:
