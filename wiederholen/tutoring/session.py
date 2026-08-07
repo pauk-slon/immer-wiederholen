@@ -117,7 +117,9 @@ class Tutor:
 
     def _due_review_pairs(self) -> list[tuple[str, str]]:
         return [
-            pair for pair in self._journal.due_pairs() if pair in self._word_topics_set
+            pair
+            for pair in self._journal.due_pairs(only_introduced=True)
+            if pair in self._word_topics_set
         ]
 
     def _available_new_pairs(self) -> list[tuple[str, str]]:
