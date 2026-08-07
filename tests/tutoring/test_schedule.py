@@ -1164,23 +1164,21 @@ class TestNewWordDailyCap:
         assert "introduced_at" not in state["word_schedule"]["warten"]["government"]
 
     def test_reset_schedule_clears_introduced_at_along_with_the_schedule(self) -> None:
-        journal = Journal(
-            {
-                "word_schedule": {
-                    "warten": {
-                        "government": {
-                            "interval_days": 1,
-                            "due_date": "2026-01-01",
-                            "introduced_at": "2026-01-01",
-                        },
+        data = {
+            "word_schedule": {
+                "warten": {
+                    "government": {
+                        "interval_days": 1,
+                        "due_date": "2026-01-01",
+                        "introduced_at": "2026-01-01",
                     },
                 },
-            }
-        )
+            },
+        }
 
-        journal.reset_schedule()
+        Journal.reset_schedule(data)
 
-        assert journal.get_schedule_entry("warten", "government") is None
+        assert Journal(data).get_schedule_entry("warten", "government") is None
 
     def test_expedited_dependent_is_not_stamped_as_introduced_until_answered(
         self,

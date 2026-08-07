@@ -11,7 +11,7 @@ from aiogram.types import (
 )
 
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
-from wiederholen.tutoring import Course, Tutor
+from wiederholen.tutoring import Journal
 
 router = Router()
 
@@ -45,14 +45,12 @@ async def command_reset(message: Message, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data == RESET_CONFIRM)
-async def handle_reset_confirm(
-    callback: CallbackQuery, state: FSMContext, course: Course
-) -> None:
+async def handle_reset_confirm(callback: CallbackQuery, state: FSMContext) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
     journal = state_data.get("journal", {})
-    Tutor(course, journal).reset_schedule()
+    Journal.reset_schedule(journal)
     await state.update_data(journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(locale.reset_done)

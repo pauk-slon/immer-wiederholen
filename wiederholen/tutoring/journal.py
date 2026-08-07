@@ -108,8 +108,9 @@ class Journal:
         topic_schedule = word_schedule[word] = {}
         return topic_schedule
 
-    def reset_schedule(self) -> None:
-        self._data["word_schedule"] = {}
+    @staticmethod
+    def reset_schedule(data: dict) -> None:
+        data["word_schedule"] = {}
 
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:

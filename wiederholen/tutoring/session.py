@@ -486,6 +486,3 @@ class Tutor:
 
     def record_reminder_sent(self) -> None:
         self._journal.last_reminded_at = datetime.now(UTC)
-
-    def reset_schedule(self) -> None:
-        self._journal.reset_schedule()
