@@ -50,7 +50,7 @@ async def handle_reset_confirm(callback: CallbackQuery, state: FSMContext) -> No
     language = get_language(state_data)
     locale = LOCALES[language]
     journal = state_data.get("journal", {})
-    Journal(journal).reset_schedule()
+    Journal.reset_schedule(journal)
     await state.update_data(journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(locale.reset_done)

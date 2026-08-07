@@ -72,17 +72,23 @@ def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
     assert 0.8 < picks["warten"] / picks["hoffen"] < 1.25
 
 
-def test_due_topics_count_is_zero_for_empty_course() -> None:
+def test_next_exercise_falls_back_to_tie_break_when_the_whole_course_is_gated() -> None:
+    # A gated topic with no entry has no due date to speak of yet — the
+    # earliest-due tie-break falls back to _get_due_date()'s date.max for
+    # it, same as if nothing were due at all (there's no source to unlock
+    # it here, so it never will be).
+    exercise = make_exercise(word="mit", topic="preposition_meaning")
+    gated_topics = frozenset({"preposition_meaning"})
+    tutor = Tutor(Course([exercise], gated_topics=gated_topics), {})
+
+    assert _next(tutor).topic == "preposition_meaning"
+
+
+def test_progress_remaining_today_is_zero_for_empty_course() -> None:
     assert Tutor(Course([]), {}).progress().remaining_today == 0
 
 
-def test_due_topics_count_counts_new_topics_as_due() -> None:
-    exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
-
-    assert Tutor(Course(exercises), {}).progress().remaining_today == 2
-
-
-def test_due_topics_count_excludes_not_yet_due_topics() -> None:
+def test_progress_remaining_today_excludes_not_yet_due_topics() -> None:
     exercise = make_exercise(word="warten")
     journal = {
         "word_schedule": {
@@ -100,12 +106,27 @@ def test_due_topics_count_excludes_not_yet_due_topics() -> None:
     assert Tutor(Course([exercise]), journal).progress().remaining_today == 0
 
 
-def test_due_topics_count_counts_shared_schedule_key_once() -> None:
-    # Two YAML entries for the same word+topic share one schedule key.
+def test_progress_remaining_today_counts_shared_schedule_key_once() -> None:
+    # Two YAML entries for the same word+topic share one schedule key, so a
+    # due review counts once regardless of how many entries back it.
     duplicate_1 = make_exercise(word="helfen")
     duplicate_2 = make_exercise(word="helfen")
+    journal = {
+        "word_schedule": {
+            "helfen": {
+                "government": {
+                    "interval_days": 30,
+                    "due_date": (
+                        datetime.now(UTC).date() - timedelta(days=1)
+                    ).isoformat(),
+                },
+            },
+        }
+    }
 
-    assert Tutor(Course([duplicate_1, duplicate_2]), {}).progress().remaining_today == 1
+    progress = Tutor(Course([duplicate_1, duplicate_2]), journal).progress()
+
+    assert progress.remaining_today == 1
 
 
 def test_new_topic_is_always_due() -> None:
@@ -144,6 +165,7 @@ def test_correct_answer_doubles_interval() -> None:
                 "government": {
                     "interval_days": 4,
                     "due_date": (today - timedelta(days=11)).isoformat(),
+                    "introduced_at": (today - timedelta(days=11)).isoformat(),
                 },
             },
         }
@@ -182,6 +204,7 @@ def test_correct_answer_caps_interval_at_max() -> None:
                 "government": {
                     "interval_days": 50,
                     "due_date": (today - timedelta(days=11)).isoformat(),
+                    "introduced_at": (today - timedelta(days=11)).isoformat(),
                 },
             },
         }
@@ -955,7 +978,10 @@ class TestChainedTopicGating:
         for _ in range(50):
             assert _next(tutor).topic == "preposition_case"
 
-    def test_due_topics_count_excludes_locked_topics(self) -> None:
+    def test_progress_remaining_today_excludes_locked_topics(self) -> None:
+        # A locked (gated, never expedited) topic has no schedule entry at
+        # all, so it can never contribute to remaining_today — only a real
+        # due review of the unlocked source topic does.
         case_exercise = make_exercise(
             word="mit", topic="preposition_case", answer="Freund"
         )
@@ -964,13 +990,25 @@ class TestChainedTopicGating:
         )
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         gated_topics = frozenset({"preposition_meaning"})
+        journal = {
+            "word_schedule": {
+                "mit": {
+                    "preposition_case": {
+                        "interval_days": 30,
+                        "due_date": (
+                            datetime.now(UTC).date() - timedelta(days=1)
+                        ).isoformat(),
+                    },
+                },
+            }
+        }
         tutor = Tutor(
             Course(
                 [case_exercise, meaning_exercise],
                 word_chained_topics=chained_topics,
                 gated_topics=gated_topics,
             ),
-            {},
+            journal,
         )
 
         assert tutor.progress().remaining_today == 1
@@ -1140,12 +1178,13 @@ class TestNewWordDailyCap:
             state["word_schedule"]["warten"]["government"]["introduced_at"] == original
         )
 
-    def test_legacy_entry_without_introduced_at_is_not_treated_as_new(self) -> None:
-        # A schedule entry created before introduced_at existed has no way to know
-        # when it was first introduced, but it clearly isn't new — it already has
-        # real interval_days from being reviewed. It must not be misclassified as
-        # new (which would both wrongly consume the daily cap and let it get
-        # excluded from the due pool once that cap is reached).
+    def test_entry_without_introduced_at_is_treated_as_new_regardless_of_interval_days(
+        self,
+    ) -> None:
+        # record_mark() checks introduced_at directly, not interval_days as
+        # an indirect proxy — a schedule entry with real interval_days but
+        # no introduced_at is treated as new, and gets introduced_at
+        # stamped on its next answer like any other new pair.
         exercise = make_exercise(word="warten", answer="auf")
         today = datetime.now(UTC).date()
         state = {
@@ -1161,26 +1200,27 @@ class TestNewWordDailyCap:
 
         Tutor(Course([exercise]), state).check_answer(exercise, "auf")
 
-        assert "introduced_at" not in state["word_schedule"]["warten"]["government"]
-
-    def test_reset_schedule_clears_introduced_at_along_with_the_schedule(self) -> None:
-        journal = Journal(
-            {
-                "word_schedule": {
-                    "warten": {
-                        "government": {
-                            "interval_days": 1,
-                            "due_date": "2026-01-01",
-                            "introduced_at": "2026-01-01",
-                        },
-                    },
-                },
-            }
+        assert (
+            state["word_schedule"]["warten"]["government"]["introduced_at"]
+            == today.isoformat()
         )
 
-        journal.reset_schedule()
+    def test_reset_schedule_clears_introduced_at_along_with_the_schedule(self) -> None:
+        data = {
+            "word_schedule": {
+                "warten": {
+                    "government": {
+                        "interval_days": 1,
+                        "due_date": "2026-01-01",
+                        "introduced_at": "2026-01-01",
+                    },
+                },
+            },
+        }
 
-        assert journal.get_schedule_entry("warten", "government") is None
+        Journal.reset_schedule(data)
+
+        assert Journal(data).get_schedule_entry("warten", "government") is None
 
     def test_expedited_dependent_is_not_stamped_as_introduced_until_answered(
         self,

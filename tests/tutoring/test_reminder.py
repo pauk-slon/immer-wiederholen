@@ -65,6 +65,32 @@ def test_should_remind_is_true_after_24h_since_last_answer_with_due_material() -
     assert Tutor(Course([exercise]), journal).should_remind() is True
 
 
+def test_should_remind_is_true_for_an_overdue_review_with_no_new_pairs_available() -> (
+    None
+):
+    # A word already introduced, with a genuinely overdue review, and
+    # nothing else in the course (so _available_new_pairs() is empty) — the
+    # reminder must still fire off the due review alone.
+    exercise = make_exercise(word="warten")
+    today = datetime.now(UTC).date()
+    journal = {
+        "word_schedule": {
+            "warten": {
+                "government": {
+                    "interval_days": 4,
+                    "due_date": (today - timedelta(days=1)).isoformat(),
+                    "introduced_at": (today - timedelta(days=10)).isoformat(),
+                },
+            },
+        },
+        "last_exercise": {
+            "answered_at": (datetime.now(UTC) - timedelta(hours=25)).isoformat(),
+        },
+    }
+
+    assert Tutor(Course([exercise]), journal).should_remind() is True
+
+
 def test_should_remind_is_false_if_already_reminded_since_last_answer() -> None:
     exercise = make_exercise()
     last_answered_at = datetime.now(UTC) - timedelta(hours=25)
