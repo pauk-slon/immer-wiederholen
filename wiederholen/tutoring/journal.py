@@ -78,15 +78,15 @@ class Journal:
         self._data["extra_new_words"] = ExtraNewWords(date=today, count=new_count)
         return new_count
 
-    def get_today_answer_stats(self) -> tuple[int, int]:
+    def get_answer_stats_today(self) -> tuple[int, int]:
         stats = self._data.get("today_answers")
         today = datetime.now(UTC).date().isoformat()
         if stats is None or stats["date"] != today:
             return 0, 0
         return stats["answered"], stats["correct"]
 
-    def record_today_answer(self, *, correct: bool) -> None:
-        answered, right = self.get_today_answer_stats()
+    def record_answer_today(self, *, correct: bool) -> None:
+        answered, right = self.get_answer_stats_today()
         today = datetime.now(UTC).date().isoformat()
         self._data["today_answers"] = AnswerStats(
             date=today,

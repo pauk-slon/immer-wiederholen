@@ -315,7 +315,7 @@ class Tutor:
                 mastered += 1
             else:
                 learning += 1
-        answered_today, correct_today = self._journal.get_today_answer_stats()
+        answered_today, correct_today = self._journal.get_answer_stats_today()
         return Progress(
             remaining_today=len(self._due_review_pairs()) + self._new_remaining_today(),
             new_today=self._new_words_introduced_today_count(),
@@ -406,7 +406,7 @@ class Tutor:
         else:
             recall_mode = RecallMode.required
         mark = Mark(correct=correct, recall=recall_mode)
-        self._journal.record_today_answer(correct=correct)
+        self._journal.record_answer_today(correct=correct)
         existing_entry = self._journal.get_schedule_entry(exercise.word, exercise.topic)
         interval_days_before = (
             existing_entry["interval_days"] if existing_entry is not None else 0
