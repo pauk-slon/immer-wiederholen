@@ -27,6 +27,12 @@ class ExtraNewWords(TypedDict):
     count: int
 
 
+class AnswerStats(TypedDict):
+    date: str
+    answered: int
+    correct: int
+
+
 class Journal:
     _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(ScheduleEntry)
 
@@ -56,11 +62,37 @@ class Journal:
     def last_reminded_at(self, value: datetime) -> None:
         self._data["last_reminded_at"] = value.isoformat()
 
-    def get_extra_new_words(self) -> ExtraNewWords | None:
-        return self._data.get("extra_new_words")
+    def get_extra_new_words_today(self) -> int:
+        extra = self._data.get("extra_new_words")
+        today = datetime.now(UTC).date().isoformat()
+        if extra is None or extra["date"] != today:
+            # A grant from a previous day is simply treated as zero rather
+            # than needing explicit cleanup — same self-expiring pattern as
+            # introduced_at.
+            return 0
+        return extra["count"]
 
-    def set_extra_new_words(self, extra: ExtraNewWords) -> None:
-        self._data["extra_new_words"] = extra
+    def add_extra_new_words_today(self, amount: int) -> int:
+        new_count = self.get_extra_new_words_today() + amount
+        today = datetime.now(UTC).date().isoformat()
+        self._data["extra_new_words"] = ExtraNewWords(date=today, count=new_count)
+        return new_count
+
+    def get_answer_stats_today(self) -> tuple[int, int]:
+        stats = self._data.get("today_answers")
+        today = datetime.now(UTC).date().isoformat()
+        if stats is None or stats["date"] != today:
+            return 0, 0
+        return stats["answered"], stats["correct"]
+
+    def record_answer_today(self, *, correct: bool) -> None:
+        answered, right = self.get_answer_stats_today()
+        today = datetime.now(UTC).date().isoformat()
+        self._data["today_answers"] = AnswerStats(
+            date=today,
+            answered=answered + 1,
+            correct=right + (1 if correct else 0),
+        )
 
     def get_word_schedule(self, *, create_if_missing: bool = False) -> dict:
         if create_if_missing:

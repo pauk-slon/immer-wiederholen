@@ -6,7 +6,7 @@ from functools import cached_property
 from typing import Final, Literal
 
 from wiederholen.tutoring.curriculum import Course, Exercise, Recall
-from wiederholen.tutoring.journal import ExtraNewWords, Journal, ScheduleEntry
+from wiederholen.tutoring.journal import Journal, ScheduleEntry
 
 
 class RecallMode(Enum):
@@ -27,6 +27,8 @@ class Progress:
     new_today: int
     learning: int
     mastered: int
+    answered_today: int
+    correct_today: int
 
 
 @dataclass(frozen=True)
@@ -102,15 +104,8 @@ class Tutor:
     def _new_words_introduced_today_count(self) -> int:
         return len(self._words_introduced_today())
 
-    def _extra_new_words_today(self) -> int:
-        extra = self._journal.get_extra_new_words()
-        today = datetime.now(UTC).date().isoformat()
-        if extra is None or extra["date"] != today:
-            return 0
-        return extra["count"]
-
     def grant_extra_new_words(self) -> None:
-        extra_today = self._extra_new_words_today()
+        extra_today = self._journal.get_extra_new_words_today()
         cap = self.NEW_WORDS_PER_DAY + extra_today
         if len(self._words_introduced_today()) < cap:
             # The cap isn't actually binding right now — most likely a stale
@@ -118,10 +113,7 @@ class Tutor:
             # Granting here would silently raise today's cap without the
             # learner having asked for it today.
             return
-        today = datetime.now(UTC).date().isoformat()
-        self._journal.set_extra_new_words(
-            ExtraNewWords(date=today, count=extra_today + self.EXTRA_NEW_WORDS_GRANT)
-        )
+        self._journal.add_extra_new_words_today(self.EXTRA_NEW_WORDS_GRANT)
 
     def _due_review_pairs(self) -> list[tuple[str, str]]:
         today = datetime.now(UTC).date()
@@ -206,7 +198,7 @@ class Tutor:
         )
         budget = max(
             self.NEW_WORDS_PER_DAY
-            + self._extra_new_words_today()
+            + self._journal.get_extra_new_words_today()
             - len(self._words_introduced_today()),
             0,
         )
@@ -301,7 +293,7 @@ class Tutor:
         not_yet_started_words = {
             word for word, _ in available if word not in today_words
         }
-        cap = self.NEW_WORDS_PER_DAY + self._extra_new_words_today()
+        cap = self.NEW_WORDS_PER_DAY + self._journal.get_extra_new_words_today()
         remaining_word_budget = max(cap - len(today_words), 0)
         return started_word_pairs + min(
             remaining_word_budget, len(not_yet_started_words)
@@ -323,11 +315,14 @@ class Tutor:
                 mastered += 1
             else:
                 learning += 1
+        answered_today, correct_today = self._journal.get_answer_stats_today()
         return Progress(
             remaining_today=len(self._due_review_pairs()) + self._new_remaining_today(),
             new_today=self._new_words_introduced_today_count(),
             learning=learning,
             mastered=mastered,
+            answered_today=answered_today,
+            correct_today=correct_today,
         )
 
     def _schedule_next_repetition(
@@ -411,6 +406,7 @@ class Tutor:
         else:
             recall_mode = RecallMode.required
         mark = Mark(correct=correct, recall=recall_mode)
+        self._journal.record_answer_today(correct=correct)
         existing_entry = self._journal.get_schedule_entry(exercise.word, exercise.topic)
         interval_days_before = (
             existing_entry["interval_days"] if existing_entry is not None else 0
