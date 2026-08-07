@@ -76,7 +76,8 @@ class Journal:
     def add_extra_new_words_today(self, amount: int) -> int:
         new_count = self.get_extra_new_words_today() + amount
         self._data["extra_new_words"] = ExtraNewWords(
-            date=self._today.isoformat(), count=new_count
+            date=self._today.isoformat(),
+            count=new_count,
         )
         return new_count
 
