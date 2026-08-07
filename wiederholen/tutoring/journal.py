@@ -68,7 +68,8 @@ class Journal:
         )
         schedule_entry = self.get_schedule_entry(word, topic, create_if_missing=True)
         is_new = schedule_entry.get("introduced_at") is None
-        schedule_entry.setdefault("introduced_at", self._today.isoformat())
+        if is_new:
+            schedule_entry["introduced_at"] = self._today.isoformat()
         return is_new, schedule_entry
 
     @property
