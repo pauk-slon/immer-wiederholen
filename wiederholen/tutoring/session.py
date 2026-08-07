@@ -405,8 +405,7 @@ class Tutor:
         interval_days_before = (
             existing_entry["interval_days"] if existing_entry is not None else 0
         )
-        is_new = not self._journal.is_pair_introduced(exercise.word, exercise.topic)
-        self._journal.record_mark(
+        is_new = self._journal.record_mark(
             exercise.question,
             exercise.word,
             exercise.topic,
