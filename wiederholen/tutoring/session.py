@@ -58,9 +58,9 @@ class Tutor:
     NEW_WORDS_PER_DAY: Final = 7
     EXTRA_NEW_WORDS_GRANT: Final = 3
 
-    def __init__(self, course: Course, journal: dict, *, today: date | None = None) -> None:
+    def __init__(self, course: Course, journal: dict) -> None:
         self._course = course
-        self._today = today if today is not None else datetime.now(UTC).date()
+        self._today = datetime.now(UTC).date()
         self._journal = Journal(journal, today=self._today)
 
     def _get_due_date(self, word: str, topic: str) -> date:

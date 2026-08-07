@@ -1434,51 +1434,6 @@ class TestTodayAnswers:
         assert progress.correct_today == 0
 
 
-class TestTodayInjection:
-    # Tutor(course, journal, today=...) is the single seam a future
-    # per-student-timezone resolution would plug into — these prove the
-    # injected date actually propagates everywhere "today" matters, not
-    # just that the default (real current date) behavior still works.
-    def test_schedule_entries_use_the_injected_today_not_the_real_date(self) -> None:
-        exercise = make_exercise(word="warten", answer="auf")
-        injected_today = date(2020, 1, 1)
-        journal: dict = {}
-        tutor = Tutor(Course([exercise]), journal, today=injected_today)
-
-        tutor.check_answer(exercise, "auf")
-
-        entry = journal["word_schedule"]["warten"]["government"]
-        assert entry["introduced_at"] == injected_today.isoformat()
-        assert entry["due_date"] == injected_today.isoformat()
-
-    def test_journals_self_expiring_counters_use_the_injected_today(self) -> None:
-        exercise = make_exercise(word="warten", answer="auf")
-        injected_today = date(2020, 1, 1)
-        journal: dict = {}
-        tutor = Tutor(Course([exercise]), journal, today=injected_today)
-
-        tutor.check_answer(exercise, "auf")
-
-        assert journal["today_answers"]["date"] == injected_today.isoformat()
-
-    def test_next_exercise_treats_a_pair_due_on_the_injected_today_as_due(self) -> None:
-        exercise = make_exercise(word="warten")
-        injected_today = date(2020, 1, 1)
-        journal = {
-            "word_schedule": {
-                "warten": {
-                    "government": {
-                        "interval_days": 5,
-                        "due_date": injected_today.isoformat(),
-                    },
-                },
-            }
-        }
-        tutor = Tutor(Course([exercise]), journal, today=injected_today)
-
-        assert tutor.next_exercise() is not None
-
-
 class TestRequestRecallInterval:
     def test_halves_the_interval_after_a_correct_answer(self) -> None:
         exercise = make_exercise(recalls=True)
