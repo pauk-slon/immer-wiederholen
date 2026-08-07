@@ -158,9 +158,11 @@ class Journal:
         return entry is not None and entry.get("introduced_at") is not None
 
     def due_pairs(self, *, only_introduced: bool = True) -> Iterator[tuple[str, str]]:
-        # Pairs with a real entry, due today, split by whether they've been
-        # introduced — only_introduced=True (the default) is exactly the
-        # set _due_review_pairs() needs. Iterates the (typically much
+        # Pairs with a real entry, due today — only_introduced=True (the
+        # default) restricts that to pairs that have also been introduced,
+        # which is exactly the set _due_review_pairs() needs;
+        # only_introduced=False lifts that restriction, yielding due pairs
+        # regardless of introduced status. Iterates the (typically much
         # smaller) word_schedule instead of every (word, topic) the course
         # defines, since a real entry is required either way — the caller
         # still has to filter this against its own known (word, topic)
@@ -172,7 +174,7 @@ class Journal:
                 entry = self.get_schedule_entry(word, topic)
                 if (
                     entry is not None
-                    and (entry.get("introduced_at") is not None) == only_introduced
+                    and (not only_introduced or entry.get("introduced_at") is not None)
                     and date.fromisoformat(entry["due_date"]) <= self._today
                 ):
                     yield word, topic
