@@ -52,7 +52,7 @@ class Journal:
         *,
         correct: bool,
         was_recall_optional: bool,
-    ) -> bool:
+    ) -> tuple[bool, ScheduleEntry]:
         self._data["last_exercise"] = LastExercise(
             question=question,
             word=word,
@@ -69,7 +69,7 @@ class Journal:
         schedule_entry = self.get_schedule_entry(word, topic, create_if_missing=True)
         is_new = schedule_entry.get("introduced_at") is None
         schedule_entry.setdefault("introduced_at", self._today.isoformat())
-        return is_new
+        return is_new, schedule_entry
 
     @property
     def last_reminded_at(self) -> datetime | None:

@@ -401,17 +401,14 @@ class Tutor:
         else:
             recall_mode = RecallMode.required
         mark = Mark(correct=correct, recall=recall_mode)
-        existing_entry = self._journal.get_schedule_entry(exercise.word, exercise.topic)
-        interval_days_before = (
-            existing_entry["interval_days"] if existing_entry is not None else 0
-        )
-        is_new = self._journal.record_mark(
+        is_new, schedule_entry = self._journal.record_mark(
             exercise.question,
             exercise.word,
             exercise.topic,
             correct=correct,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
+        interval_days_before = schedule_entry["interval_days"]
         interval_days_after = self._schedule_next_repetition(
             exercise, correct, is_new=is_new
         )
