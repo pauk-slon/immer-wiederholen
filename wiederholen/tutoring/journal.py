@@ -35,6 +35,7 @@ class AnswerStats(TypedDict):
 
 class Journal:
     _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(ScheduleEntry)
+    _WORD_SCHEDULE_KEY: Final = "word_schedule"
 
     def __init__(self, data: dict, *, today: date | None = None) -> None:
         self._data = data
@@ -95,8 +96,8 @@ class Journal:
 
     def get_word_schedule(self, *, create_if_missing: bool = False) -> dict:
         if create_if_missing:
-            return self._data.setdefault("word_schedule", {})
-        return self._data.get("word_schedule", {})
+            return self._data.setdefault(self._WORD_SCHEDULE_KEY, {})
+        return self._data.get(self._WORD_SCHEDULE_KEY, {})
 
     def get_topic_schedule(self, word: str, *, create_if_missing: bool = False) -> dict:
         word_schedule = self.get_word_schedule(create_if_missing=create_if_missing)
@@ -108,9 +109,9 @@ class Journal:
         topic_schedule = word_schedule[word] = {}
         return topic_schedule
 
-    @staticmethod
-    def reset_schedule(data: dict) -> None:
-        data["word_schedule"] = {}
+    @classmethod
+    def reset_schedule(cls, data: dict) -> None:
+        data[cls._WORD_SCHEDULE_KEY] = {}
 
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
