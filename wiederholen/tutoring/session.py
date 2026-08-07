@@ -393,7 +393,6 @@ class Tutor:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
-        mark = Mark(correct=correct, recall=recall_mode)
         is_new, schedule_entry = self._journal.record_mark(
             exercise.question,
             exercise.word,
@@ -419,7 +418,7 @@ class Tutor:
             ),
             *self._expedite_chained_topics(exercise),
         ]
-        return mark, events
+        return Mark(correct=correct, recall=recall_mode), events
 
     def check_recall(self, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:
