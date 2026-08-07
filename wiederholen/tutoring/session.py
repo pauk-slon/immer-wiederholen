@@ -403,7 +403,7 @@ class Tutor:
         else:
             recall_mode = RecallMode.required
         mark = Mark(correct=correct, recall=recall_mode)
-        self._journal.record_answer_today(correct=correct)
+        self._journal.record_answer(correct=correct)
         existing_entry = self._journal.get_schedule_entry(exercise.word, exercise.topic)
         interval_days_before = (
             existing_entry["interval_days"] if existing_entry is not None else 0

@@ -87,7 +87,7 @@ class Journal:
             return 0, 0
         return stats["answered"], stats["correct"]
 
-    def record_answer_today(self, *, correct: bool) -> None:
+    def record_answer(self, *, correct: bool) -> None:
         answered, right = self.get_answer_stats_today()
         self._data["today_answers"] = AnswerStats(
             date=self._today.isoformat(),
