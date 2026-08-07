@@ -14,7 +14,7 @@ async def test_defaults_to_ru(feed_message: FeedMessage) -> None:
 
     assert len(requests) == 1
     assert requests[0].text == RU.progress_text.format(
-        remaining_today=format_count(2, "exercises", "ru"),
+        remaining_today=format_count(0, "exercises", "ru"),
         new_today=format_count(0, "words", "ru"),
         learning=format_count(0, "words", "ru"),
         mastered=format_count(0, "words", "ru"),
@@ -33,7 +33,7 @@ async def test_responds_in_current_language(
 
     assert len(requests) == 1
     assert requests[0].text == EN.progress_text.format(
-        remaining_today=format_count(1, "exercises", "en"),
+        remaining_today=format_count(0, "exercises", "en"),
         new_today=format_count(0, "words", "en"),
         learning=format_count(0, "words", "en"),
         mastered=format_count(0, "words", "en"),
@@ -75,7 +75,7 @@ async def test_reflects_journal_breakdown(
 
     assert len(requests) == 1
     assert requests[0].text == RU.progress_text.format(
-        remaining_today=format_count(1, "exercises", "ru"),
+        remaining_today=format_count(0, "exercises", "ru"),
         new_today=format_count(0, "words", "ru"),
         learning=format_count(1, "words", "ru"),
         mastered=format_count(1, "words", "ru"),
@@ -97,7 +97,7 @@ async def test_reflects_todays_answer_count(
 
     assert len(requests) == 1
     assert requests[0].text == RU.progress_text.format(
-        remaining_today=format_count(1, "exercises", "ru"),
+        remaining_today=format_count(0, "exercises", "ru"),
         new_today=format_count(0, "words", "ru"),
         learning=format_count(0, "words", "ru"),
         mastered=format_count(0, "words", "ru"),

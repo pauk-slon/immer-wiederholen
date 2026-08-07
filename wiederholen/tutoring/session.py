@@ -6,7 +6,7 @@ from functools import cached_property
 from typing import Final, Literal
 
 from wiederholen.tutoring.curriculum import Course, Exercise, Recall
-from wiederholen.tutoring.journal import Journal, ScheduleEntry
+from wiederholen.tutoring.journal import Journal
 
 
 class RecallMode(Enum):
@@ -81,24 +81,18 @@ class Tutor:
         return result
 
     @cached_property
-    def _word_topics(self) -> list[tuple[str, str]]:
-        return [
+    def _course_pairs(self) -> set[tuple[str, str]]:
+        return {
             (word, topic)
             for word, topics in self._exercises_by_word_topic.items()
             for topic in topics
-        ]
-
-    @cached_property
-    def _word_topics_set(self) -> set[tuple[str, str]]:
-        return set(self._word_topics)
+        }
 
     def _words_introduced_today(self) -> set[str]:
-        today = self._today.isoformat()
         return {
             word
-            for word, topic in self._word_topics
-            if (entry := self._journal.get_schedule_entry(word, topic)) is not None
-            and entry.get("introduced_at") == today
+            for word, topic in self._journal.iter_scheduled_pairs(introduced="today")
+            if (word, topic) in self._course_pairs
         }
 
     def _new_words_introduced_today_count(self) -> int:
@@ -115,20 +109,30 @@ class Tutor:
             return
         self._journal.add_extra_new_words_today(self.EXTRA_NEW_WORDS_GRANT)
 
-    def _due_review_pairs(self) -> list[tuple[str, str]]:
-        return [
+    def _due_pairs(self, introduced: bool | None = None) -> set[tuple[str, str]]:
+        return {
             pair
-            for pair in self._journal.due_pairs(only_introduced=True)
-            if pair in self._word_topics_set
-        ]
+            for pair in self._journal.iter_scheduled_pairs(
+                only_due_today=True,
+                introduced=introduced,
+            )
+            if pair in self._course_pairs
+        }
 
-    def _available_new_pairs(self) -> list[tuple[str, str]]:
-        return [
+    def _available_new_pairs(self) -> set[tuple[str, str]]:
+        untouched_pairs = self._course_pairs.difference(
+            set(self._journal.iter_scheduled_pairs())
+        )
+        # A gated topic with no entry at all is locked, not available — it
+        # only becomes reachable once _expedite_dependent() creates a real
+        # entry for it, at which point _due_pairs(introduced=False) below
+        # picks it up instead, no longer "untouched".
+        fresh_and_ungated = {
             (word, topic)
-            for word, topic in self._word_topics
-            if not self._journal.is_pair_introduced(word, topic)
-            and self._get_due_date(word, topic) <= self._today
-        ]
+            for word, topic in untouched_pairs
+            if topic not in self._course.gated_topics
+        }
+        return fresh_and_ungated | self._due_pairs(introduced=False)
 
     def _last_pair(self) -> tuple[str, str] | None:
         last_exercise = self._journal.get_last_exercise()
@@ -159,23 +163,17 @@ class Tutor:
 
     def _word_selection_pools(
         self,
-        due_review: list[tuple[str, str]],
-        available_new: list[tuple[str, str]],
+        due_review: set[tuple[str, str]],
+        available_new: set[tuple[str, str]],
     ) -> tuple[set[str], set[str], set[str]]:
         # Three tiers, by how "free" a word is to select without spending the
         # daily new-word budget:
-        # - free: relevant today (due, or has an available new topic — the
-        #   latter defaults to date.min so it's always "available", see
-        #   _get_due_date) AND has been actually introduced via some topic —
-        #   whether or not that's the same topic that's due/available today.
-        #   E.g. a word whose only progressing topic isn't due today, but
-        #   which also has a completely untouched topic, still counts as
-        #   free via that untouched topic's trivial availability.
-        # - queued: relevant today, never introduced, but already has a
-        #   schedule entry (expedited via a chain/gate) — prioritized over...
-        # - fresh: relevant today, no schedule entry anywhere — genuinely
-        #   never touched.
-        today_relevant_words = {word for word, _ in due_review + available_new}
+        # - free: introduced via some topic already — regardless of whether
+        #   that's the topic that's due/available today.
+        # - queued: never introduced, but already has a schedule entry
+        #   (expedited via a chain/gate) — prioritized over...
+        # - fresh: no schedule entry anywhere, genuinely never touched.
+        today_relevant_words = {word for word, _ in due_review | available_new}
         free_words = {
             word for word in today_relevant_words if self._has_introduced_topic(word)
         }
@@ -188,8 +186,8 @@ class Tutor:
 
     def _select_word(
         self,
-        due_review: list[tuple[str, str]],
-        available_new: list[tuple[str, str]],
+        due_review: set[tuple[str, str]],
+        available_new: set[tuple[str, str]],
     ) -> str | None:
         free_words, queued_words, fresh_words = self._word_selection_pools(
             due_review, available_new
@@ -227,8 +225,8 @@ class Tutor:
     def _select_topic(
         self,
         word: str,
-        due_review: list[tuple[str, str]],
-        available_new: list[tuple[str, str]],
+        due_review: set[tuple[str, str]],
+        available_new: set[tuple[str, str]],
     ) -> str:
         due_topics = [topic for w, topic in due_review if w == word]
         candidate_topics = due_topics or [
@@ -242,9 +240,9 @@ class Tutor:
         return random.choice(candidate_topics)
 
     def next_exercise(self) -> Exercise | None:
-        due_review = self._due_review_pairs()
+        due_review = self._due_pairs(introduced=True)
         available_new = self._available_new_pairs()
-        due_word_topics = due_review + available_new
+        due_word_topics = due_review | available_new
         if due_word_topics:
             word = self._select_word(due_review, available_new)
             if word is None:
@@ -252,11 +250,11 @@ class Tutor:
             topic = self._select_topic(word, due_review, available_new)
         else:
             earliest_due_date = min(
-                self._get_due_date(word, topic) for word, topic in self._word_topics
+                self._get_due_date(word, topic) for word, topic in self._course_pairs
             )
             earliest_word_topics = [
                 (word, topic)
-                for word, topic in self._word_topics
+                for word, topic in self._course_pairs
                 if self._get_due_date(word, topic) == earliest_due_date
             ]
             word, topic = random.choice(earliest_word_topics)
@@ -271,31 +269,6 @@ class Tutor:
         ):
             candidates = filtered_exercises
         return random.choice(candidates)
-
-    def _due_topics_count(self) -> int:
-        return len(self._due_review_pairs()) + len(self._available_new_pairs())
-
-    def _new_remaining_today(self) -> int:
-        # This is meant to actually predict today's remaining work, unlike
-        # next_exercise()'s own word-sampling (_select_word()), which only
-        # samples as many words as it needs for one pick at a time: pairs of
-        # an already-started word count in full (no budget left to spend on
-        # them), but not-yet-started words are capped to the remaining daily
-        # budget — one pair per slot, since we can't predict in advance how
-        # many topics a chain might cascade into — and further bounded by how
-        # many such words actually exist, so a small course doesn't get
-        # inflated up to the raw budget number.
-        today_words = self._words_introduced_today()
-        available = self._available_new_pairs()
-        started_word_pairs = sum(1 for word, _ in available if word in today_words)
-        not_yet_started_words = {
-            word for word, _ in available if word not in today_words
-        }
-        cap = self.NEW_WORDS_PER_DAY + self._journal.get_extra_new_words_today()
-        remaining_word_budget = max(cap - len(today_words), 0)
-        return started_word_pairs + min(
-            remaining_word_budget, len(not_yet_started_words)
-        )
 
     def progress(self) -> Progress:
         learning = 0
@@ -315,7 +288,7 @@ class Tutor:
                 learning += 1
         answered_today, correct_today = self._journal.get_answer_stats_today()
         return Progress(
-            remaining_today=len(self._due_review_pairs()) + self._new_remaining_today(),
+            remaining_today=len(self._due_pairs()),
             new_today=self._new_words_introduced_today_count(),
             learning=learning,
             mastered=mastered,
@@ -323,37 +296,17 @@ class Tutor:
             correct_today=correct_today,
         )
 
-    def _next_repetition(
-        self, interval_days_before: int, correct: bool, *, is_new: bool
-    ) -> tuple[date, int]:
+    def _next_repetition(self, interval_days_before: int, correct: bool) -> int:
         if correct:
-            interval = min(max(interval_days_before * 2, 1), self.MAX_INTERVAL_DAYS)
-        else:
-            interval = 1
-        # A wrong answer is always due again today (unchanged). A pair's very
-        # first answer is *also* always due today even if correct — a
-        # same-day "learning step" before real spacing kicks in, rather than
-        # pushing a correct first answer a full day out and leaving nothing
-        # to review again that same day (the first-day content shortage new
-        # learners used to hit). Only a correct answer on an already-started
-        # pair actually spaces out by the computed interval.
-        due_date = (
-            self._today
-            if (is_new or not correct)
-            else self._today + timedelta(days=interval)
-        )
-        return due_date, interval
+            return min(max(interval_days_before * 2, 1), self.MAX_INTERVAL_DAYS)
+        return 1
 
     def _expedite_dependent(self, word: str, topic: str) -> bool:
         if topic not in self._exercises_by_word_topic.get(word, {}):
             return False
         if self._journal.get_schedule_entry(word, topic) is not None:
             return False
-        topic_schedule = self._journal.get_topic_schedule(word, create_if_missing=True)
-        topic_schedule[topic] = ScheduleEntry(
-            interval_days=0,
-            due_date=self._today.isoformat(),
-        )
+        self._journal.schedule_pair(word, topic, interval_days=0)
         return True
 
     def _topic_unlocked_event(
@@ -363,7 +316,9 @@ class Tutor:
             "gate" if dependent_topic in self._course.gated_topics else "chain"
         )
         return TopicUnlocked(
-            source_topic=source_topic, dependent_topic=dependent_topic, via=via
+            source_topic=source_topic,
+            dependent_topic=dependent_topic,
+            via=via,
         )
 
     def _expedite_chained_topics(self, exercise: Exercise) -> list[TopicUnlocked]:
@@ -402,16 +357,18 @@ class Tutor:
             correct=correct,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
-        due_date, interval_days_after = self._next_repetition(
-            interval_days_before,
-            correct,
-            is_new=is_new,
-        )
+        interval_days_after = self._next_repetition(interval_days_before, correct)
         self._journal.schedule_pair(
             exercise.word,
             exercise.topic,
-            due_date=due_date,
             interval_days=interval_days_after,
+            # A same-day "learning step" before real spacing kicks in —
+            # otherwise a correct first answer would leave nothing to
+            # review again that same day (the first-day content shortage
+            # new learners used to hit). A correct answer on an
+            # already-started pair spaces out by schedule_pair()'s own
+            # interval_days default instead.
+            due_in_days=0 if (is_new or not correct) else None,
         )
         events: list[TutoringEvent] = [
             ExerciseAnswered(
@@ -452,7 +409,6 @@ class Tutor:
             self._journal.schedule_pair(
                 exercise.word,
                 exercise.topic,
-                due_date=self._today + timedelta(days=interval),
                 interval_days=interval,
             )
         candidates = exercise.recalls
@@ -469,7 +425,7 @@ class Tutor:
         return recall
 
     def should_remind(self) -> bool:
-        if self._due_topics_count() <= 0:
+        if not self._due_pairs() and not self._available_new_pairs():
             return False
         if (last_exercise := self._journal.get_last_exercise()) is None:
             return False

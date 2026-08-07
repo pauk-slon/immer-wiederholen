@@ -1,6 +1,6 @@
 from collections.abc import Iterator
-from datetime import UTC, date, datetime
-from typing import Annotated, Final, NotRequired, TypedDict, TypeIs
+from datetime import UTC, date, datetime, timedelta
+from typing import Annotated, Final, Literal, NotRequired, TypedDict, TypeIs
 
 from pydantic import AfterValidator, TypeAdapter, ValidationError
 
@@ -105,13 +105,13 @@ class Journal:
             return 0, 0
         return stats["answered"], stats["correct"]
 
-    def get_word_schedule(self, *, create_if_missing: bool = False) -> dict:
+    def _get_word_schedule(self, *, create_if_missing: bool = False) -> dict:
         if create_if_missing:
             return self._data.setdefault(self._WORD_SCHEDULE_KEY, {})
         return self._data.get(self._WORD_SCHEDULE_KEY, {})
 
-    def get_topic_schedule(self, word: str, *, create_if_missing: bool = False) -> dict:
-        word_schedule = self.get_word_schedule(create_if_missing=create_if_missing)
+    def _get_topic_schedule(self, word: str, *, create_if_missing: bool = False) -> dict:
+        word_schedule = self._get_word_schedule(create_if_missing=create_if_missing)
         topic_schedule = word_schedule.get(word)
         if isinstance(topic_schedule, dict):
             return topic_schedule
@@ -133,12 +133,12 @@ class Journal:
         return True
 
     def get_schedule_entry(self, word: str, topic: str) -> ScheduleEntry | None:
-        topic_schedule = self.get_topic_schedule(word)
+        topic_schedule = self._get_topic_schedule(word)
         schedule_entry = topic_schedule.get(topic)
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
 
     def _get_or_create_schedule_entry(self, word: str, topic: str) -> ScheduleEntry:
-        topic_schedule = self.get_topic_schedule(word, create_if_missing=True)
+        topic_schedule = self._get_topic_schedule(word, create_if_missing=True)
         schedule_entry = topic_schedule.get(topic)
         if not self._is_valid_schedule_entry(schedule_entry):
             schedule_entry = topic_schedule[topic] = ScheduleEntry(
@@ -147,34 +147,50 @@ class Journal:
         return schedule_entry
 
     def schedule_pair(
-        self, word: str, topic: str, *, due_date: date, interval_days: int
+        self,
+        word: str,
+        topic: str,
+        *,
+        interval_days: int,
+        due_in_days: int | None = None,
     ) -> None:
+        # due_in_days defaults to interval_days (today + the newly-computed
+        # interval); callers override it only for the "due again today
+        # regardless" exceptions — see Tutor.check_answer().
+        if due_in_days is None:
+            due_in_days = interval_days
         schedule_entry = self._get_or_create_schedule_entry(word, topic)
         schedule_entry["interval_days"] = interval_days
-        schedule_entry["due_date"] = due_date.isoformat()
+        schedule_entry["due_date"] = (
+            self._today + timedelta(days=due_in_days)
+        ).isoformat()
 
     def is_pair_introduced(self, word: str, topic: str) -> bool:
         entry = self.get_schedule_entry(word, topic)
         return entry is not None and entry.get("introduced_at") is not None
 
-    def due_pairs(self, *, only_introduced: bool = True) -> Iterator[tuple[str, str]]:
-        # Pairs with a real entry, due today — only_introduced=True (the
-        # default) restricts that to pairs that have also been introduced,
-        # which is exactly the set _due_review_pairs() needs;
-        # only_introduced=False lifts that restriction, yielding due pairs
-        # regardless of introduced status. Iterates the (typically much
-        # smaller) word_schedule instead of every (word, topic) the course
-        # defines, since a real entry is required either way — the caller
-        # still has to filter this against its own known (word, topic)
-        # pairs, since word_schedule can outlive a course change (a
-        # word/topic removed from topics.yaml stays in a learner's
-        # journal).
-        for word, topic_schedule in self.get_word_schedule().items():
+    def iter_scheduled_pairs(
+        self,
+        *,
+        only_due_today: bool = False,
+        introduced: bool | Literal["today"] | None = None,
+    ) -> Iterator[tuple[str, str]]:
+        for word, topic_schedule in self._get_word_schedule().items():
+            if not isinstance(topic_schedule, dict):
+                continue
             for topic in topic_schedule:
                 entry = self.get_schedule_entry(word, topic)
+                if entry is None:
+                    continue
+                introduced_at = entry.get("introduced_at")
+                if isinstance(introduced, bool):
+                    if (introduced_at is not None) != introduced:
+                        continue
+                elif introduced == "today" and introduced_at != self._today.isoformat():
+                    continue
                 if (
-                    entry is not None
-                    and (not only_introduced or entry.get("introduced_at") is not None)
-                    and date.fromisoformat(entry["due_date"]) <= self._today
+                    only_due_today
+                    and date.fromisoformat(entry["due_date"]) > self._today
                 ):
-                    yield word, topic
+                    continue
+                yield word, topic

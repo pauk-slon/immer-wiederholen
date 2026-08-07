@@ -72,17 +72,11 @@ def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
     assert 0.8 < picks["warten"] / picks["hoffen"] < 1.25
 
 
-def test_due_topics_count_is_zero_for_empty_course() -> None:
+def test_progress_remaining_today_is_zero_for_empty_course() -> None:
     assert Tutor(Course([]), {}).progress().remaining_today == 0
 
 
-def test_due_topics_count_counts_new_topics_as_due() -> None:
-    exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
-
-    assert Tutor(Course(exercises), {}).progress().remaining_today == 2
-
-
-def test_due_topics_count_excludes_not_yet_due_topics() -> None:
+def test_progress_remaining_today_excludes_not_yet_due_topics() -> None:
     exercise = make_exercise(word="warten")
     journal = {
         "word_schedule": {
@@ -100,12 +94,27 @@ def test_due_topics_count_excludes_not_yet_due_topics() -> None:
     assert Tutor(Course([exercise]), journal).progress().remaining_today == 0
 
 
-def test_due_topics_count_counts_shared_schedule_key_once() -> None:
-    # Two YAML entries for the same word+topic share one schedule key.
+def test_progress_remaining_today_counts_shared_schedule_key_once() -> None:
+    # Two YAML entries for the same word+topic share one schedule key, so a
+    # due review counts once regardless of how many entries back it.
     duplicate_1 = make_exercise(word="helfen")
     duplicate_2 = make_exercise(word="helfen")
+    journal = {
+        "word_schedule": {
+            "helfen": {
+                "government": {
+                    "interval_days": 30,
+                    "due_date": (
+                        datetime.now(UTC).date() - timedelta(days=1)
+                    ).isoformat(),
+                },
+            },
+        }
+    }
 
-    assert Tutor(Course([duplicate_1, duplicate_2]), {}).progress().remaining_today == 1
+    progress = Tutor(Course([duplicate_1, duplicate_2]), journal).progress()
+
+    assert progress.remaining_today == 1
 
 
 def test_new_topic_is_always_due() -> None:
@@ -957,7 +966,10 @@ class TestChainedTopicGating:
         for _ in range(50):
             assert _next(tutor).topic == "preposition_case"
 
-    def test_due_topics_count_excludes_locked_topics(self) -> None:
+    def test_progress_remaining_today_excludes_locked_topics(self) -> None:
+        # A locked (gated, never expedited) topic has no schedule entry at
+        # all, so it can never contribute to remaining_today — only a real
+        # due review of the unlocked source topic does.
         case_exercise = make_exercise(
             word="mit", topic="preposition_case", answer="Freund"
         )
@@ -966,13 +978,25 @@ class TestChainedTopicGating:
         )
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         gated_topics = frozenset({"preposition_meaning"})
+        journal = {
+            "word_schedule": {
+                "mit": {
+                    "preposition_case": {
+                        "interval_days": 30,
+                        "due_date": (
+                            datetime.now(UTC).date() - timedelta(days=1)
+                        ).isoformat(),
+                    },
+                },
+            }
+        }
         tutor = Tutor(
             Course(
                 [case_exercise, meaning_exercise],
                 word_chained_topics=chained_topics,
                 gated_topics=gated_topics,
             ),
-            {},
+            journal,
         )
 
         assert tutor.progress().remaining_today == 1
