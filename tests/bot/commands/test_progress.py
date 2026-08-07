@@ -90,7 +90,7 @@ async def test_reflects_todays_answer_count(
 ) -> None:
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date().isoformat()
-    journal = {"daily_answers": {"date": today, "answered": 12, "correct": 9}}
+    journal = {"today_answers": {"date": today, "answered": 12, "correct": 9}}
     await state.update_data(journal=journal)
 
     requests = await feed_message("/progress", course=Course([exercise]))

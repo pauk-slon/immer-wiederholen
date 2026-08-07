@@ -1382,7 +1382,7 @@ class TestExtraNewWords:
         assert state["extra_new_words"] == {"date": yesterday, "count": 3}
 
 
-class TestDailyAnswers:
+class TestTodayAnswers:
     def test_check_answer_counts_a_correct_answer(self) -> None:
         exercise = make_exercise(word="warten", answer="auf")
         state: dict = {}
@@ -1417,17 +1417,17 @@ class TestDailyAnswers:
         assert tutor.progress().answered_today == 3
         assert tutor.progress().correct_today == 2
 
-    def test_daily_answers_from_a_previous_day_do_not_carry_over(self) -> None:
+    def test_today_answers_from_a_previous_day_do_not_carry_over(self) -> None:
         exercise = make_exercise(word="warten")
         yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
-        state = {"daily_answers": {"date": yesterday, "answered": 5, "correct": 4}}
+        state = {"today_answers": {"date": yesterday, "answered": 5, "correct": 4}}
 
         progress = Tutor(Course([exercise]), state).progress()
 
         assert progress.answered_today == 0
         assert progress.correct_today == 0
 
-    def test_daily_answers_are_zero_before_anything_is_answered(self) -> None:
+    def test_today_answers_are_zero_before_anything_is_answered(self) -> None:
         exercise = make_exercise(word="warten")
 
         progress = Tutor(Course([exercise]), {}).progress()
