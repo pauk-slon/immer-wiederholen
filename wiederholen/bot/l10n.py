@@ -94,7 +94,7 @@ RU: Final = Locale(
         "📊 Твой прогресс\n"
         "\n"
         "Сегодня\n"
-        "✍️ Отвечено: {answered_today} (верно: {correct_today})\n"
+        "✍️ Ответов: {answered_count} (верно: {correct_today})\n"
         "🆕 Новых: {new_today}\n"
         "🎯 Осталось: {remaining_today}\n"
         "\n"

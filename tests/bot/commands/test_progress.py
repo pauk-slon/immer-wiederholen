@@ -18,7 +18,7 @@ async def test_defaults_to_ru(feed_message: FeedMessage) -> None:
         new_today=format_count(0, "words", "ru"),
         learning=format_count(0, "words", "ru"),
         mastered=format_count(0, "words", "ru"),
-        answered_today=format_count(0, "exercises", "ru"),
+        answered_count=0,
         correct_today=0,
     )
 
@@ -79,7 +79,7 @@ async def test_reflects_journal_breakdown(
         new_today=format_count(0, "words", "ru"),
         learning=format_count(1, "words", "ru"),
         mastered=format_count(1, "words", "ru"),
-        answered_today=format_count(0, "exercises", "ru"),
+        answered_count=0,
         correct_today=0,
     )
 
@@ -101,6 +101,6 @@ async def test_reflects_todays_answer_count(
         new_today=format_count(0, "words", "ru"),
         learning=format_count(0, "words", "ru"),
         mastered=format_count(0, "words", "ru"),
-        answered_today=format_count(12, "exercises", "ru"),
+        answered_count=12,
         correct_today=9,
     )
