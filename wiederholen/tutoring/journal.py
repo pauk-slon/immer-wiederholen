@@ -156,3 +156,7 @@ class Journal:
                 schedule_entry = topic_schedule[topic] = default
             return schedule_entry
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
+
+    def is_pair_introduced(self, word: str, topic: str) -> bool:
+        entry = self.get_schedule_entry(word, topic)
+        return entry is not None and entry.get("introduced_at") is not None

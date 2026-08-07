@@ -89,10 +89,6 @@ class Tutor:
             for topic in topics
         ]
 
-    def _is_new(self, word: str, topic: str) -> bool:
-        entry = self._journal.get_schedule_entry(word, topic)
-        return entry is None or entry["interval_days"] == 0
-
     def _words_introduced_today(self) -> set[str]:
         today = self._today.isoformat()
         return {
@@ -120,7 +116,7 @@ class Tutor:
         return [
             (word, topic)
             for word, topic in self._word_topics
-            if not self._is_new(word, topic)
+            if self._journal.is_pair_introduced(word, topic)
             and self._get_due_date(word, topic) <= self._today
         ]
 
@@ -128,7 +124,7 @@ class Tutor:
         return [
             (word, topic)
             for word, topic in self._word_topics
-            if self._is_new(word, topic)
+            if not self._journal.is_pair_introduced(word, topic)
             and self._get_due_date(word, topic) <= self._today
         ]
 
@@ -412,7 +408,7 @@ class Tutor:
         interval_days_before = (
             existing_entry["interval_days"] if existing_entry is not None else 0
         )
-        is_new = self._is_new(exercise.word, exercise.topic)
+        is_new = not self._journal.is_pair_introduced(exercise.word, exercise.topic)
         self._journal.record_mark(
             exercise.question,
             exercise.word,

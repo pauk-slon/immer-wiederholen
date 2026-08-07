@@ -144,6 +144,7 @@ def test_correct_answer_doubles_interval() -> None:
                 "government": {
                     "interval_days": 4,
                     "due_date": (today - timedelta(days=11)).isoformat(),
+                    "introduced_at": (today - timedelta(days=11)).isoformat(),
                 },
             },
         }
@@ -182,6 +183,7 @@ def test_correct_answer_caps_interval_at_max() -> None:
                 "government": {
                     "interval_days": 50,
                     "due_date": (today - timedelta(days=11)).isoformat(),
+                    "introduced_at": (today - timedelta(days=11)).isoformat(),
                 },
             },
         }
@@ -1140,12 +1142,13 @@ class TestNewWordDailyCap:
             state["word_schedule"]["warten"]["government"]["introduced_at"] == original
         )
 
-    def test_legacy_entry_without_introduced_at_is_not_treated_as_new(self) -> None:
-        # A schedule entry created before introduced_at existed has no way to know
-        # when it was first introduced, but it clearly isn't new — it already has
-        # real interval_days from being reviewed. It must not be misclassified as
-        # new (which would both wrongly consume the daily cap and let it get
-        # excluded from the due pool once that cap is reached).
+    def test_entry_without_introduced_at_is_treated_as_new_regardless_of_interval_days(
+        self,
+    ) -> None:
+        # is_pair_introduced() (Journal) checks introduced_at directly, not
+        # interval_days as an indirect proxy — a schedule entry with real
+        # interval_days but no introduced_at is treated as new, and gets
+        # introduced_at stamped on its next answer like any other new pair.
         exercise = make_exercise(word="warten", answer="auf")
         today = datetime.now(UTC).date()
         state = {
@@ -1161,7 +1164,10 @@ class TestNewWordDailyCap:
 
         Tutor(Course([exercise]), state).check_answer(exercise, "auf")
 
-        assert "introduced_at" not in state["word_schedule"]["warten"]["government"]
+        assert (
+            state["word_schedule"]["warten"]["government"]["introduced_at"]
+            == today.isoformat()
+        )
 
     def test_reset_schedule_clears_introduced_at_along_with_the_schedule(self) -> None:
         data = {

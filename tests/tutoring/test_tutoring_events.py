@@ -35,6 +35,7 @@ def test_answering_a_due_review_reports_is_new_false_and_interval_doubling() -> 
                 "government": {
                     "interval_days": 4,
                     "due_date": (today - timedelta(days=1)).isoformat(),
+                    "introduced_at": (today - timedelta(days=1)).isoformat(),
                 },
             },
         }
@@ -62,6 +63,7 @@ def test_wrong_answer_reports_correct_false_interval_reset_and_recall_mode() -> 
                 "government": {
                     "interval_days": 8,
                     "due_date": (today - timedelta(days=1)).isoformat(),
+                    "introduced_at": (today - timedelta(days=1)).isoformat(),
                 },
             },
         }
