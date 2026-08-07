@@ -66,9 +66,12 @@ class Tutor:
     def _get_due_date(self, word: str, topic: str) -> date:
         entry = self._journal.get_schedule_entry(word, topic)
         if entry is None:
-            if topic in self._course.gated_topics:
-                return date.max
-            return date.min
+            # Only reached from next_exercise()'s earliest-due tie-break,
+            # when nothing is due or available at all — an entry-less,
+            # non-gated pair would already have shown up via
+            # _available_new_pairs() instead, so every entry-less pair
+            # seen here is gated.
+            return date.max
         return date.fromisoformat(entry["due_date"])
 
     @cached_property

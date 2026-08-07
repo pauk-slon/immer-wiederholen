@@ -72,6 +72,18 @@ def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
     assert 0.8 < picks["warten"] / picks["hoffen"] < 1.25
 
 
+def test_next_exercise_falls_back_to_tie_break_when_the_whole_course_is_gated() -> None:
+    # A gated topic with no entry has no due date to speak of yet — the
+    # earliest-due tie-break falls back to _get_due_date()'s date.max for
+    # it, same as if nothing were due at all (there's no source to unlock
+    # it here, so it never will be).
+    exercise = make_exercise(word="mit", topic="preposition_meaning")
+    gated_topics = frozenset({"preposition_meaning"})
+    tutor = Tutor(Course([exercise], gated_topics=gated_topics), {})
+
+    assert _next(tutor).topic == "preposition_meaning"
+
+
 def test_progress_remaining_today_is_zero_for_empty_course() -> None:
     assert Tutor(Course([]), {}).progress().remaining_today == 0
 
@@ -1169,10 +1181,10 @@ class TestNewWordDailyCap:
     def test_entry_without_introduced_at_is_treated_as_new_regardless_of_interval_days(
         self,
     ) -> None:
-        # is_pair_introduced() (Journal) checks introduced_at directly, not
-        # interval_days as an indirect proxy — a schedule entry with real
-        # interval_days but no introduced_at is treated as new, and gets
-        # introduced_at stamped on its next answer like any other new pair.
+        # record_mark() checks introduced_at directly, not interval_days as
+        # an indirect proxy — a schedule entry with real interval_days but
+        # no introduced_at is treated as new, and gets introduced_at
+        # stamped on its next answer like any other new pair.
         exercise = make_exercise(word="warten", answer="auf")
         today = datetime.now(UTC).date()
         state = {

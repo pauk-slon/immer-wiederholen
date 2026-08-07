@@ -165,10 +165,6 @@ class Journal:
             self._today + timedelta(days=due_in_days)
         ).isoformat()
 
-    def is_pair_introduced(self, word: str, topic: str) -> bool:
-        entry = self.get_schedule_entry(word, topic)
-        return entry is not None and entry.get("introduced_at") is not None
-
     def iter_scheduled_pairs(
         self,
         *,
