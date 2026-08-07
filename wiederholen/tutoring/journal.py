@@ -51,7 +51,6 @@ class Journal:
         topic: str,
         *,
         correct: bool,
-        is_new: bool,
         was_recall_optional: bool,
     ) -> None:
         self._data["last_exercise"] = LastExercise(
@@ -67,7 +66,7 @@ class Journal:
             answered=answered + 1,
             correct=right + (1 if correct else 0),
         )
-        if is_new:
+        if not self.is_pair_introduced(word, topic):
             schedule_entry = self.get_schedule_entry(word, topic, create_if_missing=True)
             schedule_entry["introduced_at"] = self._today.isoformat()
 

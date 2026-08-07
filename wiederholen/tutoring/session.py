@@ -411,7 +411,6 @@ class Tutor:
             exercise.word,
             exercise.topic,
             correct=correct,
-            is_new=is_new,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
         interval_days_after = self._schedule_next_repetition(
