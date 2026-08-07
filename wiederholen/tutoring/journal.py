@@ -1,5 +1,5 @@
 from datetime import UTC, date, datetime
-from typing import Annotated, Final, Literal, NotRequired, TypedDict, overload
+from typing import Annotated, Final, NotRequired, TypedDict, TypeIs
 
 from pydantic import AfterValidator, TypeAdapter, ValidationError
 
@@ -52,7 +52,7 @@ class Journal:
         *,
         correct: bool,
         was_recall_optional: bool,
-    ) -> tuple[bool, ScheduleEntry]:
+    ) -> tuple[bool, int]:
         self._data["last_exercise"] = LastExercise(
             question=question,
             word=word,
@@ -66,11 +66,11 @@ class Journal:
             answered=answered + 1,
             correct=right + (1 if correct else 0),
         )
-        schedule_entry = self.get_schedule_entry(word, topic, create_if_missing=True)
+        schedule_entry = self._get_or_create_schedule_entry(word, topic)
         is_new = schedule_entry.get("introduced_at") is None
         if is_new:
             schedule_entry["introduced_at"] = self._today.isoformat()
-        return is_new, schedule_entry
+        return is_new, schedule_entry["interval_days"]
 
     @property
     def last_reminded_at(self) -> datetime | None:
@@ -124,47 +124,33 @@ class Journal:
         data[cls._WORD_SCHEDULE_KEY] = {}
 
     @classmethod
-    def _is_valid_schedule_entry(cls, schedule_entry: object) -> bool:
+    def _is_valid_schedule_entry(cls, schedule_entry: object) -> TypeIs[ScheduleEntry]:
         try:
             cls._SCHEDULE_ENTRY_ADAPTER.validate_python(schedule_entry, strict=True)
         except ValidationError:
             return False
         return True
 
-    @overload
-    def get_schedule_entry(
-        self,
-        word: str,
-        topic: str,
-        *,
-        create_if_missing: Literal[True],
-    ) -> ScheduleEntry: ...
-    @overload
-    def get_schedule_entry(
-        self,
-        word: str,
-        topic: str,
-        *,
-        create_if_missing: Literal[False] = False,
-    ) -> ScheduleEntry | None: ...
-    def get_schedule_entry(
-        self,
-        word: str,
-        topic: str,
-        *,
-        create_if_missing: bool = False,
-    ) -> ScheduleEntry | None:
-        default = ScheduleEntry(interval_days=0, due_date=date.min.isoformat())
-        topic_schedule = self.get_topic_schedule(
-            word,
-            create_if_missing=create_if_missing,
-        )
+    def get_schedule_entry(self, word: str, topic: str) -> ScheduleEntry | None:
+        topic_schedule = self.get_topic_schedule(word)
         schedule_entry = topic_schedule.get(topic)
-        if create_if_missing:
-            if not self._is_valid_schedule_entry(schedule_entry):
-                schedule_entry = topic_schedule[topic] = default
-            return schedule_entry
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
+
+    def _get_or_create_schedule_entry(self, word: str, topic: str) -> ScheduleEntry:
+        topic_schedule = self.get_topic_schedule(word, create_if_missing=True)
+        schedule_entry = topic_schedule.get(topic)
+        if not self._is_valid_schedule_entry(schedule_entry):
+            schedule_entry = topic_schedule[topic] = ScheduleEntry(
+                interval_days=0, due_date=date.min.isoformat()
+            )
+        return schedule_entry
+
+    def schedule_pair(
+        self, word: str, topic: str, *, due_date: date, interval_days: int
+    ) -> None:
+        schedule_entry = self._get_or_create_schedule_entry(word, topic)
+        schedule_entry["interval_days"] = interval_days
+        schedule_entry["due_date"] = due_date.isoformat()
 
     def is_pair_introduced(self, word: str, topic: str) -> bool:
         entry = self.get_schedule_entry(word, topic)

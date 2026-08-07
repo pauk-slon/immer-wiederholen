@@ -393,19 +393,24 @@ class Tutor:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
-        is_new, schedule_entry = self._journal.record_mark(
+        is_new, interval_days_before = self._journal.record_mark(
             exercise.question,
             exercise.word,
             exercise.topic,
             correct=correct,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
-        interval_days_before = schedule_entry["interval_days"]
         due_date, interval_days_after = self._next_repetition(
-            interval_days_before, correct, is_new=is_new
+            interval_days_before,
+            correct,
+            is_new=is_new,
         )
-        schedule_entry["interval_days"] = interval_days_after
-        schedule_entry["due_date"] = due_date.isoformat()
+        self._journal.schedule_pair(
+            exercise.word,
+            exercise.topic,
+            due_date=due_date,
+            interval_days=interval_days_after,
+        )
         events: list[TutoringEvent] = [
             ExerciseAnswered(
                 word=exercise.word,
@@ -434,16 +439,19 @@ class Tutor:
             last_exercise["is_recall_optional"]
             and last_exercise.get("recall_question") is None
         ):
-            schedule_entry = self._journal.get_schedule_entry(
+            existing_entry = self._journal.get_schedule_entry(
+                exercise.word, exercise.topic
+            )
+            interval_days_before = (
+                existing_entry["interval_days"] if existing_entry is not None else 0
+            )
+            interval = max(interval_days_before // 2, 1)
+            self._journal.schedule_pair(
                 exercise.word,
                 exercise.topic,
-                create_if_missing=True,
+                due_date=self._today + timedelta(days=interval),
+                interval_days=interval,
             )
-            interval = max(schedule_entry["interval_days"] // 2, 1)
-            schedule_entry["interval_days"] = interval
-            schedule_entry["due_date"] = (
-                self._today + timedelta(days=interval)
-            ).isoformat()
         candidates = exercise.recalls
         if last_exercise.get("recall_question") is not None and (
             filtered_recalls := [
