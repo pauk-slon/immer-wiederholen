@@ -113,7 +113,7 @@ class Tutor:
             # Granting here would silently raise today's cap without the
             # learner having asked for it today.
             return
-        self._journal.set_extra_new_words_today(extra_today + self.EXTRA_NEW_WORDS_GRANT)
+        self._journal.add_extra_new_words_today(self.EXTRA_NEW_WORDS_GRANT)
 
     def _due_review_pairs(self) -> list[tuple[str, str]]:
         today = datetime.now(UTC).date()

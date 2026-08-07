@@ -72,9 +72,11 @@ class Journal:
             return 0
         return extra["count"]
 
-    def set_extra_new_words_today(self, count: int) -> None:
+    def add_extra_new_words_today(self, amount: int) -> int:
+        new_count = self.get_extra_new_words_today() + amount
         today = datetime.now(UTC).date().isoformat()
-        self._data["extra_new_words"] = ExtraNewWords(date=today, count=count)
+        self._data["extra_new_words"] = ExtraNewWords(date=today, count=new_count)
+        return new_count
 
     def get_today_answer_stats(self) -> tuple[int, int]:
         stats = self._data.get("today_answers")
