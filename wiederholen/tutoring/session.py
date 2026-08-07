@@ -58,9 +58,10 @@ class Tutor:
     NEW_WORDS_PER_DAY: Final = 7
     EXTRA_NEW_WORDS_GRANT: Final = 3
 
-    def __init__(self, course: Course, journal: dict) -> None:
+    def __init__(self, course: Course, journal: dict, *, today: date | None = None) -> None:
         self._course = course
-        self._journal = Journal(journal)
+        self._today = today if today is not None else datetime.now(UTC).date()
+        self._journal = Journal(journal, today=self._today)
 
     def _get_due_date(self, word: str, topic: str) -> date:
         entry = self._journal.get_schedule_entry(word, topic)
@@ -93,7 +94,7 @@ class Tutor:
         return entry is None or entry["interval_days"] == 0
 
     def _words_introduced_today(self) -> set[str]:
-        today = datetime.now(UTC).date().isoformat()
+        today = self._today.isoformat()
         return {
             word
             for word, topic in self._word_topics
@@ -116,20 +117,19 @@ class Tutor:
         self._journal.add_extra_new_words_today(self.EXTRA_NEW_WORDS_GRANT)
 
     def _due_review_pairs(self) -> list[tuple[str, str]]:
-        today = datetime.now(UTC).date()
         return [
             (word, topic)
             for word, topic in self._word_topics
             if not self._is_new(word, topic)
-            and self._get_due_date(word, topic) <= today
+            and self._get_due_date(word, topic) <= self._today
         ]
 
     def _available_new_pairs(self) -> list[tuple[str, str]]:
-        today = datetime.now(UTC).date()
         return [
             (word, topic)
             for word, topic in self._word_topics
-            if self._is_new(word, topic) and self._get_due_date(word, topic) <= today
+            if self._is_new(word, topic)
+            and self._get_due_date(word, topic) <= self._today
         ]
 
     def _last_pair(self) -> tuple[str, str] | None:
@@ -334,14 +334,13 @@ class Tutor:
             create_if_missing=True,
         )
         if is_new:
-            schedule_entry["introduced_at"] = datetime.now(UTC).date().isoformat()
+            schedule_entry["introduced_at"] = self._today.isoformat()
         if correct:
             interval = min(
                 max(schedule_entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS
             )
         else:
             interval = 1
-        today = datetime.now(UTC).date()
         # A wrong answer is always due again today (unchanged). A pair's very
         # first answer is *also* always due today even if correct — a
         # same-day "learning step" before real spacing kicks in, rather than
@@ -350,7 +349,9 @@ class Tutor:
         # learners used to hit). Only a correct answer on an already-started
         # pair actually spaces out by the computed interval.
         due_date = (
-            today if (is_new or not correct) else today + timedelta(days=interval)
+            self._today
+            if (is_new or not correct)
+            else self._today + timedelta(days=interval)
         )
         schedule_entry["interval_days"] = interval
         schedule_entry["due_date"] = due_date.isoformat()
@@ -364,7 +365,7 @@ class Tutor:
         topic_schedule = self._journal.get_topic_schedule(word, create_if_missing=True)
         topic_schedule[topic] = ScheduleEntry(
             interval_days=0,
-            due_date=datetime.now(UTC).date().isoformat(),
+            due_date=self._today.isoformat(),
         )
         return True
 
@@ -457,7 +458,7 @@ class Tutor:
             interval = max(schedule_entry["interval_days"] // 2, 1)
             schedule_entry["interval_days"] = interval
             schedule_entry["due_date"] = (
-                datetime.now(UTC).date() + timedelta(days=interval)
+                self._today + timedelta(days=interval)
             ).isoformat()
         candidates = exercise.recalls
         if last_exercise.get("recall_question") is not None and (
