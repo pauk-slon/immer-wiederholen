@@ -88,6 +88,10 @@ class Tutor:
             for topic in topics
         ]
 
+    @cached_property
+    def _word_topics_set(self) -> set[tuple[str, str]]:
+        return set(self._word_topics)
+
     def _words_introduced_today(self) -> set[str]:
         today = self._today.isoformat()
         return {
@@ -113,10 +117,7 @@ class Tutor:
 
     def _due_review_pairs(self) -> list[tuple[str, str]]:
         return [
-            (word, topic)
-            for word, topic in self._word_topics
-            if self._journal.is_pair_introduced(word, topic)
-            and self._get_due_date(word, topic) <= self._today
+            pair for pair in self._journal.due_pairs() if pair in self._word_topics_set
         ]
 
     def _available_new_pairs(self) -> list[tuple[str, str]]:
@@ -439,7 +440,8 @@ class Tutor:
             and last_exercise.get("recall_question") is None
         ):
             existing_entry = self._journal.get_schedule_entry(
-                exercise.word, exercise.topic
+                exercise.word,
+                exercise.topic,
             )
             interval_days_before = (
                 existing_entry["interval_days"] if existing_entry is not None else 0
