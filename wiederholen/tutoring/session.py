@@ -66,8 +66,7 @@ class Tutor:
     def _get_due_date(self, word: str, topic: str) -> date:
         entry = self._journal.get_schedule_entry(word, topic)
         if entry is None:
-            exercise = self._exercises_by_word_topic[word][topic][0]
-            if exercise.topic in self._course.gated_topics:
+            if topic in self._course.gated_topics:
                 return date.max
             return date.min
         return date.fromisoformat(entry["due_date"])
