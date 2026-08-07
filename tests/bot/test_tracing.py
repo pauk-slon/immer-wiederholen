@@ -212,6 +212,27 @@ def test_configure_tracing_is_a_noop_without_an_otlp_endpoint(
     assert trace.get_tracer_provider() is provider_before
 
 
+def test_configure_tracing_installs_a_provider_when_an_otlp_endpoint_is_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # trace.set_tracer_provider() only ever succeeds once per process (see
+    # wiederholen/bot/tracing.py's own module docstring-equivalent notes on
+    # this), so calling the real one here would make this test's outcome
+    # depend on whether some earlier test in the same session already
+    # claimed it — same reason the `tracer` fixture above builds its own
+    # provider directly instead of going through the global registration.
+    # Spying on the setter instead sidesteps that entirely.
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+    installed_providers: list[object] = []
+    monkeypatch.setattr(trace, "set_tracer_provider", installed_providers.append)
+
+    tracing.configure_tracing()
+
+    assert len(installed_providers) == 1
+    assert isinstance(installed_providers[0], TracerProvider)
+
+
 def test_record_tutoring_events_adds_one_span_event_per_event(
     tracer: Tracer,
     exporter: InMemorySpanExporter,
