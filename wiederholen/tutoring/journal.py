@@ -157,21 +157,21 @@ class Journal:
         entry = self.get_schedule_entry(word, topic)
         return entry is not None and entry.get("introduced_at") is not None
 
-    def due_pairs(self) -> Iterator[tuple[str, str]]:
-        # Only pairs that are both introduced and due — i.e. exactly the set
+    def due_pairs(self, *, introduced: bool = True) -> Iterator[tuple[str, str]]:
+        # Pairs with a real entry, due today, split by whether they've been
+        # introduced — introduced=True (the default) is exactly the set
         # _due_review_pairs() needs. Iterates the (typically much smaller)
         # word_schedule instead of every (word, topic) the course defines,
-        # since a due review always has a real, introduced entry to begin
-        # with — the caller still has to filter this against its own known
-        # (word, topic) pairs, since word_schedule can outlive a course
-        # change (a word/topic removed from topics.yaml stays in a
-        # learner's journal).
+        # since a real entry is required either way — the caller still has
+        # to filter this against its own known (word, topic) pairs, since
+        # word_schedule can outlive a course change (a word/topic removed
+        # from topics.yaml stays in a learner's journal).
         for word, topic_schedule in self.get_word_schedule().items():
             for topic in topic_schedule:
                 entry = self.get_schedule_entry(word, topic)
                 if (
                     entry is not None
-                    and entry.get("introduced_at") is not None
+                    and (entry.get("introduced_at") is not None) == introduced
                     and date.fromisoformat(entry["due_date"]) <= self._today
                 ):
                     yield word, topic
