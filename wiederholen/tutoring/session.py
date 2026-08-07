@@ -329,8 +329,6 @@ class Tutor:
             exercise.topic,
             create_if_missing=True,
         )
-        if is_new:
-            schedule_entry["introduced_at"] = self._today.isoformat()
         if correct:
             interval = min(
                 max(schedule_entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS
@@ -413,6 +411,7 @@ class Tutor:
             exercise.word,
             exercise.topic,
             correct=correct,
+            is_new=is_new,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
         interval_days_after = self._schedule_next_repetition(
