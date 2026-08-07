@@ -321,18 +321,11 @@ class Tutor:
             correct_today=correct_today,
         )
 
-    def _schedule_next_repetition(
-        self, exercise: Exercise, correct: bool, *, is_new: bool
-    ) -> int:
-        schedule_entry = self._journal.get_schedule_entry(
-            exercise.word,
-            exercise.topic,
-            create_if_missing=True,
-        )
+    def _next_repetition(
+        self, interval_days_before: int, correct: bool, *, is_new: bool
+    ) -> tuple[date, int]:
         if correct:
-            interval = min(
-                max(schedule_entry["interval_days"] * 2, 1), self.MAX_INTERVAL_DAYS
-            )
+            interval = min(max(interval_days_before * 2, 1), self.MAX_INTERVAL_DAYS)
         else:
             interval = 1
         # A wrong answer is always due again today (unchanged). A pair's very
@@ -347,9 +340,7 @@ class Tutor:
             if (is_new or not correct)
             else self._today + timedelta(days=interval)
         )
-        schedule_entry["interval_days"] = interval
-        schedule_entry["due_date"] = due_date.isoformat()
-        return interval
+        return due_date, interval
 
     def _expedite_dependent(self, word: str, topic: str) -> bool:
         if topic not in self._exercises_by_word_topic.get(word, {}):
@@ -391,7 +382,9 @@ class Tutor:
         return events
 
     def check_answer(
-        self, exercise: Exercise, answer: str
+        self,
+        exercise: Exercise,
+        answer: str,
     ) -> tuple[Mark, list[TutoringEvent]]:
         correct = answer.strip().lower() == exercise.answer.strip().lower()
         if not exercise.recalls:
@@ -409,9 +402,11 @@ class Tutor:
             was_recall_optional=recall_mode == RecallMode.optional,
         )
         interval_days_before = schedule_entry["interval_days"]
-        interval_days_after = self._schedule_next_repetition(
-            exercise, correct, is_new=is_new
+        due_date, interval_days_after = self._next_repetition(
+            interval_days_before, correct, is_new=is_new
         )
+        schedule_entry["interval_days"] = interval_days_after
+        schedule_entry["due_date"] = due_date.isoformat()
         events: list[TutoringEvent] = [
             ExerciseAnswered(
                 word=exercise.word,
