@@ -34,6 +34,7 @@ async def command_progress(
                 "exercises",
                 language,
             ),
+            answered_count=progress.answered_today,
             correct_today=progress.correct_today,
         )
     )
