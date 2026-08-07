@@ -66,8 +66,8 @@ class Journal:
             answered=answered + 1,
             correct=right + (1 if correct else 0),
         )
-        if not self.is_pair_introduced(word, topic):
-            schedule_entry = self.get_schedule_entry(word, topic, create_if_missing=True)
+        schedule_entry = self.get_schedule_entry(word, topic, create_if_missing=True)
+        if schedule_entry.get("introduced_at") is None:
             schedule_entry["introduced_at"] = self._today.isoformat()
 
     @property
