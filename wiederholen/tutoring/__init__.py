@@ -3,6 +3,7 @@ from wiederholen.tutoring.journal import Journal
 from wiederholen.tutoring.session import (
     ExerciseAnswered,
     Mark,
+    NoExerciseAvailable,
     Progress,
     RecallMode,
     TopicUnlocked,
@@ -16,6 +17,7 @@ __all__ = [
     "ExerciseAnswered",
     "Journal",
     "Mark",
+    "NoExerciseAvailable",
     "Progress",
     "Recall",
     "RecallMode",

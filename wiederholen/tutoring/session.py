@@ -1,6 +1,6 @@
 import random
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from functools import cached_property
 from typing import Final, Literal
@@ -49,7 +49,15 @@ class TopicUnlocked:
     via: Literal["chain", "gate"]
 
 
-TutoringEvent = ExerciseAnswered | TopicUnlocked
+@dataclass(frozen=True)
+class NoExerciseAvailable:
+    # "nothing_available": no due review and no available new pair at all.
+    # "daily_cap_reached": pairs exist, but the new-word budget is
+    #   exhausted and no already-introduced word is available either.
+    reason: Literal["nothing_available", "daily_cap_reached"]
+
+
+TutoringEvent = ExerciseAnswered | TopicUnlocked | NoExerciseAvailable
 
 
 class Tutor:
@@ -62,17 +70,6 @@ class Tutor:
         self._course = course
         self._today = datetime.now(UTC).date()
         self._journal = Journal(journal, today=self._today)
-
-    def _get_due_date(self, word: str, topic: str) -> date:
-        entry = self._journal.get_schedule_entry(word, topic)
-        if entry is None:
-            # Only reached from next_exercise()'s earliest-due tie-break,
-            # when nothing is due or available at all — an entry-less,
-            # non-gated pair would already have shown up via
-            # _available_new_pairs() instead, so every entry-less pair
-            # seen here is gated.
-            return date.max
-        return date.fromisoformat(entry["due_date"])
 
     @cached_property
     def _exercises_by_word_topic(self) -> dict[str, dict[str, list[Exercise]]]:
@@ -220,26 +217,17 @@ class Tutor:
                 candidate_topics = without_last_topic
         return random.choice(candidate_topics)
 
-    def next_exercise(self) -> Exercise | None:
+    def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
         introduced_due_pairs = self._get_due_pairs(introduced=True)
         available_new_pairs = self._get_available_not_scheduled_pairs() | (
             self._get_due_pairs(introduced=False)
         )
-        if introduced_due_pairs | available_new_pairs:
-            word = self._select_word(introduced_due_pairs, available_new_pairs)
-            if word is None:
-                return None
-            topic = self._select_topic(word, introduced_due_pairs, available_new_pairs)
-        else:
-            earliest_due_date = min(
-                self._get_due_date(word, topic) for word, topic in self._course_pairs
-            )
-            earliest_word_topics = [
-                (word, topic)
-                for word, topic in self._course_pairs
-                if self._get_due_date(word, topic) == earliest_due_date
-            ]
-            word, topic = random.choice(earliest_word_topics)
+        if not (introduced_due_pairs | available_new_pairs):
+            return None, [NoExerciseAvailable(reason="nothing_available")]
+        word = self._select_word(introduced_due_pairs, available_new_pairs)
+        if word is None:
+            return None, [NoExerciseAvailable(reason="daily_cap_reached")]
+        topic = self._select_topic(word, introduced_due_pairs, available_new_pairs)
         candidates = self._exercises_by_word_topic[word][topic]
         last_exercise = self._journal.get_last_exercise()
         if last_exercise is not None and (
@@ -250,7 +238,7 @@ class Tutor:
             ]
         ):
             candidates = filtered_exercises
-        return random.choice(candidates)
+        return random.choice(candidates), []
 
     def progress(self) -> Progress:
         learning = 0
