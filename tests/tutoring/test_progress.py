@@ -201,3 +201,48 @@ def test_progress_new_today_is_zero_before_anything_is_answered() -> None:
     exercise = make_exercise(word="warten")
 
     assert Tutor(Course([exercise]), {}).progress().new_today == 0
+
+
+def test_progress_new_today_excludes_a_queued_but_never_answered_word() -> None:
+    # A pair expedited via a chain/gate has a real schedule entry (so it's
+    # no longer "untouched") but was never actually answered — no
+    # introduced_at anywhere for this word. Queued isn't introduced.
+    exercise = make_exercise(word="mit", topic="preposition_meaning")
+    today = datetime.now(UTC).date()
+    journal = {
+        "word_schedule": {
+            "mit": {
+                "preposition_meaning": {
+                    "interval_days": 0,
+                    "due_date": today.isoformat(),
+                },
+            },
+        }
+    }
+
+    assert Tutor(Course([exercise]), journal).progress().new_today == 0
+
+
+def test_progress_new_today_excludes_a_word_already_introduced_earlier() -> None:
+    # sprechen's government was introduced 3 days ago; today its
+    # partizip_ii gets its first answer too. The word itself started 3
+    # days ago, so today's tally shouldn't count it again.
+    government = make_exercise(word="sprechen", topic="government", answer="auf")
+    partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
+    today = datetime.now(UTC).date()
+    journal = {
+        "word_schedule": {
+            "sprechen": {
+                "government": {
+                    "interval_days": 4,
+                    "due_date": today.isoformat(),
+                    "introduced_at": (today - timedelta(days=3)).isoformat(),
+                },
+            },
+        }
+    }
+    tutor = Tutor(Course([government, partizip]), journal)
+
+    tutor.check_answer(partizip, "gesprochen")
+
+    assert tutor.progress().new_today == 0

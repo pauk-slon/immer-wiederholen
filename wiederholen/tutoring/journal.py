@@ -1,6 +1,6 @@
 from collections.abc import Generator
 from datetime import UTC, date, datetime, timedelta
-from typing import Annotated, Final, Literal, NotRequired, TypedDict, TypeIs
+from typing import Annotated, Final, NotRequired, TypedDict, TypeIs
 
 from pydantic import AfterValidator, TypeAdapter, ValidationError
 
@@ -167,32 +167,50 @@ class Journal:
             self._today + timedelta(days=due_in_days)
         ).isoformat()
 
-    def _iter_word_schedule(self) -> Generator[tuple[str, dict]]:
+    def _iter_valid_topics(
+        self, topic_schedule: dict
+    ) -> Generator[tuple[str, ScheduleEntry]]:
+        for topic, schedule_entry in topic_schedule.items():
+            if not isinstance(topic, str):
+                continue
+            if self._is_valid_schedule_entry(schedule_entry):
+                yield topic, schedule_entry
+
+    def _iter_valid_scheduled_pairs(
+        self,
+    ) -> Generator[tuple[str, Generator[tuple[str, ScheduleEntry]]]]:
         for word, topic_schedule in self._get_word_schedule().items():
             if not isinstance(word, str) or not isinstance(topic_schedule, dict):
                 continue
-            yield word, topic_schedule
+            yield word, self._iter_valid_topics(topic_schedule)
 
     def iter_scheduled_pairs(
         self,
         *,
         only_due_today: bool = False,
-        introduced: bool | Literal["today"] | None = None,
+        introduced: bool | None = None,
     ) -> Generator[tuple[str, str]]:
-        for word, topic_schedule in self._iter_word_schedule():
-            for topic in topic_schedule:
-                entry = self.get_schedule_entry(word, topic)
-                if entry is None:
-                    continue
-                introduced_at = entry.get("introduced_at")
-                if isinstance(introduced, bool):
-                    if (introduced_at is not None) != introduced:
-                        continue
-                elif introduced == "today" and introduced_at != self._today.isoformat():
+        for word, topic_schedule in self._iter_valid_scheduled_pairs():
+            for topic, schedule_entry in topic_schedule:
+                introduced_at = schedule_entry.get("introduced_at")
+                if introduced is not None and (introduced_at is not None) != introduced:
                     continue
                 if (
                     only_due_today
-                    and date.fromisoformat(entry["due_date"]) > self._today
+                    and date.fromisoformat(schedule_entry["due_date"]) > self._today
                 ):
                     continue
                 yield word, topic
+
+    def get_words_introduced_today(self) -> set[str]:
+        today = self._today.isoformat()
+        words = set()
+        for word, topic_schedule in self._iter_valid_scheduled_pairs():
+            introduced_dates = [
+                schedule_entry["introduced_at"]
+                for _, schedule_entry in topic_schedule
+                if "introduced_at" in schedule_entry
+            ]
+            if introduced_dates and all(date == today for date in introduced_dates):
+                words.add(word)
+        return words

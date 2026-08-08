@@ -282,6 +282,32 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
     assert _next(tutor).word == "warten"
 
 
+def test_malformed_topic_key_is_ignored() -> None:
+    # A topic-level key that isn't a string (e.g. corrupted data) is
+    # skipped, not treated as a real topic.
+    exercise = make_exercise(word="warten", answer="auf")
+    today = datetime.now(UTC).date()
+    state = {
+        "word_schedule": {
+            "warten": {
+                123: {
+                    "interval_days": 1,
+                    "due_date": today.isoformat(),
+                    "introduced_at": today.isoformat(),
+                },
+                "government": {
+                    "interval_days": 1,
+                    "due_date": today.isoformat(),
+                    "introduced_at": today.isoformat(),
+                },
+            },
+        }
+    }
+    tutor = Tutor(Course([exercise]), state)
+
+    assert tutor.progress().new_today == 1
+
+
 def test_malformed_word_schedule_is_treated_as_unscheduled() -> None:
     # The word-level container itself (not just a leaf entry) can be malformed.
     exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
