@@ -92,9 +92,6 @@ class Tutor:
         course_words = {word for word, _ in self._course_pairs}
         return self._journal.get_words_introduced_today() & course_words
 
-    def _new_words_introduced_today_count(self) -> int:
-        return len(self._words_introduced_today())
-
     def grant_extra_new_words(self) -> None:
         extra_today = self._journal.get_extra_new_words_today()
         cap = self.NEW_WORDS_PER_DAY + extra_today
@@ -259,7 +256,7 @@ class Tutor:
         answered_today, correct_today = self._journal.get_answer_stats_today()
         return Progress(
             remaining_today=len(self._get_due_pairs()),
-            new_today=self._new_words_introduced_today_count(),
+            new_today=len(self._words_introduced_today()),
             learning=learning,
             mastered=mastered,
             answered_today=answered_today,
