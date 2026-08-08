@@ -214,3 +214,13 @@ class Journal:
             if introduced_dates and all(date == today for date in introduced_dates):
                 words.add(word)
         return words
+
+    def get_introduced_words(self) -> set[str]:
+        return {
+            word
+            for word, topic_schedule in self._iter_valid_scheduled_pairs()
+            if any(
+                "introduced_at" in schedule_entry
+                for (topic, schedule_entry) in topic_schedule
+            )
+        }

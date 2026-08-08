@@ -138,53 +138,40 @@ class Tutor:
             return None
         return (word, topic)
 
-    def _has_introduced_topic(self, word: str) -> bool:
-        # True once the learner has actually answered *any* topic of this
-        # word at least once — not merely "has a schedule entry", which a
-        # chain/gate can create via _expedite_dependent() without the
-        # learner ever having seen it (see introduced_at's own rationale).
-        return any(
-            (entry := self._journal.get_schedule_entry(word, topic)) is not None
-            and entry.get("introduced_at") is not None
-            for topic in self._exercises_by_word_topic.get(word, {})
-        )
-
-    def _has_any_schedule_entry(self, word: str) -> bool:
-        return any(
-            self._journal.get_schedule_entry(word, topic) is not None
-            for topic in self._exercises_by_word_topic.get(word, {})
-        )
-
     def _word_selection_pools(
         self,
-        due_review: set[tuple[str, str]],
-        available_new: set[tuple[str, str]],
+        introduced_due_pairs: set[tuple[str, str]],
+        available_new_pairs: set[tuple[str, str]],
     ) -> tuple[set[str], set[str], set[str]]:
         # Three tiers, by how "free" a word is to select without spending the
         # daily new-word budget:
-        # - free: introduced via some topic already — regardless of whether
-        #   that's the topic that's due/available today.
+        # - free: introduced via some topic already (Journal.get_introduced_words()
+        #   — a single journal scan, not a per-word lookup) — regardless of
+        #   whether that's the topic that's due/available today.
         # - queued: never introduced, but already has a schedule entry
-        #   (expedited via a chain/gate) — prioritized over...
+        #   (expedited via a chain/gate) — prioritized over... A not-yet-
+        #   introduced entry is always due today (see _expedite_dependent()),
+        #   so "has any entry" and "has a due entry" coincide here.
         # - fresh: no schedule entry anywhere, genuinely never touched.
-        today_relevant_words = {word for word, _ in due_review | available_new}
-        free_words = {
-            word for word in today_relevant_words if self._has_introduced_topic(word)
+        today_relevant_words = {
+            word for word, _ in introduced_due_pairs | available_new_pairs
         }
+        introduced_words = self._journal.get_introduced_words()
+        free_words = today_relevant_words & introduced_words
         remaining_words = today_relevant_words - free_words
         queued_words = {
-            word for word in remaining_words if self._has_any_schedule_entry(word)
-        }
+            word for word, _ in self._get_due_pairs(introduced=False)
+        } - introduced_words
         fresh_words = remaining_words - queued_words
         return free_words, queued_words, fresh_words
 
     def _select_word(
         self,
-        due_review: set[tuple[str, str]],
-        available_new: set[tuple[str, str]],
+        introduced_due_pairs: set[tuple[str, str]],
+        available_new_pairs: set[tuple[str, str]],
     ) -> str | None:
         free_words, queued_words, fresh_words = self._word_selection_pools(
-            due_review, available_new
+            introduced_due_pairs, available_new_pairs
         )
         budget = max(
             self.NEW_WORDS_PER_DAY
@@ -219,12 +206,12 @@ class Tutor:
     def _select_topic(
         self,
         word: str,
-        due_review: set[tuple[str, str]],
-        available_new: set[tuple[str, str]],
+        introduced_due_pairs: set[tuple[str, str]],
+        available_new_pairs: set[tuple[str, str]],
     ) -> str:
-        due_topics = [topic for w, topic in due_review if w == word]
+        due_topics = [topic for w, topic in introduced_due_pairs if w == word]
         candidate_topics = due_topics or [
-            topic for w, topic in available_new if w == word
+            topic for w, topic in available_new_pairs if w == word
         ]
         last_pair = self._last_pair()
         if last_pair is not None and last_pair[0] == word:
@@ -234,23 +221,15 @@ class Tutor:
         return random.choice(candidate_topics)
 
     def next_exercise(self) -> Exercise | None:
-        not_introduced_due_pairs = self._get_due_pairs(introduced=False)
-        available_not_introduced_pairs = (
-            self._get_available_not_scheduled_pairs() | not_introduced_due_pairs
-        )
         introduced_due_pairs = self._get_due_pairs(introduced=True)
-        if introduced_due_pairs | available_not_introduced_pairs:
-            word = self._select_word(
-                introduced_due_pairs,
-                available_not_introduced_pairs,
-            )
+        available_new_pairs = self._get_available_not_scheduled_pairs() | (
+            self._get_due_pairs(introduced=False)
+        )
+        if introduced_due_pairs | available_new_pairs:
+            word = self._select_word(introduced_due_pairs, available_new_pairs)
             if word is None:
                 return None
-            topic = self._select_topic(
-                word,
-                introduced_due_pairs,
-                available_not_introduced_pairs,
-            )
+            topic = self._select_topic(word, introduced_due_pairs, available_new_pairs)
         else:
             earliest_due_date = min(
                 self._get_due_date(word, topic) for word, topic in self._course_pairs
