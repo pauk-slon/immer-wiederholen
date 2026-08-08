@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Generator
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Final, Literal, NotRequired, TypedDict, TypeIs
 
@@ -110,7 +110,9 @@ class Journal:
             return self._data.setdefault(self._WORD_SCHEDULE_KEY, {})
         return self._data.get(self._WORD_SCHEDULE_KEY, {})
 
-    def _get_topic_schedule(self, word: str, *, create_if_missing: bool = False) -> dict:
+    def _get_topic_schedule(
+        self, word: str, *, create_if_missing: bool = False
+    ) -> dict:
         word_schedule = self._get_word_schedule(create_if_missing=create_if_missing)
         topic_schedule = word_schedule.get(word)
         if isinstance(topic_schedule, dict):
@@ -165,15 +167,19 @@ class Journal:
             self._today + timedelta(days=due_in_days)
         ).isoformat()
 
+    def _iter_word_schedule(self) -> Generator[tuple[str, dict]]:
+        for word, topic_schedule in self._get_word_schedule().items():
+            if not isinstance(word, str) or not isinstance(topic_schedule, dict):
+                continue
+            yield word, topic_schedule
+
     def iter_scheduled_pairs(
         self,
         *,
         only_due_today: bool = False,
         introduced: bool | Literal["today"] | None = None,
-    ) -> Iterator[tuple[str, str]]:
-        for word, topic_schedule in self._get_word_schedule().items():
-            if not isinstance(topic_schedule, dict):
-                continue
+    ) -> Generator[tuple[str, str]]:
+        for word, topic_schedule in self._iter_word_schedule():
             for topic in topic_schedule:
                 entry = self.get_schedule_entry(word, topic)
                 if entry is None:
