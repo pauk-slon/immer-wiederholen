@@ -202,25 +202,27 @@ class Journal:
                     continue
                 yield word, topic
 
+    @staticmethod
+    def _introduced_dates(
+        topic_schedule: Generator[tuple[str, ScheduleEntry]],
+    ) -> set[str]:
+        return {
+            schedule_entry["introduced_at"]
+            for _, schedule_entry in topic_schedule
+            if "introduced_at" in schedule_entry
+        }
+
     def get_words_introduced_today(self) -> set[str]:
         today = self._today.isoformat()
-        words = set()
-        for word, topic_schedule in self._iter_valid_scheduled_pairs():
-            introduced_dates = [
-                schedule_entry["introduced_at"]
-                for _, schedule_entry in topic_schedule
-                if "introduced_at" in schedule_entry
-            ]
-            if introduced_dates and all(date == today for date in introduced_dates):
-                words.add(word)
-        return words
+        return {
+            word
+            for word, topic_schedule in self._iter_valid_scheduled_pairs()
+            if self._introduced_dates(topic_schedule) == {today}
+        }
 
     def get_words_already_introduced(self) -> set[str]:
         return {
             word
             for word, topic_schedule in self._iter_valid_scheduled_pairs()
-            if any(
-                "introduced_at" in schedule_entry
-                for (topic, schedule_entry) in topic_schedule
-            )
+            if self._introduced_dates(topic_schedule)
         }
