@@ -250,7 +250,9 @@ class Tutor:
             if word is None:
                 return None
             topic = self._select_topic(
-                word, introduced_due_pairs, available_not_introduced_pairs
+                word,
+                introduced_due_pairs,
+                available_not_introduced_pairs,
             )
         else:
             earliest_due_date = min(
