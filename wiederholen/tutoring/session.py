@@ -92,11 +92,8 @@ class Tutor:
         }
 
     def _words_introduced_today(self) -> set[str]:
-        return {
-            word
-            for word, topic in self._journal.iter_scheduled_pairs(introduced="today")
-            if (word, topic) in self._course_pairs
-        }
+        course_words = {word for word, _ in self._course_pairs}
+        return self._journal.get_words_introduced_today() & course_words
 
     def _new_words_introduced_today_count(self) -> int:
         return len(self._words_introduced_today())
