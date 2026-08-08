@@ -215,7 +215,7 @@ class Journal:
                 words.add(word)
         return words
 
-    def get_introduced_words(self) -> set[str]:
+    def get_words_already_introduced(self) -> set[str]:
         return {
             word
             for word, topic_schedule in self._iter_valid_scheduled_pairs()

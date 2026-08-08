@@ -139,7 +139,7 @@ class Tutor:
     ) -> tuple[set[str], set[str], set[str]]:
         # Three tiers, by how "free" a word is to select without spending the
         # daily new-word budget:
-        # - free: introduced via some topic already (Journal.get_introduced_words()
+        # - free: introduced via some topic already (Journal.get_words_already_introduced()
         #   — a single journal scan, not a per-word lookup) — regardless of
         #   whether that's the topic that's due/available today.
         # - queued: never introduced, but already has a schedule entry
@@ -150,7 +150,7 @@ class Tutor:
         today_relevant_words = {
             word for word, _ in introduced_due_pairs | available_new_pairs
         }
-        introduced_words = self._journal.get_introduced_words()
+        introduced_words = self._journal.get_words_already_introduced()
         free_words = today_relevant_words & introduced_words
         remaining_words = today_relevant_words - free_words
         queued_words = {
