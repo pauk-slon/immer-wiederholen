@@ -150,7 +150,8 @@ async def command_wiederholen(
     journal = data.get("journal", {})
     locale = LOCALES[language]
     tutor = Tutor(course, journal)
-    exercise = tutor.next_exercise()
+    exercise, events = tutor.next_exercise()
+    record_tutoring_events(events)
     if exercise is None:
         await state.update_data(journal=journal)
         await message.answer(
@@ -253,7 +254,8 @@ async def _respond_with_next_exercise(
     language: Language,
     locale: Locale,
 ) -> None:
-    exercise = tutor.next_exercise()
+    exercise, events = tutor.next_exercise()
+    record_tutoring_events(events)
     if exercise is None:
         await state.update_data(journal=journal)
         if isinstance(callback.message, Message):

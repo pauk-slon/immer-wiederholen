@@ -5,11 +5,11 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 
 from tests.plugins.tutoring import make_exercise
-from wiederholen.tutoring import Course, Exercise, Journal, Tutor
+from wiederholen.tutoring import Course, Exercise, Journal, NoExerciseAvailable, Tutor
 
 
 def _next(tutor: Tutor) -> Exercise:
-    exercise = tutor.next_exercise()
+    exercise, _events = tutor.next_exercise()
     assert exercise is not None
     return exercise
 
@@ -31,7 +31,10 @@ def test_next_exercise_only_picks_due_topics() -> None:
     assert _next(tutor).word == "hoffen"
 
 
-def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
+def test_next_exercise_returns_none_when_nothing_is_due_or_available() -> None:
+    # Both pairs already have an entry, neither due today — nothing to
+    # serve (an earlier "borrow from upcoming review" fallback was tried
+    # and reverted; see git history).
     exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
     today = datetime.now(UTC).date()
     state = {
@@ -51,37 +54,24 @@ def test_next_exercise_falls_back_to_earliest_due_when_nothing_due() -> None:
         }
     }
     tutor = Tutor(Course(exercises), state)
-    assert _next(tutor).word == "hoffen"
+
+    exercise, events = tutor.next_exercise()
+
+    assert exercise is None
+    assert events == [NoExerciseAvailable(reason="nothing_available")]
 
 
-def test_next_exercise_breaks_earliest_due_ties_randomly() -> None:
-    exercises = [make_exercise(word="warten"), make_exercise(word="hoffen")]
-    today = datetime.now(UTC).date()
-    due_date = (today + timedelta(days=8)).isoformat()
-    state = {
-        "word_schedule": {
-            "warten": {"government": {"interval_days": 5, "due_date": due_date}},
-            "hoffen": {"government": {"interval_days": 5, "due_date": due_date}},
-        }
-    }
-    tutor = Tutor(Course(exercises), state)
-
-    random.seed(1234)
-    picks = Counter(_next(tutor).word for _ in range(2000))
-
-    assert 0.8 < picks["warten"] / picks["hoffen"] < 1.25
-
-
-def test_next_exercise_falls_back_to_tie_break_when_the_whole_course_is_gated() -> None:
-    # A gated topic with no entry has no due date to speak of yet — the
-    # earliest-due tie-break falls back to _get_due_date()'s date.max for
-    # it, same as if nothing were due at all (there's no source to unlock
-    # it here, so it never will be).
+def test_next_exercise_returns_none_when_the_whole_course_is_gated() -> None:
+    # A gated topic with no entry and no source to unlock it never becomes
+    # available.
     exercise = make_exercise(word="mit", topic="preposition_meaning")
     gated_topics = frozenset({"preposition_meaning"})
     tutor = Tutor(Course([exercise], gated_topics=gated_topics), {})
 
-    assert _next(tutor).topic == "preposition_meaning"
+    exercise_, events = tutor.next_exercise()
+
+    assert exercise_ is None
+    assert events == [NoExerciseAvailable(reason="nothing_available")]
 
 
 def test_progress_remaining_today_is_zero_for_empty_course() -> None:
@@ -1080,7 +1070,10 @@ class TestNewWordDailyCap:
         }
         tutor = Tutor(Course(exercises), state)
 
-        assert tutor.next_exercise() is None
+        exercise, events = tutor.next_exercise()
+
+        assert exercise is None
+        assert events == [NoExerciseAvailable(reason="daily_cap_reached")]
 
     def test_still_returns_a_due_review_when_cap_reached(self) -> None:
         today = datetime.now(UTC).date()
@@ -1382,7 +1375,8 @@ class TestExtraNewWords:
             "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today),
         }
         tutor = Tutor(Course(exercises), state)
-        assert tutor.next_exercise() is None
+        exercise, _events = tutor.next_exercise()
+        assert exercise is None
 
         tutor.grant_extra_new_words()
 
@@ -1402,7 +1396,8 @@ class TestExtraNewWords:
         }
         tutor = Tutor(Course(exercises), state)
         tutor.grant_extra_new_words()
-        assert tutor.next_exercise() is None
+        exercise, _events = tutor.next_exercise()
+        assert exercise is None
 
         tutor.grant_extra_new_words()
 
@@ -1421,7 +1416,8 @@ class TestExtraNewWords:
         }
         tutor = Tutor(Course(exercises), state)
 
-        assert tutor.next_exercise() is None
+        exercise, _events = tutor.next_exercise()
+        assert exercise is None
 
     def test_grant_is_a_noop_when_the_cap_is_not_currently_reached(self) -> None:
         exercise = make_exercise(word="warten")
