@@ -69,8 +69,8 @@ def test_should_remind_is_true_for_an_overdue_review_with_no_new_pairs_available
     None
 ):
     # A word already introduced, with a genuinely overdue review, and
-    # nothing else in the course (so _available_new_pairs() is empty) — the
-    # reminder must still fire off the due review alone.
+    # nothing else in the course (so _get_available_not_scheduled_pairs()
+    # is empty) — the reminder must still fire off the due review alone.
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date()
     journal = {
