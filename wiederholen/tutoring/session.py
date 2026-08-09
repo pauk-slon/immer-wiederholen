@@ -255,14 +255,18 @@ class Tutor:
         learning = 0
         mastered = 0
         for word, topics in self._exercises_by_word_topic.items():
-            intervals = [
+            repetition_intervals = [
                 self._journal.get_repetition_interval(word, topic) for topic in topics
             ]
-            if all(interval is None for interval in intervals):
+            if all(
+                repetition_interval is None
+                for repetition_interval in repetition_intervals
+            ):
                 continue
             if all(
-                interval is not None and interval >= self.MAX_INTERVAL_DAYS
-                for interval in intervals
+                repetition_interval is not None
+                and repetition_interval >= self.MAX_INTERVAL_DAYS
+                for repetition_interval in repetition_intervals
             ):
                 mastered += 1
             else:
