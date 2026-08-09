@@ -301,7 +301,7 @@ async def handle_study_more(
     journal = state_data.get("journal", {})
     locale = LOCALES[language]
     tutor = Tutor(course, journal)
-    tutor.grant_extra_new_words()
+    tutor.grant_new_word_budget()
     await _respond_with_next_exercise(
         callback, state, course, tutor, journal, language, locale
     )

@@ -23,7 +23,7 @@ class LastExercise(TypedDict):
     topic: NotRequired[str]
 
 
-class ExtraNewWords(TypedDict):
+class NewWordBudgetGrant(TypedDict):
     date: str
     count: int
 
@@ -38,6 +38,7 @@ class Journal:
     _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(_ScheduleEntry)
     _WORD_SCHEDULE_KEY: Final = "word_schedule"
     _TODAY_ANSWERS_KEY: Final = "today_answers"
+    _NEW_WORD_BUDGET_KEY: Final = "new_word_budget"
 
     def __init__(self, data: dict, *, today: date | None = None) -> None:
         self._data = data
@@ -91,13 +92,13 @@ class Journal:
             return None
         return value
 
-    def get_extra_new_words_today(self) -> int:
-        extra = self._get_self_expiring("extra_new_words")
-        return extra["count"] if extra is not None else 0
+    def get_new_word_budget_grant(self) -> int:
+        grant = self._get_self_expiring(self._NEW_WORD_BUDGET_KEY)
+        return grant["count"] if grant is not None else 0
 
-    def add_extra_new_words_today(self, amount: int) -> int:
-        new_count = self.get_extra_new_words_today() + amount
-        self._data["extra_new_words"] = ExtraNewWords(
+    def add_new_word_budget_grant(self, amount: int) -> int:
+        new_count = self.get_new_word_budget_grant() + amount
+        self._data[self._NEW_WORD_BUDGET_KEY] = NewWordBudgetGrant(
             date=self._today.isoformat(),
             count=new_count,
         )

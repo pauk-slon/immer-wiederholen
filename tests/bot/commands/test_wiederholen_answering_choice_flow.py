@@ -326,7 +326,7 @@ class TestStudyMoreButton:
         )
 
         data = await state.get_data()
-        assert data["journal"]["extra_new_words"] == {
+        assert data["journal"]["new_word_budget"] == {
             "date": today.isoformat(),
-            "count": Tutor.EXTRA_NEW_WORDS_GRANT,
+            "count": Tutor.NEW_WORD_BUDGET_GRANT,
         }
