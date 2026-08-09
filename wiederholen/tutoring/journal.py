@@ -69,7 +69,7 @@ class Journal:
             correct=right + (1 if is_answer_correct else 0),
         )
         schedule_entry = self._get_or_create_schedule_entry(word, topic)
-        is_new = schedule_entry.get("introduced_at") is None
+        is_new = "introduced_at" not in schedule_entry
         if is_new:
             schedule_entry["introduced_at"] = self._today.isoformat()
         return is_new, schedule_entry["repetition_interval"]
@@ -204,8 +204,8 @@ class Journal:
     ) -> Generator[tuple[str, str]]:
         for word, topic_schedule in self._iter_valid_scheduled_pairs():
             for topic, schedule_entry in topic_schedule:
-                introduced_at = schedule_entry.get("introduced_at")
-                if introduced is not None and (introduced_at is not None) != introduced:
+                is_introduced = "introduced_at" in schedule_entry
+                if introduced is not None and is_introduced != introduced:
                     continue
                 if (
                     only_due_today

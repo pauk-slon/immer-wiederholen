@@ -392,7 +392,7 @@ class Tutor:
         assert last_exercise is not None
         if (
             last_exercise["is_recall_optional"]
-            and last_exercise.get("recall_question") is None
+            and "recall_question" not in last_exercise
         ):
             repetition_interval = self._journal.get_repetition_interval(
                 exercise.word,
@@ -404,11 +404,11 @@ class Tutor:
                 repetition_interval=max((repetition_interval or 0) // 2, 1),
             )
         candidates = exercise.recalls
-        if last_exercise.get("recall_question") is not None and (
+        if "recall_question" in last_exercise and (
             filtered_recalls := [
                 recall
                 for recall in candidates
-                if recall.question != last_exercise.get("recall_question")
+                if recall.question != last_exercise["recall_question"]
             ]
         ):
             candidates = filtered_recalls
