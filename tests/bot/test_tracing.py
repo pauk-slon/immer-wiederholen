@@ -241,11 +241,11 @@ def test_record_tutoring_events_adds_one_span_event_per_event(
         ExerciseAnswered(
             word="warten",
             topic="government",
-            correct=True,
+            is_correct=True,
             is_new=False,
             recall_mode=RecallMode.optional,
-            interval_days_before=4,
-            interval_days_after=8,
+            previous_repetition_interval=4,
+            next_repetition_interval=8,
         ),
         TopicUnlocked(
             source_topic="government",
@@ -293,11 +293,11 @@ def test_record_tutoring_events_unwraps_enum_attributes_to_their_value(
     event = ExerciseAnswered(
         word="warten",
         topic="government",
-        correct=True,
+        is_correct=True,
         is_new=True,
         recall_mode=RecallMode.required,
-        interval_days_before=0,
-        interval_days_after=1,
+        previous_repetition_interval=0,
+        next_repetition_interval=1,
     )
 
     with tracer.start_as_current_span("test-span"):

@@ -18,11 +18,11 @@ def test_answering_a_brand_new_pair_reports_is_new_and_interval_from_zero() -> N
     assert events[0] == ExerciseAnswered(
         word="warten",
         topic="government",
-        correct=True,
+        is_correct=True,
         is_new=True,
         recall_mode=RecallMode.none,
-        interval_days_before=0,
-        interval_days_after=1,
+        previous_repetition_interval=0,
+        next_repetition_interval=1,
     )
 
 
@@ -33,7 +33,7 @@ def test_answering_a_due_review_reports_is_new_false_and_interval_doubling() -> 
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 4,
+                    "repetition_interval": 4,
                     "due_date": (today - timedelta(days=1)).isoformat(),
                     "introduced_at": (today - timedelta(days=1)).isoformat(),
                 },
@@ -46,11 +46,11 @@ def test_answering_a_due_review_reports_is_new_false_and_interval_doubling() -> 
     assert events[0] == ExerciseAnswered(
         word="warten",
         topic="government",
-        correct=True,
+        is_correct=True,
         is_new=False,
         recall_mode=RecallMode.none,
-        interval_days_before=4,
-        interval_days_after=8,
+        previous_repetition_interval=4,
+        next_repetition_interval=8,
     )
 
 
@@ -61,7 +61,7 @@ def test_wrong_answer_reports_correct_false_interval_reset_and_recall_mode() -> 
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 8,
+                    "repetition_interval": 8,
                     "due_date": (today - timedelta(days=1)).isoformat(),
                     "introduced_at": (today - timedelta(days=1)).isoformat(),
                 },
@@ -74,11 +74,11 @@ def test_wrong_answer_reports_correct_false_interval_reset_and_recall_mode() -> 
     assert events[0] == ExerciseAnswered(
         word="warten",
         topic="government",
-        correct=False,
+        is_correct=False,
         is_new=False,
         recall_mode=RecallMode.required,
-        interval_days_before=8,
-        interval_days_after=1,
+        previous_repetition_interval=8,
+        next_repetition_interval=1,
     )
 
 
@@ -143,7 +143,7 @@ def test_an_already_progressing_dependent_reports_no_unlock_event() -> None:
         "word_schedule": {
             "mit": {
                 "preposition_meaning": {
-                    "interval_days": 8,
+                    "repetition_interval": 8,
                     "due_date": (today + timedelta(days=8)).isoformat(),
                 },
             },

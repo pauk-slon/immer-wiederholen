@@ -210,7 +210,7 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
     word_schedule = {
         f"introduced{i}": {
             "government": {
-                "interval_days": 1,
+                "repetition_interval": 1,
                 "due_date": (today + timedelta(days=30)).isoformat(),
                 "introduced_at": today.isoformat(),
             },

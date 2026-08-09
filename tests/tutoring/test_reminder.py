@@ -21,7 +21,7 @@ def test_should_remind_is_false_when_nothing_is_due() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=20)
                     ).isoformat(),
@@ -77,7 +77,7 @@ def test_should_remind_is_true_for_an_overdue_review_with_no_new_pairs_available
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 4,
+                    "repetition_interval": 4,
                     "due_date": (today - timedelta(days=1)).isoformat(),
                     "introduced_at": (today - timedelta(days=10)).isoformat(),
                 },

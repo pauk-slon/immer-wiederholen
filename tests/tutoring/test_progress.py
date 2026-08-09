@@ -21,7 +21,7 @@ def test_progress_word_below_max_interval_is_learning() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=20)
                     ).isoformat(),
@@ -42,7 +42,7 @@ def test_progress_word_at_max_interval_is_mastered() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 60,
+                    "repetition_interval": 60,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=60)
                     ).isoformat(),
@@ -67,11 +67,11 @@ def test_progress_word_is_learning_until_every_one_of_its_topics_is_mastered() -
         "word_schedule": {
             "sprechen": {
                 "government": {
-                    "interval_days": 60,
+                    "repetition_interval": 60,
                     "due_date": (today + timedelta(days=60)).isoformat(),
                 },
                 "partizip_ii": {
-                    "interval_days": 4,
+                    "repetition_interval": 4,
                     "due_date": (today + timedelta(days=4)).isoformat(),
                 },
             },
@@ -104,7 +104,7 @@ def test_progress_counts_distinct_words_not_schedule_keys() -> None:
         "word_schedule": {
             "helfen": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=20)
                     ).isoformat(),
@@ -134,7 +134,7 @@ def test_progress_remaining_today_counts_overdue_reviews() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (today - timedelta(days=1)).isoformat(),
                 },
             },
@@ -154,7 +154,7 @@ def test_progress_remaining_today_counts_a_due_but_not_yet_introduced_pair() -> 
         "word_schedule": {
             "mit": {
                 "preposition_meaning": {
-                    "interval_days": 0,
+                    "repetition_interval": 0,
                     "due_date": today.isoformat(),
                 },
             },
@@ -213,7 +213,7 @@ def test_progress_new_today_excludes_a_queued_but_never_answered_word() -> None:
         "word_schedule": {
             "mit": {
                 "preposition_meaning": {
-                    "interval_days": 0,
+                    "repetition_interval": 0,
                     "due_date": today.isoformat(),
                 },
             },
@@ -234,7 +234,7 @@ def test_progress_new_today_excludes_a_word_already_introduced_earlier() -> None
         "word_schedule": {
             "sprechen": {
                 "government": {
-                    "interval_days": 4,
+                    "repetition_interval": 4,
                     "due_date": today.isoformat(),
                     "introduced_at": (today - timedelta(days=3)).isoformat(),
                 },

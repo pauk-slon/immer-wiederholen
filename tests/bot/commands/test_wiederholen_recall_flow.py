@@ -262,7 +262,7 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 8,
+                    "repetition_interval": 8,
                     "due_date": today.isoformat(),
                 },
             },
@@ -276,5 +276,5 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
 
     data = await state.get_data()
     entry = data["journal"]["word_schedule"]["warten"]["government"]
-    assert entry["interval_days"] == 8
+    assert entry["repetition_interval"] == 8
     assert entry["due_date"] == (today + timedelta(days=8)).isoformat()

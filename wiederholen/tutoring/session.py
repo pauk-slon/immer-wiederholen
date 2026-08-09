@@ -17,7 +17,7 @@ class RecallMode(Enum):
 
 @dataclass(frozen=True)
 class Mark:
-    correct: bool
+    is_correct: bool
     recall: RecallMode
 
 
@@ -35,11 +35,11 @@ class Progress:
 class ExerciseAnswered:
     word: str
     topic: str
-    correct: bool
+    is_correct: bool
     is_new: bool
     recall_mode: RecallMode
-    interval_days_before: int
-    interval_days_after: int
+    previous_repetition_interval: int
+    next_repetition_interval: int
 
 
 @dataclass(frozen=True)
@@ -146,7 +146,7 @@ class SelectablePairs:
 
 
 class Tutor:
-    MAX_INTERVAL_DAYS: Final = 60
+    MAX_REPETITION_INTERVAL_DAYS: Final = 60
     REMIND_AFTER: Final = timedelta(hours=24)
     NEW_WORDS_PER_DAY: Final = 7
     EXTRA_NEW_WORDS_GRANT: Final = 3
@@ -255,14 +255,18 @@ class Tutor:
         learning = 0
         mastered = 0
         for word, topics in self._exercises_by_word_topic.items():
-            entries = [
-                self._journal.get_schedule_entry(word, topic) for topic in topics
+            repetition_intervals = [
+                self._journal.get_repetition_interval(word, topic) for topic in topics
             ]
-            if all(entry is None for entry in entries):
+            if all(
+                repetition_interval is None
+                for repetition_interval in repetition_intervals
+            ):
                 continue
             if all(
-                entry is not None and entry["interval_days"] >= self.MAX_INTERVAL_DAYS
-                for entry in entries
+                repetition_interval is not None
+                and repetition_interval >= self.MAX_REPETITION_INTERVAL_DAYS
+                for repetition_interval in repetition_intervals
             ):
                 mastered += 1
             else:
@@ -277,17 +281,25 @@ class Tutor:
             correct_today=correct_today,
         )
 
-    def _next_repetition(self, interval_days_before: int, correct: bool) -> int:
-        if correct:
-            return min(max(interval_days_before * 2, 1), self.MAX_INTERVAL_DAYS)
+    def _calc_next_repetition_interval(
+        self,
+        *,
+        previous_repetition_interval: int,
+        is_answer_correct: bool,
+    ) -> int:
+        if is_answer_correct:
+            return min(
+                max(previous_repetition_interval * 2, 1),
+                self.MAX_REPETITION_INTERVAL_DAYS,
+            )
         return 1
 
     def _expedite_dependent(self, word: str, topic: str) -> bool:
         if topic not in self._exercises_by_word_topic.get(word, {}):
             return False
-        if self._journal.get_schedule_entry(word, topic) is not None:
+        if self._journal.get_repetition_interval(word, topic) is not None:
             return False
-        self._journal.schedule_pair(word, topic, interval_days=0)
+        self._journal.schedule_pair(word, topic, repetition_interval=0)
         return True
 
     def _topic_unlocked_event(
@@ -324,46 +336,49 @@ class Tutor:
         exercise: Exercise,
         answer: str,
     ) -> tuple[Mark, list[TutoringEvent]]:
-        correct = answer.strip().lower() == exercise.answer.strip().lower()
+        is_correct = answer.strip().lower() == exercise.answer.strip().lower()
         if not exercise.recalls:
             recall_mode = RecallMode.none
-        elif correct:
+        elif is_correct:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
-        is_new, interval_days_before = self._journal.record_mark(
+        is_new, previous_repetition_interval = self._journal.record_mark(
             exercise.question,
             exercise.word,
             exercise.topic,
-            correct=correct,
-            was_recall_optional=recall_mode == RecallMode.optional,
+            is_answer_correct=is_correct,
+            is_recall_optional=recall_mode == RecallMode.optional,
         )
-        interval_days_after = self._next_repetition(interval_days_before, correct)
+        next_repetition_interval = self._calc_next_repetition_interval(
+            previous_repetition_interval=previous_repetition_interval,
+            is_answer_correct=is_correct,
+        )
         self._journal.schedule_pair(
             exercise.word,
             exercise.topic,
-            interval_days=interval_days_after,
+            repetition_interval=next_repetition_interval,
             # A same-day "learning step" before real spacing kicks in —
             # otherwise a correct first answer would leave nothing to
             # review again that same day (the first-day content shortage
             # new learners used to hit). A correct answer on an
             # already-started pair spaces out by schedule_pair()'s own
-            # interval_days default instead.
-            due_in_days=0 if (is_new or not correct) else None,
+            # repetition_interval default instead.
+            due_interval=0 if (is_new or not is_correct) else None,
         )
         events: list[TutoringEvent] = [
             ExerciseAnswered(
                 word=exercise.word,
                 topic=exercise.topic,
-                correct=correct,
+                is_correct=is_correct,
                 is_new=is_new,
                 recall_mode=recall_mode,
-                interval_days_before=interval_days_before,
-                interval_days_after=interval_days_after,
+                previous_repetition_interval=previous_repetition_interval,
+                next_repetition_interval=next_repetition_interval,
             ),
             *self._expedite_chained_topics(exercise),
         ]
-        return Mark(correct=correct, recall=recall_mode), events
+        return Mark(is_correct=is_correct, recall=recall_mode), events
 
     def check_recall(self, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:
@@ -379,18 +394,14 @@ class Tutor:
             last_exercise["is_recall_optional"]
             and last_exercise.get("recall_question") is None
         ):
-            existing_entry = self._journal.get_schedule_entry(
+            repetition_interval = self._journal.get_repetition_interval(
                 exercise.word,
                 exercise.topic,
             )
-            interval_days_before = (
-                existing_entry["interval_days"] if existing_entry is not None else 0
-            )
-            interval = max(interval_days_before // 2, 1)
             self._journal.schedule_pair(
                 exercise.word,
                 exercise.topic,
-                interval_days=interval,
+                repetition_interval=max((repetition_interval or 0) // 2, 1),
             )
         candidates = exercise.recalls
         if last_exercise.get("recall_question") is not None and (

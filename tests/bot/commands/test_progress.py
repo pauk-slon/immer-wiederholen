@@ -53,7 +53,7 @@ async def test_reflects_journal_breakdown(
         "word_schedule": {
             "hoffen": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=20)
                     ).isoformat(),
@@ -61,7 +61,7 @@ async def test_reflects_journal_breakdown(
             },
             "helfen": {
                 "government": {
-                    "interval_days": 60,
+                    "repetition_interval": 60,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=60)
                     ).isoformat(),
