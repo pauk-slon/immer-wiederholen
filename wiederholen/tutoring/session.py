@@ -17,7 +17,7 @@ class RecallMode(Enum):
 
 @dataclass(frozen=True)
 class Mark:
-    correct: bool
+    is_correct: bool
     recall: RecallMode
 
 
@@ -35,7 +35,7 @@ class Progress:
 class ExerciseAnswered:
     word: str
     topic: str
-    correct: bool
+    is_correct: bool
     is_new: bool
     recall_mode: RecallMode
     previous_repetition_interval: int
@@ -336,10 +336,10 @@ class Tutor:
         exercise: Exercise,
         answer: str,
     ) -> tuple[Mark, list[TutoringEvent]]:
-        correct = answer.strip().lower() == exercise.answer.strip().lower()
+        is_correct = answer.strip().lower() == exercise.answer.strip().lower()
         if not exercise.recalls:
             recall_mode = RecallMode.none
-        elif correct:
+        elif is_correct:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
@@ -347,12 +347,12 @@ class Tutor:
             exercise.question,
             exercise.word,
             exercise.topic,
-            is_answer_correct=correct,
+            is_answer_correct=is_correct,
             is_recall_optional=recall_mode == RecallMode.optional,
         )
         next_repetition_interval = self._calc_next_repetition_interval(
             previous_repetition_interval=previous_repetition_interval,
-            is_answer_correct=correct,
+            is_answer_correct=is_correct,
         )
         self._journal.schedule_pair(
             exercise.word,
@@ -364,13 +364,13 @@ class Tutor:
             # new learners used to hit). A correct answer on an
             # already-started pair spaces out by schedule_pair()'s own
             # repetition_interval default instead.
-            due_interval=0 if (is_new or not correct) else None,
+            due_interval=0 if (is_new or not is_correct) else None,
         )
         events: list[TutoringEvent] = [
             ExerciseAnswered(
                 word=exercise.word,
                 topic=exercise.topic,
-                correct=correct,
+                is_correct=is_correct,
                 is_new=is_new,
                 recall_mode=recall_mode,
                 previous_repetition_interval=previous_repetition_interval,
@@ -378,7 +378,7 @@ class Tutor:
             ),
             *self._expedite_chained_topics(exercise),
         ]
-        return Mark(correct=correct, recall=recall_mode), events
+        return Mark(is_correct=is_correct, recall=recall_mode), events
 
     def check_recall(self, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:

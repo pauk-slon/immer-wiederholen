@@ -18,7 +18,7 @@ def test_answering_a_brand_new_pair_reports_is_new_and_interval_from_zero() -> N
     assert events[0] == ExerciseAnswered(
         word="warten",
         topic="government",
-        correct=True,
+        is_correct=True,
         is_new=True,
         recall_mode=RecallMode.none,
         previous_repetition_interval=0,
@@ -46,7 +46,7 @@ def test_answering_a_due_review_reports_is_new_false_and_interval_doubling() -> 
     assert events[0] == ExerciseAnswered(
         word="warten",
         topic="government",
-        correct=True,
+        is_correct=True,
         is_new=False,
         recall_mode=RecallMode.none,
         previous_repetition_interval=4,
@@ -74,7 +74,7 @@ def test_wrong_answer_reports_correct_false_interval_reset_and_recall_mode() -> 
     assert events[0] == ExerciseAnswered(
         word="warten",
         topic="government",
-        correct=False,
+        is_correct=False,
         is_new=False,
         recall_mode=RecallMode.required,
         previous_repetition_interval=8,

@@ -185,7 +185,7 @@ async def handle_answer(
     record_tutoring_events(events)
     result_line = (
         locale.correct
-        if mark.correct
+        if mark.is_correct
         else locale.wrong.format(answer=shown_exercise.answer)
     )
     if mark.recall == RecallMode.optional:

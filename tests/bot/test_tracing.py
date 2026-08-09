@@ -241,7 +241,7 @@ def test_record_tutoring_events_adds_one_span_event_per_event(
         ExerciseAnswered(
             word="warten",
             topic="government",
-            correct=True,
+            is_correct=True,
             is_new=False,
             recall_mode=RecallMode.optional,
             previous_repetition_interval=4,
@@ -293,7 +293,7 @@ def test_record_tutoring_events_unwraps_enum_attributes_to_their_value(
     event = ExerciseAnswered(
         word="warten",
         topic="government",
-        correct=True,
+        is_correct=True,
         is_new=True,
         recall_mode=RecallMode.required,
         previous_repetition_interval=0,
