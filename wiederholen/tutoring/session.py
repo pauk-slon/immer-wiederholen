@@ -62,11 +62,11 @@ TutoringEvent = ExerciseAnswered | TopicUnlocked | NoExerciseAvailable
 
 @dataclass(frozen=True)
 class SelectionPools:
-    # Today's two source pools for next_exercise()'s word/topic pick —
-    # computed once and threaded unchanged through _word_selection_pools()/
-    # _select_word()/_select_topic() rather than passed as two separate sets.
-    introduced_due_pairs: set[tuple[str, str]]
-    available_new_pairs: set[tuple[str, str]]
+    # Today's two source pools for next_exercise()'s word/topic pick, already
+    # narrowed to what's eligible for selection right now (due, for
+    # introduced_pairs; due-or-never-scheduled-and-ungated, for new_pairs).
+    introduced_pairs: set[tuple[str, str]]
+    new_pairs: set[tuple[str, str]]
 
 
 class Tutor:
@@ -156,7 +156,7 @@ class Tutor:
         # - fresh: no schedule entry anywhere, genuinely never touched.
         today_relevant_words = {
             word
-            for word, _ in pools.introduced_due_pairs | pools.available_new_pairs
+            for word, _ in pools.introduced_pairs | pools.new_pairs
         }
         introduced_words = self._journal.get_words_already_introduced()
         free_words = today_relevant_words & introduced_words
@@ -200,11 +200,9 @@ class Tutor:
         return random.choice(list(candidates))
 
     def _select_topic(self, word: str, pools: SelectionPools) -> str:
-        due_topics = [
-            topic for w, topic in pools.introduced_due_pairs if w == word
-        ]
+        due_topics = [topic for w, topic in pools.introduced_pairs if w == word]
         candidate_topics = due_topics or [
-            topic for w, topic in pools.available_new_pairs if w == word
+            topic for w, topic in pools.new_pairs if w == word
         ]
         last_pair = self._last_pair()
         if last_pair is not None and last_pair[0] == word:
@@ -215,11 +213,11 @@ class Tutor:
 
     def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
         pools = SelectionPools(
-            introduced_due_pairs=self._get_due_pairs(introduced=True),
-            available_new_pairs=self._get_available_not_scheduled_pairs()
+            introduced_pairs=self._get_due_pairs(introduced=True),
+            new_pairs=self._get_available_not_scheduled_pairs()
             | self._get_due_pairs(introduced=False),
         )
-        if not (pools.introduced_due_pairs | pools.available_new_pairs):
+        if not (pools.introduced_pairs | pools.new_pairs):
             return None, [NoExerciseAvailable(reason="nothing_available")]
         word = self._select_word(pools)
         if word is None:
