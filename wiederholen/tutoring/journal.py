@@ -203,7 +203,7 @@ class Journal:
                 yield word, topic
 
     @staticmethod
-    def _introduced_dates(
+    def _get_introduced_dates(
         topic_schedule: Iterator[tuple[str, ScheduleEntry]],
     ) -> set[str]:
         return {
@@ -217,12 +217,12 @@ class Journal:
         return {
             word
             for word, topic_schedule in self._iter_valid_scheduled_pairs()
-            if self._introduced_dates(topic_schedule) == {today}
+            if self._get_introduced_dates(topic_schedule) == {today}
         }
 
     def get_words_already_introduced(self) -> set[str]:
         return {
             word
             for word, topic_schedule in self._iter_valid_scheduled_pairs()
-            if self._introduced_dates(topic_schedule)
+            if self._get_introduced_dates(topic_schedule)
         }
