@@ -103,6 +103,7 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert isinstance(args[0], Bot)
     assert args[0].token == bot_token
     assert isinstance(kwargs["course"], Course)
+    assert kwargs["feature_flags"] == {}
     exercise, _events = Tutor(kwargs["course"], {}).next_exercise()
     assert exercise is not None
     loaded_exercise = exercise.to_dict()
@@ -111,6 +112,18 @@ async def test_starts_polling_with_bot_and_dependencies(
     if loaded_exercise["description"] is None:
         del loaded_exercise["description"]
     assert loaded_exercise == exercise_data
+
+
+async def test_starts_polling_with_feature_flags_from_env(
+    monkeypatch, mock_main_io: MockMainIO
+) -> None:
+    monkeypatch.setenv("FEATURE_FLAGS", "ai_exercises:1,2")
+
+    with mock_main_io() as (_mock_request, mock_polling):
+        await main()
+
+    _args, kwargs = mock_polling.call_args
+    assert kwargs["feature_flags"] == {"ai_exercises": frozenset({1, 2})}
 
 
 async def test_configures_redis_storage_from_env(
