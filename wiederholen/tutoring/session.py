@@ -62,16 +62,14 @@ TutoringEvent = ExerciseAnswered | TopicUnlocked | NoExerciseAvailable
 
 @dataclass(frozen=True)
 class SelectablePairs:
-    # Today's source pair-sets for next_exercise()'s word/topic pick, already
-    # narrowed to what's eligible for selection right now (due, for
-    # introduced; due-or-never-scheduled-and-ungated, for not_introduced).
-    # queued is not_introduced's due-today subset (broken out separately so
-    # _word_selection_pools() doesn't have to recompute it) — every pair is
-    # in exactly one of introduced/not_introduced, but queued always overlaps
-    # not_introduced rather than partitioning it further.
-    introduced: set[tuple[str, str]]
-    not_introduced: set[tuple[str, str]]
-    queued: set[tuple[str, str]]
+    # Today's three-way partition for next_exercise()'s word/topic pick —
+    # split first by whether a pair is due today, then, for due pairs, by
+    # introduced status. not_scheduled pairs are always not introduced too
+    # (there's no way to be introduced without a schedule entry), so there's
+    # no fourth "not scheduled and introduced" cell.
+    due_introduced: set[tuple[str, str]]
+    due_not_introduced: set[tuple[str, str]]
+    not_scheduled: set[tuple[str, str]]
 
 
 class Tutor:
@@ -159,11 +157,16 @@ class Tutor:
         #   introduced entry is always due today (see _expedite_dependent()),
         #   so "has any entry" and "has a due entry" coincide here.
         # - fresh: no schedule entry anywhere, genuinely never touched.
-        today_relevant_words = {word for word, _ in pairs.introduced | pairs.not_introduced}
+        today_relevant_words = {
+            word
+            for word, _ in pairs.due_introduced
+            | pairs.due_not_introduced
+            | pairs.not_scheduled
+        }
         introduced_words = self._journal.get_words_already_introduced()
         free_words = today_relevant_words & introduced_words
         remaining_words = today_relevant_words - free_words
-        queued_words = {word for word, _ in pairs.queued} - introduced_words
+        queued_words = {word for word, _ in pairs.due_not_introduced} - introduced_words
         fresh_words = remaining_words - queued_words
         return free_words, queued_words, fresh_words
 
@@ -200,9 +203,11 @@ class Tutor:
         return random.choice(list(candidates))
 
     def _select_topic(self, word: str, pairs: SelectablePairs) -> str:
-        due_topics = [topic for w, topic in pairs.introduced if w == word]
+        due_topics = [topic for w, topic in pairs.due_introduced if w == word]
         candidate_topics = due_topics or [
-            topic for w, topic in pairs.not_introduced if w == word
+            topic
+            for w, topic in pairs.due_not_introduced | pairs.not_scheduled
+            if w == word
         ]
         last_pair = self._last_pair()
         if last_pair is not None and last_pair[0] == word:
@@ -212,13 +217,14 @@ class Tutor:
         return random.choice(candidate_topics)
 
     def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
-        queued = self._get_due_pairs(introduced=False)
         pairs = SelectablePairs(
-            introduced=self._get_due_pairs(introduced=True),
-            not_introduced=self._get_available_not_scheduled_pairs() | queued,
-            queued=queued,
+            due_introduced=self._get_due_pairs(introduced=True),
+            due_not_introduced=self._get_due_pairs(introduced=False),
+            not_scheduled=self._get_available_not_scheduled_pairs(),
         )
-        if not (pairs.introduced | pairs.not_introduced):
+        if not (
+            pairs.due_introduced | pairs.due_not_introduced | pairs.not_scheduled
+        ):
             return None, [NoExerciseAvailable(reason="nothing_available")]
         word = self._select_word(pairs)
         if word is None:
