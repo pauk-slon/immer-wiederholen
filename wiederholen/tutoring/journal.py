@@ -169,9 +169,8 @@ class Journal:
         repetition_interval: int,
         due_interval: int | None = None,
     ) -> None:
-        # due_interval defaults to repetition_interval (due date = today +
-        # repetition_interval); pass it explicitly if the due date should
-        # differ from that.
+        # If the due date should differ from today + repetition_interval,
+        # set it explicitly via due_interval.
         if due_interval is None:
             due_interval = repetition_interval
         schedule_entry = self._get_or_create_schedule_entry(word, topic)
