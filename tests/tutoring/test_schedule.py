@@ -21,7 +21,7 @@ def test_next_exercise_only_picks_due_topics() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (today + timedelta(days=20)).isoformat(),
                 },
             },
@@ -41,13 +41,13 @@ def test_next_exercise_returns_none_when_nothing_is_due_or_available() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (today + timedelta(days=29)).isoformat(),
                 },
             },
             "hoffen": {
                 "government": {
-                    "interval_days": 5,
+                    "repetition_interval": 5,
                     "due_date": (today + timedelta(days=8)).isoformat(),
                 },
             },
@@ -84,7 +84,7 @@ def test_progress_remaining_today_excludes_not_yet_due_topics() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=20)
                     ).isoformat(),
@@ -105,7 +105,7 @@ def test_progress_remaining_today_counts_shared_schedule_key_once() -> None:
         "word_schedule": {
             "helfen": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (
                         datetime.now(UTC).date() - timedelta(days=1)
                     ).isoformat(),
@@ -131,7 +131,7 @@ def test_next_exercise_does_not_persist_entries_for_unscheduled_topics() -> None
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 5,
+                    "repetition_interval": 5,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=20)
                     ).isoformat(),
@@ -153,7 +153,7 @@ def test_correct_answer_doubles_interval() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 4,
+                    "repetition_interval": 4,
                     "due_date": (today - timedelta(days=11)).isoformat(),
                     "introduced_at": (today - timedelta(days=11)).isoformat(),
                 },
@@ -162,7 +162,7 @@ def test_correct_answer_doubles_interval() -> None:
     }
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]
-    assert entry["interval_days"] == 8
+    assert entry["repetition_interval"] == 8
     assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
 
 
@@ -171,12 +171,12 @@ def test_correct_answer_on_new_topic_sets_interval_to_one() -> None:
     state: dict = {}
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]
-    assert entry["interval_days"] == 1
+    assert entry["repetition_interval"] == 1
 
 
 def test_correct_answer_on_new_topic_is_still_due_today() -> None:
     # A pair's very first answer is a same-day "learning step" regardless of
-    # correctness — real spacing (interval_days-based due dates) only starts
+    # correctness — real spacing (repetition_interval-based due dates) only starts
     # from the second answer onward (see test_correct_answer_doubles_interval).
     exercise = make_exercise(word="warten", answer="auf")
     state: dict = {}
@@ -192,7 +192,7 @@ def test_correct_answer_caps_interval_at_max() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 50,
+                    "repetition_interval": 50,
                     "due_date": (today - timedelta(days=11)).isoformat(),
                     "introduced_at": (today - timedelta(days=11)).isoformat(),
                 },
@@ -201,7 +201,7 @@ def test_correct_answer_caps_interval_at_max() -> None:
     }
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]
-    assert entry["interval_days"] == 60
+    assert entry["repetition_interval"] == 60
     assert entry["due_date"] == (today + timedelta(days=60)).isoformat()
 
 
@@ -212,7 +212,7 @@ def test_wrong_answer_resets_interval_and_is_due_today() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (today - timedelta(days=11)).isoformat(),
                 },
             },
@@ -220,7 +220,7 @@ def test_wrong_answer_resets_interval_and_is_due_today() -> None:
     }
     Tutor(Course([exercise]), state).check_answer(exercise, "für")
     entry = state["word_schedule"]["warten"]["government"]
-    assert entry["interval_days"] == 1
+    assert entry["repetition_interval"] == 1
     assert entry["due_date"] == today.isoformat()
 
 
@@ -246,11 +246,11 @@ def test_check_answer_records_last_answered_at() -> None:
     "malformed_entry",
     [
         "not a dict",
-        {"interval_days": 30},
+        {"repetition_interval": 30},
         {"due_date": "2026-07-01"},
-        {"interval_days": "30", "due_date": "2026-07-01"},
-        {"interval_days": 30, "due_date": 20260701},
-        {"interval_days": 30, "due_date": "not a date"},
+        {"repetition_interval": "30", "due_date": "2026-07-01"},
+        {"repetition_interval": 30, "due_date": 20260701},
+        {"repetition_interval": 30, "due_date": "not a date"},
     ],
 )
 def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> None:
@@ -260,7 +260,7 @@ def test_malformed_schedule_entry_is_treated_as_unscheduled(malformed_entry) -> 
             "warten": {"government": malformed_entry},
             "hoffen": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=20)
                     ).isoformat(),
@@ -281,12 +281,12 @@ def test_malformed_topic_key_is_ignored() -> None:
         "word_schedule": {
             "warten": {
                 123: {
-                    "interval_days": 1,
+                    "repetition_interval": 1,
                     "due_date": today.isoformat(),
                     "introduced_at": today.isoformat(),
                 },
                 "government": {
-                    "interval_days": 1,
+                    "repetition_interval": 1,
                     "due_date": today.isoformat(),
                     "introduced_at": today.isoformat(),
                 },
@@ -306,7 +306,7 @@ def test_malformed_word_schedule_is_treated_as_unscheduled() -> None:
             "warten": "not a dict",
             "hoffen": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (
                         datetime.now(UTC).date() + timedelta(days=20)
                     ).isoformat(),
@@ -325,7 +325,7 @@ def test_malformed_word_schedule_is_overwritten_on_check_answer() -> None:
     state["word_schedule"]["warten"] = "not a dict"
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]  # ty: ignore[invalid-argument-type]
-    assert entry["interval_days"] == 1
+    assert entry["repetition_interval"] == 1
     assert entry["due_date"] == today.isoformat()
 
 
@@ -357,7 +357,7 @@ def test_a_due_word_is_not_swamped_by_a_large_fresh_word_pool() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 1,
+                    "repetition_interval": 1,
                     "due_date": today.isoformat(),
                     "introduced_at": (today - timedelta(days=1)).isoformat(),
                 },
@@ -387,7 +387,7 @@ def test_queued_words_take_priority_and_can_exhaust_the_entire_budget() -> None:
     state = {
         "word_schedule": {
             f"queued{i}": {
-                "government": {"interval_days": 0, "due_date": today.isoformat()},
+                "government": {"repetition_interval": 0, "due_date": today.isoformat()},
             }
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
@@ -407,7 +407,7 @@ def test_topic_selection_prefers_due_over_new_within_the_same_word() -> None:
         "word_schedule": {
             "sprechen": {
                 "government": {
-                    "interval_days": 4,
+                    "repetition_interval": 4,
                     "due_date": (today - timedelta(days=1)).isoformat(),
                     "introduced_at": (today - timedelta(days=10)).isoformat(),
                 },
@@ -432,7 +432,7 @@ def test_a_word_with_an_untouched_topic_is_free_even_if_its_other_topic_is_not_d
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 10,
+                    "repetition_interval": 10,
                     "due_date": (today + timedelta(days=9)).isoformat(),
                     "introduced_at": (today - timedelta(days=1)).isoformat(),
                 },
@@ -460,12 +460,12 @@ def test_next_exercise_avoids_repeating_the_last_topic_when_word_repeat_is_force
         "word_schedule": {
             "sprechen": {
                 "government": {
-                    "interval_days": 4,
+                    "repetition_interval": 4,
                     "due_date": (today - timedelta(days=1)).isoformat(),
                     "introduced_at": (today - timedelta(days=10)).isoformat(),
                 },
                 "partizip_ii": {
-                    "interval_days": 2,
+                    "repetition_interval": 2,
                     "due_date": (today - timedelta(days=1)).isoformat(),
                     "introduced_at": (today - timedelta(days=5)).isoformat(),
                 },
@@ -603,14 +603,14 @@ def test_schedule_entry_with_unknown_extra_key_is_still_respected() -> None:
         "word_schedule": {
             "warten": {
                 "government": {
-                    "interval_days": 30,
+                    "repetition_interval": 30,
                     "due_date": (today + timedelta(days=20)).isoformat(),
                     "extra": "field",
                 },
             },
             "hoffen": {
                 "government": {
-                    "interval_days": 5,
+                    "repetition_interval": 5,
                     "due_date": (today - timedelta(days=11)).isoformat(),
                 },
             },
@@ -624,9 +624,9 @@ def test_schedule_entry_with_unknown_extra_key_is_still_respected() -> None:
     "malformed_entry",
     [
         "not a dict",
-        {"interval_days": 30},
-        {"interval_days": "30", "due_date": "2026-07-01"},
-        {"interval_days": 30, "due_date": "not a date"},
+        {"repetition_interval": 30},
+        {"repetition_interval": "30", "due_date": "2026-07-01"},
+        {"repetition_interval": 30, "due_date": "not a date"},
     ],
 )
 def test_malformed_schedule_entry_is_overwritten_on_check_answer(
@@ -637,7 +637,7 @@ def test_malformed_schedule_entry_is_overwritten_on_check_answer(
     state = {"word_schedule": {"warten": {"government": malformed_entry}}}
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]
-    assert entry["interval_days"] == 1
+    assert entry["repetition_interval"] == 1
     assert entry["due_date"] == today.isoformat()
 
 
@@ -658,7 +658,7 @@ class TestChainedTopics:
             "word_schedule": {
                 "mit": {
                     "preposition_meaning": {
-                        "interval_days": 8,
+                        "repetition_interval": 8,
                         "due_date": (today + timedelta(days=8)).isoformat(),
                     },
                 },
@@ -677,7 +677,7 @@ class TestChainedTopics:
 
         entry = state["word_schedule"]["mit"]["preposition_meaning"]
         assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
-        assert entry["interval_days"] == 8
+        assert entry["repetition_interval"] == 8
 
     def test_creates_a_never_scheduled_dependent_regardless_of_answer_correctness(
         self,
@@ -716,7 +716,7 @@ class TestChainedTopics:
             "word_schedule": {
                 "mit": {
                     "preposition_meaning": {
-                        "interval_days": 8,
+                        "repetition_interval": 8,
                         "due_date": overdue_date.isoformat(),
                     },
                 },
@@ -789,7 +789,7 @@ class TestChainedTopics:
             "word_schedule": {
                 "mit": {
                     "preposition_meaning": {
-                        "interval_days": 8,
+                        "repetition_interval": 8,
                         "due_date": (today + timedelta(days=8)).isoformat(),
                     },
                 },
@@ -851,7 +851,7 @@ class TestAnswerChainedTopics:
             "word_schedule": {
                 "auf": {
                     "preposition_meaning": {
-                        "interval_days": 8,
+                        "repetition_interval": 8,
                         "due_date": (today + timedelta(days=8)).isoformat(),
                     },
                 },
@@ -870,7 +870,7 @@ class TestAnswerChainedTopics:
 
         entry = state["word_schedule"]["auf"]["preposition_meaning"]
         assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
-        assert entry["interval_days"] == 8
+        assert entry["repetition_interval"] == 8
 
     def test_creates_a_due_today_entry_for_a_never_scheduled_answer_chained_topic(
         self,
@@ -1010,7 +1010,7 @@ class TestChainedTopicGating:
             "word_schedule": {
                 "mit": {
                     "preposition_case": {
-                        "interval_days": 30,
+                        "repetition_interval": 30,
                         "due_date": (
                             datetime.now(UTC).date() - timedelta(days=1)
                         ).isoformat(),
@@ -1049,7 +1049,7 @@ def _introduced_today_schedule(count: int, today: date) -> dict:
     return {
         f"introduced{i}": {
             "government": {
-                "interval_days": 1,
+                "repetition_interval": 1,
                 "due_date": (today + timedelta(days=30)).isoformat(),
                 "introduced_at": today.isoformat(),
             },
@@ -1087,7 +1087,7 @@ class TestNewWordDailyCap:
                 **_introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today),
                 "hoffen": {
                     "government": {
-                        "interval_days": 1,
+                        "repetition_interval": 1,
                         "due_date": today.isoformat(),
                         "introduced_at": (today - timedelta(days=5)).isoformat(),
                     },
@@ -1183,7 +1183,7 @@ class TestNewWordDailyCap:
             "word_schedule": {
                 "warten": {
                     "government": {
-                        "interval_days": 4,
+                        "repetition_interval": 4,
                         "due_date": today.isoformat(),
                         "introduced_at": original,
                     },
@@ -1197,11 +1197,11 @@ class TestNewWordDailyCap:
             state["word_schedule"]["warten"]["government"]["introduced_at"] == original
         )
 
-    def test_entry_without_introduced_at_is_treated_as_new_regardless_of_interval_days(
+    def test_entry_without_introduced_at_is_treated_as_new_regardless_of_repetition_interval(
         self,
     ) -> None:
-        # record_mark() checks introduced_at directly, not interval_days as
-        # an indirect proxy — a schedule entry with real interval_days but
+        # record_mark() checks introduced_at directly, not repetition_interval as
+        # an indirect proxy — a schedule entry with real repetition_interval but
         # no introduced_at is treated as new, and gets introduced_at
         # stamped on its next answer like any other new pair.
         exercise = make_exercise(word="warten", answer="auf")
@@ -1210,7 +1210,7 @@ class TestNewWordDailyCap:
             "word_schedule": {
                 "warten": {
                     "government": {
-                        "interval_days": 30,
+                        "repetition_interval": 30,
                         "due_date": today.isoformat(),
                     },
                 },
@@ -1229,7 +1229,7 @@ class TestNewWordDailyCap:
             "word_schedule": {
                 "warten": {
                     "government": {
-                        "interval_days": 1,
+                        "repetition_interval": 1,
                         "due_date": "2026-01-01",
                         "introduced_at": "2026-01-01",
                     },
@@ -1516,7 +1516,7 @@ class TestRequestRecallInterval:
             "word_schedule": {
                 "warten": {
                     "government": {
-                        "interval_days": 8,
+                        "repetition_interval": 8,
                         "due_date": today.isoformat(),
                     },
                 },
@@ -1528,7 +1528,7 @@ class TestRequestRecallInterval:
         tutor.request_recall(exercise)
 
         entry = journal["word_schedule"]["warten"]["government"]
-        assert entry["interval_days"] == 8
+        assert entry["repetition_interval"] == 8
         assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
 
     def test_only_halves_once_per_episode(self) -> None:
@@ -1538,7 +1538,7 @@ class TestRequestRecallInterval:
             "word_schedule": {
                 "warten": {
                     "government": {
-                        "interval_days": 8,
+                        "repetition_interval": 8,
                         "due_date": today.isoformat(),
                     },
                 },
@@ -1551,7 +1551,7 @@ class TestRequestRecallInterval:
         tutor.request_recall(exercise)
 
         entry = journal["word_schedule"]["warten"]["government"]
-        assert entry["interval_days"] == 8
+        assert entry["repetition_interval"] == 8
 
     def test_does_not_halve_when_last_mark_is_required(self) -> None:
         exercise = make_exercise(recalls=True)
@@ -1561,7 +1561,7 @@ class TestRequestRecallInterval:
             "word_schedule": {
                 "warten": {
                     "government": {
-                        "interval_days": 8,
+                        "repetition_interval": 8,
                         "due_date": today.isoformat(),
                     },
                 },
@@ -1572,4 +1572,4 @@ class TestRequestRecallInterval:
         tutor.request_recall(exercise)
 
         entry = journal["word_schedule"]["warten"]["government"]
-        assert entry["interval_days"] == 8
+        assert entry["repetition_interval"] == 8

@@ -230,7 +230,7 @@ class TestNextExerciseButton:
         word_schedule = {
             f"introduced{i}": {
                 "government": {
-                    "interval_days": 1,
+                    "repetition_interval": 1,
                     "due_date": (today + timedelta(days=30)).isoformat(),
                     "introduced_at": today.isoformat(),
                 },
@@ -272,7 +272,7 @@ class TestStudyMoreButton:
         word_schedule = {
             f"introduced{i}": {
                 "government": {
-                    "interval_days": 1,
+                    "repetition_interval": 1,
                     "due_date": (today + timedelta(days=30)).isoformat(),
                     "introduced_at": today.isoformat(),
                 },
@@ -308,7 +308,7 @@ class TestStudyMoreButton:
         word_schedule = {
             f"introduced{i}": {
                 "government": {
-                    "interval_days": 1,
+                    "repetition_interval": 1,
                     "due_date": (today + timedelta(days=30)).isoformat(),
                     "introduced_at": today.isoformat(),
                 },

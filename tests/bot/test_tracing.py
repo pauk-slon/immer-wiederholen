@@ -244,8 +244,8 @@ def test_record_tutoring_events_adds_one_span_event_per_event(
             correct=True,
             is_new=False,
             recall_mode=RecallMode.optional,
-            interval_days_before=4,
-            interval_days_after=8,
+            repetition_interval_before=4,
+            repetition_interval_after=8,
         ),
         TopicUnlocked(
             source_topic="government",
@@ -296,8 +296,8 @@ def test_record_tutoring_events_unwraps_enum_attributes_to_their_value(
         correct=True,
         is_new=True,
         recall_mode=RecallMode.required,
-        interval_days_before=0,
-        interval_days_after=1,
+        repetition_interval_before=0,
+        repetition_interval_after=1,
     )
 
     with tracer.start_as_current_span("test-span"):

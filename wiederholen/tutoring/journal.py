@@ -6,7 +6,7 @@ from pydantic import AfterValidator, TypeAdapter, ValidationError
 
 
 class _ScheduleEntry(TypedDict):
-    interval_days: int
+    repetition_interval: int
     due_date: Annotated[str, AfterValidator(date.fromisoformat)]
     introduced_at: NotRequired[Annotated[str, AfterValidator(date.fromisoformat)]]
 
@@ -72,7 +72,7 @@ class Journal:
         is_new = schedule_entry.get("introduced_at") is None
         if is_new:
             schedule_entry["introduced_at"] = self._today.isoformat()
-        return is_new, schedule_entry["interval_days"]
+        return is_new, schedule_entry["repetition_interval"]
 
     @property
     def last_reminded_at(self) -> datetime | None:
@@ -146,14 +146,18 @@ class Journal:
 
     def get_repetition_interval(self, word: str, topic: str) -> int | None:
         schedule_entry = self._get_schedule_entry(word, topic)
-        return schedule_entry["interval_days"] if schedule_entry is not None else None
+        return (
+            schedule_entry["repetition_interval"]
+            if schedule_entry is not None
+            else None
+        )
 
     def _get_or_create_schedule_entry(self, word: str, topic: str) -> _ScheduleEntry:
         topic_schedule = self._get_topic_schedule(word, create_if_missing=True)
         schedule_entry = topic_schedule.get(topic)
         if not self._is_valid_schedule_entry(schedule_entry):
             schedule_entry = topic_schedule[topic] = _ScheduleEntry(
-                interval_days=0, due_date=date.min.isoformat()
+                repetition_interval=0, due_date=date.min.isoformat()
             )
         return schedule_entry
 
@@ -162,18 +166,18 @@ class Journal:
         word: str,
         topic: str,
         *,
-        interval_days: int,
-        due_in_days: int | None = None,
+        repetition_interval: int,
+        due_interval: int | None = None,
     ) -> None:
-        # due_in_days defaults to interval_days (today + the newly-computed
-        # interval); callers override it only for the "due again today
-        # regardless" exceptions — see Tutor.check_answer().
-        if due_in_days is None:
-            due_in_days = interval_days
+        # due_interval defaults to repetition_interval (today + the newly-
+        # computed interval); callers override it only for the "due again
+        # today regardless" exceptions — see Tutor.check_answer().
+        if due_interval is None:
+            due_interval = repetition_interval
         schedule_entry = self._get_or_create_schedule_entry(word, topic)
-        schedule_entry["interval_days"] = interval_days
+        schedule_entry["repetition_interval"] = repetition_interval
         schedule_entry["due_date"] = (
-            self._today + timedelta(days=due_in_days)
+            self._today + timedelta(days=due_interval)
         ).isoformat()
 
     def _iter_valid_topics(

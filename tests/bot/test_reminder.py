@@ -63,7 +63,7 @@ async def test_tick_skips_chat_with_nothing_due(
             "word_schedule": {
                 "warten": {
                     "government": {
-                        "interval_days": 30,
+                        "repetition_interval": 30,
                         "due_date": (
                             datetime.now(UTC).date() + timedelta(days=20)
                         ).isoformat(),
