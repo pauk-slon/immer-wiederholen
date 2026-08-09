@@ -127,7 +127,7 @@ class Journal:
         return topic_schedule
 
     @classmethod
-    def reset_schedule(cls, data: dict) -> None:
+    def reset_progress(cls, data: dict) -> None:
         data[cls._WORD_SCHEDULE_KEY] = {}
         data.pop(cls._TODAY_ANSWERS_KEY, None)
 
