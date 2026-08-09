@@ -71,17 +71,20 @@ class SelectablePairs:
     due_not_introduced: set[tuple[str, str]]
     not_scheduled: set[tuple[str, str]]
 
+    @property
     def all_pairs(self) -> set[tuple[str, str]]:
         return self.due_introduced | self.due_not_introduced | self.not_scheduled
 
+    @property
     def not_introduced(self) -> set[tuple[str, str]]:
         return self.due_not_introduced | self.not_scheduled
 
     def __bool__(self) -> bool:
-        return bool(self.all_pairs())
+        return bool(self.all_pairs)
 
-    def get_word_tiers(
-        self, introduced_words: set[str]
+    def _get_word_tiers(
+        self,
+        introduced_words: set[str],
     ) -> tuple[set[str], set[str], set[str]]:
         # Three tiers, by how "free" a word is to select without spending the
         # daily new-word budget:
@@ -93,7 +96,7 @@ class SelectablePairs:
         #   introduced entry is always due today (see _expedite_dependent()),
         #   so "has any entry" and "has a due entry" coincide here.
         # - fresh: no schedule entry anywhere, genuinely never touched.
-        today_relevant_words = {word for word, _ in self.all_pairs()}
+        today_relevant_words = {word for word, _ in self.all_pairs}
         free_words = today_relevant_words & introduced_words
         remaining_words = today_relevant_words - free_words
         queued_words = {word for word, _ in self.due_not_introduced} - introduced_words
@@ -106,7 +109,7 @@ class SelectablePairs:
         budget: int,
         last_pair: tuple[str, str] | None,
     ) -> str | None:
-        free_words, queued_words, fresh_words = self.get_word_tiers(introduced_words)
+        free_words, queued_words, fresh_words = self._get_word_tiers(introduced_words)
         queued_list = list(queued_words)
         taken_queued = (
             queued_list
@@ -133,7 +136,7 @@ class SelectablePairs:
     def select_topic(self, word: str, last_pair: tuple[str, str] | None) -> str:
         due_topics = [topic for w, topic in self.due_introduced if w == word]
         candidate_topics = due_topics or [
-            topic for w, topic in self.not_introduced() if w == word
+            topic for w, topic in self.not_introduced if w == word
         ]
         if last_pair is not None and last_pair[0] == word:
             without_last_topic = [t for t in candidate_topics if t != last_pair[1]]
@@ -230,7 +233,9 @@ class Tutor:
         )
         last_pair = self._last_pair()
         word = selectable_pairs.select_word(
-            self._journal.get_words_already_introduced(), budget, last_pair
+            self._journal.get_words_already_introduced(),
+            budget,
+            last_pair,
         )
         if word is None:
             return None, [NoExerciseAvailable(reason="daily_cap_reached")]
