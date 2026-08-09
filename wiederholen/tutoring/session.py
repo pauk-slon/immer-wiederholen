@@ -38,8 +38,8 @@ class ExerciseAnswered:
     correct: bool
     is_new: bool
     recall_mode: RecallMode
-    repetition_interval_before: int
-    repetition_interval_after: int
+    previous_repetition_interval: int
+    next_repetition_interval: int
 
 
 @dataclass(frozen=True)
@@ -281,10 +281,10 @@ class Tutor:
             correct_today=correct_today,
         )
 
-    def _next_repetition(self, repetition_interval_before: int, correct: bool) -> int:
+    def _next_repetition(self, previous_repetition_interval: int, correct: bool) -> int:
         if correct:
             return min(
-                max(repetition_interval_before * 2, 1),
+                max(previous_repetition_interval * 2, 1),
                 self.MAX_REPETITION_INTERVAL_DAYS,
             )
         return 1
@@ -338,20 +338,21 @@ class Tutor:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
-        is_new, repetition_interval_before = self._journal.record_mark(
+        is_new, previous_repetition_interval = self._journal.record_mark(
             exercise.question,
             exercise.word,
             exercise.topic,
             correct=correct,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
-        repetition_interval_after = self._next_repetition(
-            repetition_interval_before, correct
+        next_repetition_interval = self._next_repetition(
+            previous_repetition_interval,
+            correct,
         )
         self._journal.schedule_pair(
             exercise.word,
             exercise.topic,
-            repetition_interval=repetition_interval_after,
+            repetition_interval=next_repetition_interval,
             # A same-day "learning step" before real spacing kicks in —
             # otherwise a correct first answer would leave nothing to
             # review again that same day (the first-day content shortage
@@ -367,8 +368,8 @@ class Tutor:
                 correct=correct,
                 is_new=is_new,
                 recall_mode=recall_mode,
-                repetition_interval_before=repetition_interval_before,
-                repetition_interval_after=repetition_interval_after,
+                previous_repetition_interval=previous_repetition_interval,
+                next_repetition_interval=next_repetition_interval,
             ),
             *self._expedite_chained_topics(exercise),
         ]
