@@ -102,6 +102,47 @@ class SelectablePairs:
         fresh_words = remaining_words - queued_words
         return free_words, queued_words, fresh_words
 
+    def select_word(
+        self,
+        introduced_words: set[str],
+        budget: int,
+        last_pair: tuple[str, str] | None,
+    ) -> str | None:
+        free_words, queued_words, fresh_words = self.word_tiers(introduced_words)
+        queued_list = list(queued_words)
+        taken_queued = (
+            queued_list
+            if len(queued_list) <= budget
+            else random.sample(queued_list, budget)
+        )
+        remaining_budget = max(budget - len(taken_queued), 0)
+        fresh_list = list(fresh_words)
+        taken_fresh = (
+            fresh_list
+            if len(fresh_list) <= remaining_budget
+            else random.sample(fresh_list, remaining_budget)
+        )
+        candidates = free_words | set(taken_queued) | set(taken_fresh)
+        if last_pair is not None:
+            last_word, _ = last_pair
+            without_last_word = {word for word in candidates if word != last_word}
+            if without_last_word:
+                candidates = without_last_word
+        if not candidates:
+            return None
+        return random.choice(list(candidates))
+
+    def select_topic(self, word: str, last_pair: tuple[str, str] | None) -> str:
+        due_topics = [topic for w, topic in self.due_introduced if w == word]
+        candidate_topics = due_topics or [
+            topic for w, topic in self.not_introduced() if w == word
+        ]
+        if last_pair is not None and last_pair[0] == word:
+            without_last_topic = [t for t in candidate_topics if t != last_pair[1]]
+            if without_last_topic:
+                candidate_topics = without_last_topic
+        return random.choice(candidate_topics)
+
 
 class Tutor:
     MAX_INTERVAL_DAYS: Final = 60
@@ -175,54 +216,6 @@ class Tutor:
             return None
         return (word, topic)
 
-    def _select_word(self, selectable_pairs: SelectablePairs) -> str | None:
-        free_words, queued_words, fresh_words = selectable_pairs.word_tiers(
-            self._journal.get_words_already_introduced()
-        )
-        budget = max(
-            self.NEW_WORDS_PER_DAY
-            + self._journal.get_extra_new_words_today()
-            - len(self._words_introduced_today()),
-            0,
-        )
-        queued_list = list(queued_words)
-        taken_queued = (
-            queued_list
-            if len(queued_list) <= budget
-            else random.sample(queued_list, budget)
-        )
-        remaining_budget = max(budget - len(taken_queued), 0)
-        fresh_list = list(fresh_words)
-        taken_fresh = (
-            fresh_list
-            if len(fresh_list) <= remaining_budget
-            else random.sample(fresh_list, remaining_budget)
-        )
-        candidates = free_words | set(taken_queued) | set(taken_fresh)
-        last_pair = self._last_pair()
-        if last_pair is not None:
-            last_word, _ = last_pair
-            without_last_word = {word for word in candidates if word != last_word}
-            if without_last_word:
-                candidates = without_last_word
-        if not candidates:
-            return None
-        return random.choice(list(candidates))
-
-    def _select_topic(self, word: str, selectable_pairs: SelectablePairs) -> str:
-        due_topics = [
-            topic for w, topic in selectable_pairs.due_introduced if w == word
-        ]
-        candidate_topics = due_topics or [
-            topic for w, topic in selectable_pairs.not_introduced() if w == word
-        ]
-        last_pair = self._last_pair()
-        if last_pair is not None and last_pair[0] == word:
-            without_last_topic = [t for t in candidate_topics if t != last_pair[1]]
-            if without_last_topic:
-                candidate_topics = without_last_topic
-        return random.choice(candidate_topics)
-
     def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
         selectable_pairs = SelectablePairs(
             due_introduced=self._get_due_pairs(introduced=True),
@@ -231,10 +224,19 @@ class Tutor:
         )
         if not selectable_pairs:
             return None, [NoExerciseAvailable(reason="nothing_available")]
-        word = self._select_word(selectable_pairs)
+        budget = max(
+            self.NEW_WORDS_PER_DAY
+            + self._journal.get_extra_new_words_today()
+            - len(self._words_introduced_today()),
+            0,
+        )
+        last_pair = self._last_pair()
+        word = selectable_pairs.select_word(
+            self._journal.get_words_already_introduced(), budget, last_pair
+        )
         if word is None:
             return None, [NoExerciseAvailable(reason="daily_cap_reached")]
-        topic = self._select_topic(word, selectable_pairs)
+        topic = selectable_pairs.select_topic(word, last_pair)
         candidates = self._exercises_by_word_topic[word][topic]
         last_exercise = self._journal.get_last_exercise()
         if last_exercise is not None and (
