@@ -208,7 +208,7 @@ class Journal:
     ) -> set[str]:
         return {
             schedule_entry["introduced_at"]
-            for _, schedule_entry in topic_schedule
+            for _topic, schedule_entry in topic_schedule
             if "introduced_at" in schedule_entry
         }
 
