@@ -80,7 +80,7 @@ class SelectablePairs:
     def __bool__(self) -> bool:
         return bool(self.all_pairs())
 
-    def word_tiers(
+    def get_word_tiers(
         self, introduced_words: set[str]
     ) -> tuple[set[str], set[str], set[str]]:
         # Three tiers, by how "free" a word is to select without spending the
@@ -96,9 +96,7 @@ class SelectablePairs:
         today_relevant_words = {word for word, _ in self.all_pairs()}
         free_words = today_relevant_words & introduced_words
         remaining_words = today_relevant_words - free_words
-        queued_words = {
-            word for word, _ in self.due_not_introduced
-        } - introduced_words
+        queued_words = {word for word, _ in self.due_not_introduced} - introduced_words
         fresh_words = remaining_words - queued_words
         return free_words, queued_words, fresh_words
 
@@ -108,7 +106,7 @@ class SelectablePairs:
         budget: int,
         last_pair: tuple[str, str] | None,
     ) -> str | None:
-        free_words, queued_words, fresh_words = self.word_tiers(introduced_words)
+        free_words, queued_words, fresh_words = self.get_word_tiers(introduced_words)
         queued_list = list(queued_words)
         taken_queued = (
             queued_list
