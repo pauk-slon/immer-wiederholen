@@ -16,7 +16,9 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
 )
+from opentelemetry import trace
 
+from wiederholen.bot.feature_flags import has_feature
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 from wiederholen.bot.tracing import record_tutoring_events
 from wiederholen.i18n import Language
@@ -144,7 +146,12 @@ async def command_wiederholen(
     message: Message,
     state: FSMContext,
     course: Course,
+    feature_flags: dict[str, frozenset[int]] | None = None,
 ) -> None:
+    # An example check point for #121's flag mechanism — no visible effect
+    # yet, just a span attribute for whoever's testing the flag right now.
+    if has_feature(feature_flags or {}, "ai_exercises", message.chat.id):
+        trace.get_current_span().set_attribute("feature.ai_exercises", True)
     data = await state.get_data()
     language = get_language(data)
     journal = data.get("journal", {})
