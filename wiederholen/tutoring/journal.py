@@ -82,14 +82,18 @@ class Journal:
     def last_reminded_at(self, value: datetime) -> None:
         self._data["last_reminded_at"] = value.isoformat()
 
+    def _get_self_expiring(self, key: str) -> dict | None:
+        # A value from a previous day is simply treated as absent rather
+        # than needing explicit cleanup — same self-expiring pattern as
+        # introduced_at.
+        value = self._data.get(key)
+        if value is None or value["date"] != self._today.isoformat():
+            return None
+        return value
+
     def get_extra_new_words_today(self) -> int:
-        extra = self._data.get("extra_new_words")
-        if extra is None or extra["date"] != self._today.isoformat():
-            # A grant from a previous day is simply treated as zero rather
-            # than needing explicit cleanup — same self-expiring pattern as
-            # introduced_at.
-            return 0
-        return extra["count"]
+        extra = self._get_self_expiring("extra_new_words")
+        return extra["count"] if extra is not None else 0
 
     def add_extra_new_words_today(self, amount: int) -> int:
         new_count = self.get_extra_new_words_today() + amount
@@ -100,8 +104,8 @@ class Journal:
         return new_count
 
     def get_answer_stats_today(self) -> tuple[int, int]:
-        stats = self._data.get("today_answers")
-        if stats is None or stats["date"] != self._today.isoformat():
+        stats = self._get_self_expiring("today_answers")
+        if stats is None:
             return 0, 0
         return stats["answered"], stats["correct"]
 
