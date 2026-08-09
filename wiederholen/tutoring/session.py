@@ -80,6 +80,28 @@ class SelectablePairs:
     def __bool__(self) -> bool:
         return bool(self.all_pairs())
 
+    def word_tiers(
+        self, introduced_words: set[str]
+    ) -> tuple[set[str], set[str], set[str]]:
+        # Three tiers, by how "free" a word is to select without spending the
+        # daily new-word budget:
+        # - free: introduced via some topic already (Journal.get_words_already_introduced()
+        #   — a single journal scan, not a per-word lookup) — regardless of
+        #   whether that's the topic that's due/available today.
+        # - queued: never introduced, but already has a schedule entry
+        #   (expedited via a chain/gate) — prioritized over... A not-yet-
+        #   introduced entry is always due today (see _expedite_dependent()),
+        #   so "has any entry" and "has a due entry" coincide here.
+        # - fresh: no schedule entry anywhere, genuinely never touched.
+        today_relevant_words = {word for word, _ in self.all_pairs()}
+        free_words = today_relevant_words & introduced_words
+        remaining_words = today_relevant_words - free_words
+        queued_words = {
+            word for word, _ in self.due_not_introduced
+        } - introduced_words
+        fresh_words = remaining_words - queued_words
+        return free_words, queued_words, fresh_words
+
 
 class Tutor:
     MAX_INTERVAL_DAYS: Final = 60
@@ -153,32 +175,9 @@ class Tutor:
             return None
         return (word, topic)
 
-    def _word_selection_pools(
-        self, selectable_pairs: SelectablePairs
-    ) -> tuple[set[str], set[str], set[str]]:
-        # Three tiers, by how "free" a word is to select without spending the
-        # daily new-word budget:
-        # - free: introduced via some topic already (Journal.get_words_already_introduced()
-        #   — a single journal scan, not a per-word lookup) — regardless of
-        #   whether that's the topic that's due/available today.
-        # - queued: never introduced, but already has a schedule entry
-        #   (expedited via a chain/gate) — prioritized over... A not-yet-
-        #   introduced entry is always due today (see _expedite_dependent()),
-        #   so "has any entry" and "has a due entry" coincide here.
-        # - fresh: no schedule entry anywhere, genuinely never touched.
-        today_relevant_words = {word for word, _ in selectable_pairs.all_pairs()}
-        introduced_words = self._journal.get_words_already_introduced()
-        free_words = today_relevant_words & introduced_words
-        remaining_words = today_relevant_words - free_words
-        queued_words = {
-            word for word, _ in selectable_pairs.due_not_introduced
-        } - introduced_words
-        fresh_words = remaining_words - queued_words
-        return free_words, queued_words, fresh_words
-
     def _select_word(self, selectable_pairs: SelectablePairs) -> str | None:
-        free_words, queued_words, fresh_words = self._word_selection_pools(
-            selectable_pairs
+        free_words, queued_words, fresh_words = selectable_pairs.word_tiers(
+            self._journal.get_words_already_introduced()
         )
         budget = max(
             self.NEW_WORDS_PER_DAY
