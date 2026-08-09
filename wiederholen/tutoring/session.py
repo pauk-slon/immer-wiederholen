@@ -395,11 +395,10 @@ class Tutor:
             repetition_interval_before = (
                 repetition_interval if repetition_interval is not None else 0
             )
-            interval = max(repetition_interval_before // 2, 1)
             self._journal.schedule_pair(
                 exercise.word,
                 exercise.topic,
-                repetition_interval=interval,
+                repetition_interval=max(repetition_interval_before // 2, 1),
             )
         candidates = exercise.recalls
         if last_exercise.get("recall_question") is not None and (
