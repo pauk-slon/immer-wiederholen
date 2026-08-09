@@ -64,7 +64,7 @@ def feed_raw_update(bot: Bot, dispatcher: Dispatcher) -> FeedRawUpdate:
     # realistic fake here, not the bare `True` every other method still gets.
     sent_message_ids = itertools.count(1000)
 
-    def fake_response(method: TelegramMethod) -> Any:
+    def make_fake_response(method: TelegramMethod) -> Any:
         if isinstance(method, SendMessage):
             assert isinstance(method.chat_id, int)
             return Message(
@@ -76,7 +76,7 @@ def feed_raw_update(bot: Bot, dispatcher: Dispatcher) -> FeedRawUpdate:
 
     async def factory(raw_update: dict, **kwargs) -> list[Any]:
         mock_request = AsyncMock(
-            side_effect=lambda bot, method, timeout=None: fake_response(method)
+            side_effect=lambda bot, method, timeout=None: make_fake_response(method)
         )
         with patch.object(bot.session, "make_request", mock_request):
             await dispatcher.feed_raw_update(bot, raw_update, **kwargs)
