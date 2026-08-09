@@ -169,9 +169,9 @@ class Journal:
         repetition_interval: int,
         due_interval: int | None = None,
     ) -> None:
-        # due_interval defaults to repetition_interval (today + the newly-
-        # computed interval); callers override it only for the "due again
-        # today regardless" exceptions — see Tutor.check_answer().
+        # due_interval defaults to repetition_interval (due date = today +
+        # repetition_interval); pass it explicitly if the due date should
+        # differ from that.
         if due_interval is None:
             due_interval = repetition_interval
         schedule_entry = self._get_or_create_schedule_entry(word, topic)
