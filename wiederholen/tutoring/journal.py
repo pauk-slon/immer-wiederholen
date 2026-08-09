@@ -52,21 +52,21 @@ class Journal:
         word: str,
         topic: str,
         *,
-        correct: bool,
-        was_recall_optional: bool,
+        is_answer_correct: bool,
+        is_recall_optional: bool,
     ) -> tuple[bool, int]:
         self._data["last_exercise"] = LastExercise(
             question=question,
             word=word,
             topic=topic,
             answered_at=datetime.now(UTC).isoformat(),
-            is_recall_optional=was_recall_optional,
+            is_recall_optional=is_recall_optional,
         )
         answered, right = self.get_answer_stats_today()
         self._data[self._TODAY_ANSWERS_KEY] = AnswerStats(
             date=self._today.isoformat(),
             answered=answered + 1,
-            correct=right + (1 if correct else 0),
+            correct=right + (1 if is_answer_correct else 0),
         )
         schedule_entry = self._get_or_create_schedule_entry(word, topic)
         is_new = schedule_entry.get("introduced_at") is None

@@ -283,10 +283,11 @@ class Tutor:
 
     def _calc_next_repetition_interval(
         self,
+        *,
         previous_repetition_interval: int,
-        correct: bool,
+        is_answer_correct: bool,
     ) -> int:
-        if correct:
+        if is_answer_correct:
             return min(
                 max(previous_repetition_interval * 2, 1),
                 self.MAX_REPETITION_INTERVAL_DAYS,
@@ -346,12 +347,12 @@ class Tutor:
             exercise.question,
             exercise.word,
             exercise.topic,
-            correct=correct,
-            was_recall_optional=recall_mode == RecallMode.optional,
+            is_answer_correct=correct,
+            is_recall_optional=recall_mode == RecallMode.optional,
         )
         next_repetition_interval = self._calc_next_repetition_interval(
-            previous_repetition_interval,
-            correct,
+            previous_repetition_interval=previous_repetition_interval,
+            is_answer_correct=correct,
         )
         self._journal.schedule_pair(
             exercise.word,
