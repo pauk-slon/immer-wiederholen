@@ -62,11 +62,87 @@ TutoringEvent = ExerciseAnswered | TopicUnlocked | NoExerciseAvailable
 
 @dataclass(frozen=True)
 class SelectablePairs:
-    # Today's two source pair-sets for next_exercise()'s word/topic pick,
-    # already narrowed to what's eligible for selection right now (due, for
-    # introduced; due-or-never-scheduled-and-ungated, for not_introduced).
-    introduced: set[tuple[str, str]]
-    not_introduced: set[tuple[str, str]]
+    # Today's three-way partition for next_exercise()'s word/topic pick —
+    # split first by whether a pair is due today, then, for due pairs, by
+    # introduced status. not_scheduled pairs are always not introduced too
+    # (there's no way to be introduced without a schedule entry), so there's
+    # no fourth "not scheduled and introduced" cell.
+    due_introduced: set[tuple[str, str]]
+    due_not_introduced: set[tuple[str, str]]
+    not_scheduled: set[tuple[str, str]]
+
+    @property
+    def all_pairs(self) -> set[tuple[str, str]]:
+        return self.due_introduced | self.due_not_introduced | self.not_scheduled
+
+    @property
+    def not_introduced(self) -> set[tuple[str, str]]:
+        return self.due_not_introduced | self.not_scheduled
+
+    def __bool__(self) -> bool:
+        return bool(self.all_pairs)
+
+    def _get_word_tiers(
+        self,
+        introduced_words: set[str],
+    ) -> tuple[set[str], set[str], set[str]]:
+        # Three tiers, by how "free" a word is to select without spending the
+        # daily new-word budget:
+        # - free: introduced via some topic already (Journal.get_words_already_introduced()
+        #   — a single journal scan, not a per-word lookup) — regardless of
+        #   whether that's the topic that's due/available today.
+        # - queued: never introduced, but already has a schedule entry
+        #   (expedited via a chain/gate) — prioritized over... A not-yet-
+        #   introduced entry is always due today (see _expedite_dependent()),
+        #   so "has any entry" and "has a due entry" coincide here.
+        # - fresh: no schedule entry anywhere, genuinely never touched.
+        today_relevant_words = {word for word, _ in self.all_pairs}
+        free_words = today_relevant_words & introduced_words
+        remaining_words = today_relevant_words - free_words
+        queued_words = {word for word, _ in self.due_not_introduced} - introduced_words
+        fresh_words = remaining_words - queued_words
+        return free_words, queued_words, fresh_words
+
+    def select_word(
+        self,
+        introduced_words: set[str],
+        budget: int,
+        last_pair: tuple[str, str] | None,
+    ) -> str | None:
+        free_words, queued_words, fresh_words = self._get_word_tiers(introduced_words)
+        queued_list = list(queued_words)
+        taken_queued = (
+            queued_list
+            if len(queued_list) <= budget
+            else random.sample(queued_list, budget)
+        )
+        remaining_budget = max(budget - len(taken_queued), 0)
+        fresh_list = list(fresh_words)
+        taken_fresh = (
+            fresh_list
+            if len(fresh_list) <= remaining_budget
+            else random.sample(fresh_list, remaining_budget)
+        )
+        candidates = free_words | set(taken_queued) | set(taken_fresh)
+        if last_pair is not None:
+            last_word, _ = last_pair
+            without_last_word = {word for word in candidates if word != last_word}
+            if without_last_word:
+                candidates = without_last_word
+        if not candidates:
+            return None
+        return random.choice(list(candidates))
+
+    def select_topic(self, word: str, last_pair: tuple[str, str] | None) -> str:
+        due_topics = [topic for w, topic in self.due_introduced if w == word]
+        candidate_topics = due_topics or [
+            topic for w, topic in self.not_introduced if w == word
+        ]
+        if last_pair is not None and last_pair[0] == word:
+            without_last_topic = [t for t in candidate_topics if t != last_pair[1]]
+            if without_last_topic:
+                candidate_topics = without_last_topic
+        return random.choice(candidate_topics)
 
 
 class Tutor:
@@ -141,85 +217,29 @@ class Tutor:
             return None
         return (word, topic)
 
-    def _word_selection_pools(
-        self, pairs: SelectablePairs
-    ) -> tuple[set[str], set[str], set[str]]:
-        # Three tiers, by how "free" a word is to select without spending the
-        # daily new-word budget:
-        # - free: introduced via some topic already (Journal.get_words_already_introduced()
-        #   — a single journal scan, not a per-word lookup) — regardless of
-        #   whether that's the topic that's due/available today.
-        # - queued: never introduced, but already has a schedule entry
-        #   (expedited via a chain/gate) — prioritized over... A not-yet-
-        #   introduced entry is always due today (see _expedite_dependent()),
-        #   so "has any entry" and "has a due entry" coincide here.
-        # - fresh: no schedule entry anywhere, genuinely never touched.
-        today_relevant_words = {word for word, _ in pairs.introduced | pairs.not_introduced}
-        introduced_words = self._journal.get_words_already_introduced()
-        free_words = today_relevant_words & introduced_words
-        remaining_words = today_relevant_words - free_words
-        queued_words = {
-            word for word, _ in self._get_due_pairs(introduced=False)
-        } - introduced_words
-        fresh_words = remaining_words - queued_words
-        return free_words, queued_words, fresh_words
-
-    def _select_word(self, pairs: SelectablePairs) -> str | None:
-        free_words, queued_words, fresh_words = self._word_selection_pools(pairs)
+    def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
+        selectable_pairs = SelectablePairs(
+            due_introduced=self._get_due_pairs(introduced=True),
+            due_not_introduced=self._get_due_pairs(introduced=False),
+            not_scheduled=self._get_available_not_scheduled_pairs(),
+        )
+        if not selectable_pairs:
+            return None, [NoExerciseAvailable(reason="nothing_available")]
         budget = max(
             self.NEW_WORDS_PER_DAY
             + self._journal.get_extra_new_words_today()
             - len(self._words_introduced_today()),
             0,
         )
-        queued_list = list(queued_words)
-        taken_queued = (
-            queued_list
-            if len(queued_list) <= budget
-            else random.sample(queued_list, budget)
-        )
-        remaining_budget = max(budget - len(taken_queued), 0)
-        fresh_list = list(fresh_words)
-        taken_fresh = (
-            fresh_list
-            if len(fresh_list) <= remaining_budget
-            else random.sample(fresh_list, remaining_budget)
-        )
-        candidates = free_words | set(taken_queued) | set(taken_fresh)
         last_pair = self._last_pair()
-        if last_pair is not None:
-            last_word, _ = last_pair
-            without_last_word = {word for word in candidates if word != last_word}
-            if without_last_word:
-                candidates = without_last_word
-        if not candidates:
-            return None
-        return random.choice(list(candidates))
-
-    def _select_topic(self, word: str, pairs: SelectablePairs) -> str:
-        due_topics = [topic for w, topic in pairs.introduced if w == word]
-        candidate_topics = due_topics or [
-            topic for w, topic in pairs.not_introduced if w == word
-        ]
-        last_pair = self._last_pair()
-        if last_pair is not None and last_pair[0] == word:
-            without_last_topic = [t for t in candidate_topics if t != last_pair[1]]
-            if without_last_topic:
-                candidate_topics = without_last_topic
-        return random.choice(candidate_topics)
-
-    def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
-        pairs = SelectablePairs(
-            introduced=self._get_due_pairs(introduced=True),
-            not_introduced=self._get_available_not_scheduled_pairs()
-            | self._get_due_pairs(introduced=False),
+        word = selectable_pairs.select_word(
+            self._journal.get_words_already_introduced(),
+            budget,
+            last_pair,
         )
-        if not (pairs.introduced | pairs.not_introduced):
-            return None, [NoExerciseAvailable(reason="nothing_available")]
-        word = self._select_word(pairs)
         if word is None:
             return None, [NoExerciseAvailable(reason="daily_cap_reached")]
-        topic = self._select_topic(word, pairs)
+        topic = selectable_pairs.select_topic(word, last_pair)
         candidates = self._exercises_by_word_topic[word][topic]
         last_exercise = self._journal.get_last_exercise()
         if last_exercise is not None and (
