@@ -1374,7 +1374,7 @@ class TestNewWordDailyCap:
         assert entry["introduced_at"] == today.isoformat()
 
 
-class TestExtraNewWords:
+class TestNewWordBudget:
     def test_grant_lifts_the_cap_for_a_genuinely_new_word(self) -> None:
         today = datetime.now(UTC).date()
         capped_exercises = [
@@ -1388,7 +1388,7 @@ class TestExtraNewWords:
         exercise, _events = tutor.next_exercise()
         assert exercise is None
 
-        tutor.grant_extra_new_words()
+        tutor.grant_new_word_budget()
 
         assert _next(tutor).word == "warten"
 
@@ -1396,20 +1396,20 @@ class TestExtraNewWords:
         today = datetime.now(UTC).date()
         capped_exercises = [
             make_exercise(word=f"introduced{i}")
-            for i in range(Tutor.NEW_WORDS_PER_DAY + Tutor.EXTRA_NEW_WORDS_GRANT)
+            for i in range(Tutor.NEW_WORDS_PER_DAY + Tutor.NEW_WORD_BUDGET_GRANT)
         ]
         exercises = [*capped_exercises, make_exercise(word="warten")]
         state = {
             "word_schedule": _introduced_today_schedule(
-                Tutor.NEW_WORDS_PER_DAY + Tutor.EXTRA_NEW_WORDS_GRANT, today
+                Tutor.NEW_WORDS_PER_DAY + Tutor.NEW_WORD_BUDGET_GRANT, today
             ),
         }
         tutor = Tutor(Course(exercises), state)
-        tutor.grant_extra_new_words()
+        tutor.grant_new_word_budget()
         exercise, _events = tutor.next_exercise()
         assert exercise is None
 
-        tutor.grant_extra_new_words()
+        tutor.grant_new_word_budget()
 
         assert _next(tutor).word == "warten"
 
@@ -1422,7 +1422,7 @@ class TestExtraNewWords:
         exercises = [*capped_exercises, make_exercise(word="warten")]
         state = {
             "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today),
-            "extra_new_words": {"date": yesterday.isoformat(), "count": 3},
+            "new_word_budget": {"date": yesterday.isoformat(), "count": 3},
         }
         tutor = Tutor(Course(exercises), state)
 
@@ -1434,9 +1434,9 @@ class TestExtraNewWords:
         state: dict = {}
         tutor = Tutor(Course([exercise]), state)
 
-        tutor.grant_extra_new_words()
+        tutor.grant_new_word_budget()
 
-        assert "extra_new_words" not in state
+        assert "new_word_budget" not in state
 
     def test_grant_ignores_a_stale_click_after_the_cap_has_reset_for_a_new_day(
         self,
@@ -1446,12 +1446,12 @@ class TestExtraNewWords:
         # reset for today must not silently raise today's cap.
         exercise = make_exercise(word="warten")
         yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
-        state = {"extra_new_words": {"date": yesterday, "count": 3}}
+        state = {"new_word_budget": {"date": yesterday, "count": 3}}
         tutor = Tutor(Course([exercise]), state)
 
-        tutor.grant_extra_new_words()
+        tutor.grant_new_word_budget()
 
-        assert state["extra_new_words"] == {"date": yesterday, "count": 3}
+        assert state["new_word_budget"] == {"date": yesterday, "count": 3}
 
 
 class TestTodayAnswers:

@@ -149,7 +149,7 @@ class Tutor:
     MAX_REPETITION_INTERVAL_DAYS: Final = 60
     REMIND_AFTER: Final = timedelta(hours=24)
     NEW_WORDS_PER_DAY: Final = 7
-    EXTRA_NEW_WORDS_GRANT: Final = 3
+    NEW_WORD_BUDGET_GRANT: Final = 3
 
     def __init__(self, course: Course, journal: dict) -> None:
         self._course = course
@@ -178,16 +178,14 @@ class Tutor:
         return self._journal.get_words_introduced_today() & course_words
 
     def _get_effective_cap(self) -> int:
-        return self.NEW_WORDS_PER_DAY + self._journal.get_extra_new_words_today()
+        return self.NEW_WORDS_PER_DAY + self._journal.get_new_word_budget()
 
-    def grant_extra_new_words(self) -> None:
+    def grant_new_word_budget(self) -> None:
         if len(self._get_words_introduced_today()) < self._get_effective_cap():
-            # The cap isn't actually binding right now — most likely a stale
-            # "study more" button clicked after the cap reset for a new day.
-            # Granting here would silently raise today's cap without the
-            # learner having asked for it today.
+            # Likely a stale "study more" tap after the cap already reset —
+            # granting would silently raise it without being asked.
             return
-        self._journal.add_extra_new_words_today(self.EXTRA_NEW_WORDS_GRANT)
+        self._journal.bump_new_word_budget(self.NEW_WORD_BUDGET_GRANT)
 
     def _get_due_pairs(self, is_introduced: bool | None = None) -> set[tuple[str, str]]:
         return {
