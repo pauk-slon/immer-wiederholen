@@ -77,8 +77,8 @@ class SelectablePairs:
     def not_introduced(self) -> set[tuple[str, str]]:
         return self.due_not_introduced | self.not_scheduled
 
-    def is_empty(self) -> bool:
-        return not self.all_pairs()
+    def __bool__(self) -> bool:
+        return bool(self.all_pairs())
 
 
 class Tutor:
@@ -224,7 +224,7 @@ class Tutor:
             due_not_introduced=self._get_due_pairs(introduced=False),
             not_scheduled=self._get_available_not_scheduled_pairs(),
         )
-        if pairs.is_empty():
+        if not pairs:
             return None, [NoExerciseAvailable(reason="nothing_available")]
         word = self._select_word(pairs)
         if word is None:
