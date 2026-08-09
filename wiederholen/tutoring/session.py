@@ -281,8 +281,10 @@ class Tutor:
             correct_today=correct_today,
         )
 
-    def _get_next_repetition_interval(
-        self, previous_repetition_interval: int, correct: bool
+    def _calc_next_repetition_interval(
+        self,
+        previous_repetition_interval: int,
+        correct: bool,
     ) -> int:
         if correct:
             return min(
@@ -347,7 +349,7 @@ class Tutor:
             correct=correct,
             was_recall_optional=recall_mode == RecallMode.optional,
         )
-        next_repetition_interval = self._get_next_repetition_interval(
+        next_repetition_interval = self._calc_next_repetition_interval(
             previous_repetition_interval,
             correct,
         )
