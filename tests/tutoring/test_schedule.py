@@ -1241,6 +1241,16 @@ class TestNewWordDailyCap:
 
         assert Journal(data).get_schedule_entry("warten", "government") is None
 
+    def test_reset_schedule_clears_todays_answer_stats(self) -> None:
+        today = datetime.now(UTC).date().isoformat()
+        data = {
+            "today_answers": {"date": today, "answered": 5, "correct": 4},
+        }
+
+        Journal.reset_schedule(data)
+
+        assert Journal(data).get_answer_stats_today() == (0, 0)
+
     def test_expedited_dependent_is_not_stamped_as_introduced_until_answered(
         self,
     ) -> None:

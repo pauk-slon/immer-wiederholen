@@ -37,6 +37,7 @@ class AnswerStats(TypedDict):
 class Journal:
     _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(ScheduleEntry)
     _WORD_SCHEDULE_KEY: Final = "word_schedule"
+    _TODAY_ANSWERS_KEY: Final = "today_answers"
 
     def __init__(self, data: dict, *, today: date | None = None) -> None:
         self._data = data
@@ -62,7 +63,7 @@ class Journal:
             is_recall_optional=was_recall_optional,
         )
         answered, right = self.get_answer_stats_today()
-        self._data["today_answers"] = AnswerStats(
+        self._data[self._TODAY_ANSWERS_KEY] = AnswerStats(
             date=self._today.isoformat(),
             answered=answered + 1,
             correct=right + (1 if correct else 0),
@@ -103,7 +104,7 @@ class Journal:
         return new_count
 
     def get_answer_stats_today(self) -> tuple[int, int]:
-        stats = self._get_self_expiring("today_answers")
+        stats = self._get_self_expiring(self._TODAY_ANSWERS_KEY)
         if stats is None:
             return 0, 0
         return stats["answered"], stats["correct"]
@@ -128,6 +129,10 @@ class Journal:
     @classmethod
     def reset_schedule(cls, data: dict) -> None:
         data[cls._WORD_SCHEDULE_KEY] = {}
+        # Otherwise a reset mid-day would still show today's pre-reset
+        # answered_today/correct_today in /progress until the counter
+        # self-expires at midnight.
+        data.pop(cls._TODAY_ANSWERS_KEY, None)
 
     @classmethod
     def _is_valid_schedule_entry(cls, schedule_entry: object) -> TypeIs[ScheduleEntry]:
