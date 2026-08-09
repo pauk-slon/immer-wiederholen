@@ -231,15 +231,15 @@ class Tutor:
             0,
         )
         last_pair = self._get_last_pair()
-        word = selectable_pairs.select_word(
+        selected_word = selectable_pairs.select_word(
             self._journal.get_words_already_introduced(),
             budget,
             last_pair,
         )
-        if word is None:
+        if selected_word is None:
             return None, [NoExerciseAvailable(reason="daily_cap_reached")]
-        topic = selectable_pairs.select_topic(word, last_pair)
-        candidates = self._exercises_by_word_topic[word][topic]
+        selected_topic = selectable_pairs.select_topic(selected_word, last_pair)
+        candidates = self._exercises_by_word_topic[selected_word][selected_topic]
         last_exercise = self._journal.get_last_exercise()
         if last_exercise is not None and (
             filtered_exercises := [
