@@ -129,9 +129,9 @@ class Journal:
     @classmethod
     def reset_schedule(cls, data: dict) -> None:
         data[cls._WORD_SCHEDULE_KEY] = {}
-        # Otherwise a reset mid-day would still show today's pre-reset
-        # answered_today/correct_today in /progress until the counter
-        # self-expires at midnight.
+        # A separate top-level key, not reached by the word_schedule wipe
+        # above — left alone, it would keep /progress showing pre-reset
+        # answered_today/correct_today until it self-expires at midnight.
         data.pop(cls._TODAY_ANSWERS_KEY, None)
 
     @classmethod
