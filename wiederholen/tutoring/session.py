@@ -62,11 +62,16 @@ TutoringEvent = ExerciseAnswered | TopicUnlocked | NoExerciseAvailable
 
 @dataclass(frozen=True)
 class SelectablePairs:
-    # Today's two source pair-sets for next_exercise()'s word/topic pick,
-    # already narrowed to what's eligible for selection right now (due, for
+    # Today's source pair-sets for next_exercise()'s word/topic pick, already
+    # narrowed to what's eligible for selection right now (due, for
     # introduced; due-or-never-scheduled-and-ungated, for not_introduced).
+    # queued is not_introduced's due-today subset (broken out separately so
+    # _word_selection_pools() doesn't have to recompute it) — every pair is
+    # in exactly one of introduced/not_introduced, but queued always overlaps
+    # not_introduced rather than partitioning it further.
     introduced: set[tuple[str, str]]
     not_introduced: set[tuple[str, str]]
+    queued: set[tuple[str, str]]
 
 
 class Tutor:
@@ -158,9 +163,7 @@ class Tutor:
         introduced_words = self._journal.get_words_already_introduced()
         free_words = today_relevant_words & introduced_words
         remaining_words = today_relevant_words - free_words
-        queued_words = {
-            word for word, _ in self._get_due_pairs(introduced=False)
-        } - introduced_words
+        queued_words = {word for word, _ in pairs.queued} - introduced_words
         fresh_words = remaining_words - queued_words
         return free_words, queued_words, fresh_words
 
@@ -209,10 +212,11 @@ class Tutor:
         return random.choice(candidate_topics)
 
     def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
+        queued = self._get_due_pairs(introduced=False)
         pairs = SelectablePairs(
             introduced=self._get_due_pairs(introduced=True),
-            not_introduced=self._get_available_not_scheduled_pairs()
-            | self._get_due_pairs(introduced=False),
+            not_introduced=self._get_available_not_scheduled_pairs() | queued,
+            queued=queued,
         )
         if not (pairs.introduced | pairs.not_introduced):
             return None, [NoExerciseAvailable(reason="nothing_available")]
