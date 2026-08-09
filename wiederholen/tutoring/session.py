@@ -60,6 +60,15 @@ class NoExerciseAvailable:
 TutoringEvent = ExerciseAnswered | TopicUnlocked | NoExerciseAvailable
 
 
+@dataclass(frozen=True)
+class SelectionPools:
+    # Today's two source pools for next_exercise()'s word/topic pick —
+    # computed once and threaded unchanged through _word_selection_pools()/
+    # _select_word()/_select_topic() rather than passed as two separate sets.
+    introduced_due_pairs: set[tuple[str, str]]
+    available_new_pairs: set[tuple[str, str]]
+
+
 class Tutor:
     MAX_INTERVAL_DAYS: Final = 60
     REMIND_AFTER: Final = timedelta(hours=24)
@@ -133,9 +142,7 @@ class Tutor:
         return (word, topic)
 
     def _word_selection_pools(
-        self,
-        introduced_due_pairs: set[tuple[str, str]],
-        available_new_pairs: set[tuple[str, str]],
+        self, pools: SelectionPools
     ) -> tuple[set[str], set[str], set[str]]:
         # Three tiers, by how "free" a word is to select without spending the
         # daily new-word budget:
@@ -148,7 +155,8 @@ class Tutor:
         #   so "has any entry" and "has a due entry" coincide here.
         # - fresh: no schedule entry anywhere, genuinely never touched.
         today_relevant_words = {
-            word for word, _ in introduced_due_pairs | available_new_pairs
+            word
+            for word, _ in pools.introduced_due_pairs | pools.available_new_pairs
         }
         introduced_words = self._journal.get_words_already_introduced()
         free_words = today_relevant_words & introduced_words
@@ -159,14 +167,8 @@ class Tutor:
         fresh_words = remaining_words - queued_words
         return free_words, queued_words, fresh_words
 
-    def _select_word(
-        self,
-        introduced_due_pairs: set[tuple[str, str]],
-        available_new_pairs: set[tuple[str, str]],
-    ) -> str | None:
-        free_words, queued_words, fresh_words = self._word_selection_pools(
-            introduced_due_pairs, available_new_pairs
-        )
+    def _select_word(self, pools: SelectionPools) -> str | None:
+        free_words, queued_words, fresh_words = self._word_selection_pools(pools)
         budget = max(
             self.NEW_WORDS_PER_DAY
             + self._journal.get_extra_new_words_today()
@@ -197,15 +199,12 @@ class Tutor:
             return None
         return random.choice(list(candidates))
 
-    def _select_topic(
-        self,
-        word: str,
-        introduced_due_pairs: set[tuple[str, str]],
-        available_new_pairs: set[tuple[str, str]],
-    ) -> str:
-        due_topics = [topic for w, topic in introduced_due_pairs if w == word]
+    def _select_topic(self, word: str, pools: SelectionPools) -> str:
+        due_topics = [
+            topic for w, topic in pools.introduced_due_pairs if w == word
+        ]
         candidate_topics = due_topics or [
-            topic for w, topic in available_new_pairs if w == word
+            topic for w, topic in pools.available_new_pairs if w == word
         ]
         last_pair = self._last_pair()
         if last_pair is not None and last_pair[0] == word:
@@ -215,16 +214,17 @@ class Tutor:
         return random.choice(candidate_topics)
 
     def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
-        introduced_due_pairs = self._get_due_pairs(introduced=True)
-        available_new_pairs = self._get_available_not_scheduled_pairs() | (
-            self._get_due_pairs(introduced=False)
+        pools = SelectionPools(
+            introduced_due_pairs=self._get_due_pairs(introduced=True),
+            available_new_pairs=self._get_available_not_scheduled_pairs()
+            | self._get_due_pairs(introduced=False),
         )
-        if not (introduced_due_pairs | available_new_pairs):
+        if not (pools.introduced_due_pairs | pools.available_new_pairs):
             return None, [NoExerciseAvailable(reason="nothing_available")]
-        word = self._select_word(introduced_due_pairs, available_new_pairs)
+        word = self._select_word(pools)
         if word is None:
             return None, [NoExerciseAvailable(reason="daily_cap_reached")]
-        topic = self._select_topic(word, introduced_due_pairs, available_new_pairs)
+        topic = self._select_topic(word, pools)
         candidates = self._exercises_by_word_topic[word][topic]
         last_exercise = self._journal.get_last_exercise()
         if last_exercise is not None and (
