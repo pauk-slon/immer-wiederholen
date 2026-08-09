@@ -173,14 +173,15 @@ class Tutor:
             for topic in topics
         }
 
-    def _words_introduced_today(self) -> set[str]:
+    def _get_words_introduced_today(self) -> set[str]:
         course_words = {word for word, _ in self._course_pairs}
         return self._journal.get_words_introduced_today() & course_words
 
+    def _get_effective_cap(self) -> int:
+        return self.NEW_WORDS_PER_DAY + self._journal.get_extra_new_words_today()
+
     def grant_extra_new_words(self) -> None:
-        extra_today = self._journal.get_extra_new_words_today()
-        cap = self.NEW_WORDS_PER_DAY + extra_today
-        if len(self._words_introduced_today()) < cap:
+        if len(self._get_words_introduced_today()) < self._get_effective_cap():
             # The cap isn't actually binding right now — most likely a stale
             # "study more" button clicked after the cap reset for a new day.
             # Granting here would silently raise today's cap without the
@@ -207,7 +208,7 @@ class Tutor:
             if topic not in self._course.gated_topics
         }
 
-    def _last_pair(self) -> tuple[str, str] | None:
+    def _get_last_pair(self) -> tuple[str, str] | None:
         last_exercise = self._journal.get_last_exercise()
         if last_exercise is None:
             return None
@@ -226,21 +227,19 @@ class Tutor:
         if not selectable_pairs:
             return None, [NoExerciseAvailable(reason="nothing_available")]
         budget = max(
-            self.NEW_WORDS_PER_DAY
-            + self._journal.get_extra_new_words_today()
-            - len(self._words_introduced_today()),
+            self._get_effective_cap() - len(self._get_words_introduced_today()),
             0,
         )
-        last_pair = self._last_pair()
-        word = selectable_pairs.select_word(
+        last_pair = self._get_last_pair()
+        selected_word = selectable_pairs.select_word(
             self._journal.get_words_already_introduced(),
             budget,
             last_pair,
         )
-        if word is None:
+        if selected_word is None:
             return None, [NoExerciseAvailable(reason="daily_cap_reached")]
-        topic = selectable_pairs.select_topic(word, last_pair)
-        candidates = self._exercises_by_word_topic[word][topic]
+        selected_topic = selectable_pairs.select_topic(selected_word, last_pair)
+        candidates = self._exercises_by_word_topic[selected_word][selected_topic]
         last_exercise = self._journal.get_last_exercise()
         if last_exercise is not None and (
             filtered_exercises := [
@@ -271,7 +270,7 @@ class Tutor:
         answered_today, correct_today = self._journal.get_answer_stats_today()
         return Progress(
             remaining_today=len(self._get_due_pairs()),
-            new_today=len(self._words_introduced_today()),
+            new_today=len(self._get_words_introduced_today()),
             learning=learning,
             mastered=mastered,
             answered_today=answered_today,
