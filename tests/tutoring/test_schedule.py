@@ -1374,7 +1374,7 @@ class TestNewWordDailyCap:
         assert entry["introduced_at"] == today.isoformat()
 
 
-class TestNewWordBudgetGrant:
+class TestNewWordBudget:
     def test_grant_lifts_the_cap_for_a_genuinely_new_word(self) -> None:
         today = datetime.now(UTC).date()
         capped_exercises = [

@@ -178,7 +178,7 @@ class Tutor:
         return self._journal.get_words_introduced_today() & course_words
 
     def _get_effective_cap(self) -> int:
-        return self.NEW_WORDS_PER_DAY + self._journal.get_new_word_budget_grant()
+        return self.NEW_WORDS_PER_DAY + self._journal.get_new_word_budget()
 
     def grant_new_word_budget(self) -> None:
         if len(self._get_words_introduced_today()) < self._get_effective_cap():
@@ -187,7 +187,7 @@ class Tutor:
             # Granting here would silently raise today's cap without the
             # learner having asked for it today.
             return
-        self._journal.add_new_word_budget_grant(self.NEW_WORD_BUDGET_GRANT)
+        self._journal.bump_new_word_budget(self.NEW_WORD_BUDGET_GRANT)
 
     def _get_due_pairs(self, is_introduced: bool | None = None) -> set[tuple[str, str]]:
         return {
