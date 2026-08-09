@@ -1,4 +1,5 @@
 from aiogram.fsm.context import FSMContext
+from aiogram.methods import EditMessageReplyMarkup
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
@@ -80,3 +81,50 @@ async def test_cancelling_reset_keeps_journal(
     assert requests[0].text == RU.reset_cancelled
     data = await state.get_data()
     assert data["journal"] == journal
+
+
+async def test_reset_command_clears_a_stale_button_left_from_wiederholen(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    await state.update_data(last_buttoned_message_id=77)
+
+    requests = await feed_message("/reset", course=Course([]))
+
+    edits = [r for r in requests if isinstance(r, EditMessageReplyMarkup)]
+    assert len(edits) == 1
+    assert edits[0].message_id == 77
+
+
+async def test_reset_command_remembers_its_own_confirm_buttons(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    await feed_message("/reset", course=Course([]))
+
+    data = await state.get_data()
+    assert data["last_buttoned_message_id"] is not None
+
+
+async def test_confirming_reset_forgets_its_own_buttons(
+    state: FSMContext,
+    feed_callback_query: FeedCallbackQuery,
+) -> None:
+    await state.update_data(journal={}, last_buttoned_message_id=1)
+
+    await feed_callback_query(RESET_CONFIRM, course=Course([]))
+
+    data = await state.get_data()
+    assert data.get("last_buttoned_message_id") is None
+
+
+async def test_cancelling_reset_forgets_its_own_buttons(
+    state: FSMContext,
+    feed_callback_query: FeedCallbackQuery,
+) -> None:
+    await state.update_data(last_buttoned_message_id=1)
+
+    await feed_callback_query(RESET_CANCEL, course=Course([]))
+
+    data = await state.get_data()
+    assert data.get("last_buttoned_message_id") is None

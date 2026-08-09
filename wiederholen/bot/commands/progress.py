@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from wiederholen.bot.l10n import LOCALES, format_count, get_language
+from wiederholen.bot.pending_buttons import clear_stale_buttons
 from wiederholen.tutoring import Course, Tutor
 
 router = Router()
@@ -15,6 +16,7 @@ async def command_progress(
     state: FSMContext,
     course: Course,
 ) -> None:
+    await clear_stale_buttons(message, state)
     data = await state.get_data()
     language = get_language(data)
     journal = data.get("journal", {})

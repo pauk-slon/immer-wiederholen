@@ -11,6 +11,11 @@ from aiogram.types import (
 )
 
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
+from wiederholen.bot.pending_buttons import (
+    clear_stale_buttons,
+    forget_buttoned_message,
+    remember_buttoned_message,
+)
 from wiederholen.tutoring import Journal
 
 router = Router()
@@ -36,12 +41,14 @@ def _make_confirm_buttons(locale: Locale) -> InlineKeyboardMarkup:
 
 @router.message(Command("reset"))
 async def command_reset(message: Message, state: FSMContext) -> None:
+    await clear_stale_buttons(message, state)
     language = get_language(await state.get_data())
     locale = LOCALES[language]
-    await message.answer(
+    sent = await message.answer(
         locale.reset_confirm_prompt,
         reply_markup=_make_confirm_buttons(locale),
     )
+    await remember_buttoned_message(state, sent)
 
 
 @router.callback_query(F.data == RESET_CONFIRM)
@@ -53,7 +60,8 @@ async def handle_reset_confirm(callback: CallbackQuery, state: FSMContext) -> No
     Journal.reset_progress(journal)
     await state.update_data(journal=journal)
     if isinstance(callback.message, Message):
-        await callback.message.edit_text(locale.reset_done)
+        await callback.message.edit_text(locale.reset_done, reply_markup=None)
+        await forget_buttoned_message(state)
     await callback.answer()
 
 
@@ -62,5 +70,6 @@ async def handle_reset_cancel(callback: CallbackQuery, state: FSMContext) -> Non
     language = get_language(await state.get_data())
     locale = LOCALES[language]
     if isinstance(callback.message, Message):
-        await callback.message.edit_text(locale.reset_cancelled)
+        await callback.message.edit_text(locale.reset_cancelled, reply_markup=None)
+        await forget_buttoned_message(state)
     await callback.answer()

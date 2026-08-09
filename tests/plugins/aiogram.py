@@ -1,5 +1,7 @@
+import itertools
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
 from urllib.parse import urlsplit, urlunsplit
@@ -8,6 +10,8 @@ import pytest
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
+from aiogram.methods import SendMessage, TelegramMethod
+from aiogram.types import Chat, Message
 
 from wiederholen.bot import dispatcher as _dp
 from wiederholen.bot.bootstrap import load_storage
@@ -55,8 +59,25 @@ def dispatcher() -> Dispatcher:
 
 @pytest.fixture
 def feed_raw_update(bot: Bot, dispatcher: Dispatcher) -> FeedRawUpdate:
+    # A real SendMessage response carries the message_id Telegram assigned it —
+    # handlers that remember it (to strip a stale button later) need a
+    # realistic fake here, not the bare `True` every other method still gets.
+    sent_message_ids = itertools.count(1000)
+
+    def make_fake_response(method: TelegramMethod) -> Any:
+        if isinstance(method, SendMessage):
+            assert isinstance(method.chat_id, int)
+            return Message(
+                message_id=next(sent_message_ids),
+                date=datetime.now(tz=UTC),
+                chat=Chat(id=method.chat_id, type="private"),
+            )
+        return True
+
     async def factory(raw_update: dict, **kwargs) -> list[Any]:
-        mock_request = AsyncMock(return_value=True)
+        mock_request = AsyncMock(
+            side_effect=lambda bot, method, timeout=None: make_fake_response(method)
+        )
         with patch.object(bot.session, "make_request", mock_request):
             await dispatcher.feed_raw_update(bot, raw_update, **kwargs)
         return [call.args[1] for call in mock_request.call_args_list]

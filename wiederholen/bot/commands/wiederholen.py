@@ -20,6 +20,11 @@ from opentelemetry import trace
 
 from wiederholen.bot.feature_flags import has_feature
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
+from wiederholen.bot.pending_buttons import (
+    clear_stale_buttons,
+    forget_buttoned_message,
+    remember_buttoned_message,
+)
 from wiederholen.bot.tracing import record_tutoring_events
 from wiederholen.i18n import Language
 from wiederholen.tutoring import Course, Exercise, Recall, RecallMode, Tutor
@@ -148,6 +153,7 @@ async def command_wiederholen(
     course: Course,
     feature_flags: dict[str, frozenset[int]] | None = None,
 ) -> None:
+    await clear_stale_buttons(message, state)
     # An example check point for #121's flag mechanism — no visible effect
     # yet, just a span attribute for whoever's testing the flag right now.
     if has_feature(feature_flags or {}, "ai_exercises", message.chat.id):
@@ -161,9 +167,10 @@ async def command_wiederholen(
     record_tutoring_events(events)
     if exercise is None:
         await state.update_data(journal=journal)
-        await message.answer(
+        sent = await message.answer(
             locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
         )
+        await remember_buttoned_message(state, sent)
         return
     await state.set_state(UserState.answering)
     await state.update_data(
@@ -203,7 +210,7 @@ async def handle_answer(
         reply_markup = None
     first_reply_markup = ReplyKeyboardRemove() if shown_exercise.distractors else None
     await message.answer(result_line, reply_markup=first_reply_markup)
-    await message.answer(explanation, reply_markup=reply_markup)
+    sent_explanation = await message.answer(explanation, reply_markup=reply_markup)
     if mark.recall == RecallMode.required:
         await _start_recall(
             state,
@@ -221,6 +228,8 @@ async def handle_answer(
             journal=journal,
             shown_exercise=state_data["shown_exercise"],
         )
+        if reply_markup is not None:
+            await remember_buttoned_message(state, sent_explanation)
 
 
 @router.message(UserState.recalling)
@@ -239,17 +248,18 @@ async def handle_recall(message: Message, state: FSMContext, course: Course) -> 
     locale = LOCALES[language]
     tutor = Tutor(course, journal)
     if tutor.check_recall(shown_recall, message.text or ""):
-        await message.answer(
+        sent = await message.answer(
             locale.recall_correct,
             reply_markup=_make_next_button(locale),
         )
     else:
         correct_answer = _highlight_diff(message.text or "", shown_recall.answer[0])
-        await message.answer(
+        sent = await message.answer(
             locale.recall_wrong.format(answer=correct_answer),
             reply_markup=_make_recall_buttons(locale, locale.btn_recall_retry),
             parse_mode="HTML",
         )
+    await remember_buttoned_message(state, sent)
 
 
 async def _respond_with_next_exercise(
@@ -267,15 +277,17 @@ async def _respond_with_next_exercise(
         await state.update_data(journal=journal)
         if isinstance(callback.message, Message):
             await callback.message.edit_reply_markup(reply_markup=None)
-            await callback.message.answer(
+            sent = await callback.message.answer(
                 locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
             )
+            await remember_buttoned_message(state, sent)
         await callback.answer()
         return
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
+        await forget_buttoned_message(state)
         question_text = _format_question(exercise, language, course)
         await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
     await callback.answer()
@@ -327,6 +339,7 @@ async def handle_recall_request(
     locale = LOCALES[language]
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
+        await forget_buttoned_message(state)
         await _start_recall(
             state,
             language,
