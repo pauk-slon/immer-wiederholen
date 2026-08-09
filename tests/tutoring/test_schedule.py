@@ -1224,7 +1224,7 @@ class TestNewWordDailyCap:
             == today.isoformat()
         )
 
-    def test_reset_schedule_clears_introduced_at_along_with_the_schedule(self) -> None:
+    def test_reset_progress_clears_introduced_at_along_with_the_schedule(self) -> None:
         data = {
             "word_schedule": {
                 "warten": {
@@ -1237,9 +1237,19 @@ class TestNewWordDailyCap:
             },
         }
 
-        Journal.reset_schedule(data)
+        Journal.reset_progress(data)
 
         assert Journal(data).get_schedule_entry("warten", "government") is None
+
+    def test_reset_progress_clears_todays_answer_stats(self) -> None:
+        today = datetime.now(UTC).date().isoformat()
+        data = {
+            "today_answers": {"date": today, "answered": 5, "correct": 4},
+        }
+
+        Journal.reset_progress(data)
+
+        assert Journal(data).get_answer_stats_today() == (0, 0)
 
     def test_expedited_dependent_is_not_stamped_as_introduced_until_answered(
         self,
