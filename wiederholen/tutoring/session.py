@@ -189,12 +189,12 @@ class Tutor:
             return
         self._journal.add_extra_new_words_today(self.EXTRA_NEW_WORDS_GRANT)
 
-    def _get_due_pairs(self, introduced: bool | None = None) -> set[tuple[str, str]]:
+    def _get_due_pairs(self, is_introduced: bool | None = None) -> set[tuple[str, str]]:
         return {
             pair
             for pair in self._journal.iter_scheduled_pairs(
                 only_due_today=True,
-                introduced=introduced,
+                is_introduced=is_introduced,
             )
             if pair in self._course_pairs
         }
@@ -220,8 +220,8 @@ class Tutor:
 
     def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
         selectable_pairs = SelectablePairs(
-            due_introduced=self._get_due_pairs(introduced=True),
-            due_not_introduced=self._get_due_pairs(introduced=False),
+            due_introduced=self._get_due_pairs(is_introduced=True),
+            due_not_introduced=self._get_due_pairs(is_introduced=False),
             not_scheduled=self._get_available_not_scheduled_pairs(),
         )
         if not selectable_pairs:

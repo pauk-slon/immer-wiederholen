@@ -200,12 +200,13 @@ class Journal:
         self,
         *,
         only_due_today: bool = False,
-        introduced: bool | None = None,
+        is_introduced: bool | None = None,
     ) -> Generator[tuple[str, str]]:
         for word, topic_schedule in self._iter_valid_scheduled_pairs():
             for topic, schedule_entry in topic_schedule:
-                is_introduced = "introduced_at" in schedule_entry
-                if introduced is not None and is_introduced != introduced:
+                if is_introduced is not None and (
+                    "introduced_at" in schedule_entry
+                ) != is_introduced:
                     continue
                 if (
                     only_due_today
