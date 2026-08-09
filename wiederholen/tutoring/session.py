@@ -182,10 +182,8 @@ class Tutor:
 
     def grant_new_word_budget(self) -> None:
         if len(self._get_words_introduced_today()) < self._get_effective_cap():
-            # The cap isn't actually binding right now — most likely a stale
-            # "study more" button clicked after the cap reset for a new day.
-            # Granting here would silently raise today's cap without the
-            # learner having asked for it today.
+            # Likely a stale "study more" tap after the cap already reset —
+            # granting would silently raise it without being asked.
             return
         self._journal.bump_new_word_budget(self.NEW_WORD_BUDGET_GRANT)
 
