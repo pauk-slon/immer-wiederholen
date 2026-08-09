@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from aiogram.fsm.context import FSMContext
+from aiogram.methods import EditMessageReplyMarkup
 
 from tests.plugins.aiogram import FeedMessage
 from tests.plugins.tutoring import make_exercise
@@ -104,3 +105,18 @@ async def test_reflects_todays_answer_count(
         answered_count=12,
         correct_today=9,
     )
+
+
+async def test_clears_a_stale_button_left_from_wiederholen(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    await state.update_data(last_buttoned_message_id=77)
+
+    requests = await feed_message("/progress", course=Course([]))
+
+    edits = [r for r in requests if isinstance(r, EditMessageReplyMarkup)]
+    assert len(edits) == 1
+    assert edits[0].message_id == 77
+    data = await state.get_data()
+    assert data.get("last_buttoned_message_id") is None
