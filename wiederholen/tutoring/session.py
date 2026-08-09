@@ -71,6 +71,15 @@ class SelectablePairs:
     due_not_introduced: set[tuple[str, str]]
     not_scheduled: set[tuple[str, str]]
 
+    def all_pairs(self) -> set[tuple[str, str]]:
+        return self.due_introduced | self.due_not_introduced | self.not_scheduled
+
+    def not_introduced(self) -> set[tuple[str, str]]:
+        return self.due_not_introduced | self.not_scheduled
+
+    def is_empty(self) -> bool:
+        return not self.all_pairs()
+
 
 class Tutor:
     MAX_INTERVAL_DAYS: Final = 60
@@ -157,12 +166,7 @@ class Tutor:
         #   introduced entry is always due today (see _expedite_dependent()),
         #   so "has any entry" and "has a due entry" coincide here.
         # - fresh: no schedule entry anywhere, genuinely never touched.
-        today_relevant_words = {
-            word
-            for word, _ in pairs.due_introduced
-            | pairs.due_not_introduced
-            | pairs.not_scheduled
-        }
+        today_relevant_words = {word for word, _ in pairs.all_pairs()}
         introduced_words = self._journal.get_words_already_introduced()
         free_words = today_relevant_words & introduced_words
         remaining_words = today_relevant_words - free_words
@@ -205,9 +209,7 @@ class Tutor:
     def _select_topic(self, word: str, pairs: SelectablePairs) -> str:
         due_topics = [topic for w, topic in pairs.due_introduced if w == word]
         candidate_topics = due_topics or [
-            topic
-            for w, topic in pairs.due_not_introduced | pairs.not_scheduled
-            if w == word
+            topic for w, topic in pairs.not_introduced() if w == word
         ]
         last_pair = self._last_pair()
         if last_pair is not None and last_pair[0] == word:
@@ -222,9 +224,7 @@ class Tutor:
             due_not_introduced=self._get_due_pairs(introduced=False),
             not_scheduled=self._get_available_not_scheduled_pairs(),
         )
-        if not (
-            pairs.due_introduced | pairs.due_not_introduced | pairs.not_scheduled
-        ):
+        if pairs.is_empty():
             return None, [NoExerciseAvailable(reason="nothing_available")]
         word = self._select_word(pairs)
         if word is None:
