@@ -83,9 +83,8 @@ class Journal:
         self._data["last_reminded_at"] = value.isoformat()
 
     def _get_self_expiring(self, key: str) -> dict | None:
-        # A value from a previous day is simply treated as absent rather
-        # than needing explicit cleanup — same self-expiring pattern as
-        # introduced_at.
+        # Stale (not-today) values are simply treated as absent — no
+        # explicit cleanup needed.
         value = self._data.get(key)
         if value is None or value["date"] != self._today.isoformat():
             return None
