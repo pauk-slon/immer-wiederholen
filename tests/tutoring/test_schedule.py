@@ -1239,7 +1239,7 @@ class TestNewWordDailyCap:
 
         Journal.reset_progress(data)
 
-        assert Journal(data).get_schedule_entry("warten", "government") is None
+        assert Journal(data).get_repetition_interval("warten", "government") is None
 
     def test_reset_progress_clears_todays_answer_stats(self) -> None:
         today = datetime.now(UTC).date().isoformat()

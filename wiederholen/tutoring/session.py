@@ -255,14 +255,14 @@ class Tutor:
         learning = 0
         mastered = 0
         for word, topics in self._exercises_by_word_topic.items():
-            entries = [
-                self._journal.get_schedule_entry(word, topic) for topic in topics
+            intervals = [
+                self._journal.get_repetition_interval(word, topic) for topic in topics
             ]
-            if all(entry is None for entry in entries):
+            if all(interval is None for interval in intervals):
                 continue
             if all(
-                entry is not None and entry["interval_days"] >= self.MAX_INTERVAL_DAYS
-                for entry in entries
+                interval is not None and interval >= self.MAX_INTERVAL_DAYS
+                for interval in intervals
             ):
                 mastered += 1
             else:
@@ -285,7 +285,7 @@ class Tutor:
     def _expedite_dependent(self, word: str, topic: str) -> bool:
         if topic not in self._exercises_by_word_topic.get(word, {}):
             return False
-        if self._journal.get_schedule_entry(word, topic) is not None:
+        if self._journal.get_repetition_interval(word, topic) is not None:
             return False
         self._journal.schedule_pair(word, topic, interval_days=0)
         return True
@@ -379,13 +379,11 @@ class Tutor:
             last_exercise["is_recall_optional"]
             and last_exercise.get("recall_question") is None
         ):
-            existing_entry = self._journal.get_schedule_entry(
+            interval_days = self._journal.get_repetition_interval(
                 exercise.word,
                 exercise.topic,
             )
-            interval_days_before = (
-                existing_entry["interval_days"] if existing_entry is not None else 0
-            )
+            interval_days_before = interval_days if interval_days is not None else 0
             interval = max(interval_days_before // 2, 1)
             self._journal.schedule_pair(
                 exercise.word,

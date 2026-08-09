@@ -5,7 +5,7 @@ from typing import Annotated, Final, NotRequired, TypedDict, TypeIs
 from pydantic import AfterValidator, TypeAdapter, ValidationError
 
 
-class ScheduleEntry(TypedDict):
+class _ScheduleEntry(TypedDict):
     interval_days: int
     due_date: Annotated[str, AfterValidator(date.fromisoformat)]
     introduced_at: NotRequired[Annotated[str, AfterValidator(date.fromisoformat)]]
@@ -35,7 +35,7 @@ class AnswerStats(TypedDict):
 
 
 class Journal:
-    _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(ScheduleEntry)
+    _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(_ScheduleEntry)
     _WORD_SCHEDULE_KEY: Final = "word_schedule"
     _TODAY_ANSWERS_KEY: Final = "today_answers"
 
@@ -132,23 +132,27 @@ class Journal:
         data.pop(cls._TODAY_ANSWERS_KEY, None)
 
     @classmethod
-    def _is_valid_schedule_entry(cls, schedule_entry: object) -> TypeIs[ScheduleEntry]:
+    def _is_valid_schedule_entry(cls, schedule_entry: object) -> TypeIs[_ScheduleEntry]:
         try:
             cls._SCHEDULE_ENTRY_ADAPTER.validate_python(schedule_entry, strict=True)
         except ValidationError:
             return False
         return True
 
-    def get_schedule_entry(self, word: str, topic: str) -> ScheduleEntry | None:
+    def _get_schedule_entry(self, word: str, topic: str) -> _ScheduleEntry | None:
         topic_schedule = self._get_topic_schedule(word)
         schedule_entry = topic_schedule.get(topic)
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
 
-    def _get_or_create_schedule_entry(self, word: str, topic: str) -> ScheduleEntry:
+    def get_repetition_interval(self, word: str, topic: str) -> int | None:
+        schedule_entry = self._get_schedule_entry(word, topic)
+        return schedule_entry["interval_days"] if schedule_entry is not None else None
+
+    def _get_or_create_schedule_entry(self, word: str, topic: str) -> _ScheduleEntry:
         topic_schedule = self._get_topic_schedule(word, create_if_missing=True)
         schedule_entry = topic_schedule.get(topic)
         if not self._is_valid_schedule_entry(schedule_entry):
-            schedule_entry = topic_schedule[topic] = ScheduleEntry(
+            schedule_entry = topic_schedule[topic] = _ScheduleEntry(
                 interval_days=0, due_date=date.min.isoformat()
             )
         return schedule_entry
@@ -174,7 +178,7 @@ class Journal:
 
     def _iter_valid_topics(
         self, topic_schedule: dict
-    ) -> Generator[tuple[str, ScheduleEntry]]:
+    ) -> Generator[tuple[str, _ScheduleEntry]]:
         for topic, schedule_entry in topic_schedule.items():
             if not isinstance(topic, str):
                 continue
@@ -183,7 +187,7 @@ class Journal:
 
     def _iter_valid_scheduled_pairs(
         self,
-    ) -> Generator[tuple[str, Generator[tuple[str, ScheduleEntry]]]]:
+    ) -> Generator[tuple[str, Generator[tuple[str, _ScheduleEntry]]]]:
         for word, topic_schedule in self._get_word_schedule().items():
             if not isinstance(word, str) or not isinstance(topic_schedule, dict):
                 continue
@@ -209,7 +213,7 @@ class Journal:
 
     @staticmethod
     def _get_introduced_dates(
-        topic_schedule: Iterator[tuple[str, ScheduleEntry]],
+        topic_schedule: Iterator[tuple[str, _ScheduleEntry]],
     ) -> set[str]:
         return {
             schedule_entry["introduced_at"]
