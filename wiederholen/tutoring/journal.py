@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Final, NotRequired, TypedDict, TypeIs
 
@@ -204,7 +204,7 @@ class Journal:
 
     @staticmethod
     def _introduced_dates(
-        topic_schedule: Generator[tuple[str, ScheduleEntry]],
+        topic_schedule: Iterator[tuple[str, ScheduleEntry]],
     ) -> set[str]:
         return {
             schedule_entry["introduced_at"]
