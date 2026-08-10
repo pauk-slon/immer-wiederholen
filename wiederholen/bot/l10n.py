@@ -65,6 +65,9 @@ class Locale:
     reminder_text: str
     progress_text: str
     nothing_due_text: str
+    ai_mode_on: str
+    ai_mode_off: str
+    ai_generation_failed: str
 
 
 RU: Final = Locale(
@@ -103,6 +106,9 @@ RU: Final = Locale(
         "✅ Выучено: {mastered}"
     ),
     nothing_due_text="🎉 На сегодня всё! Загляни завтра — будут новые слова и повторения.",
+    ai_mode_on="🤖 AI-режим включён",
+    ai_mode_off="AI-режим выключен",
+    ai_generation_failed="⚠️ Не получилось сгенерировать упражнение. Попробуй ещё раз или отключи /ai",
 )
 
 EN: Final = Locale(
@@ -141,6 +147,9 @@ EN: Final = Locale(
         "✅ Mastered: {mastered}"
     ),
     nothing_due_text="🎉 That's all for today! Come back tomorrow for new words and reviews.",
+    ai_mode_on="🤖 AI mode is on",
+    ai_mode_off="AI mode is off",
+    ai_generation_failed="⚠️ Couldn't generate the exercise. Try again, or turn off /ai",
 )
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}
