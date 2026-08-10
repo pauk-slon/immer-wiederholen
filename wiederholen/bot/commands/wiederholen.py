@@ -211,7 +211,15 @@ async def command_wiederholen(
         )
         await remember_buttoned_message(state, sent)
         return
-    ai_mode = data.get("ai_mode", False)
+    # Only apply for topics the content repo has explicitly opted in via
+    # topics.yaml's ai_generation flag (see Course.ai_generatable_topics) —
+    # for topics where the question's exact wording encodes part of the
+    # answer (word banks, fixed "verb → form" templates, subject-dependent
+    # conjugation), a rewritten question can silently stop matching the
+    # untouched answer.
+    ai_mode = bool(data.get("ai_mode", False)) and (
+        exercise.topic in course.ai_generatable_topics
+    )
     exercise = await _apply_ai_mode(
         exercise,
         ai_mode=ai_mode,
@@ -344,6 +352,9 @@ async def _respond_with_next_exercise(
             await remember_buttoned_message(state, sent)
         await callback.answer()
         return
+    # See command_wiederholen's own version of this check for why it's
+    # per-topic, not just the raw ai_mode toggle.
+    ai_mode = ai_mode and exercise.topic in course.ai_generatable_topics
     exercise = await _apply_ai_mode(
         exercise,
         ai_mode=ai_mode,

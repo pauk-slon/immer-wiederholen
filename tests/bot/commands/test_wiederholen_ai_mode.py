@@ -19,6 +19,15 @@ def _shadow_of(exercise: Exercise) -> Exercise:
     )
 
 
+def _ai_course(*exercises: Exercise) -> Course:
+    # Every exercise's own topic is opted in — the topic-gating tests below
+    # cover the opposite case explicitly.
+    return Course(
+        list(exercises),
+        ai_generatable_topics=frozenset(e.topic for e in exercises),
+    )
+
+
 async def test_shows_the_ai_generated_question_when_ai_mode_is_on(
     state: FSMContext,
     feed_message: FeedMessage,
@@ -32,7 +41,7 @@ async def test_shows_the_ai_generated_question_when_ai_mode_is_on(
         AsyncMock(return_value=shadow),
     ):
         requests = await feed_message(
-            "/wiederholen", course=Course([exercise]), anthropic_client=Mock()
+            "/wiederholen", course=_ai_course(exercise), anthropic_client=Mock()
         )
 
     assert len(requests) == 1
@@ -74,7 +83,7 @@ async def test_shows_an_error_when_generation_fails(
         AsyncMock(side_effect=AIGenerationError("boom")),
     ):
         requests = await feed_message(
-            "/wiederholen", course=Course([exercise]), anthropic_client=Mock()
+            "/wiederholen", course=_ai_course(exercise), anthropic_client=Mock()
         )
 
     assert len(requests) == 1
@@ -89,7 +98,7 @@ async def test_shows_an_error_when_no_anthropic_client_is_configured(
     exercise = make_exercise()
     await state.update_data(ai_mode=True)
 
-    requests = await feed_message("/wiederholen", course=Course([exercise]))
+    requests = await feed_message("/wiederholen", course=_ai_course(exercise))
 
     assert len(requests) == 1
     assert requests[0].text == RU.ai_generation_failed
@@ -112,7 +121,7 @@ async def test_clicking_next_exercise_uses_ai_mode_too(
     ):
         requests = await feed_callback_query(
             NEXT_EXERCISE,
-            course=Course([first, second]),
+            course=_ai_course(first, second),
             anthropic_client=Mock(),
         )
 
@@ -134,13 +143,56 @@ async def test_clicking_next_exercise_shows_an_error_when_generation_fails(
         AsyncMock(side_effect=AIGenerationError("boom")),
     ):
         requests = await feed_callback_query(
-            NEXT_EXERCISE, course=Course([exercise]), anthropic_client=Mock()
+            NEXT_EXERCISE, course=_ai_course(exercise), anthropic_client=Mock()
         )
 
     assert any(
         hasattr(r, "text") and r.text == RU.ai_generation_failed for r in requests
     )
     assert await state.get_state() is None
+
+
+async def test_does_not_generate_for_a_topic_not_opted_in(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise()
+    await state.update_data(ai_mode=True)
+
+    with patch(
+        "wiederholen.bot.commands.wiederholen.generate_shadow_exercise",
+        AsyncMock(),
+    ) as mock_generate:
+        # Course([exercise]) — no ai_generatable_topics, unlike _ai_course().
+        requests = await feed_message(
+            "/wiederholen", course=Course([exercise]), anthropic_client=Mock()
+        )
+
+    mock_generate.assert_not_awaited()
+    assert exercise.question in requests[0].text
+    assert "🤖" not in requests[0].text
+
+
+async def test_clicking_next_exercise_does_not_generate_for_an_unlisted_topic(
+    state: FSMContext,
+    feed_callback_query: FeedCallbackQuery,
+) -> None:
+    exercise = make_exercise()
+    await state.update_data(language="ru", journal={}, ai_mode=True)
+
+    with patch(
+        "wiederholen.bot.commands.wiederholen.generate_shadow_exercise",
+        AsyncMock(),
+    ) as mock_generate:
+        requests = await feed_callback_query(
+            NEXT_EXERCISE, course=Course([exercise]), anthropic_client=Mock()
+        )
+
+    mock_generate.assert_not_awaited()
+    send_message = next(
+        r for r in requests if hasattr(r, "text") and exercise.question in r.text
+    )
+    assert "🤖" not in send_message.text
 
 
 async def test_ai_mode_survives_answering_an_exercise(
