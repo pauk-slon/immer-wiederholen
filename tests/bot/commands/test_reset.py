@@ -4,6 +4,7 @@ from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
+from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
 from wiederholen.tutoring import Course
 
@@ -106,7 +107,25 @@ async def test_reset_command_remembers_its_own_confirm_buttons(
     assert data["last_buttoned_message_id"] is not None
 
 
-async def test_confirming_reset_forgets_its_own_buttons(
+async def test_confirming_reset_offers_a_next_exercise_button(
+    state: FSMContext,
+    feed_callback_query: FeedCallbackQuery,
+) -> None:
+    await state.update_data(journal={})
+
+    requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
+
+    edit_text = next(r for r in requests if hasattr(r, "text"))
+    assert isinstance(edit_text.reply_markup, InlineKeyboardMarkup)
+    buttons = [
+        btn.callback_data
+        for row in edit_text.reply_markup.inline_keyboard
+        for btn in row
+    ]
+    assert buttons == [NEXT_EXERCISE]
+
+
+async def test_confirming_reset_remembers_its_next_exercise_button(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
@@ -115,7 +134,7 @@ async def test_confirming_reset_forgets_its_own_buttons(
     await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
     data = await state.get_data()
-    assert data.get("last_buttoned_message_id") is None
+    assert data["last_buttoned_message_id"] is not None
 
 
 async def test_cancelling_reset_forgets_its_own_buttons(

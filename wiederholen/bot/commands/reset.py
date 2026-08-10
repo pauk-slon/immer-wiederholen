@@ -10,6 +10,7 @@ from aiogram.types import (
     Message,
 )
 
+from wiederholen.bot.commands.wiederholen import make_next_button
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
@@ -60,8 +61,10 @@ async def handle_reset_confirm(callback: CallbackQuery, state: FSMContext) -> No
     Journal.reset_progress(journal)
     await state.update_data(journal=journal)
     if isinstance(callback.message, Message):
-        await callback.message.edit_text(locale.reset_done, reply_markup=None)
-        await forget_buttoned_message(state)
+        await callback.message.edit_text(
+            locale.reset_done, reply_markup=make_next_button(locale)
+        )
+        await remember_buttoned_message(state, callback.message)
     await callback.answer()
 
 
