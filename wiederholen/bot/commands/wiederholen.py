@@ -51,7 +51,7 @@ def _make_reply_keyboard(exercise: Exercise) -> ReplyKeyboardMarkup:
     )
 
 
-def _make_next_button(locale: Locale) -> InlineKeyboardMarkup:
+def make_next_button(locale: Locale) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -205,7 +205,7 @@ async def handle_answer(
     if mark.recall == RecallMode.optional:
         reply_markup = _make_recall_buttons(locale, locale.btn_recall)
     elif mark.recall == RecallMode.none:
-        reply_markup = _make_next_button(locale)
+        reply_markup = make_next_button(locale)
     else:
         reply_markup = None
     first_reply_markup = ReplyKeyboardRemove() if shown_exercise.distractors else None
@@ -250,7 +250,7 @@ async def handle_recall(message: Message, state: FSMContext, course: Course) -> 
     if tutor.check_recall(shown_recall, message.text or ""):
         sent = await message.answer(
             locale.recall_correct,
-            reply_markup=_make_next_button(locale),
+            reply_markup=make_next_button(locale),
         )
     else:
         correct_answer = _highlight_diff(message.text or "", shown_recall.answer[0])

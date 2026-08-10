@@ -3,8 +3,12 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
+from wiederholen.bot.commands.wiederholen import make_next_button
 from wiederholen.bot.l10n import LOCALES, format_count, get_language
-from wiederholen.bot.pending_buttons import clear_stale_buttons
+from wiederholen.bot.pending_buttons import (
+    clear_stale_buttons,
+    remember_buttoned_message,
+)
 from wiederholen.tutoring import Course, Tutor
 
 router = Router()
@@ -20,9 +24,10 @@ async def command_progress(
     data = await state.get_data()
     language = get_language(data)
     journal = data.get("journal", {})
+    locale = LOCALES[language]
     progress = Tutor(course, journal).progress()
-    await message.answer(
-        LOCALES[language].progress_text.format(
+    sent = await message.answer(
+        locale.progress_text.format(
             remaining_today=format_count(
                 progress.remaining_today,
                 "exercises",
@@ -38,5 +43,7 @@ async def command_progress(
             ),
             answered_count=progress.answered_today,
             correct_today=progress.correct_today,
-        )
+        ),
+        reply_markup=make_next_button(locale),
     )
+    await remember_buttoned_message(state, sent)
