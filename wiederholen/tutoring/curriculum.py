@@ -71,6 +71,7 @@ class _TopicsConfig(TypedDict):
     answer_chained_topics: dict[str, list[str]]
     gated_topics: frozenset[str]
     topic_instructions: dict[str, dict[Language, str]]
+    ai_generatable_topics: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,9 @@ class Course:
         default_factory=dict,
         kw_only=True,
     )
+    ai_generatable_topics: frozenset[str] = field(
+        default_factory=frozenset, kw_only=True
+    )
 
     @staticmethod
     def _load_exercises(path: Path) -> list[Exercise]:
@@ -104,6 +108,7 @@ class Course:
                 answer_chained_topics={},
                 gated_topics=frozenset(),
                 topic_instructions={},
+                ai_generatable_topics=frozenset(),
             )
         with open(path) as f:
             data = yaml.safe_load(f) or {}
@@ -111,6 +116,7 @@ class Course:
         gated_topics: set[str] = set()
         answer_chained_topics: dict[str, list[str]] = {}
         topic_instructions: dict[str, dict[Language, str]] = {}
+        ai_generatable_topics: set[str] = set()
         for source, relations in data.items():
             chains = relations.get("chains", [])
             gates = relations.get("gates", [])
@@ -120,11 +126,14 @@ class Course:
                 answer_chained_topics[source] = list(dict.fromkeys(chains_by_answer))
             if instruction := relations.get("instruction"):
                 topic_instructions[source] = instruction
+            if relations.get("ai_generation"):
+                ai_generatable_topics.add(source)
         return _TopicsConfig(
             word_chained_topics=word_chained_topics,
             answer_chained_topics=answer_chained_topics,
             gated_topics=frozenset(gated_topics),
             topic_instructions=topic_instructions,
+            ai_generatable_topics=frozenset(ai_generatable_topics),
         )
 
     @classmethod

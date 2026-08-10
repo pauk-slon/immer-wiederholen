@@ -15,6 +15,7 @@ from aiogram.methods import (
     TelegramMethod,
 )
 from aiogram.methods.base import TelegramType
+from anthropic import AsyncAnthropic
 from redis.asyncio import Redis
 
 from tests.conftest import TmpYamlFile
@@ -45,6 +46,12 @@ def _env(
 ) -> Generator[None]:
     monkeypatch.setenv("BOT_TOKEN", bot_token)
     monkeypatch.setenv("FSM_STORAGE_URL", fsm_storage_url)
+    # All optional and unrelated to most tests here — pinned absent so a
+    # real value set on the host running these tests (e.g. compose.override.
+    # yaml's local dev config) can't leak in.
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("AUTHORING_GUIDE_PATH", raising=False)
+    monkeypatch.delenv("FEATURE_FLAGS", raising=False)
     with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         yield None
@@ -104,6 +111,8 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert args[0].token == bot_token
     assert isinstance(kwargs["course"], Course)
     assert kwargs["feature_flags"] == {}
+    assert kwargs["anthropic_client"] is None
+    assert kwargs["authoring_guide"] is None
     exercise, _events = Tutor(kwargs["course"], {}).next_exercise()
     assert exercise is not None
     loaded_exercise = exercise.to_dict()
@@ -124,6 +133,22 @@ async def test_starts_polling_with_feature_flags_from_env(
 
     _args, kwargs = mock_polling.call_args
     assert kwargs["feature_flags"] == {"ai_exercises": frozenset({1, 2})}
+
+
+async def test_starts_polling_with_anthropic_client_and_guide_from_env(
+    monkeypatch, tmp_path, mock_main_io: MockMainIO
+) -> None:
+    guide_path = tmp_path / "CLAUDE.md"
+    guide_path.write_text("guide text")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("AUTHORING_GUIDE_PATH", str(guide_path))
+
+    with mock_main_io() as (_mock_request, mock_polling):
+        await main()
+
+    _args, kwargs = mock_polling.call_args
+    assert isinstance(kwargs["anthropic_client"], AsyncAnthropic)
+    assert kwargs["authoring_guide"] == "guide text"
 
 
 async def test_configures_redis_storage_from_env(

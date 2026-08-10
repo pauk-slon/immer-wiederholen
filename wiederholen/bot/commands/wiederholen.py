@@ -16,8 +16,10 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
 )
+from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
+from wiederholen.authoring import AIGenerationError, generate_shadow_exercise
 from wiederholen.bot.feature_flags import has_feature
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 from wiederholen.bot.pending_buttons import (
@@ -100,6 +102,8 @@ async def _start_recall(
     message: Message,
     locale: Locale,
     course: Course,
+    *,
+    ai_mode: bool,
 ) -> None:
     tutor = Tutor(course, journal)
     recall = tutor.request_recall(shown_exercise)
@@ -109,6 +113,7 @@ async def _start_recall(
         journal=journal,
         shown_exercise=shown_exercise_dict,
         shown_recall=recall.to_dict(),
+        ai_mode=ai_mode,
     )
     hint = recall.hint.get(language) if recall.hint else None
     recall_text = locale.recall_prompt.format(recall=recall.question)
@@ -118,8 +123,15 @@ async def _start_recall(
         await message.answer(recall_text)
 
 
-def _format_question(exercise: Exercise, language: Language, course: Course) -> str:
-    text = f"❓ {exercise.question}"
+def _format_question(
+    exercise: Exercise,
+    language: Language,
+    course: Course,
+    *,
+    is_ai_generated: bool = False,
+) -> str:
+    prefix = "🤖 " if is_ai_generated else ""
+    text = f"{prefix}❓ {exercise.question}"
     if exercise.description:
         text += f"\n💭 {exercise.description[language]}"
     instruction = course.topic_instructions.get(exercise.topic, {}).get(language)
@@ -146,12 +158,39 @@ def _show_exercise_kwargs(exercise: Exercise) -> dict:
     return {"reply_markup": ReplyKeyboardRemove()}
 
 
+async def _apply_ai_mode(
+    exercise: Exercise,
+    *,
+    ai_mode: bool,
+    anthropic_client: AsyncAnthropic | None,
+    course: Course,
+    authoring_guide: str | None,
+) -> Exercise | None:
+    # None means "AI mode is on but generation failed" — distinct from
+    # ai_mode being off, in which case the original exercise passes through
+    # untouched. The caller shows locale.ai_generation_failed on None rather
+    # than falling back to the real exercise, so a tester notices generation
+    # is broken instead of unknowingly seeing human-authored questions.
+    if not ai_mode:
+        return exercise
+    if anthropic_client is None:
+        return None
+    try:
+        return await generate_shadow_exercise(
+            anthropic_client, exercise, course, authoring_guide=authoring_guide
+        )
+    except AIGenerationError:
+        return None
+
+
 @router.message(Command("wiederholen"))
 async def command_wiederholen(
     message: Message,
     state: FSMContext,
     course: Course,
     feature_flags: dict[str, frozenset[int]] | None = None,
+    anthropic_client: AsyncAnthropic | None = None,
+    authoring_guide: str | None = None,
 ) -> None:
     await clear_stale_buttons(message, state)
     # An example check point for #121's flag mechanism — no visible effect
@@ -172,12 +211,33 @@ async def command_wiederholen(
         )
         await remember_buttoned_message(state, sent)
         return
+    # Only apply for topics the content repo has explicitly opted in via
+    # topics.yaml's ai_generation flag (see Course.ai_generatable_topics) —
+    # for topics where the question's exact wording encodes part of the
+    # answer (word banks, fixed "verb → form" templates, subject-dependent
+    # conjugation), a rewritten question can silently stop matching the
+    # untouched answer.
+    ai_mode = bool(data.get("ai_mode", False)) and (
+        exercise.topic in course.ai_generatable_topics
+    )
+    exercise = await _apply_ai_mode(
+        exercise,
+        ai_mode=ai_mode,
+        anthropic_client=anthropic_client,
+        course=course,
+        authoring_guide=authoring_guide,
+    )
+    if exercise is None:
+        await message.answer(locale.ai_generation_failed)
+        return
     await state.set_state(UserState.answering)
     await state.update_data(
         shown_exercise=exercise.to_dict(),
         journal=journal,
     )
-    question_text = _format_question(exercise, language, course)
+    question_text = _format_question(
+        exercise, language, course, is_ai_generated=ai_mode
+    )
     await message.answer(question_text, **_show_exercise_kwargs(exercise))
 
 
@@ -188,6 +248,7 @@ async def handle_answer(
     course: Course,
 ) -> None:
     state_data = await state.get_data()
+    ai_mode = state_data.get("ai_mode", False)
     await state.clear()
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
@@ -221,12 +282,14 @@ async def handle_answer(
             message,
             locale,
             course,
+            ai_mode=ai_mode,
         )
     else:
         await state.update_data(
             language=language,
             journal=journal,
             shown_exercise=state_data["shown_exercise"],
+            ai_mode=ai_mode,
         )
         if reply_markup is not None:
             await remember_buttoned_message(state, sent_explanation)
@@ -235,6 +298,7 @@ async def handle_answer(
 @router.message(UserState.recalling)
 async def handle_recall(message: Message, state: FSMContext, course: Course) -> None:
     state_data = await state.get_data()
+    ai_mode = state_data.get("ai_mode", False)
     await state.clear()
     language = get_language(state_data)
     journal = state_data.get("journal", {})
@@ -244,6 +308,7 @@ async def handle_recall(message: Message, state: FSMContext, course: Course) -> 
         journal=journal,
         shown_exercise=state_data["shown_exercise"],
         shown_recall=state_data["shown_recall"],
+        ai_mode=ai_mode,
     )
     locale = LOCALES[language]
     tutor = Tutor(course, journal)
@@ -270,6 +335,10 @@ async def _respond_with_next_exercise(
     journal: dict,
     language: Language,
     locale: Locale,
+    *,
+    ai_mode: bool,
+    anthropic_client: AsyncAnthropic | None,
+    authoring_guide: str | None,
 ) -> None:
     exercise, events = tutor.next_exercise()
     record_tutoring_events(events)
@@ -283,12 +352,32 @@ async def _respond_with_next_exercise(
             await remember_buttoned_message(state, sent)
         await callback.answer()
         return
+    # See command_wiederholen's own version of this check for why it's
+    # per-topic, not just the raw ai_mode toggle.
+    ai_mode = ai_mode and exercise.topic in course.ai_generatable_topics
+    exercise = await _apply_ai_mode(
+        exercise,
+        ai_mode=ai_mode,
+        anthropic_client=anthropic_client,
+        course=course,
+        authoring_guide=authoring_guide,
+    )
+    if exercise is None:
+        await state.update_data(journal=journal)
+        if isinstance(callback.message, Message):
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await forget_buttoned_message(state)
+            await callback.message.answer(locale.ai_generation_failed)
+        await callback.answer()
+        return
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
-        question_text = _format_question(exercise, language, course)
+        question_text = _format_question(
+            exercise, language, course, is_ai_generated=ai_mode
+        )
         await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
     await callback.answer()
 
@@ -298,6 +387,8 @@ async def handle_next_exercise(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
+    anthropic_client: AsyncAnthropic | None = None,
+    authoring_guide: str | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -305,7 +396,16 @@ async def handle_next_exercise(
     locale = LOCALES[language]
     tutor = Tutor(course, journal)
     await _respond_with_next_exercise(
-        callback, state, course, tutor, journal, language, locale
+        callback,
+        state,
+        course,
+        tutor,
+        journal,
+        language,
+        locale,
+        ai_mode=state_data.get("ai_mode", False),
+        anthropic_client=anthropic_client,
+        authoring_guide=authoring_guide,
     )
 
 
@@ -314,6 +414,8 @@ async def handle_study_more(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
+    anthropic_client: AsyncAnthropic | None = None,
+    authoring_guide: str | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -322,7 +424,16 @@ async def handle_study_more(
     tutor = Tutor(course, journal)
     tutor.grant_new_word_budget()
     await _respond_with_next_exercise(
-        callback, state, course, tutor, journal, language, locale
+        callback,
+        state,
+        course,
+        tutor,
+        journal,
+        language,
+        locale,
+        ai_mode=state_data.get("ai_mode", False),
+        anthropic_client=anthropic_client,
+        authoring_guide=authoring_guide,
     )
 
 
@@ -349,5 +460,6 @@ async def handle_recall_request(
             callback.message,
             locale,
             course,
+            ai_mode=state_data.get("ai_mode", False),
         )
     await callback.answer()
