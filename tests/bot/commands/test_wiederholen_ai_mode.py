@@ -37,6 +37,7 @@ async def test_shows_the_ai_generated_question_when_ai_mode_is_on(
 
     assert len(requests) == 1
     assert shadow.question in requests[0].text
+    assert requests[0].text.startswith("🤖")
     data = await state.get_data()
     assert data["shown_exercise"] == shadow.to_dict()
     assert await state.get_state() == UserState.answering
@@ -58,6 +59,7 @@ async def test_does_not_generate_when_ai_mode_is_off(
 
     mock_generate.assert_not_awaited()
     assert exercise.question in requests[0].text
+    assert "🤖" not in requests[0].text
 
 
 async def test_shows_an_error_when_generation_fails(
@@ -117,7 +119,7 @@ async def test_clicking_next_exercise_uses_ai_mode_too(
     send_message = next(
         r for r in requests if hasattr(r, "text") and shadow.question in r.text
     )
-    assert shadow.question in send_message.text
+    assert send_message.text.startswith("🤖")
 
 
 async def test_clicking_next_exercise_shows_an_error_when_generation_fails(

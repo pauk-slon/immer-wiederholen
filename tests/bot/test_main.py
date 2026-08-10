@@ -46,10 +46,12 @@ def _env(
 ) -> Generator[None]:
     monkeypatch.setenv("BOT_TOKEN", bot_token)
     monkeypatch.setenv("FSM_STORAGE_URL", fsm_storage_url)
-    # Both optional and unrelated to most tests here — pinned absent so a
-    # real key/path set on the host running these tests can't leak in.
+    # All optional and unrelated to most tests here — pinned absent so a
+    # real value set on the host running these tests (e.g. compose.override.
+    # yaml's local dev config) can't leak in.
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("AUTHORING_GUIDE_PATH", raising=False)
+    monkeypatch.delenv("FEATURE_FLAGS", raising=False)
     with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         yield None

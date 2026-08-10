@@ -178,3 +178,65 @@ async def test_rejects_an_incomplete_explanation() -> None:
 
     with pytest.raises(AIGenerationError):
         await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+
+async def test_does_not_require_a_description_when_the_original_has_none() -> None:
+    exercise = make_exercise()
+    assert exercise.description is None
+    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+
+    shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+    assert shadow.description is None
+
+
+async def test_replaces_the_description_with_the_generated_one() -> None:
+    exercise = make_exercise(
+        topic="preposition_meaning",
+        distractors=[],
+        description={"ru": "старое описание", "en": "old description"},
+    )
+    new_description = {"ru": "новое описание", "en": "new description"}
+    tool_input = {**_VALID_INPUT, "description": new_description}
+    client = _make_client(_make_response(_make_tool_use(tool_input)))
+
+    shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+    assert shadow.description == new_description
+
+
+async def test_rejects_a_missing_description_when_the_original_has_one() -> None:
+    exercise = make_exercise(
+        topic="preposition_meaning",
+        distractors=[],
+        description={"ru": "старое описание", "en": "old description"},
+    )
+    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+
+    with pytest.raises(AIGenerationError):
+        await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+
+async def test_mentions_the_original_description_in_the_prompt_when_present() -> None:
+    exercise = make_exercise(
+        topic="preposition_meaning",
+        distractors=[],
+        description={"ru": "старое описание", "en": "old description"},
+    )
+    tool_input = {**_VALID_INPUT, "description": {"ru": "x", "en": "y"}}
+    client = _make_client(_make_response(_make_tool_use(tool_input)))
+
+    await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+    prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
+    assert "старое описание" in prompt
+
+
+async def test_omits_the_description_note_when_the_original_has_none() -> None:
+    exercise = make_exercise()
+    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+
+    await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+    prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
+    assert "description" not in prompt.lower()

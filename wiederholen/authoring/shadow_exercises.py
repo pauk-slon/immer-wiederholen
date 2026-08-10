@@ -44,6 +44,20 @@ _TOOL: Final[ToolParam] = {
                 },
                 "required": ["ru", "en"],
             },
+            "description": {
+                "type": "object",
+                "properties": {
+                    "ru": {"type": "string"},
+                    "en": {"type": "string"},
+                },
+                "required": ["ru", "en"],
+                "description": (
+                    "Only include this if the prompt shows an original description "
+                    "below — a ru/en translation of *your new* question's sentence, "
+                    "playing the same disambiguating role for it that the original "
+                    "description played for the original sentence."
+                ),
+            },
         },
         "required": ["question", "explanation"],
     },
@@ -65,6 +79,17 @@ def _few_shot_examples(course: Course, exercise: Exercise) -> list[Exercise]:
 
 def _build_prompt(exercise: Exercise, few_shot: list[Exercise]) -> str:
     examples = "\n".join(f"- {candidate.question!r}" for candidate in few_shot)
+    description_note = ""
+    if exercise.description is not None:
+        description_note = (
+            "\n\nThis exercise also has a description shown to the learner "
+            "before answering, translating the *original* sentence to "
+            "disambiguate it (several answers could otherwise fit "
+            "grammatically) — original description: "
+            f"{exercise.description!r}. Your new question is a different "
+            "sentence, so also submit a new description that plays the same "
+            "disambiguating role for it; don't reuse the original wording."
+        )
     return (
         "Write a new question and a ru/en explanation for this German "
         "exercise, keeping the same word, topic, answer, and distractors — "
@@ -75,6 +100,7 @@ def _build_prompt(exercise: Exercise, few_shot: list[Exercise]) -> str:
         f"distractors: {exercise.distractors!r}\n\n"
         f"Existing questions for this topic, for format/style reference:\n"
         f"{examples}"
+        f"{description_note}"
     )
 
 
@@ -124,9 +150,18 @@ async def generate_shadow_exercise(
     if not isinstance(raw_question, str) or not isinstance(raw_explanation, dict):
         raise AIGenerationError("model returned a malformed response")
 
+    changes: dict = {"question": raw_question, "explanation": raw_explanation}
+    if exercise.description is not None:
+        # The original had a disambiguating description tied to its own
+        # sentence — carrying it over unchanged would describe a sentence
+        # that no longer exists once the question is rewritten, so a new
+        # question always needs a new matching description too.
+        raw_description = tool_use.input.get("description")
+        if not isinstance(raw_description, dict):
+            raise AIGenerationError("model returned a malformed response")
+        changes["description"] = raw_description
+
     try:
-        return dataclasses.replace(
-            exercise, question=raw_question, explanation=raw_explanation
-        )
+        return dataclasses.replace(exercise, **changes)
     except ValueError as e:
         raise AIGenerationError("model returned a malformed response") from e

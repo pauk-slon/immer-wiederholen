@@ -120,8 +120,15 @@ async def _start_recall(
         await message.answer(recall_text)
 
 
-def _format_question(exercise: Exercise, language: Language, course: Course) -> str:
-    text = f"❓ {exercise.question}"
+def _format_question(
+    exercise: Exercise,
+    language: Language,
+    course: Course,
+    *,
+    is_ai_generated: bool = False,
+) -> str:
+    prefix = "🤖 " if is_ai_generated else ""
+    text = f"{prefix}❓ {exercise.question}"
     if exercise.description:
         text += f"\n💭 {exercise.description[language]}"
     instruction = course.topic_instructions.get(exercise.topic, {}).get(language)
@@ -201,9 +208,10 @@ async def command_wiederholen(
         )
         await remember_buttoned_message(state, sent)
         return
+    ai_mode = data.get("ai_mode", False)
     exercise = await _apply_ai_mode(
         exercise,
-        ai_mode=data.get("ai_mode", False),
+        ai_mode=ai_mode,
         anthropic_client=anthropic_client,
         course=course,
         authoring_guide=authoring_guide,
@@ -216,7 +224,9 @@ async def command_wiederholen(
         shown_exercise=exercise.to_dict(),
         journal=journal,
     )
-    question_text = _format_question(exercise, language, course)
+    question_text = _format_question(
+        exercise, language, course, is_ai_generated=ai_mode
+    )
     await message.answer(question_text, **_show_exercise_kwargs(exercise))
 
 
@@ -346,7 +356,9 @@ async def _respond_with_next_exercise(
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
-        question_text = _format_question(exercise, language, course)
+        question_text = _format_question(
+            exercise, language, course, is_ai_generated=ai_mode
+        )
         await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
     await callback.answer()
 
