@@ -78,7 +78,7 @@ def test_wrong_answer_reports_correct_false_interval_reset_and_recall_mode() -> 
         is_new=False,
         recall_mode=RecallMode.required,
         prev_repetition_interval=8,
-        next_repetition_interval=1,
+        next_repetition_interval=0,
     )
 
 

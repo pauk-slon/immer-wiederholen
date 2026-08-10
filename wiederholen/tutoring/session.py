@@ -285,11 +285,7 @@ class Tutor:
         prev_repetition_interval: int | None,
         is_answer_correct: bool,
     ) -> int:
-        if not is_answer_correct:
-            return 1
-        if prev_repetition_interval is None:
-            # Not 1 (max(0*2, 1)) — nothing to double from yet, so the
-            # *next* answer is the one that reaches a real 1.
+        if not is_answer_correct or prev_repetition_interval is None:
             return 0
         return min(
             max(prev_repetition_interval * 2, 1),

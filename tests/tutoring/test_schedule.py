@@ -232,7 +232,11 @@ def test_correct_answer_caps_interval_at_max() -> None:
     assert entry["due_date"] == (today + timedelta(days=60)).isoformat()
 
 
-def test_wrong_answer_resets_interval_and_is_due_today() -> None:
+def test_wrong_answer_resets_interval_to_zero_and_is_due_today() -> None:
+    # Not 1 — a wrong answer wipes out progress the same way a never-tested
+    # pair has none, so the *next* correct answer doubles to a real 1
+    # instead of skipping straight to 2 (see
+    # test_correct_answer_on_new_topic_sets_interval_to_zero above).
     exercise = make_exercise(word="warten", answer="auf")
     today = datetime.now(UTC).date()
     state = {
@@ -247,7 +251,7 @@ def test_wrong_answer_resets_interval_and_is_due_today() -> None:
     }
     Tutor(Course([exercise]), state).check_answer(exercise, "für")
     entry = state["word_schedule"]["warten"]["government"]
-    assert entry["repetition_interval"] == 1
+    assert entry["repetition_interval"] == 0
     assert entry["due_date"] == today.isoformat()
 
 
