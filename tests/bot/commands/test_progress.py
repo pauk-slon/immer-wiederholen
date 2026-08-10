@@ -2,9 +2,11 @@ from datetime import UTC, datetime, timedelta
 
 from aiogram.fsm.context import FSMContext
 from aiogram.methods import EditMessageReplyMarkup
+from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedMessage
 from tests.plugins.tutoring import make_exercise
+from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU, format_count
 from wiederholen.tutoring import Course
 
@@ -118,5 +120,30 @@ async def test_clears_a_stale_button_left_from_wiederholen(
     edits = [r for r in requests if isinstance(r, EditMessageReplyMarkup)]
     assert len(edits) == 1
     assert edits[0].message_id == 77
+    # A new button — the progress message's own — takes its place, rather
+    # than leaving nothing tracked.
     data = await state.get_data()
-    assert data.get("last_buttoned_message_id") is None
+    assert data["last_buttoned_message_id"] is not None
+
+
+async def test_offers_a_next_exercise_button(feed_message: FeedMessage) -> None:
+    requests = await feed_message("/progress", course=Course([]))
+
+    assert len(requests) == 1
+    assert isinstance(requests[0].reply_markup, InlineKeyboardMarkup)
+    buttons = [
+        btn.callback_data
+        for row in requests[0].reply_markup.inline_keyboard
+        for btn in row
+    ]
+    assert buttons == [NEXT_EXERCISE]
+
+
+async def test_next_exercise_button_is_remembered_for_later_cleanup(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    await feed_message("/progress", course=Course([]))
+
+    data = await state.get_data()
+    assert data["last_buttoned_message_id"] is not None
