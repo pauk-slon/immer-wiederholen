@@ -38,7 +38,7 @@ class ExerciseAnswered:
     is_correct: bool
     is_new: bool
     recall_mode: RecallMode
-    previous_repetition_interval: int | None
+    prev_repetition_interval: int | None
     next_repetition_interval: int
 
 
@@ -282,12 +282,12 @@ class Tutor:
     def _calc_next_repetition_interval(
         self,
         *,
-        previous_repetition_interval: int | None,
+        prev_repetition_interval: int | None,
         is_answer_correct: bool,
     ) -> int:
         if not is_answer_correct:
             return 1
-        if previous_repetition_interval is None:
+        if prev_repetition_interval is None:
             # A pair's very first answer ever — schedule_pair()'s own
             # due_interval=0 override (see check_answer()) already keeps it
             # due again today regardless, so this doesn't affect *when* it's
@@ -300,7 +300,7 @@ class Tutor:
             # real 1 first.
             return 0
         return min(
-            max(previous_repetition_interval * 2, 1),
+            max(prev_repetition_interval * 2, 1),
             self.MAX_REPETITION_INTERVAL_DAYS,
         )
 
@@ -353,7 +353,7 @@ class Tutor:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
-        is_new, previous_repetition_interval = self._journal.record_mark(
+        is_new, prev_repetition_interval = self._journal.record_mark(
             exercise.question,
             exercise.word,
             exercise.topic,
@@ -361,7 +361,7 @@ class Tutor:
             is_recall_optional=recall_mode == RecallMode.optional,
         )
         next_repetition_interval = self._calc_next_repetition_interval(
-            previous_repetition_interval=previous_repetition_interval,
+            prev_repetition_interval=prev_repetition_interval,
             is_answer_correct=is_correct,
         )
         self._journal.schedule_pair(
@@ -383,7 +383,7 @@ class Tutor:
                 is_correct=is_correct,
                 is_new=is_new,
                 recall_mode=recall_mode,
-                previous_repetition_interval=previous_repetition_interval,
+                prev_repetition_interval=prev_repetition_interval,
                 next_repetition_interval=next_repetition_interval,
             ),
             *self._expedite_chained_topics(exercise),

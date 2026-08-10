@@ -73,12 +73,12 @@ class Journal:
         # otherwise mask a genuinely absent entry (None — this pair has
         # never been scheduled at all) behind the same 0 an entry that
         # already existed (e.g. queued via a chain) would report.
-        previous_repetition_interval = self.get_repetition_interval(word, topic)
+        prev_repetition_interval = self.get_repetition_interval(word, topic)
         schedule_entry = self._get_or_create_schedule_entry(word, topic)
         is_new = "introduced_at" not in schedule_entry
         if is_new:
             schedule_entry["introduced_at"] = self._today.isoformat()
-        return is_new, previous_repetition_interval
+        return is_new, prev_repetition_interval
 
     @property
     def last_reminded_at(self) -> datetime | None:
@@ -210,9 +210,10 @@ class Journal:
     ) -> Generator[tuple[str, str]]:
         for word, topic_schedule in self._iter_valid_scheduled_pairs():
             for topic, schedule_entry in topic_schedule:
-                if is_introduced is not None and (
-                    "introduced_at" in schedule_entry
-                ) != is_introduced:
+                if (
+                    is_introduced is not None
+                    and ("introduced_at" in schedule_entry) != is_introduced
+                ):
                     continue
                 if (
                     only_due_today
