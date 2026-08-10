@@ -288,16 +288,8 @@ class Tutor:
         if not is_answer_correct:
             return 1
         if prev_repetition_interval is None:
-            # A pair's very first answer ever — schedule_pair()'s own
-            # due_interval=0 override (see check_answer()) already keeps it
-            # due again today regardless, so this doesn't affect *when* it's
-            # next due. It affects what the *following* answer doubles from:
-            # landing here at 1 (as max(0*2, 1) used to) would let the
-            # second answer double straight to 2 without a real pair ever
-            # having been tested at a genuine 1-day gap — silently emptying
-            # tomorrow's schedule for a learner who works through material
-            # steadily. Starting at 0 means the second answer doubles to a
-            # real 1 first.
+            # Not 1 (max(0*2, 1)) — nothing to double from yet, so the
+            # *next* answer is the one that reaches a real 1.
             return 0
         return min(
             max(prev_repetition_interval * 2, 1),
