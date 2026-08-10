@@ -102,6 +102,8 @@ async def _start_recall(
     message: Message,
     locale: Locale,
     course: Course,
+    *,
+    ai_mode: bool,
 ) -> None:
     tutor = Tutor(course, journal)
     recall = tutor.request_recall(shown_exercise)
@@ -111,6 +113,7 @@ async def _start_recall(
         journal=journal,
         shown_exercise=shown_exercise_dict,
         shown_recall=recall.to_dict(),
+        ai_mode=ai_mode,
     )
     hint = recall.hint.get(language) if recall.hint else None
     recall_text = locale.recall_prompt.format(recall=recall.question)
@@ -237,6 +240,7 @@ async def handle_answer(
     course: Course,
 ) -> None:
     state_data = await state.get_data()
+    ai_mode = state_data.get("ai_mode", False)
     await state.clear()
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
@@ -270,12 +274,14 @@ async def handle_answer(
             message,
             locale,
             course,
+            ai_mode=ai_mode,
         )
     else:
         await state.update_data(
             language=language,
             journal=journal,
             shown_exercise=state_data["shown_exercise"],
+            ai_mode=ai_mode,
         )
         if reply_markup is not None:
             await remember_buttoned_message(state, sent_explanation)
@@ -284,6 +290,7 @@ async def handle_answer(
 @router.message(UserState.recalling)
 async def handle_recall(message: Message, state: FSMContext, course: Course) -> None:
     state_data = await state.get_data()
+    ai_mode = state_data.get("ai_mode", False)
     await state.clear()
     language = get_language(state_data)
     journal = state_data.get("journal", {})
@@ -293,6 +300,7 @@ async def handle_recall(message: Message, state: FSMContext, course: Course) -> 
         journal=journal,
         shown_exercise=state_data["shown_exercise"],
         shown_recall=state_data["shown_recall"],
+        ai_mode=ai_mode,
     )
     locale = LOCALES[language]
     tutor = Tutor(course, journal)
@@ -441,5 +449,6 @@ async def handle_recall_request(
             callback.message,
             locale,
             course,
+            ai_mode=state_data.get("ai_mode", False),
         )
     await callback.answer()

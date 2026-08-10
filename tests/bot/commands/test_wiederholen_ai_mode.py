@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.tutoring import make_exercise
 from wiederholen.authoring import AIGenerationError
-from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, UserState
+from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.tutoring import Course, Exercise
 
@@ -141,3 +141,73 @@ async def test_clicking_next_exercise_shows_an_error_when_generation_fails(
         hasattr(r, "text") and r.text == RU.ai_generation_failed for r in requests
     )
     assert await state.get_state() is None
+
+
+async def test_ai_mode_survives_answering_an_exercise(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(recalls=False)
+    await state.set_state(UserState.answering)
+    await state.update_data(
+        shown_exercise=exercise.to_dict(), journal={}, ai_mode=True
+    )
+
+    await feed_message(exercise.answer, course=Course([exercise]))
+
+    data = await state.get_data()
+    assert data["ai_mode"] is True
+
+
+async def test_ai_mode_survives_a_required_recall_prompt(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(recalls=True)
+    await state.set_state(UserState.answering)
+    await state.update_data(
+        shown_exercise=exercise.to_dict(), journal={}, ai_mode=True
+    )
+
+    await feed_message(exercise.distractors[0], course=Course([exercise]))
+
+    assert await state.get_state() == UserState.recalling
+    data = await state.get_data()
+    assert data["ai_mode"] is True
+
+
+async def test_ai_mode_survives_clicking_retry_after_a_wrong_recall(
+    state: FSMContext,
+    feed_message: FeedMessage,
+    feed_callback_query: FeedCallbackQuery,
+) -> None:
+    exercise = make_exercise(recalls=True)
+    await state.set_state(UserState.answering)
+    await state.update_data(
+        shown_exercise=exercise.to_dict(), journal={}, ai_mode=True
+    )
+    await feed_message(exercise.distractors[0], course=Course([exercise]))
+
+    await feed_callback_query(RECALL, course=Course([exercise]))
+
+    data = await state.get_data()
+    assert data["ai_mode"] is True
+
+
+async def test_ai_mode_survives_completing_a_recall(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(recalls=[{"answer": ["Ich warte auf den Bus."]}])
+    await state.set_state(UserState.recalling)
+    await state.update_data(
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
+        journal={},
+        ai_mode=True,
+    )
+
+    await feed_message("Ich warte auf den Bus.", course=Course([exercise]))
+
+    data = await state.get_data()
+    assert data["ai_mode"] is True
