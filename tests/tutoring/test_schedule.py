@@ -166,12 +166,39 @@ def test_correct_answer_doubles_interval() -> None:
     assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
 
 
-def test_correct_answer_on_new_topic_sets_interval_to_one() -> None:
+def test_correct_answer_on_new_topic_sets_interval_to_zero() -> None:
+    # Not 1 (max(0 * 2, 1)) — a genuinely never-scheduled pair has no
+    # previous interval to double from at all. Landing on 0 means the
+    # *second* answer is the one that doubles to a real 1, instead of
+    # skipping straight to 2 and leaving tomorrow's schedule empty for a
+    # learner who answers again the very next day (see
+    # test_second_correct_answer_doubles_from_zero_to_one below, and
+    # test_correct_answer_doubles_interval for the general case).
     exercise = make_exercise(word="warten", answer="auf")
     state: dict = {}
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]
+    assert entry["repetition_interval"] == 0
+
+
+def test_second_correct_answer_doubles_from_zero_to_one() -> None:
+    exercise = make_exercise(word="warten", answer="auf")
+    today = datetime.now(UTC).date()
+    state = {
+        "word_schedule": {
+            "warten": {
+                "government": {
+                    "repetition_interval": 0,
+                    "due_date": today.isoformat(),
+                    "introduced_at": today.isoformat(),
+                },
+            },
+        }
+    }
+    Tutor(Course([exercise]), state).check_answer(exercise, "auf")
+    entry = state["word_schedule"]["warten"]["government"]
     assert entry["repetition_interval"] == 1
+    assert entry["due_date"] == (today + timedelta(days=1)).isoformat()
 
 
 def test_correct_answer_on_new_topic_is_still_due_today() -> None:
@@ -325,7 +352,7 @@ def test_malformed_word_schedule_is_overwritten_on_check_answer() -> None:
     state["word_schedule"]["warten"] = "not a dict"
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]  # ty: ignore[invalid-argument-type]
-    assert entry["repetition_interval"] == 1
+    assert entry["repetition_interval"] == 0
     assert entry["due_date"] == today.isoformat()
 
 
@@ -637,7 +664,7 @@ def test_malformed_schedule_entry_is_overwritten_on_check_answer(
     state = {"word_schedule": {"warten": {"government": malformed_entry}}}
     Tutor(Course([exercise]), state).check_answer(exercise, "auf")
     entry = state["word_schedule"]["warten"]["government"]
-    assert entry["repetition_interval"] == 1
+    assert entry["repetition_interval"] == 0
     assert entry["due_date"] == today.isoformat()
 
 

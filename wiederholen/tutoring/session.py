@@ -38,7 +38,7 @@ class ExerciseAnswered:
     is_correct: bool
     is_new: bool
     recall_mode: RecallMode
-    previous_repetition_interval: int
+    previous_repetition_interval: int | None
     next_repetition_interval: int
 
 
@@ -282,15 +282,27 @@ class Tutor:
     def _calc_next_repetition_interval(
         self,
         *,
-        previous_repetition_interval: int,
+        previous_repetition_interval: int | None,
         is_answer_correct: bool,
     ) -> int:
-        if is_answer_correct:
-            return min(
-                max(previous_repetition_interval * 2, 1),
-                self.MAX_REPETITION_INTERVAL_DAYS,
-            )
-        return 1
+        if not is_answer_correct:
+            return 1
+        if previous_repetition_interval is None:
+            # A pair's very first answer ever — schedule_pair()'s own
+            # due_interval=0 override (see check_answer()) already keeps it
+            # due again today regardless, so this doesn't affect *when* it's
+            # next due. It affects what the *following* answer doubles from:
+            # landing here at 1 (as max(0*2, 1) used to) would let the
+            # second answer double straight to 2 without a real pair ever
+            # having been tested at a genuine 1-day gap — silently emptying
+            # tomorrow's schedule for a learner who works through material
+            # steadily. Starting at 0 means the second answer doubles to a
+            # real 1 first.
+            return 0
+        return min(
+            max(previous_repetition_interval * 2, 1),
+            self.MAX_REPETITION_INTERVAL_DAYS,
+        )
 
     def _expedite_dependent(self, word: str, topic: str) -> bool:
         if topic not in self._exercises_by_word_topic.get(word, {}):

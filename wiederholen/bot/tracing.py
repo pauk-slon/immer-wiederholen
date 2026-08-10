@@ -48,11 +48,16 @@ def instrument_redis() -> None:
 
 def _event_attributes(event: TutoringEvent) -> dict[str, Any]:
     # Enum values (e.g. RecallMode) aren't valid span event attribute types,
-    # so unwrap them to their plain value; everything else in a TutoringEvent
-    # is already a span-attribute-safe type (str/bool/int).
+    # so unwrap them to their plain value; None isn't valid either (e.g.
+    # ExerciseAnswered.previous_repetition_interval for a pair's very first
+    # answer, which has no previous interval at all) — omit it rather than
+    # invent a sentinel that could be mistaken for a real value like 0.
+    # Everything else in a TutoringEvent is already a span-attribute-safe
+    # type (str/bool/int).
     return {
         key: value.value if isinstance(value, Enum) else value
         for key, value in dataclasses.asdict(event).items()
+        if value is not None
     }
 
 
