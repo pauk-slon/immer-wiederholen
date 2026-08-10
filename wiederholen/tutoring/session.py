@@ -38,7 +38,7 @@ class ExerciseAnswered:
     is_correct: bool
     is_new: bool
     recall_mode: RecallMode
-    previous_repetition_interval: int
+    prev_repetition_interval: int | None
     next_repetition_interval: int
 
 
@@ -282,15 +282,15 @@ class Tutor:
     def _calc_next_repetition_interval(
         self,
         *,
-        previous_repetition_interval: int,
+        prev_repetition_interval: int | None,
         is_answer_correct: bool,
     ) -> int:
-        if is_answer_correct:
-            return min(
-                max(previous_repetition_interval * 2, 1),
-                self.MAX_REPETITION_INTERVAL_DAYS,
-            )
-        return 1
+        if not is_answer_correct or prev_repetition_interval is None:
+            return 0
+        return min(
+            max(prev_repetition_interval * 2, 1),
+            self.MAX_REPETITION_INTERVAL_DAYS,
+        )
 
     def _expedite_dependent(self, word: str, topic: str) -> bool:
         if topic not in self._exercises_by_word_topic.get(word, {}):
@@ -341,7 +341,7 @@ class Tutor:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
-        is_new, previous_repetition_interval = self._journal.record_mark(
+        is_new, prev_repetition_interval = self._journal.record_mark(
             exercise.question,
             exercise.word,
             exercise.topic,
@@ -349,7 +349,7 @@ class Tutor:
             is_recall_optional=recall_mode == RecallMode.optional,
         )
         next_repetition_interval = self._calc_next_repetition_interval(
-            previous_repetition_interval=previous_repetition_interval,
+            prev_repetition_interval=prev_repetition_interval,
             is_answer_correct=is_correct,
         )
         self._journal.schedule_pair(
@@ -371,7 +371,7 @@ class Tutor:
                 is_correct=is_correct,
                 is_new=is_new,
                 recall_mode=recall_mode,
-                previous_repetition_interval=previous_repetition_interval,
+                prev_repetition_interval=prev_repetition_interval,
                 next_repetition_interval=next_repetition_interval,
             ),
             *self._expedite_chained_topics(exercise),

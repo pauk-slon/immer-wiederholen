@@ -14,9 +14,7 @@ from wiederholen.bot.pending_buttons import (
 
 
 def _make_message(bot: Bot | None, message_id: int = 1) -> Message:
-    message = Mock(
-        spec=Message, message_id=message_id, chat=Mock(spec=Chat, id=1)
-    )
+    message = Mock(spec=Message, message_id=message_id, chat=Mock(spec=Chat, id=1))
     message.bot = bot
     return message
 

@@ -10,7 +10,7 @@ from wiederholen.tutoring import (
 )
 
 
-def test_answering_a_brand_new_pair_reports_is_new_and_interval_from_zero() -> None:
+def test_answering_a_brand_new_pair_reports_is_new_and_no_previous_interval() -> None:
     exercise = make_exercise(word="warten", answer="auf")
 
     _, events = Tutor(Course([exercise]), {}).check_answer(exercise, "auf")
@@ -21,8 +21,8 @@ def test_answering_a_brand_new_pair_reports_is_new_and_interval_from_zero() -> N
         is_correct=True,
         is_new=True,
         recall_mode=RecallMode.none,
-        previous_repetition_interval=0,
-        next_repetition_interval=1,
+        prev_repetition_interval=None,
+        next_repetition_interval=0,
     )
 
 
@@ -49,7 +49,7 @@ def test_answering_a_due_review_reports_is_new_false_and_interval_doubling() -> 
         is_correct=True,
         is_new=False,
         recall_mode=RecallMode.none,
-        previous_repetition_interval=4,
+        prev_repetition_interval=4,
         next_repetition_interval=8,
     )
 
@@ -77,8 +77,8 @@ def test_wrong_answer_reports_correct_false_interval_reset_and_recall_mode() -> 
         is_correct=False,
         is_new=False,
         recall_mode=RecallMode.required,
-        previous_repetition_interval=8,
-        next_repetition_interval=1,
+        prev_repetition_interval=8,
+        next_repetition_interval=0,
     )
 
 

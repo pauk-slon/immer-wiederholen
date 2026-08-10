@@ -244,7 +244,7 @@ def test_record_tutoring_events_adds_one_span_event_per_event(
             is_correct=True,
             is_new=False,
             recall_mode=RecallMode.optional,
-            previous_repetition_interval=4,
+            prev_repetition_interval=4,
             next_repetition_interval=8,
         ),
         TopicUnlocked(
@@ -296,7 +296,7 @@ def test_record_tutoring_events_unwraps_enum_attributes_to_their_value(
         is_correct=True,
         is_new=True,
         recall_mode=RecallMode.required,
-        previous_repetition_interval=0,
+        prev_repetition_interval=0,
         next_repetition_interval=1,
     )
 
@@ -306,3 +306,29 @@ def test_record_tutoring_events_unwraps_enum_attributes_to_their_value(
     span = exporter.get_finished_spans()[0]
     attributes = dict(span.events[0].attributes or {})
     assert attributes["recall_mode"] == "required"
+
+
+def test_record_tutoring_events_omits_none_attributes(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    # prev_repetition_interval is None for a pair's very first answer —
+    # None isn't a valid span attribute type, and unlike an Enum there's no
+    # single plain value to unwrap it to, so it's dropped instead.
+    event = ExerciseAnswered(
+        word="warten",
+        topic="government",
+        is_correct=True,
+        is_new=True,
+        recall_mode=RecallMode.none,
+        prev_repetition_interval=None,
+        next_repetition_interval=0,
+    )
+
+    with tracer.start_as_current_span("test-span"):
+        tracing.record_tutoring_events([event])
+
+    span = exporter.get_finished_spans()[0]
+    attributes = dict(span.events[0].attributes or {})
+    assert "prev_repetition_interval" not in attributes
+    assert attributes["next_repetition_interval"] == 0

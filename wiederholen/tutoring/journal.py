@@ -55,7 +55,7 @@ class Journal:
         *,
         is_answer_correct: bool,
         is_recall_optional: bool,
-    ) -> tuple[bool, int]:
+    ) -> tuple[bool, int | None]:
         self._data["last_exercise"] = LastExercise(
             question=question,
             word=word,
@@ -69,11 +69,16 @@ class Journal:
             answered=answered + 1,
             correct=right + (1 if is_answer_correct else 0),
         )
+        # Read before _get_or_create_schedule_entry() below, which would
+        # otherwise mask a genuinely absent entry (None — this pair has
+        # never been scheduled at all) behind the same 0 an entry that
+        # already existed (e.g. queued via a chain) would report.
+        prev_repetition_interval = self.get_repetition_interval(word, topic)
         schedule_entry = self._get_or_create_schedule_entry(word, topic)
         is_new = "introduced_at" not in schedule_entry
         if is_new:
             schedule_entry["introduced_at"] = self._today.isoformat()
-        return is_new, schedule_entry["repetition_interval"]
+        return is_new, prev_repetition_interval
 
     @property
     def last_reminded_at(self) -> datetime | None:
@@ -205,9 +210,10 @@ class Journal:
     ) -> Generator[tuple[str, str]]:
         for word, topic_schedule in self._iter_valid_scheduled_pairs():
             for topic, schedule_entry in topic_schedule:
-                if is_introduced is not None and (
-                    "introduced_at" in schedule_entry
-                ) != is_introduced:
+                if (
+                    is_introduced is not None
+                    and ("introduced_at" in schedule_entry) != is_introduced
+                ):
                     continue
                 if (
                     only_due_today
