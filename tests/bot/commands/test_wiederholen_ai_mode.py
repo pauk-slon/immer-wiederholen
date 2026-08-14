@@ -1,7 +1,9 @@
+import asyncio
 import dataclasses
 from unittest.mock import AsyncMock, Mock, patch
 
 from aiogram.fsm.context import FSMContext
+from aiogram.methods import SendChatAction
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.tutoring import make_exercise
@@ -9,6 +11,17 @@ from wiederholen.authoring import AIGenerationError
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.tutoring import Course, Exercise
+
+
+async def _slow_shadow_of(client, exercise: Exercise, course, *, authoring_guide=None):
+    # Same signature as generate_shadow_exercise() itself, since this is
+    # used as an AsyncMock side_effect standing in for it. A real API call
+    # yields to the event loop many times before resolving — a plain
+    # AsyncMock(return_value=...) resolves immediately, giving the
+    # typing-indicator's background task no chance to actually run before
+    # being cancelled. One await is enough to let it get scheduled once.
+    await asyncio.sleep(0)
+    return _shadow_of(exercise)
 
 
 def _shadow_of(exercise: Exercise) -> Exercise:
@@ -50,6 +63,64 @@ async def test_shows_the_ai_generated_question_when_ai_mode_is_on(
     data = await state.get_data()
     assert data["shown_exercise"] == shadow.to_dict()
     assert await state.get_state() == UserState.answering
+
+
+async def test_shows_typing_while_generating(
+    state: FSMContext,
+    feed_message: FeedMessage,
+    chat_id: int,
+) -> None:
+    exercise = make_exercise()
+    await state.update_data(ai_mode=True)
+
+    with patch(
+        "wiederholen.bot.commands.wiederholen.generate_shadow_exercise",
+        AsyncMock(side_effect=_slow_shadow_of),
+    ):
+        requests = await feed_message(
+            "/wiederholen", course=_ai_course(exercise), anthropic_client=Mock()
+        )
+
+    typing_requests = [r for r in requests if isinstance(r, SendChatAction)]
+    assert typing_requests
+    assert typing_requests[0].chat_id == chat_id
+    assert typing_requests[0].action == "typing"
+
+
+async def test_does_not_show_typing_when_ai_mode_is_off(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise()
+
+    requests = await feed_message("/wiederholen", course=Course([exercise]))
+
+    assert not [r for r in requests if isinstance(r, SendChatAction)]
+
+
+async def test_clicking_next_exercise_shows_typing_while_generating(
+    state: FSMContext,
+    feed_callback_query: FeedCallbackQuery,
+    chat_id: int,
+) -> None:
+    first = make_exercise(word="warten")
+    second = make_exercise(word="hoffen")
+    await state.update_data(language="ru", journal={}, ai_mode=True)
+
+    with patch(
+        "wiederholen.bot.commands.wiederholen.generate_shadow_exercise",
+        AsyncMock(side_effect=_slow_shadow_of),
+    ):
+        requests = await feed_callback_query(
+            NEXT_EXERCISE,
+            course=_ai_course(first, second),
+            anthropic_client=Mock(),
+        )
+
+    typing_requests = [r for r in requests if isinstance(r, SendChatAction)]
+    assert typing_requests
+    assert typing_requests[0].chat_id == chat_id
+    assert typing_requests[0].action == "typing"
 
 
 async def test_does_not_generate_when_ai_mode_is_off(

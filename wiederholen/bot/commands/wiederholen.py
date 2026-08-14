@@ -1,9 +1,12 @@
+import asyncio
+import contextlib
 import difflib
 import html
 import random
+from collections.abc import AsyncIterator
 from typing import Final
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -158,6 +161,32 @@ def _show_exercise_kwargs(exercise: Exercise) -> dict:
     return {"reply_markup": ReplyKeyboardRemove()}
 
 
+_TYPING_INTERVAL_SECONDS: Final = 4  # Telegram's own indicator lasts ~5s
+
+
+@contextlib.asynccontextmanager
+async def _show_typing_while(bot: Bot, chat_id: int) -> AsyncIterator[None]:
+    # Telegram's "typing..." indicator auto-expires after ~5s (or once a
+    # message is sent) — full shadow-exercise generation (question, answer,
+    # distractors, explanation, recalls, all written fresh — see
+    # wiederholen.authoring.shadow_exercises) can easily run past that, so a
+    # single one-shot call wouldn't stay visible for the whole wait. Refresh
+    # it on a loop in the background instead, cancelled once generation
+    # finishes either way (success or AIGenerationError).
+    async def _pulse() -> None:
+        while True:
+            await bot.send_chat_action(chat_id, "typing")
+            await asyncio.sleep(_TYPING_INTERVAL_SECONDS)
+
+    task = asyncio.create_task(_pulse())
+    try:
+        yield
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+
 async def _apply_ai_mode(
     exercise: Exercise,
     *,
@@ -165,6 +194,8 @@ async def _apply_ai_mode(
     anthropic_client: AsyncAnthropic | None,
     course: Course,
     authoring_guide: str | None,
+    bot: Bot | None,
+    chat_id: int | None,
 ) -> Exercise | None:
     # None means "AI mode is on but generation failed" — distinct from
     # ai_mode being off, in which case the original exercise passes through
@@ -175,10 +206,21 @@ async def _apply_ai_mode(
         return exercise
     if anthropic_client is None:
         return None
+    # bot/chat_id are None only for _respond_with_next_exercise's
+    # inaccessible-message edge case (see its own isinstance(..., Message)
+    # guards) — generation still runs, there's just nowhere left to show a
+    # typing indicator, so fall back to a no-op context instead of skipping
+    # generation itself.
+    typing_indicator = (
+        _show_typing_while(bot, chat_id)
+        if bot is not None and chat_id is not None
+        else contextlib.nullcontext()
+    )
     try:
-        return await generate_shadow_exercise(
-            anthropic_client, exercise, course, authoring_guide=authoring_guide
-        )
+        async with typing_indicator:
+            return await generate_shadow_exercise(
+                anthropic_client, exercise, course, authoring_guide=authoring_guide
+            )
     except AIGenerationError:
         return None
 
@@ -220,12 +262,16 @@ async def command_wiederholen(
     ai_mode = bool(data.get("ai_mode", False)) and (
         exercise.topic in course.ai_generatable_topics
     )
+    bot = message.bot
+    assert bot is not None
     exercise = await _apply_ai_mode(
         exercise,
         ai_mode=ai_mode,
         anthropic_client=anthropic_client,
         course=course,
         authoring_guide=authoring_guide,
+        bot=bot,
+        chat_id=message.chat.id,
     )
     if exercise is None:
         await message.answer(locale.ai_generation_failed)
@@ -355,12 +401,19 @@ async def _respond_with_next_exercise(
     # See command_wiederholen's own version of this check for why it's
     # per-topic, not just the raw ai_mode toggle.
     ai_mode = ai_mode and exercise.topic in course.ai_generatable_topics
+    # None (rather than message.bot/message.chat.id) for the rare
+    # inaccessible-message case — same isinstance(..., Message) guard the
+    # rest of this function already uses below; _apply_ai_mode() still runs
+    # generation either way, it just has nowhere left to show typing.
+    has_accessible_message = isinstance(callback.message, Message)
     exercise = await _apply_ai_mode(
         exercise,
         ai_mode=ai_mode,
         anthropic_client=anthropic_client,
         course=course,
         authoring_guide=authoring_guide,
+        bot=callback.bot if has_accessible_message else None,
+        chat_id=callback.message.chat.id if has_accessible_message else None,
     )
     if exercise is None:
         await state.update_data(journal=journal)
