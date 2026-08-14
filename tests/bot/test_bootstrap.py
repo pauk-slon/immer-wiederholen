@@ -49,3 +49,21 @@ def test_load_authoring_guide_reads_the_configured_file(
     monkeypatch.setenv("AUTHORING_GUIDE_PATH", str(guide_path))
 
     assert load_authoring_guide() == "some guide text"
+
+
+def test_load_authoring_guide_cuts_off_the_deploying_section(
+    monkeypatch, tmp_path: Path
+) -> None:
+    guide_path = tmp_path / "CLAUDE.md"
+    guide_path.write_text(
+        "# intro\n\n## Exercises\n\nsome rules\n\n"
+        "## Deploying\n\ncompose.yaml stuff\n\n## Landing page\n\nmore stuff"
+    )
+    monkeypatch.setenv("AUTHORING_GUIDE_PATH", str(guide_path))
+
+    guide = load_authoring_guide()
+
+    assert guide is not None
+    assert "some rules" in guide
+    assert "compose.yaml" not in guide
+    assert "Landing page" not in guide
