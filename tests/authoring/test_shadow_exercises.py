@@ -1,10 +1,11 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+import yaml
 from anthropic import AnthropicError, AsyncAnthropic
 from anthropic.types import Message, TextBlock, ToolUseBlock
 
-from tests.plugins.tutoring import make_exercise
+from tests.plugins.tutoring import RecallKwargs, make_exercise
 from wiederholen.authoring import AIGenerationError, generate_shadow_exercise
 from wiederholen.authoring.shadow_exercises import _TOOL_NAME, MODEL
 from wiederholen.tutoring import Course
@@ -27,33 +28,76 @@ def _make_client(response=None, side_effect=None) -> Mock:
 
 _VALID_INPUT = {
     "question": "Ich ___ (der Bus).",
+    "answer": "auf",
+    "distractors": ["für", "an", "um"],
     "explanation": {"ru": "новое объяснение", "en": "new explanation"},
+    "recalls": [],
 }
 
 
-async def test_returns_an_exercise_with_the_generated_question_and_explanation() -> (
-    None
-):
+def _without(key: str) -> dict:
+    data = dict(_VALID_INPUT)
+    del data[key]
+    return data
+
+
+async def test_returns_a_fully_generated_exercise() -> None:
     exercise = make_exercise(word="warten", answer="auf")
     client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
 
     shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
 
     assert shadow.question == _VALID_INPUT["question"]
+    assert shadow.answer == _VALID_INPUT["answer"]
+    assert shadow.distractors == _VALID_INPUT["distractors"]
     assert shadow.explanation == _VALID_INPUT["explanation"]
+    assert shadow.recalls == []
 
 
-async def test_preserves_word_topic_answer_distractors_and_recalls() -> None:
-    exercise = make_exercise(word="warten", answer="auf", recalls=True)
-    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+async def test_preserves_word_and_topic_but_replaces_everything_else() -> None:
+    # Original `answer` deliberately differs from the tool response's, so the
+    # assertions below actually distinguish "replaced" from "coincidentally
+    # equal".
+    exercise = make_exercise(
+        word="warten", topic="government", answer="hilft", recalls=True
+    )
+    tool_input = {**_VALID_INPUT, "answer": "an", "distractors": ["auf", "für", "um"]}
+    client = _make_client(_make_response(_make_tool_use(tool_input)))
 
     shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
 
     assert shadow.word == exercise.word
     assert shadow.topic == exercise.topic
-    assert shadow.answer == exercise.answer
-    assert shadow.distractors == exercise.distractors
-    assert shadow.recalls == exercise.recalls
+    assert shadow.answer == "an"
+    assert shadow.distractors == ["auf", "für", "um"]
+    assert shadow.question != exercise.question
+
+
+async def test_builds_recalls_from_the_generated_variants() -> None:
+    exercise = make_exercise()
+    tool_input = {
+        **_VALID_INPUT,
+        "recalls": [
+            {
+                "question": "Ich warte ___ (der Bus).",
+                "answer": ["Ich warte auf den Bus."],
+                "hint": {"ru": "der Bus — автобус"},
+            },
+            {
+                "question": "Er wartet ___ (die Antwort).",
+                "answer": ["Er wartet auf die Antwort."],
+            },
+        ],
+    }
+    client = _make_client(_make_response(_make_tool_use(tool_input)))
+
+    shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+    assert len(shadow.recalls) == 2
+    assert shadow.recalls[0].question == "Ich warte ___ (der Bus)."
+    assert shadow.recalls[0].answer == ["Ich warte auf den Bus."]
+    assert shadow.recalls[0].hint == {"ru": "der Bus — автобус"}
+    assert shadow.recalls[1].hint is None
 
 
 async def test_uses_the_configured_model() -> None:
@@ -65,14 +109,14 @@ async def test_uses_the_configured_model() -> None:
     assert client.messages.create.await_args.kwargs["model"] == MODEL
 
 
-async def test_forces_the_shadow_exercise_tool() -> None:
+async def test_lets_the_model_reason_before_calling_the_tool() -> None:
     exercise = make_exercise()
     client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
 
     await generate_shadow_exercise(client, exercise, Course([exercise]))
 
     kwargs = client.messages.create.await_args.kwargs
-    assert kwargs["tool_choice"] == {"type": "tool", "name": _TOOL_NAME}
+    assert kwargs["tool_choice"] == {"type": "auto"}
     assert [tool["name"] for tool in kwargs["tools"]] == [_TOOL_NAME]
 
 
@@ -103,7 +147,61 @@ async def test_sends_the_authoring_guide_as_a_cached_system_block() -> None:
     ]
 
 
-async def test_includes_few_shot_examples_from_the_same_topic_only() -> None:
+async def test_shows_the_scheduled_exercise_as_the_primary_reference_example() -> None:
+    target = make_exercise(word="warten", topic="government", answer="auf")
+    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+
+    await generate_shadow_exercise(client, target, Course([target]))
+
+    prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
+    assert target.question in prompt
+    assert f"answer: {target.answer}" in prompt
+    assert all(distractor in prompt for distractor in target.distractors)
+
+
+async def test_reference_example_is_valid_yaml_matching_the_scheduled_exercise() -> (
+    None
+):
+    target = make_exercise(
+        word="warten", topic="government", answer="auf", recalls=True
+    )
+    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+
+    await generate_shadow_exercise(client, target, Course([target]))
+
+    prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
+    reference_yaml = prompt.split("```yaml\n", 1)[1].split("\n```", 1)[0]
+    parsed = yaml.safe_load(reference_yaml)
+
+    assert parsed == [
+        {
+            "word": target.word,
+            "topic": target.topic,
+            "question": target.question,
+            "answer": target.answer,
+            "distractors": target.distractors,
+            "explanation": target.explanation,
+            "recalls": [
+                {"question": recall.question, "answer": recall.answer}
+                for recall in target.recalls
+            ],
+        }
+    ]
+
+
+async def test_reference_example_includes_the_original_recalls_hint() -> None:
+    target = make_exercise(
+        recalls=[RecallKwargs(hint={"ru": "der Bus — автобус"})],
+    )
+    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+
+    await generate_shadow_exercise(client, target, Course([target]))
+
+    prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
+    assert "der Bus — автобус" in prompt
+
+
+async def test_includes_additional_few_shot_examples_from_the_same_topic_only() -> None:
     target = make_exercise(word="warten", topic="government", answer="auf")
     same_topic = make_exercise(word="hoffen", topic="government", answer="auf")
     other_topic = make_exercise(word="mit", topic="preposition_case", answer="Freund")
@@ -116,7 +214,6 @@ async def test_includes_few_shot_examples_from_the_same_topic_only() -> None:
     prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
     assert same_topic.question in prompt
     assert other_topic.question not in prompt
-    assert target.question not in prompt
 
 
 async def test_limits_few_shot_examples_to_three() -> None:
@@ -154,10 +251,26 @@ async def test_requires_a_tool_use_block_in_the_response() -> None:
 @pytest.mark.parametrize(
     "tool_input",
     [
-        {"explanation": _VALID_INPUT["explanation"]},
-        {"question": _VALID_INPUT["question"]},
-        {"question": 123, "explanation": _VALID_INPUT["explanation"]},
-        {"question": _VALID_INPUT["question"], "explanation": "not a dict"},
+        _without("question"),
+        _without("answer"),
+        _without("distractors"),
+        _without("explanation"),
+        _without("recalls"),
+        {**_VALID_INPUT, "question": 123},
+        {**_VALID_INPUT, "answer": 123},
+        {**_VALID_INPUT, "distractors": "not a list"},
+        {**_VALID_INPUT, "distractors": [1, 2]},
+        {**_VALID_INPUT, "explanation": "not a dict"},
+        {**_VALID_INPUT, "recalls": "not a list"},
+        {**_VALID_INPUT, "recalls": ["not a dict"]},
+        {**_VALID_INPUT, "recalls": [{"question": "x"}]},
+        {**_VALID_INPUT, "recalls": [{"question": "x", "answer": "not a list"}]},
+        {**_VALID_INPUT, "recalls": [{"question": "x", "answer": [1]}]},
+        {
+            **_VALID_INPUT,
+            "recalls": [{"question": "x", "answer": ["y"], "hint": "not a dict"}],
+        },
+        {**_VALID_INPUT, "recalls": [{"question": "x", "answer": []}]},
     ],
 )
 async def test_rejects_a_malformed_tool_response(tool_input: dict) -> None:
@@ -168,12 +281,18 @@ async def test_rejects_a_malformed_tool_response(tool_input: dict) -> None:
         await generate_shadow_exercise(client, exercise, Course([exercise]))
 
 
+async def test_rejects_an_answer_that_matches_a_distractor() -> None:
+    exercise = make_exercise()
+    tool_input = {**_VALID_INPUT, "answer": "für", "distractors": ["für", "an", "um"]}
+    client = _make_client(_make_response(_make_tool_use(tool_input)))
+
+    with pytest.raises(AIGenerationError):
+        await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+
 async def test_rejects_an_incomplete_explanation() -> None:
     exercise = make_exercise()
-    tool_input = {
-        "question": _VALID_INPUT["question"],
-        "explanation": {"ru": "только ru"},
-    }
+    tool_input = {**_VALID_INPUT, "explanation": {"ru": "только ru"}}
     client = _make_client(_make_response(_make_tool_use(tool_input)))
 
     with pytest.raises(AIGenerationError):
@@ -197,7 +316,7 @@ async def test_replaces_the_description_with_the_generated_one() -> None:
         description={"ru": "старое описание", "en": "old description"},
     )
     new_description = {"ru": "новое описание", "en": "new description"}
-    tool_input = {**_VALID_INPUT, "description": new_description}
+    tool_input = {**_VALID_INPUT, "distractors": [], "description": new_description}
     client = _make_client(_make_response(_make_tool_use(tool_input)))
 
     shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
@@ -211,7 +330,8 @@ async def test_rejects_a_missing_description_when_the_original_has_one() -> None
         distractors=[],
         description={"ru": "старое описание", "en": "old description"},
     )
-    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+    tool_input = {**_VALID_INPUT, "distractors": []}
+    client = _make_client(_make_response(_make_tool_use(tool_input)))
 
     with pytest.raises(AIGenerationError):
         await generate_shadow_exercise(client, exercise, Course([exercise]))
@@ -223,7 +343,11 @@ async def test_mentions_the_original_description_in_the_prompt_when_present() ->
         distractors=[],
         description={"ru": "старое описание", "en": "old description"},
     )
-    tool_input = {**_VALID_INPUT, "description": {"ru": "x", "en": "y"}}
+    tool_input = {
+        **_VALID_INPUT,
+        "distractors": [],
+        "description": {"ru": "x", "en": "y"},
+    }
     client = _make_client(_make_response(_make_tool_use(tool_input)))
 
     await generate_shadow_exercise(client, exercise, Course([exercise]))
@@ -239,4 +363,4 @@ async def test_omits_the_description_note_when_the_original_has_none() -> None:
     await generate_shadow_exercise(client, exercise, Course([exercise]))
 
     prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
-    assert "description" not in prompt.lower()
+    assert "This exercise also has a description" not in prompt

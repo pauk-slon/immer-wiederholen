@@ -35,7 +35,14 @@ def load_authoring_guide() -> str | None:
     guide_path = os.environ.get("AUTHORING_GUIDE_PATH")
     if not guide_path:
         return None
-    return Path(guide_path).read_text()
+    guide = Path(guide_path).read_text()
+    # AUTHORING_GUIDE_PATH points at the content repo's whole CLAUDE.md, but
+    # everything from "## Deploying" onward (compose.yaml, DNS, GitHub Pages,
+    # ...) is infra documentation, not exercise-writing guidance — irrelevant
+    # to shadow-exercise generation, and it references local files/repos the
+    # model has no access to anyway. Cut the guide off there, keeping only
+    # the Exercises/Recall sections that precede it.
+    return guide.split("\n## Deploying", 1)[0]
 
 
 def load_bot_course_and_storage() -> tuple[Bot, Course, ScanningRedisStorage]:
