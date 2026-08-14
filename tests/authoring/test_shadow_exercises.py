@@ -28,7 +28,6 @@ def _make_client(response=None, side_effect=None) -> Mock:
 
 _VALID_INPUT = {
     "question": "Ich ___ (der Bus).",
-    "answer": "auf",
     "distractors": ["für", "an", "um"],
     "explanation": {"ru": "новое объяснение", "en": "new explanation"},
     "recalls": [],
@@ -48,28 +47,27 @@ async def test_returns_a_fully_generated_exercise() -> None:
     shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
 
     assert shadow.question == _VALID_INPUT["question"]
-    assert shadow.answer == _VALID_INPUT["answer"]
     assert shadow.distractors == _VALID_INPUT["distractors"]
     assert shadow.explanation == _VALID_INPUT["explanation"]
     assert shadow.recalls == []
 
 
-async def test_preserves_word_and_topic_but_replaces_everything_else() -> None:
-    # Original `answer` deliberately differs from the tool response's, so the
-    # assertions below actually distinguish "replaced" from "coincidentally
-    # equal".
+async def test_preserves_word_topic_and_answer_but_replaces_everything_else() -> None:
     exercise = make_exercise(
-        word="warten", topic="government", answer="hilft", recalls=True
+        word="warten", topic="government", answer="auf", recalls=True
     )
-    tool_input = {**_VALID_INPUT, "answer": "an", "distractors": ["auf", "für", "um"]}
+    tool_input = {**_VALID_INPUT, "distractors": ["hilft", "für", "um"]}
     client = _make_client(_make_response(_make_tool_use(tool_input)))
 
     shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
 
     assert shadow.word == exercise.word
     assert shadow.topic == exercise.topic
-    assert shadow.answer == "an"
-    assert shadow.distractors == ["auf", "für", "um"]
+    # The model's response has no "answer" key at all (see _VALID_INPUT) —
+    # this is what actually proves it's carried over, not just coincidentally
+    # equal to something the tool happened to return.
+    assert shadow.answer == exercise.answer
+    assert shadow.distractors == ["hilft", "für", "um"]
     assert shadow.question != exercise.question
 
 
@@ -252,12 +250,10 @@ async def test_requires_a_tool_use_block_in_the_response() -> None:
     "tool_input",
     [
         _without("question"),
-        _without("answer"),
         _without("distractors"),
         _without("explanation"),
         _without("recalls"),
         {**_VALID_INPUT, "question": 123},
-        {**_VALID_INPUT, "answer": 123},
         {**_VALID_INPUT, "distractors": "not a list"},
         {**_VALID_INPUT, "distractors": [1, 2]},
         {**_VALID_INPUT, "explanation": "not a dict"},
@@ -281,9 +277,9 @@ async def test_rejects_a_malformed_tool_response(tool_input: dict) -> None:
         await generate_shadow_exercise(client, exercise, Course([exercise]))
 
 
-async def test_rejects_an_answer_that_matches_a_distractor() -> None:
-    exercise = make_exercise()
-    tool_input = {**_VALID_INPUT, "answer": "für", "distractors": ["für", "an", "um"]}
+async def test_rejects_distractors_that_include_the_fixed_answer() -> None:
+    exercise = make_exercise(answer="auf")
+    tool_input = {**_VALID_INPUT, "distractors": ["auf", "an", "um"]}
     client = _make_client(_make_response(_make_tool_use(tool_input)))
 
     with pytest.raises(AIGenerationError):
