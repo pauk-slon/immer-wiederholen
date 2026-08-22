@@ -63,7 +63,17 @@ class JournalStore(ABC):
         """
 
     @abstractmethod
-    async def close(self) -> None: ...
+    async def _close(self) -> None: ...
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        # No public close() — releasing whatever a concrete store holds
+        # (a Redis connection, say) is only ever meaningful as part of the
+        # usual `async with SomeStore.from_url(...) as store:` lifecycle, not
+        # as a method callers reach for on their own.
+        await self._close()
 
 
 class RedisJournalStore(JournalStore):
@@ -101,5 +111,5 @@ class RedisJournalStore(JournalStore):
             key = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
             yield key.removeprefix(self._key(""))
 
-    async def close(self) -> None:
+    async def _close(self) -> None:
         await self.redis.aclose(close_connection_pool=True)

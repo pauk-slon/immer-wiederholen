@@ -20,9 +20,10 @@ async def journal_store(
     # redis_storage fixture (tests/plugins/aiogram.py), just a different key
     # namespace ("journal:*") — redis_storage's own flushdb() already covers
     # this one too, so this fixture doesn't repeat it, just needs to run after.
-    store = RedisJournalStore.from_url(os.environ["FSM_STORAGE_URL"])
-    yield store
-    await store.close()
+    # async with, not a bare instance + manual close(): JournalStore has no
+    # public close() at all, only the usual context-manager protocol.
+    async with RedisJournalStore.from_url(os.environ["FSM_STORAGE_URL"]) as store:
+        yield store
 
 
 @pytest.fixture(autouse=True)
