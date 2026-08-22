@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter
+from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.methods import (
     SetMyCommands,
     SetMyDescription,
@@ -22,7 +23,7 @@ from tests.plugins.tutoring import ExerciseData, make_exercise_data
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
-from wiederholen.bot.redis_storage import AiogramFsmStorage
+from wiederholen.journal_backend import JournalBackend
 from wiederholen.tutoring import Course, Tutor
 
 
@@ -110,6 +111,7 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert isinstance(args[0], Bot)
     assert args[0].token == bot_token
     assert isinstance(kwargs["course"], Course)
+    assert isinstance(kwargs["journal_backend"], JournalBackend)
     assert kwargs["feature_flags"] == {}
     assert kwargs["anthropic_client"] is None
     assert kwargs["authoring_guide"] is None
@@ -158,9 +160,9 @@ async def test_configures_redis_storage_from_env(
         await main()
 
     storage = dispatcher.fsm.storage
-    assert isinstance(storage, AiogramFsmStorage)
+    assert isinstance(storage, RedisStorage)
     expected = Redis.from_url(fsm_storage_url).connection_pool.connection_kwargs
-    assert storage.store.redis.connection_pool.connection_kwargs == expected
+    assert storage.redis.connection_pool.connection_kwargs == expected
 
 
 async def test_sets_name_for_all_languages(mock_main_io: MockMainIO) -> None:

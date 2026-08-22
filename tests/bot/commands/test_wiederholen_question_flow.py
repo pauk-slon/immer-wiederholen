@@ -12,6 +12,7 @@ from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import STUDY_MORE, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.i18n import Language
+from wiederholen.journal_backend import JournalBackend
 from wiederholen.tutoring import Course, Exercise, Tutor
 
 
@@ -173,6 +174,8 @@ async def test_shows_both_description_and_topic_instruction_independently(
 async def test_avoids_repeating_previously_shown_question(
     state: FSMContext,
     feed_message: FeedMessage,
+    journal_backend: JournalBackend,
+    chat_id: int,
 ) -> None:
     mit = Exercise(
         word="sprechen",
@@ -190,7 +193,9 @@ async def test_avoids_repeating_previously_shown_question(
         distractors=["mit", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )
-    await state.update_data(journal={"last_exercise": {"question": mit.question}})
+    await journal_backend.save_journal(
+        str(chat_id), {"last_exercise": {"question": mit.question}}
+    )
 
     requests = await feed_message("/wiederholen", course=Course([mit, ueber]))
 
@@ -201,6 +206,8 @@ async def test_avoids_repeating_previously_shown_question(
 async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
     state: FSMContext,
     feed_message: FeedMessage,
+    journal_backend: JournalBackend,
+    chat_id: int,
 ) -> None:
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date()
@@ -217,7 +224,7 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
         }
         for i in range(Tutor.NEW_WORDS_PER_DAY)
     }
-    await state.update_data(journal={"word_schedule": word_schedule})
+    await journal_backend.save_journal(str(chat_id), {"word_schedule": word_schedule})
 
     requests = await feed_message(
         "/wiederholen", course=Course([exercise, *capped_exercises])

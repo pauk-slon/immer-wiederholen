@@ -17,6 +17,7 @@ from wiederholen.bot.pending_buttons import (
     forget_buttoned_message,
     remember_buttoned_message,
 )
+from wiederholen.journal_backend import JournalBackend
 from wiederholen.tutoring import Journal
 
 router = Router()
@@ -53,13 +54,18 @@ async def command_reset(message: Message, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data == RESET_CONFIRM)
-async def handle_reset_confirm(callback: CallbackQuery, state: FSMContext) -> None:
+async def handle_reset_confirm(
+    callback: CallbackQuery,
+    state: FSMContext,
+    journal_backend: JournalBackend,
+) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    journal = state_data.get("journal", {})
+    student_id = str(callback.from_user.id)
+    journal = await journal_backend.get_journal(student_id)
     Journal.reset_progress(journal)
-    await state.update_data(journal=journal)
+    await journal_backend.save_journal(student_id, journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(
             locale.reset_done, reply_markup=make_next_button(locale)

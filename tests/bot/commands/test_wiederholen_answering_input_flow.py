@@ -14,7 +14,7 @@ async def test_correct_answer_shows_success_text(
 ) -> None:
     exercise = make_exercise(distractors=[])
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message(exercise.answer, course=Course([exercise]))
 
@@ -28,7 +28,7 @@ async def test_wrong_answer_shows_correct_answer(
 ) -> None:
     exercise = make_exercise(distractors=[])
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
@@ -42,7 +42,7 @@ async def test_next_button_after_correct_answer(
 ) -> None:
     exercise = make_exercise(distractors=[])
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message(exercise.answer, course=Course([exercise]))
 
@@ -61,7 +61,7 @@ async def test_next_button_after_wrong_answer_without_recall(
 ) -> None:
     exercise = make_exercise(distractors=[], recalls=False)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
@@ -80,7 +80,7 @@ async def test_no_button_after_wrong_answer_with_recall(
 ) -> None:
     exercise = make_exercise(distractors=[], recalls=True)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
@@ -93,7 +93,7 @@ async def test_recall_prompt_sent_after_wrong_answer(
 ) -> None:
     exercise = make_exercise(distractors=[], recalls=True)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
@@ -108,7 +108,7 @@ async def test_next_button_leads_to_input_exercise(
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
     exercise = make_exercise(distractors=[])
-    await state.update_data(language="ru", journal={})
+    await state.update_data(language="ru")
 
     requests = await feed_callback_query(NEXT_EXERCISE, course=Course([exercise]))
 
@@ -125,7 +125,7 @@ async def test_recall_button_after_correct_answer_with_recall(
 ) -> None:
     exercise = make_exercise(distractors=[], recalls=True)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message(exercise.answer, course=Course([exercise]))
 

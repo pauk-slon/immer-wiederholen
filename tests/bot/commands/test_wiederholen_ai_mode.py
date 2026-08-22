@@ -105,7 +105,7 @@ async def test_clicking_next_exercise_shows_typing_while_generating(
 ) -> None:
     first = make_exercise(word="warten")
     second = make_exercise(word="hoffen")
-    await state.update_data(language="ru", journal={}, ai_mode=True)
+    await state.update_data(language="ru", ai_mode=True)
 
     with patch(
         "wiederholen.bot.commands.wiederholen.generate_shadow_exercise",
@@ -184,7 +184,7 @@ async def test_clicking_next_exercise_uses_ai_mode_too(
     first = make_exercise(word="warten")
     second = make_exercise(word="hoffen")
     shadow = _shadow_of(second)
-    await state.update_data(language="ru", journal={}, ai_mode=True)
+    await state.update_data(language="ru", ai_mode=True)
 
     with patch(
         "wiederholen.bot.commands.wiederholen.generate_shadow_exercise",
@@ -207,7 +207,7 @@ async def test_clicking_next_exercise_shows_an_error_when_generation_fails(
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
     exercise = make_exercise()
-    await state.update_data(language="ru", journal={}, ai_mode=True)
+    await state.update_data(language="ru", ai_mode=True)
 
     with patch(
         "wiederholen.bot.commands.wiederholen.generate_shadow_exercise",
@@ -249,7 +249,7 @@ async def test_clicking_next_exercise_does_not_generate_for_an_unlisted_topic(
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
     exercise = make_exercise()
-    await state.update_data(language="ru", journal={}, ai_mode=True)
+    await state.update_data(language="ru", ai_mode=True)
 
     with patch(
         "wiederholen.bot.commands.wiederholen.generate_shadow_exercise",
@@ -272,9 +272,7 @@ async def test_ai_mode_survives_answering_an_exercise(
 ) -> None:
     exercise = make_exercise(recalls=False)
     await state.set_state(UserState.answering)
-    await state.update_data(
-        shown_exercise=exercise.to_dict(), journal={}, ai_mode=True
-    )
+    await state.update_data(shown_exercise=exercise.to_dict(), ai_mode=True)
 
     await feed_message(exercise.answer, course=Course([exercise]))
 
@@ -288,9 +286,7 @@ async def test_ai_mode_survives_a_required_recall_prompt(
 ) -> None:
     exercise = make_exercise(recalls=True)
     await state.set_state(UserState.answering)
-    await state.update_data(
-        shown_exercise=exercise.to_dict(), journal={}, ai_mode=True
-    )
+    await state.update_data(shown_exercise=exercise.to_dict(), ai_mode=True)
 
     await feed_message(exercise.distractors[0], course=Course([exercise]))
 
@@ -306,9 +302,7 @@ async def test_ai_mode_survives_clicking_retry_after_a_wrong_recall(
 ) -> None:
     exercise = make_exercise(recalls=True)
     await state.set_state(UserState.answering)
-    await state.update_data(
-        shown_exercise=exercise.to_dict(), journal={}, ai_mode=True
-    )
+    await state.update_data(shown_exercise=exercise.to_dict(), ai_mode=True)
     await feed_message(exercise.distractors[0], course=Course([exercise]))
 
     await feed_callback_query(RECALL, course=Course([exercise]))
@@ -326,7 +320,6 @@ async def test_ai_mode_survives_completing_a_recall(
     await state.update_data(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
-        journal={},
         ai_mode=True,
     )
 

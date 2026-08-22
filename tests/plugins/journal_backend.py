@@ -1,0 +1,33 @@
+import os
+from collections.abc import AsyncIterator
+
+import pytest
+from aiogram import Dispatcher
+from aiogram.fsm.storage.redis import RedisStorage
+
+from wiederholen.journal_backend import JournalBackend, RedisJournalBackend
+
+
+@pytest.fixture
+async def journal_backend(
+    redis_storage: RedisStorage,
+) -> AsyncIterator[JournalBackend]:
+    # Depends on redis_storage purely for flush ordering: it shares the same
+    # Redis/DB (and the same --fsm-storage-db-override pin) as the
+    # redis_storage fixture (tests/plugins/aiogram.py), just a different key
+    # namespace ("journal:*") — redis_storage's own flushdb() already covers
+    # this one too, so this fixture doesn't repeat it, just needs to run after.
+    backend = RedisJournalBackend.from_url(os.environ["FSM_STORAGE_URL"])
+    yield backend
+    await backend.close()
+
+
+@pytest.fixture(autouse=True)
+def _set_journal_backend(
+    dispatcher: Dispatcher, journal_backend: JournalBackend
+) -> None:
+    # Registered as permanent workflow data (like dispatcher.fsm.storage),
+    # not a per-call feed_message(..., journal_backend=...) kwarg the way
+    # course is — unlike course, it's the same piece of infrastructure for
+    # every test, not per-test data.
+    dispatcher["journal_backend"] = journal_backend

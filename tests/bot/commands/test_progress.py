@@ -8,6 +8,7 @@ from tests.plugins.aiogram import FeedMessage
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU, format_count
+from wiederholen.journal_backend import JournalBackend
 from wiederholen.tutoring import Course
 
 
@@ -48,6 +49,8 @@ async def test_responds_in_current_language(
 async def test_reflects_journal_breakdown(
     state: FSMContext,
     feed_message: FeedMessage,
+    journal_backend: JournalBackend,
+    chat_id: int,
 ) -> None:
     new = make_exercise(word="warten")
     learning = make_exercise(word="hoffen")
@@ -72,7 +75,7 @@ async def test_reflects_journal_breakdown(
             },
         }
     }
-    await state.update_data(journal=journal)
+    await journal_backend.save_journal(str(chat_id), journal)
 
     requests = await feed_message("/progress", course=Course([new, learning, mastered]))
 
@@ -90,11 +93,13 @@ async def test_reflects_journal_breakdown(
 async def test_reflects_todays_answer_count(
     state: FSMContext,
     feed_message: FeedMessage,
+    journal_backend: JournalBackend,
+    chat_id: int,
 ) -> None:
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date().isoformat()
     journal = {"today_answers": {"date": today, "answered": 12, "correct": 9}}
-    await state.update_data(journal=journal)
+    await journal_backend.save_journal(str(chat_id), journal)
 
     requests = await feed_message("/progress", course=Course([exercise]))
 

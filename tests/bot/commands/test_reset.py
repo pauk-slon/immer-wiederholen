@@ -6,6 +6,7 @@ from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
+from wiederholen.journal_backend import JournalBackend
 from wiederholen.tutoring import Course
 
 
@@ -37,28 +38,36 @@ async def test_reset_command_responds_in_current_language(
 async def test_confirming_reset_clears_schedule_only(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
+    journal_backend: JournalBackend,
+    chat_id: int,
 ) -> None:
-    await state.update_data(
-        journal={
+    await journal_backend.save_journal(
+        str(chat_id),
+        {
             "word_schedule": {"warten": {"government": {}}},
             "last_exercise": {"is_recall_optional": False},
-        }
+        },
     )
 
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_done
-    data = await state.get_data()
-    assert data["journal"]["word_schedule"] == {}
-    assert data["journal"]["last_exercise"]["is_recall_optional"] is False
+    journal = await journal_backend.get_journal(str(chat_id))
+    assert journal["word_schedule"] == {}
+    assert journal["last_exercise"]["is_recall_optional"] is False
 
 
 async def test_confirming_reset_preserves_language(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
+    journal_backend: JournalBackend,
+    chat_id: int,
 ) -> None:
-    await state.update_data(language="en", journal={"word_schedule": {"x": {"y": {}}}})
+    await state.update_data(language="en")
+    await journal_backend.save_journal(
+        str(chat_id), {"word_schedule": {"x": {"y": {}}}}
+    )
 
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
@@ -66,22 +75,24 @@ async def test_confirming_reset_preserves_language(
     assert requests[0].text == EN.reset_done
     data = await state.get_data()
     assert data["language"] == "en"
-    assert data["journal"]["word_schedule"] == {}
+    journal = await journal_backend.get_journal(str(chat_id))
+    assert journal["word_schedule"] == {}
 
 
 async def test_cancelling_reset_keeps_journal(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
+    journal_backend: JournalBackend,
+    chat_id: int,
 ) -> None:
     journal = {"word_schedule": {"warten": {"government": {}}}}
-    await state.update_data(journal=journal)
+    await journal_backend.save_journal(str(chat_id), journal)
 
     requests = await feed_callback_query(RESET_CANCEL, course=Course([]))
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_cancelled
-    data = await state.get_data()
-    assert data["journal"] == journal
+    assert await journal_backend.get_journal(str(chat_id)) == journal
 
 
 async def test_reset_command_clears_a_stale_button_left_from_wiederholen(
@@ -108,11 +119,8 @@ async def test_reset_command_remembers_its_own_confirm_buttons(
 
 
 async def test_confirming_reset_offers_a_next_exercise_button(
-    state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
-    await state.update_data(journal={})
-
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
     edit_text = next(r for r in requests if hasattr(r, "text"))
@@ -129,7 +137,7 @@ async def test_confirming_reset_remembers_its_next_exercise_button(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
-    await state.update_data(journal={}, last_buttoned_message_id=1)
+    await state.update_data(last_buttoned_message_id=1)
 
     await feed_callback_query(RESET_CONFIRM, course=Course([]))
 

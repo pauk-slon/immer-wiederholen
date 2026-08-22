@@ -9,6 +9,7 @@ from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     remember_buttoned_message,
 )
+from wiederholen.journal_backend import JournalBackend
 from wiederholen.tutoring import Course, Tutor
 
 router = Router()
@@ -19,11 +20,14 @@ async def command_progress(
     message: Message,
     state: FSMContext,
     course: Course,
+    journal_backend: JournalBackend,
 ) -> None:
     await clear_stale_buttons(message, state)
     data = await state.get_data()
     language = get_language(data)
-    journal = data.get("journal", {})
+    # progress() is read-only (see wiederholen.tutoring.session), so there's
+    # nothing to save back here.
+    journal = await journal_backend.get_journal(str(message.chat.id))
     locale = LOCALES[language]
     progress = Tutor(course, journal).progress()
     sent = await message.answer(
