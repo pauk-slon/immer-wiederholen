@@ -8,6 +8,7 @@ from aiogram.types import (
 )
 
 from tests.plugins.aiogram import FeedMessage
+from tests.plugins.journal_backend import seed_journal
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import STUDY_MORE, UserState
 from wiederholen.bot.l10n import RU
@@ -193,8 +194,8 @@ async def test_avoids_repeating_previously_shown_question(
         distractors=["mit", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )
-    await journal_backend.save(
-        str(chat_id), {"last_exercise": {"question": mit.question}}
+    await seed_journal(
+        journal_backend, str(chat_id), {"last_exercise": {"question": mit.question}}
     )
 
     requests = await feed_message("/wiederholen", course=Course([mit, ueber]))
@@ -224,7 +225,7 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
         }
         for i in range(Tutor.NEW_WORDS_PER_DAY)
     }
-    await journal_backend.save(str(chat_id), {"word_schedule": word_schedule})
+    await seed_journal(journal_backend, str(chat_id), {"word_schedule": word_schedule})
 
     requests = await feed_message(
         "/wiederholen", course=Course([exercise, *capped_exercises])

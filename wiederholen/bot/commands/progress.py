@@ -25,11 +25,11 @@ async def command_progress(
     await clear_stale_buttons(message, state)
     data = await state.get_data()
     language = get_language(data)
-    # progress() is read-only (see wiederholen.tutoring.session), so there's
-    # nothing to save back here.
-    journal = await journal_backend.get(str(message.chat.id))
     locale = LOCALES[language]
-    progress = Tutor(course, journal).progress()
+    # progress() is read-only (see wiederholen.tutoring.session) — open()
+    # detects that nothing changed and skips the write on its own.
+    async with journal_backend.open(str(message.chat.id)) as journal:
+        progress = Tutor(course, journal).progress()
     sent = await message.answer(
         locale.progress_text.format(
             remaining_today=format_count(

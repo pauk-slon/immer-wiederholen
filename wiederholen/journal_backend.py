@@ -15,6 +15,7 @@ touches this or any other storage itself — it only ever receives a plain
 transport and `Tutor`.
 """
 
+import copy
 import json
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
@@ -26,37 +27,39 @@ from redis.asyncio import Redis
 
 class JournalBackend(ABC):
     @abstractmethod
-    async def get(self, student_id: str) -> dict:
+    async def _get(self, student_id: str) -> dict:
         """The student's journal dict, or `{}` if they have none yet."""
 
     @abstractmethod
-    async def save(self, student_id: str, journal: dict) -> None:
+    async def _save(self, student_id: str, journal: dict) -> None:
         """Overwrite the student's journal dict wholesale."""
 
     @asynccontextmanager
-    async def session(self, student_id: str) -> AsyncIterator[dict]:
-        """Fetch a student's journal, yield it for in-place mutation via
-        `Tutor`, and save it back unconditionally on exit — including when
-        the body raises, so a mutation already applied (e.g. `check_answer()`
-        recording an answer) isn't silently lost just because something
-        *after* it, like sending a reply, failed. Built on `get()`/`save()`
-        alone — no subclass needs to override this.
-
-        Not the right tool for a genuinely read-only caller, or one with its
-        own conditional-save logic — those call `get()`/`save()` directly
-        instead.
+    async def open(self, student_id: str) -> AsyncIterator[dict]:
+        """Fetch a student's journal and yield it for in-place mutation via
+        `Tutor`. Saved back on exit only if it actually changed from what was
+        fetched — regardless of whether the body raised, so a mutation
+        already applied (e.g. `check_answer()` recording an answer) isn't
+        lost just because something *after* it, like sending a reply, failed;
+        and a caller that only reads never triggers a write at all. This is
+        the sole public way to read or write one student's journal — built on
+        `_get()`/`_save()` alone, which no caller outside this class needs
+        directly.
         """
-        journal = await self.get(student_id)
+        journal = await self._get(student_id)
+        before = copy.deepcopy(journal)
         try:
             yield journal
         finally:
-            await self.save(student_id, journal)
+            if journal != before:
+                await self._save(student_id, journal)
 
     @abstractmethod
-    def __aiter__(self) -> AsyncIterator[tuple[str, dict]]:
-        """Every student with a stored journal, alongside their `student_id`
-        — the only way to discover which students exist at all, for a caller
-        that needs to sweep all of them (there's no separate registry).
+    def __aiter__(self) -> AsyncIterator[str]:
+        """Every `student_id` with a stored journal — the only way to
+        discover which students exist at all, for a caller that needs to
+        sweep all of them (there's no separate registry). Read a given
+        student's journal itself via `open()`.
         """
 
     @abstractmethod
@@ -75,7 +78,7 @@ class RedisJournalBackend(JournalBackend):
     def _key(student_id: str) -> str:
         return f"journal:{student_id}"
 
-    async def get(self, student_id: str) -> dict:
+    async def _get(self, student_id: str) -> dict:
         value = await self.redis.get(self._key(student_id))
         if value is None:
             return {}
@@ -83,7 +86,7 @@ class RedisJournalBackend(JournalBackend):
             value = value.decode("utf-8")
         return json.loads(value)
 
-    async def save(self, student_id: str, journal: dict) -> None:
+    async def _save(self, student_id: str, journal: dict) -> None:
         key = self._key(student_id)
         if not journal:
             # An empty journal is stored as "no key at all" rather than a
@@ -93,11 +96,10 @@ class RedisJournalBackend(JournalBackend):
             return
         await self.redis.set(key, json.dumps(journal))
 
-    async def __aiter__(self) -> AsyncIterator[tuple[str, dict]]:
+    async def __aiter__(self) -> AsyncIterator[str]:
         async for raw_key in self.redis.scan_iter(match=self._key("*")):
             key = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
-            student_id = key.removeprefix(self._key(""))
-            yield student_id, await self.get(student_id)
+            yield key.removeprefix(self._key(""))
 
     async def close(self) -> None:
         await self.redis.aclose(close_connection_pool=True)

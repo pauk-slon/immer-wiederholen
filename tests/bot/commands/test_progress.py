@@ -5,6 +5,7 @@ from aiogram.methods import EditMessageReplyMarkup
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedMessage
+from tests.plugins.journal_backend import seed_journal
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU, format_count
@@ -75,7 +76,7 @@ async def test_reflects_journal_breakdown(
             },
         }
     }
-    await journal_backend.save(str(chat_id), journal)
+    await seed_journal(journal_backend, str(chat_id), journal)
 
     requests = await feed_message("/progress", course=Course([new, learning, mastered]))
 
@@ -99,7 +100,7 @@ async def test_reflects_todays_answer_count(
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date().isoformat()
     journal = {"today_answers": {"date": today, "answered": 12, "correct": 9}}
-    await journal_backend.save(str(chat_id), journal)
+    await seed_journal(journal_backend, str(chat_id), journal)
 
     requests = await feed_message("/progress", course=Course([exercise]))
 
