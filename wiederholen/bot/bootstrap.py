@@ -5,14 +5,14 @@ from aiogram import Bot
 from aiogram.fsm.storage.redis import RedisStorage
 from anthropic import AsyncAnthropic
 
-from wiederholen.journal_backend import JournalBackend, RedisJournalBackend
+from wiederholen.journal_store import JournalStore, RedisJournalStore
 from wiederholen.tutoring import Course
 
 from .feature_flags import parse_feature_flags
 
 
-def load_journal_backend() -> JournalBackend:
-    return RedisJournalBackend.from_url(os.environ["FSM_STORAGE_URL"])
+def load_journal_store() -> JournalStore:
+    return RedisJournalStore.from_url(os.environ["FSM_STORAGE_URL"])
 
 
 def load_feature_flags() -> dict[str, frozenset[int]]:
@@ -46,7 +46,7 @@ def load_authoring_guide() -> str | None:
     return guide.split("\n## Deploying", 1)[0]
 
 
-def load_bot_course_and_storage() -> tuple[Bot, Course, RedisStorage, JournalBackend]:
+def load_bot_course_and_storage() -> tuple[Bot, Course, RedisStorage, JournalStore]:
     # Shared by both wiederholen.bot.__main__.main() (polling bot) and
     # wiederholen.bot.reminder.main() (reminder worker) — both processes need
     # all four: the reminder worker has no aiogram routers of its own, but
@@ -56,4 +56,4 @@ def load_bot_course_and_storage() -> tuple[Bot, Course, RedisStorage, JournalBac
     course = Course.load(Path(os.environ.get("COURSE_PATH", "data")))
     bot = Bot(token=token)
     storage_url = os.environ["FSM_STORAGE_URL"]
-    return bot, course, RedisStorage.from_url(storage_url), load_journal_backend()
+    return bot, course, RedisStorage.from_url(storage_url), load_journal_store()

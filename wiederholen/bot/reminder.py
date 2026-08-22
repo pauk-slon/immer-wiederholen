@@ -6,7 +6,7 @@ from aiogram.exceptions import TelegramForbiddenError
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 
-from wiederholen.journal_backend import JournalBackend
+from wiederholen.journal_store import JournalStore
 from wiederholen.tutoring import Course, Tutor
 
 from .bootstrap import load_bot_course_and_storage
@@ -21,7 +21,7 @@ POLL_INTERVAL_SECONDS = 15 * 60
 async def _remind_chat(
     bot: Bot,
     fsm_storage: RedisStorage,
-    journal_backend: JournalBackend,
+    journal_store: JournalStore,
     course: Course,
     chat_id: int,
 ) -> None:
@@ -29,7 +29,7 @@ async def _remind_chat(
         "reminder.check_chat",
         attributes={"telegram.chat_id": chat_id, "reminder.sent": False},
     ) as span:
-        async with journal_backend.open(str(chat_id)) as journal:
+        async with journal_store.open(str(chat_id)) as journal:
             tutor = Tutor(course, journal)
             if not tutor.should_remind():
                 return
@@ -47,7 +47,7 @@ async def _remind_chat(
                 return
             span.set_attribute("reminder.sent", True)
             tutor.record_reminder_sent()
-            # No explicit save here — journal_backend.open() persists the
+            # No explicit save here — journal_store.open() persists the
             # record_reminder_sent() mutation on exit; the two early returns
             # above left the journal untouched, so open() writes nothing for
             # them.
@@ -56,14 +56,14 @@ async def _remind_chat(
 async def tick(
     bot: Bot,
     fsm_storage: RedisStorage,
-    journal_backend: JournalBackend,
+    journal_store: JournalStore,
     course: Course,
 ) -> None:
     with default_tracer.start_as_current_span("reminder.tick"):
-        async for student_id in journal_backend:
+        async for student_id in journal_store:
             chat_id = int(student_id)
             try:
-                await _remind_chat(bot, fsm_storage, journal_backend, course, chat_id)
+                await _remind_chat(bot, fsm_storage, journal_store, course, chat_id)
             except Exception:
                 logger.exception("Failed to process reminder for chat %s", chat_id)
 
@@ -71,19 +71,19 @@ async def tick(
 async def run(
     bot: Bot,
     fsm_storage: RedisStorage,
-    journal_backend: JournalBackend,
+    journal_store: JournalStore,
     course: Course,
 ) -> None:
     while True:
-        await tick(bot, fsm_storage, journal_backend, course)
+        await tick(bot, fsm_storage, journal_store, course)
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
 
 
 async def main() -> None:
     configure_tracing()
     instrument_redis()
-    bot, course, fsm_storage, journal_backend = load_bot_course_and_storage()
-    await run(bot, fsm_storage, journal_backend, course)
+    bot, course, fsm_storage, journal_store = load_bot_course_and_storage()
+    await run(bot, fsm_storage, journal_store, course)
 
 
 if __name__ == "__main__":  # pragma: no cover

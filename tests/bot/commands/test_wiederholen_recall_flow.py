@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.journal_backend import ReadJournal, SeedJournal
+from tests.plugins.journal_store import ReadJournal, SeedJournal
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU

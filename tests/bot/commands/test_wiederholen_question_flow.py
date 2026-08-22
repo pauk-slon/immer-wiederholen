@@ -8,7 +8,7 @@ from aiogram.types import (
 )
 
 from tests.plugins.aiogram import FeedMessage
-from tests.plugins.journal_backend import SeedJournal
+from tests.plugins.journal_store import SeedJournal
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import STUDY_MORE, UserState
 from wiederholen.bot.l10n import RU

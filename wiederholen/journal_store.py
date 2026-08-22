@@ -1,4 +1,4 @@
-"""An abstract, transport-agnostic backend for exactly one thing: the journal
+"""An abstract, transport-agnostic store for exactly one thing: the journal
 dict `wiederholen.tutoring.Journal`/`Tutor` operate on, addressed by a plain
 string `student_id` — for the Telegram bot that's `str(chat_id)`, for any
 future non-Telegram frontend (a web chat, say) it'd be whatever notion of
@@ -25,7 +25,7 @@ from typing import Self
 from redis.asyncio import Redis
 
 
-class JournalBackend(ABC):
+class JournalStore(ABC):
     @abstractmethod
     async def _get(self, student_id: str) -> dict:
         """The student's journal dict, or `{}` if they have none yet."""
@@ -66,7 +66,7 @@ class JournalBackend(ABC):
     async def close(self) -> None: ...
 
 
-class RedisJournalBackend(JournalBackend):
+class RedisJournalStore(JournalStore):
     def __init__(self, redis: Redis) -> None:
         self.redis = redis
 

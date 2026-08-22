@@ -5,7 +5,7 @@ from aiogram.methods import EditMessageReplyMarkup
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedMessage
-from tests.plugins.journal_backend import SeedJournal
+from tests.plugins.journal_store import SeedJournal
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU, format_count

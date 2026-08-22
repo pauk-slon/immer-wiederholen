@@ -3,7 +3,7 @@ from aiogram.methods import EditMessageReplyMarkup
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.journal_backend import ReadJournal, SeedJournal
+from tests.plugins.journal_store import ReadJournal, SeedJournal
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU

@@ -32,7 +32,7 @@ from wiederholen.bot.pending_buttons import (
 )
 from wiederholen.bot.tracing import record_tutoring_events
 from wiederholen.i18n import Language
-from wiederholen.journal_backend import JournalBackend
+from wiederholen.journal_store import JournalStore
 from wiederholen.tutoring import Course, Exercise, Recall, RecallMode, Tutor
 
 router = Router()
@@ -109,9 +109,9 @@ async def _start_recall(
     *,
     ai_mode: bool,
 ) -> None:
-    # journal is mutated in place; whichever journal_backend.open() the
+    # journal is mutated in place; whichever journal_store.open() the
     # caller opened it under persists it on exit — this function itself
-    # never touches the backend.
+    # never touches the store.
     tutor = Tutor(course, journal)
     recall = tutor.request_recall(shown_exercise)
     await state.set_state(UserState.recalling)
@@ -233,7 +233,7 @@ async def command_wiederholen(
     message: Message,
     state: FSMContext,
     course: Course,
-    journal_backend: JournalBackend,
+    journal_store: JournalStore,
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
@@ -246,7 +246,7 @@ async def command_wiederholen(
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
-    async with journal_backend.open(str(message.chat.id)) as journal:
+    async with journal_store.open(str(message.chat.id)) as journal:
         tutor = Tutor(course, journal)
         exercise, events = tutor.next_exercise()
         record_tutoring_events(events)
@@ -292,7 +292,7 @@ async def handle_answer(
     message: Message,
     state: FSMContext,
     course: Course,
-    journal_backend: JournalBackend,
+    journal_store: JournalStore,
 ) -> None:
     state_data = await state.get_data()
     ai_mode = state_data.get("ai_mode", False)
@@ -301,7 +301,7 @@ async def handle_answer(
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
-    async with journal_backend.open(str(message.chat.id)) as journal:
+    async with journal_store.open(str(message.chat.id)) as journal:
         tutor = Tutor(course, journal)
         mark, events = tutor.check_answer(shown_exercise, message.text or "")
         record_tutoring_events(events)
@@ -348,7 +348,7 @@ async def handle_recall(
     message: Message,
     state: FSMContext,
     course: Course,
-    journal_backend: JournalBackend,
+    journal_store: JournalStore,
 ) -> None:
     state_data = await state.get_data()
     ai_mode = state_data.get("ai_mode", False)
@@ -365,7 +365,7 @@ async def handle_recall(
     # check_recall() is pure (never mutates journal), unlike request_recall()
     # in _start_recall() above — open() detects that nothing changed and
     # skips the write on its own, no separate read-only path needed here.
-    async with journal_backend.open(str(message.chat.id)) as journal:
+    async with journal_store.open(str(message.chat.id)) as journal:
         tutor = Tutor(course, journal)
         if tutor.check_recall(shown_recall, message.text or ""):
             sent = await message.answer(
@@ -395,8 +395,8 @@ async def _respond_with_next_exercise(
     authoring_guide: str | None,
 ) -> None:
     # tutor already wraps the journal its caller opened via
-    # journal_backend.open() — this function only ever mutates through
-    # tutor, so it never needs the backend itself.
+    # journal_store.open() — this function only ever mutates through
+    # tutor, so it never needs the store itself.
     exercise, events = tutor.next_exercise()
     record_tutoring_events(events)
     if exercise is None:
@@ -449,14 +449,14 @@ async def handle_next_exercise(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
-    journal_backend: JournalBackend,
+    journal_store: JournalStore,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    async with journal_backend.open(str(callback.from_user.id)) as journal:
+    async with journal_store.open(str(callback.from_user.id)) as journal:
         tutor = Tutor(course, journal)
         await _respond_with_next_exercise(
             callback,
@@ -476,14 +476,14 @@ async def handle_study_more(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
-    journal_backend: JournalBackend,
+    journal_store: JournalStore,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    async with journal_backend.open(str(callback.from_user.id)) as journal:
+    async with journal_store.open(str(callback.from_user.id)) as journal:
         tutor = Tutor(course, journal)
         tutor.grant_new_word_budget()
         await _respond_with_next_exercise(
@@ -504,7 +504,7 @@ async def handle_recall_request(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
-    journal_backend: JournalBackend,
+    journal_store: JournalStore,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -513,7 +513,7 @@ async def handle_recall_request(
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
-        async with journal_backend.open(str(callback.from_user.id)) as journal:
+        async with journal_store.open(str(callback.from_user.id)) as journal:
             await _start_recall(
                 state,
                 language,

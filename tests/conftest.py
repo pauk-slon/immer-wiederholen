@@ -10,7 +10,7 @@ pytest_plugins = [
     "tests.plugins.tracing",
     "tests.plugins.telegram",
     "tests.plugins.aiogram",
-    "tests.plugins.journal_backend",
+    "tests.plugins.journal_store",
     "tests.plugins.tutoring",
 ]
 
