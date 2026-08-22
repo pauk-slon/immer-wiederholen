@@ -15,16 +15,20 @@ type ReadStudentRecord = Callable[[str], Awaitable[dict]]
 async def student_record_book(
     redis_storage: RedisStorage,
 ) -> AsyncIterator[StudentRecordBook]:
-    # Depends on redis_storage purely for flush ordering: it shares the same
-    # Redis/DB (and the same --redis-db-override pin) as the redis_storage
-    # fixture (tests/plugins/aiogram.py) today, just a different key namespace
-    # ("student_record:*") and its own env var (STUDENT_RECORD_STORAGE_URL) —
-    # redis_storage's own flushdb() already covers this one too, so this
-    # fixture doesn't repeat it, just needs to run after.
+    # Flushes its own DB rather than relying on redis_storage's flushdb() to
+    # incidentally cover it too: STUDENT_RECORD_STORAGE_URL and
+    # FSM_STORAGE_URL happen to point at the same DB in local dev/compose,
+    # but nothing guarantees that in every environment (e.g. CI can and does
+    # point them at different DB numbers to prove the two stores are
+    # genuinely independent) — piggybacking on a same-DB assumption would
+    # silently stop cleaning this store the moment that assumption stops
+    # holding. redis_storage is still depended on for fixture ordering
+    # relative to _reset_storage, not for its flush.
     # async with, not a bare instance + manual close(): StudentRecordBook has no
     # public close() at all, only the usual context-manager protocol.
     url = os.environ["STUDENT_RECORD_STORAGE_URL"]
     async with RedisStudentRecordBook.from_url(url) as store:
+        await store.redis.flushdb()
         yield store
 
 
