@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter
-from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.methods import (
     SetMyCommands,
     SetMyDescription,
@@ -23,6 +22,7 @@ from tests.plugins.tutoring import ExerciseData, make_exercise_data
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
+from wiederholen.bot.redis_storage import AiogramFsmStorage
 from wiederholen.tutoring import Course, Tutor
 
 
@@ -158,9 +158,9 @@ async def test_configures_redis_storage_from_env(
         await main()
 
     storage = dispatcher.fsm.storage
-    assert isinstance(storage, RedisStorage)
+    assert isinstance(storage, AiogramFsmStorage)
     expected = Redis.from_url(fsm_storage_url).connection_pool.connection_kwargs
-    assert storage.redis.connection_pool.connection_kwargs == expected
+    assert storage.store.redis.connection_pool.connection_kwargs == expected
 
 
 async def test_sets_name_for_all_languages(mock_main_io: MockMainIO) -> None:

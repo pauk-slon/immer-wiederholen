@@ -1,54 +1,65 @@
-import re
-from collections.abc import AsyncIterator
-from typing import Any, Self, cast
+from collections.abc import Mapping
+from typing import Any, cast
 
-from aiogram.fsm.storage.base import StorageKey
-from aiogram.fsm.storage.redis import RedisStorage
+from aiogram.fsm.state import State
+from aiogram.fsm.storage.base import BaseStorage, StateType, StorageKey
+
+from wiederholen.students import StudentStore
 
 
-class ScanningRedisStorage(RedisStorage):
-    _CHAT_ID_MARKER = "\x00CHAT_ID\x00"
-    _USER_ID_MARKER = "\x00USER_ID\x00"
+class AiogramFsmStorage(BaseStorage):
+    """Thin aiogram `BaseStorage` adapter over `StudentStore` — the only piece
+    of this codebase that still knows aiogram's `StorageKey` shape. Everything
+    it stores lives in `StudentStore` under the plain `str(chat_id)` a Telegram
+    private chat already uniquely identifies (bot_id/user_id are dropped, same
+    as this bot has always effectively assumed).
 
-    @classmethod
-    def from_url(
-        cls,
-        url: str,
-        connection_kwargs: dict[str, Any] | None = None,
-        **kwargs: Any,
-    ) -> Self:
-        # RedisStorage.from_url is annotated to return RedisStorage, not Self.
-        return cast(Self, super().from_url(url, connection_kwargs, **kwargs))
+    aiogram's own state-name concept (the `UserState.answering`/`.recalling`
+    a router filters on) is folded into the same per-student JSON blob
+    `StudentStore` already holds the rest of the data in, under one reserved
+    key, rather than a separate Redis key the way aiogram's own `RedisStorage`
+    keeps it — `get_data()`/`set_data()` read/write around it so callers never
+    see it. This isn't materially less atomic than today: `BaseStorage.
+    update_data()` (which every `state.update_data(...)` call in
+    `wiederholen.bot.commands` goes through) is itself already an unguarded
+    get-then-set over `get_data`/`set_data`, so folding state into the same
+    blob doesn't introduce a race that wasn't already there.
+    """
 
-    def _scan_pattern_and_regex(self, bot_id: int) -> tuple[str, re.Pattern[str]]:
-        marker_key = StorageKey(
-            bot_id=bot_id,
-            chat_id=self._CHAT_ID_MARKER,  # ty: ignore[invalid-argument-type]
-            user_id=self._USER_ID_MARKER,  # ty: ignore[invalid-argument-type]
-        )
-        built = self.key_builder.build(marker_key, "data")
-        pattern = built.replace(self._CHAT_ID_MARKER, "*").replace(
-            self._USER_ID_MARKER, "*"
-        )
-        regex_source = (
-            re.escape(built)
-            .replace(re.escape(self._CHAT_ID_MARKER), r"(?P<chat_id>-?\d+)")
-            .replace(re.escape(self._USER_ID_MARKER), r"-?\d+")
-        )
-        return pattern, re.compile(regex_source)
+    _STATE_FIELD = "__state__"
 
-    async def iter_fsm_data(self, bot_id: int) -> AsyncIterator[tuple[int, dict]]:
-        pattern, chat_id_regex = self._scan_pattern_and_regex(bot_id)
-        seen: set[int] = set()
-        async for raw_key in self.redis.scan_iter(match=pattern):
-            key = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
-            match = chat_id_regex.fullmatch(key)
-            if match is None:
-                continue
-            chat_id = int(match.group("chat_id"))
-            if chat_id in seen:
-                continue
-            seen.add(chat_id)
-            storage_key = StorageKey(bot_id=bot_id, chat_id=chat_id, user_id=chat_id)
-            data = await self.get_data(storage_key)
-            yield chat_id, data
+    def __init__(self, store: StudentStore) -> None:
+        self.store = store
+
+    @staticmethod
+    def _student_id(key: StorageKey) -> str:
+        return str(key.chat_id)
+
+    async def get_data(self, key: StorageKey) -> dict[str, Any]:
+        data = await self.store.get(self._student_id(key))
+        data.pop(self._STATE_FIELD, None)
+        return data
+
+    async def set_data(self, key: StorageKey, data: Mapping[str, Any]) -> None:
+        student_id = self._student_id(key)
+        current = await self.store.get(student_id)
+        new_data = dict(data)
+        if self._STATE_FIELD in current:
+            new_data[self._STATE_FIELD] = current[self._STATE_FIELD]
+        await self.store.set(student_id, new_data)
+
+    async def get_state(self, key: StorageKey) -> str | None:
+        data = await self.store.get(self._student_id(key))
+        return cast(str | None, data.get(self._STATE_FIELD))
+
+    async def set_state(self, key: StorageKey, state: StateType = None) -> None:
+        student_id = self._student_id(key)
+        data = await self.store.get(student_id)
+        if state is None:
+            data.pop(self._STATE_FIELD, None)
+        else:
+            data[self._STATE_FIELD] = state.state if isinstance(state, State) else state
+        await self.store.set(student_id, data)
+
+    async def close(self) -> None:
+        await self.store.close()

@@ -1,6 +1,6 @@
 import itertools
 import os
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -14,8 +14,8 @@ from aiogram.methods import SendMessage, TelegramMethod
 from aiogram.types import Chat, Message
 
 from wiederholen.bot import dispatcher as _dp
-from wiederholen.bot.bootstrap import load_storage
-from wiederholen.bot.redis_storage import ScanningRedisStorage
+from wiederholen.bot.redis_storage import AiogramFsmStorage
+from wiederholen.students import StudentStore
 
 from .telegram import CallbackQueryFactory, MessageFactory
 
@@ -120,13 +120,13 @@ def state(bot: Bot, dispatcher: Dispatcher, user_id: int, chat_id: int) -> FSMCo
 
 
 @pytest.fixture
-async def redis_storage() -> AsyncIterator[ScanningRedisStorage]:
-    storage = load_storage()
-    await storage.redis.flushdb()
-    yield storage
-    await storage.close()
+def redis_storage(student_store: StudentStore) -> AiogramFsmStorage:
+    # student_store already owns flush-before/close-after against the same
+    # underlying StudentStore — this just wraps it for aiogram's BaseStorage
+    # interface, so it doesn't repeat either.
+    return AiogramFsmStorage(student_store)
 
 
 @pytest.fixture(autouse=True)
-def _reset_storage(dispatcher: Dispatcher, redis_storage: ScanningRedisStorage) -> None:
+def _reset_storage(dispatcher: Dispatcher, redis_storage: AiogramFsmStorage) -> None:
     dispatcher.fsm.storage = redis_storage

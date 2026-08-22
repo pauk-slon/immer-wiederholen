@@ -3,14 +3,12 @@ import logging
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.base import BaseStorage, StorageKey
 
+from wiederholen.students import StudentStore
 from wiederholen.tutoring import Course, Tutor
 
-from .bootstrap import load_bot_course_and_storage
+from .bootstrap import load_reminder_course_and_store
 from .l10n import LOCALES, get_language
-from .redis_storage import ScanningRedisStorage
 from .tracing import configure_tracing, default_tracer, instrument_redis
 
 logger = logging.getLogger(__name__)
@@ -20,7 +18,7 @@ POLL_INTERVAL_SECONDS = 15 * 60
 
 async def _remind_chat(
     bot: Bot,
-    storage: BaseStorage,
+    store: StudentStore,
     course: Course,
     chat_id: int,
     data: dict,
@@ -41,30 +39,30 @@ async def _remind_chat(
             return
         span.set_attribute("reminder.sent", True)
         tutor.record_reminder_sent()
-        key = StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=chat_id)
-        await FSMContext(storage=storage, key=key).update_data(journal=journal)
+        await store.set(str(chat_id), data)
 
 
-async def tick(bot: Bot, storage: ScanningRedisStorage, course: Course) -> None:
+async def tick(bot: Bot, store: StudentStore, course: Course) -> None:
     with default_tracer.start_as_current_span("reminder.tick"):
-        async for chat_id, data in storage.iter_fsm_data(bot.id):
+        async for student_id, data in store.iter_items():
+            chat_id = int(student_id)
             try:
-                await _remind_chat(bot, storage, course, chat_id, data)
+                await _remind_chat(bot, store, course, chat_id, data)
             except Exception:
                 logger.exception("Failed to process reminder for chat %s", chat_id)
 
 
-async def run(bot: Bot, storage: ScanningRedisStorage, course: Course) -> None:
+async def run(bot: Bot, store: StudentStore, course: Course) -> None:
     while True:
-        await tick(bot, storage, course)
+        await tick(bot, store, course)
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
 
 
 async def main() -> None:
     configure_tracing()
     instrument_redis()
-    bot, course, storage = load_bot_course_and_storage()
-    await run(bot, storage, course)
+    bot, course, store = load_reminder_course_and_store()
+    await run(bot, store, course)
 
 
 if __name__ == "__main__":  # pragma: no cover
