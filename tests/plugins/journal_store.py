@@ -37,7 +37,7 @@ def _set_journal_store(dispatcher: Dispatcher, journal_store: JournalStore) -> N
 @pytest.fixture
 def seed_journal(journal_store: JournalStore) -> SeedJournal:
     """Test-only convenience for setting up a student's journal wholesale —
-    `JournalStore`'s only public accessor is the mutate-in-place `open()`,
+    `JournalStore`'s only public accessor is the mutate-in-place `check_out()`,
     so seeding starting from the empty dict a fresh student always has just
     means updating it with the desired content. A fixture (like
     `feed_message`/`feed_callback_query` in `tests/plugins/aiogram.py`)
@@ -46,7 +46,7 @@ def seed_journal(journal_store: JournalStore) -> SeedJournal:
     """
 
     async def factory(student_id: str, journal: dict) -> None:
-        async with journal_store.open(student_id) as current:
+        async with journal_store.check_out(student_id) as current:
             current.update(journal)
 
     return factory
@@ -59,7 +59,7 @@ def read_journal(journal_store: JournalStore) -> ReadJournal:
     """
 
     async def factory(student_id: str) -> dict:
-        async with journal_store.open(student_id) as journal:
+        async with journal_store.check_out(student_id) as journal:
             return journal
 
     return factory

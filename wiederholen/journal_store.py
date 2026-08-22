@@ -35,7 +35,7 @@ class JournalStore(ABC):
         """Overwrite the student's journal dict wholesale."""
 
     @asynccontextmanager
-    async def open(self, student_id: str) -> AsyncIterator[dict]:
+    async def check_out(self, student_id: str) -> AsyncIterator[dict]:
         """Fetch a student's journal and yield it for in-place mutation via
         `Tutor`. Saved back on exit only if it actually changed from what was
         fetched — regardless of whether the body raised, so a mutation
@@ -59,7 +59,7 @@ class JournalStore(ABC):
         """Every `student_id` with a stored journal — the only way to
         discover which students exist at all, for a caller that needs to
         sweep all of them (there's no separate registry). Read a given
-        student's journal itself via `open()`.
+        student's journal itself via `check_out()`.
         """
 
     @abstractmethod

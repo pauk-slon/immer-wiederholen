@@ -28,7 +28,7 @@ async def command_progress(
     locale = LOCALES[language]
     # progress() is read-only (see wiederholen.tutoring.session) — open()
     # detects that nothing changed and skips the write on its own.
-    async with journal_store.open(str(message.chat.id)) as journal:
+    async with journal_store.check_out(str(message.chat.id)) as journal:
         progress = Tutor(course, journal).progress()
     sent = await message.answer(
         locale.progress_text.format(

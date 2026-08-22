@@ -29,7 +29,7 @@ async def _remind_chat(
         "reminder.check_chat",
         attributes={"telegram.chat_id": chat_id, "reminder.sent": False},
     ) as span:
-        async with journal_store.open(str(chat_id)) as journal:
+        async with journal_store.check_out(str(chat_id)) as journal:
             tutor = Tutor(course, journal)
             if not tutor.should_remind():
                 return
@@ -47,7 +47,7 @@ async def _remind_chat(
                 return
             span.set_attribute("reminder.sent", True)
             tutor.record_reminder_sent()
-            # No explicit save here — journal_store.open() persists the
+            # No explicit save here — journal_store.check_out() persists the
             # record_reminder_sent() mutation on exit; the two early returns
             # above left the journal untouched, so open() writes nothing for
             # them.

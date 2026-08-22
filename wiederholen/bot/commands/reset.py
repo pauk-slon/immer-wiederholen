@@ -62,7 +62,7 @@ async def handle_reset_confirm(
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    async with journal_store.open(str(callback.from_user.id)) as journal:
+    async with journal_store.check_out(str(callback.from_user.id)) as journal:
         Journal.reset_progress(journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(
