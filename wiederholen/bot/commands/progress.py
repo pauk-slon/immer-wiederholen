@@ -9,7 +9,7 @@ from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     remember_buttoned_message,
 )
-from wiederholen.journal_store import JournalStore
+from wiederholen.student_record_book import StudentRecordBook
 from wiederholen.tutoring import Course, Tutor
 
 router = Router()
@@ -20,7 +20,7 @@ async def command_progress(
     message: Message,
     state: FSMContext,
     course: Course,
-    journal_store: JournalStore,
+    student_record_book: StudentRecordBook,
 ) -> None:
     await clear_stale_buttons(message, state)
     data = await state.get_data()
@@ -28,8 +28,8 @@ async def command_progress(
     locale = LOCALES[language]
     # progress() is read-only (see wiederholen.tutoring.session) — open()
     # detects that nothing changed and skips the write on its own.
-    async with journal_store.check_out(str(message.chat.id)) as journal:
-        progress = Tutor(course, journal).progress()
+    async with student_record_book.check_out(str(message.chat.id)) as student_record:
+        progress = Tutor(course, student_record).progress()
     sent = await message.answer(
         locale.progress_text.format(
             remaining_today=format_count(

@@ -23,9 +23,9 @@ depend on the model getting it right.
 
 Deliberately outside `wiederholen.tutoring`: that package imports nothing
 beyond the standard library and its own sibling modules, which is what keeps
-`Tutor`/`Journal` testable without mocking a network call. This module is the
-one place in the codebase that talks to an LLM, and neither `session.py` nor
-`journal.py` import it.
+`Tutor`/`StudentRecord` testable without mocking a network call. This module
+is the one place in the codebase that talks to an LLM, and neither
+`session.py` nor `student_record.py` import it.
 """
 
 import dataclasses
@@ -252,7 +252,9 @@ def _parse_recalls(raw_recalls: list) -> list[Recall]:
         if raw_hint is not None and not isinstance(raw_hint, dict):
             raise AIGenerationError("model returned a malformed response")
         try:
-            recalls.append(Recall(question=raw_question, answer=raw_answer, hint=raw_hint))
+            recalls.append(
+                Recall(question=raw_question, answer=raw_answer, hint=raw_hint)
+            )
         except ValueError as e:
             raise AIGenerationError("model returned a malformed response") from e
     return recalls

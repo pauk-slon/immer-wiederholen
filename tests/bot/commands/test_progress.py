@@ -5,7 +5,7 @@ from aiogram.methods import EditMessageReplyMarkup
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedMessage
-from tests.plugins.journal_store import SeedJournal
+from tests.plugins.student_record_book import SeedStudentRecord
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU, format_count
@@ -46,16 +46,16 @@ async def test_responds_in_current_language(
     )
 
 
-async def test_reflects_journal_breakdown(
+async def test_reflects_student_record_breakdown(
     state: FSMContext,
     feed_message: FeedMessage,
-    seed_journal: SeedJournal,
+    seed_student_record: SeedStudentRecord,
     chat_id: int,
 ) -> None:
     new = make_exercise(word="warten")
     learning = make_exercise(word="hoffen")
     mastered = make_exercise(word="helfen")
-    journal = {
+    student_record = {
         "word_schedule": {
             "hoffen": {
                 "government": {
@@ -75,7 +75,7 @@ async def test_reflects_journal_breakdown(
             },
         }
     }
-    await seed_journal(str(chat_id), journal)
+    await seed_student_record(str(chat_id), student_record)
 
     requests = await feed_message("/progress", course=Course([new, learning, mastered]))
 
@@ -93,13 +93,13 @@ async def test_reflects_journal_breakdown(
 async def test_reflects_todays_answer_count(
     state: FSMContext,
     feed_message: FeedMessage,
-    seed_journal: SeedJournal,
+    seed_student_record: SeedStudentRecord,
     chat_id: int,
 ) -> None:
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date().isoformat()
-    journal = {"today_answers": {"date": today, "answered": 12, "correct": 9}}
-    await seed_journal(str(chat_id), journal)
+    student_record = {"today_answers": {"date": today, "answered": 12, "correct": 9}}
+    await seed_student_record(str(chat_id), student_record)
 
     requests = await feed_message("/progress", course=Course([exercise]))
 

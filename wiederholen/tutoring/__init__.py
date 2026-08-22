@@ -1,5 +1,4 @@
 from wiederholen.tutoring.curriculum import Course, Exercise, Recall, Topic
-from wiederholen.tutoring.journal import Journal
 from wiederholen.tutoring.session import (
     ExerciseAnswered,
     Mark,
@@ -10,17 +9,18 @@ from wiederholen.tutoring.session import (
     Tutor,
     TutoringEvent,
 )
+from wiederholen.tutoring.student_record import StudentRecord
 
 __all__ = [
     "Course",
     "Exercise",
     "ExerciseAnswered",
-    "Journal",
     "Mark",
     "NoExerciseAvailable",
     "Progress",
     "Recall",
     "RecallMode",
+    "StudentRecord",
     "Topic",
     "TopicUnlocked",
     "Tutor",

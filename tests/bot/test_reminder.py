@@ -9,10 +9,10 @@ from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.methods import SendMessage
 
 from tests.conftest import TmpYamlFile
-from tests.plugins.journal_store import ReadJournal, SeedJournal
+from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from tests.plugins.tutoring import ExerciseData, make_exercise, make_exercise_data
 from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
-from wiederholen.journal_store import JournalStore
+from wiederholen.student_record_book import StudentRecordBook
 from wiederholen.tutoring import Course
 
 
@@ -23,17 +23,17 @@ def _stale_answer() -> str:
 async def test_tick_sends_reminder_and_records_it(
     bot_token: str,
     redis_storage: RedisStorage,
-    journal_store: JournalStore,
-    seed_journal: SeedJournal,
-    read_journal: ReadJournal,
+    student_record_book: StudentRecordBook,
+    seed_student_record: SeedStudentRecord,
+    read_student_record: ReadStudentRecord,
 ) -> None:
     exercise = make_exercise()
     bot = Bot(token=bot_token)
-    await seed_journal("1", {"last_exercise": {"answered_at": _stale_answer()}})
+    await seed_student_record("1", {"last_exercise": {"answered_at": _stale_answer()}})
 
     mock_request = AsyncMock(return_value=True)
     with patch.object(bot.session, "make_request", mock_request):
-        await tick(bot, redis_storage, journal_store, Course([exercise]))
+        await tick(bot, redis_storage, student_record_book, Course([exercise]))
 
     sent = [
         call.args[1]
@@ -42,18 +42,18 @@ async def test_tick_sends_reminder_and_records_it(
     ]
     assert len(sent) == 1
     assert sent[0].chat_id == 1
-    assert "last_reminded_at" in await read_journal("1")
+    assert "last_reminded_at" in await read_student_record("1")
 
 
 async def test_tick_skips_chat_with_nothing_due(
     bot_token: str,
     redis_storage: RedisStorage,
-    journal_store: JournalStore,
-    seed_journal: SeedJournal,
+    student_record_book: StudentRecordBook,
+    seed_student_record: SeedStudentRecord,
 ) -> None:
     exercise = make_exercise(word="warten")
     bot = Bot(token=bot_token)
-    await seed_journal(
+    await seed_student_record(
         "1",
         {
             "word_schedule": {
@@ -72,7 +72,7 @@ async def test_tick_skips_chat_with_nothing_due(
 
     mock_request = AsyncMock(return_value=True)
     with patch.object(bot.session, "make_request", mock_request):
-        await tick(bot, redis_storage, journal_store, Course([exercise]))
+        await tick(bot, redis_storage, student_record_book, Course([exercise]))
 
     assert mock_request.call_args_list == []
 
@@ -80,13 +80,13 @@ async def test_tick_skips_chat_with_nothing_due(
 async def test_tick_does_not_crash_when_chat_blocked_the_bot(
     bot_token: str,
     redis_storage: RedisStorage,
-    journal_store: JournalStore,
-    seed_journal: SeedJournal,
-    read_journal: ReadJournal,
+    student_record_book: StudentRecordBook,
+    seed_student_record: SeedStudentRecord,
+    read_student_record: ReadStudentRecord,
 ) -> None:
     exercise = make_exercise()
     bot = Bot(token=bot_token)
-    await seed_journal("1", {"last_exercise": {"answered_at": _stale_answer()}})
+    await seed_student_record("1", {"last_exercise": {"answered_at": _stale_answer()}})
 
     async def make_request_side_effect(bot, method, timeout=None):
         if isinstance(method, SendMessage):
@@ -97,26 +97,28 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
 
     mock_request = AsyncMock(side_effect=make_request_side_effect)
     with patch.object(bot.session, "make_request", mock_request):
-        await tick(bot, redis_storage, journal_store, Course([exercise]))
+        await tick(bot, redis_storage, student_record_book, Course([exercise]))
 
-    assert "last_reminded_at" not in await read_journal("1")
+    assert "last_reminded_at" not in await read_student_record("1")
 
 
 async def test_tick_continues_after_one_chat_fails(
     bot_token: str,
     redis_storage: RedisStorage,
-    journal_store: JournalStore,
-    seed_journal: SeedJournal,
+    student_record_book: StudentRecordBook,
+    seed_student_record: SeedStudentRecord,
 ) -> None:
     exercise = make_exercise()
     bot = Bot(token=bot_token)
-    await seed_journal("1", {"last_exercise": {"answered_at": _stale_answer()}})
+    await seed_student_record("1", {"last_exercise": {"answered_at": _stale_answer()}})
     # malformed data for chat 2 raises while parsing, must not affect chat 1
-    await seed_journal("2", {"last_exercise": {"answered_at": "not-a-valid-datetime"}})
+    await seed_student_record(
+        "2", {"last_exercise": {"answered_at": "not-a-valid-datetime"}}
+    )
 
     mock_request = AsyncMock(return_value=True)
     with patch.object(bot.session, "make_request", mock_request):
-        await tick(bot, redis_storage, journal_store, Course([exercise]))
+        await tick(bot, redis_storage, student_record_book, Course([exercise]))
 
     sent_chat_ids = {
         call.args[1].chat_id
@@ -129,7 +131,7 @@ async def test_tick_continues_after_one_chat_fails(
 async def test_run_ticks_then_sleeps_between_iterations(
     bot_token: str,
     redis_storage: RedisStorage,
-    journal_store: JournalStore,
+    student_record_book: StudentRecordBook,
 ) -> None:
     bot = Bot(token=bot_token)
     course = Course([make_exercise()])
@@ -144,7 +146,7 @@ async def test_run_ticks_then_sleeps_between_iterations(
         patch("wiederholen.bot.reminder.asyncio.sleep", fake_sleep),
         pytest.raises(asyncio.CancelledError),
     ):
-        await run(bot, redis_storage, journal_store, course)
+        await run(bot, redis_storage, student_record_book, course)
 
     assert sleep_calls == [POLL_INTERVAL_SECONDS]
 
@@ -163,9 +165,9 @@ async def test_main_calls_run_with_constructed_dependencies(
 
     mock_run.assert_called_once()
     args, _kwargs = mock_run.call_args
-    bot_arg, fsm_storage_arg, journal_store_arg, course_arg = args
+    bot_arg, fsm_storage_arg, student_record_book_arg, course_arg = args
     assert isinstance(bot_arg, Bot)
     assert bot_arg.token == bot_token
     assert isinstance(fsm_storage_arg, RedisStorage)
-    assert isinstance(journal_store_arg, JournalStore)
+    assert isinstance(student_record_book_arg, StudentRecordBook)
     assert isinstance(course_arg, Course)

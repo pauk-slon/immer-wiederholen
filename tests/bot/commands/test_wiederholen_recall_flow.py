@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.journal_store import ReadJournal, SeedJournal
+from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
@@ -190,7 +190,7 @@ async def test_clicking_retry_starts_recall_again(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
-    seed_journal: SeedJournal,
+    seed_student_record: SeedStudentRecord,
     chat_id: int,
 ) -> None:
     exercise = make_exercise(
@@ -202,7 +202,9 @@ async def test_clicking_retry_starts_recall_again(
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
     )
-    await seed_journal(str(chat_id), {"last_exercise": {"is_recall_optional": False}})
+    await seed_student_record(
+        str(chat_id), {"last_exercise": {"is_recall_optional": False}}
+    )
 
     await feed_message("Es hängt alles in der Situation ab.", course=Course([exercise]))
     requests = await feed_callback_query(RECALL, course=Course([exercise]))
@@ -217,7 +219,7 @@ async def test_retry_avoids_repeating_last_recall_variant(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
-    seed_journal: SeedJournal,
+    seed_student_record: SeedStudentRecord,
     chat_id: int,
 ) -> None:
     exercise = make_exercise(
@@ -236,7 +238,7 @@ async def test_retry_avoids_repeating_last_recall_variant(
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
     )
-    await seed_journal(
+    await seed_student_record(
         str(chat_id),
         {
             "last_exercise": {
@@ -257,13 +259,13 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
-    seed_journal: SeedJournal,
-    read_journal: ReadJournal,
+    seed_student_record: SeedStudentRecord,
+    read_student_record: ReadStudentRecord,
     chat_id: int,
 ) -> None:
     exercise = make_exercise(recalls=True)
     today = datetime.now(UTC).date()
-    journal = {
+    student_record = {
         "word_schedule": {
             "warten": {
                 "government": {
@@ -275,12 +277,12 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
     }
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
-    await seed_journal(str(chat_id), journal)
+    await seed_student_record(str(chat_id), student_record)
 
     await feed_message(exercise.answer, course=Course([exercise]))
     await feed_callback_query(RECALL, course=Course([exercise]))
 
-    journal = await read_journal(str(chat_id))
-    entry = journal["word_schedule"]["warten"]["government"]
+    student_record = await read_student_record(str(chat_id))
+    entry = student_record["word_schedule"]["warten"]["government"]
     assert entry["repetition_interval"] == 8
     assert entry["due_date"] == (today + timedelta(days=8)).isoformat()

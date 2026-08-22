@@ -23,7 +23,7 @@ from tests.plugins.tutoring import ExerciseData, make_exercise_data
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
-from wiederholen.journal_store import JournalStore
+from wiederholen.student_record_book import StudentRecordBook
 from wiederholen.tutoring import Course, Tutor
 
 
@@ -111,7 +111,7 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert isinstance(args[0], Bot)
     assert args[0].token == bot_token
     assert isinstance(kwargs["course"], Course)
-    assert isinstance(kwargs["journal_store"], JournalStore)
+    assert isinstance(kwargs["student_record_book"], StudentRecordBook)
     assert kwargs["feature_flags"] == {}
     assert kwargs["anthropic_client"] is None
     assert kwargs["authoring_guide"] is None

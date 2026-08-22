@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.journal_store import ReadJournal, SeedJournal
+from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import (
     NEXT_EXERCISE,
@@ -189,7 +189,7 @@ class TestNextExerciseButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
-        seed_journal: SeedJournal,
+        seed_student_record: SeedStudentRecord,
         chat_id: int,
     ) -> None:
         mit = Exercise(
@@ -209,7 +209,9 @@ class TestNextExerciseButton:
             explanation={"ru": "x", "en": "y"},
         )
         await state.update_data(language="ru")
-        await seed_journal(str(chat_id), {"last_exercise": {"question": mit.question}})
+        await seed_student_record(
+            str(chat_id), {"last_exercise": {"question": mit.question}}
+        )
 
         requests = await feed_callback_query(NEXT_EXERCISE, course=Course([mit, ueber]))
 
@@ -222,7 +224,7 @@ class TestNextExerciseButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
-        seed_journal: SeedJournal,
+        seed_student_record: SeedStudentRecord,
         chat_id: int,
     ) -> None:
         exercise = make_exercise(word="warten")
@@ -241,7 +243,7 @@ class TestNextExerciseButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await seed_journal(str(chat_id), {"word_schedule": word_schedule})
+        await seed_student_record(str(chat_id), {"word_schedule": word_schedule})
 
         requests = await feed_callback_query(
             NEXT_EXERCISE, course=Course([exercise, *capped_exercises])
@@ -264,7 +266,7 @@ class TestStudyMoreButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
-        seed_journal: SeedJournal,
+        seed_student_record: SeedStudentRecord,
         chat_id: int,
     ) -> None:
         exercise = make_exercise(word="warten")
@@ -283,7 +285,7 @@ class TestStudyMoreButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await seed_journal(str(chat_id), {"word_schedule": word_schedule})
+        await seed_student_record(str(chat_id), {"word_schedule": word_schedule})
 
         requests = await feed_callback_query(
             STUDY_MORE,
@@ -296,12 +298,12 @@ class TestStudyMoreButton:
         assert exercise.question in send_message.text
         assert await state.get_state() == UserState.answering
 
-    async def test_clicking_persists_the_grant_in_the_journal(
+    async def test_clicking_persists_the_grant_in_the_student_record(
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
-        seed_journal: SeedJournal,
-        read_journal: ReadJournal,
+        seed_student_record: SeedStudentRecord,
+        read_student_record: ReadStudentRecord,
         chat_id: int,
     ) -> None:
         exercise = make_exercise(word="warten")
@@ -320,15 +322,15 @@ class TestStudyMoreButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await seed_journal(str(chat_id), {"word_schedule": word_schedule})
+        await seed_student_record(str(chat_id), {"word_schedule": word_schedule})
 
         await feed_callback_query(
             STUDY_MORE,
             course=Course([exercise, *capped_exercises]),
         )
 
-        journal = await read_journal(str(chat_id))
-        assert journal["new_word_budget"] == {
+        student_record = await read_student_record(str(chat_id))
+        assert student_record["new_word_budget"] == {
             "date": today.isoformat(),
             "count": Tutor.NEW_WORD_BUDGET_GRANT,
         }
