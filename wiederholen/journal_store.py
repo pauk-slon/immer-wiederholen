@@ -62,19 +62,6 @@ class JournalStore(ABC):
         student's journal itself via `check_out()`.
         """
 
-    @abstractmethod
-    async def _close(self) -> None: ...
-
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, *exc_info: object) -> None:
-        # No public close() — releasing whatever a concrete store holds
-        # (a Redis connection, say) is only ever meaningful as part of the
-        # usual `async with SomeStore.from_url(...) as store:` lifecycle, not
-        # as a method callers reach for on their own.
-        await self._close()
-
 
 class RedisJournalStore(JournalStore):
     def __init__(self, redis: Redis) -> None:
@@ -113,3 +100,15 @@ class RedisJournalStore(JournalStore):
 
     async def _close(self) -> None:
         await self.redis.aclose(close_connection_pool=True)
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        # No public close() — releasing the connection is only ever
+        # meaningful as part of the usual `async with RedisJournalStore.
+        # from_url(...) as store:` lifecycle, not a method callers reach for
+        # on their own. Lives here, not on JournalStore: whether there's a
+        # connection to release at all — and how — is specific to this
+        # backend, not something every JournalStore is guaranteed to have.
+        await self._close()
