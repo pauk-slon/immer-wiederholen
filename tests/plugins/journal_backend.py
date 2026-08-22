@@ -1,11 +1,14 @@
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 import pytest
 from aiogram import Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
 
 from wiederholen.journal_backend import JournalBackend, RedisJournalBackend
+
+type SeedJournal = Callable[[str, dict], Awaitable[None]]
+type ReadJournal = Callable[[str], Awaitable[dict]]
 
 
 @pytest.fixture
@@ -33,21 +36,32 @@ def _set_journal_backend(
     dispatcher["journal_backend"] = journal_backend
 
 
-async def seed_journal(
-    journal_backend: JournalBackend, student_id: str, journal: dict
-) -> None:
+@pytest.fixture
+def seed_journal(journal_backend: JournalBackend) -> SeedJournal:
     """Test-only convenience for setting up a student's journal wholesale —
     `JournalBackend`'s only public accessor is the mutate-in-place `open()`,
     so seeding starting from the empty dict a fresh student always has just
-    means updating it with the desired content.
+    means updating it with the desired content. A fixture (like
+    `feed_message`/`feed_callback_query` in `tests/plugins/aiogram.py`)
+    rather than a plain function, so call sites don't need to separately
+    request `journal_backend` just to pass it along.
     """
-    async with journal_backend.open(student_id) as current:
-        current.update(journal)
+
+    async def factory(student_id: str, journal: dict) -> None:
+        async with journal_backend.open(student_id) as current:
+            current.update(journal)
+
+    return factory
 
 
-async def read_journal(journal_backend: JournalBackend, student_id: str) -> dict:
+@pytest.fixture
+def read_journal(journal_backend: JournalBackend) -> ReadJournal:
     """Test-only convenience for reading a student's journal without the
     ceremony of an `async with` block at every assertion call site.
     """
-    async with journal_backend.open(student_id) as journal:
-        return journal
+
+    async def factory(student_id: str) -> dict:
+        async with journal_backend.open(student_id) as journal:
+            return journal
+
+    return factory

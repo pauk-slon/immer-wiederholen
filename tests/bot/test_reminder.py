@@ -9,7 +9,7 @@ from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.methods import SendMessage
 
 from tests.conftest import TmpYamlFile
-from tests.plugins.journal_backend import seed_journal
+from tests.plugins.journal_backend import ReadJournal, SeedJournal
 from tests.plugins.tutoring import ExerciseData, make_exercise, make_exercise_data
 from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
 from wiederholen.journal_backend import JournalBackend
@@ -24,12 +24,12 @@ async def test_tick_sends_reminder_and_records_it(
     bot_token: str,
     redis_storage: RedisStorage,
     journal_backend: JournalBackend,
+    seed_journal: SeedJournal,
+    read_journal: ReadJournal,
 ) -> None:
     exercise = make_exercise()
     bot = Bot(token=bot_token)
-    await seed_journal(
-        journal_backend, "1", {"last_exercise": {"answered_at": _stale_answer()}}
-    )
+    await seed_journal("1", {"last_exercise": {"answered_at": _stale_answer()}})
 
     mock_request = AsyncMock(return_value=True)
     with patch.object(bot.session, "make_request", mock_request):
@@ -42,19 +42,18 @@ async def test_tick_sends_reminder_and_records_it(
     ]
     assert len(sent) == 1
     assert sent[0].chat_id == 1
-    async with journal_backend.open("1") as journal:
-        assert "last_reminded_at" in journal
+    assert "last_reminded_at" in await read_journal("1")
 
 
 async def test_tick_skips_chat_with_nothing_due(
     bot_token: str,
     redis_storage: RedisStorage,
     journal_backend: JournalBackend,
+    seed_journal: SeedJournal,
 ) -> None:
     exercise = make_exercise(word="warten")
     bot = Bot(token=bot_token)
     await seed_journal(
-        journal_backend,
         "1",
         {
             "word_schedule": {
@@ -82,12 +81,12 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
     bot_token: str,
     redis_storage: RedisStorage,
     journal_backend: JournalBackend,
+    seed_journal: SeedJournal,
+    read_journal: ReadJournal,
 ) -> None:
     exercise = make_exercise()
     bot = Bot(token=bot_token)
-    await seed_journal(
-        journal_backend, "1", {"last_exercise": {"answered_at": _stale_answer()}}
-    )
+    await seed_journal("1", {"last_exercise": {"answered_at": _stale_answer()}})
 
     async def make_request_side_effect(bot, method, timeout=None):
         if isinstance(method, SendMessage):
@@ -100,24 +99,20 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
     with patch.object(bot.session, "make_request", mock_request):
         await tick(bot, redis_storage, journal_backend, Course([exercise]))
 
-    async with journal_backend.open("1") as journal:
-        assert "last_reminded_at" not in journal
+    assert "last_reminded_at" not in await read_journal("1")
 
 
 async def test_tick_continues_after_one_chat_fails(
     bot_token: str,
     redis_storage: RedisStorage,
     journal_backend: JournalBackend,
+    seed_journal: SeedJournal,
 ) -> None:
     exercise = make_exercise()
     bot = Bot(token=bot_token)
-    await seed_journal(
-        journal_backend, "1", {"last_exercise": {"answered_at": _stale_answer()}}
-    )
+    await seed_journal("1", {"last_exercise": {"answered_at": _stale_answer()}})
     # malformed data for chat 2 raises while parsing, must not affect chat 1
-    await seed_journal(
-        journal_backend, "2", {"last_exercise": {"answered_at": "not-a-valid-datetime"}}
-    )
+    await seed_journal("2", {"last_exercise": {"answered_at": "not-a-valid-datetime"}})
 
     mock_request = AsyncMock(return_value=True)
     with patch.object(bot.session, "make_request", mock_request):

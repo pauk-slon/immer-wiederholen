@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.journal_backend import read_journal, seed_journal
+from tests.plugins.journal_backend import ReadJournal, SeedJournal
 from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import (
     NEXT_EXERCISE,
@@ -13,7 +13,6 @@ from wiederholen.bot.commands.wiederholen import (
     UserState,
 )
 from wiederholen.bot.l10n import RU
-from wiederholen.journal_backend import JournalBackend
 from wiederholen.tutoring import Course, Exercise, Tutor
 
 
@@ -190,7 +189,7 @@ class TestNextExerciseButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
-        journal_backend: JournalBackend,
+        seed_journal: SeedJournal,
         chat_id: int,
     ) -> None:
         mit = Exercise(
@@ -210,9 +209,7 @@ class TestNextExerciseButton:
             explanation={"ru": "x", "en": "y"},
         )
         await state.update_data(language="ru")
-        await seed_journal(
-            journal_backend, str(chat_id), {"last_exercise": {"question": mit.question}}
-        )
+        await seed_journal(str(chat_id), {"last_exercise": {"question": mit.question}})
 
         requests = await feed_callback_query(NEXT_EXERCISE, course=Course([mit, ueber]))
 
@@ -225,7 +222,7 @@ class TestNextExerciseButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
-        journal_backend: JournalBackend,
+        seed_journal: SeedJournal,
         chat_id: int,
     ) -> None:
         exercise = make_exercise(word="warten")
@@ -244,9 +241,7 @@ class TestNextExerciseButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await seed_journal(
-            journal_backend, str(chat_id), {"word_schedule": word_schedule}
-        )
+        await seed_journal(str(chat_id), {"word_schedule": word_schedule})
 
         requests = await feed_callback_query(
             NEXT_EXERCISE, course=Course([exercise, *capped_exercises])
@@ -269,7 +264,7 @@ class TestStudyMoreButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
-        journal_backend: JournalBackend,
+        seed_journal: SeedJournal,
         chat_id: int,
     ) -> None:
         exercise = make_exercise(word="warten")
@@ -288,9 +283,7 @@ class TestStudyMoreButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await seed_journal(
-            journal_backend, str(chat_id), {"word_schedule": word_schedule}
-        )
+        await seed_journal(str(chat_id), {"word_schedule": word_schedule})
 
         requests = await feed_callback_query(
             STUDY_MORE,
@@ -307,7 +300,8 @@ class TestStudyMoreButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
-        journal_backend: JournalBackend,
+        seed_journal: SeedJournal,
+        read_journal: ReadJournal,
         chat_id: int,
     ) -> None:
         exercise = make_exercise(word="warten")
@@ -326,16 +320,14 @@ class TestStudyMoreButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await seed_journal(
-            journal_backend, str(chat_id), {"word_schedule": word_schedule}
-        )
+        await seed_journal(str(chat_id), {"word_schedule": word_schedule})
 
         await feed_callback_query(
             STUDY_MORE,
             course=Course([exercise, *capped_exercises]),
         )
 
-        journal = await read_journal(journal_backend, str(chat_id))
+        journal = await read_journal(str(chat_id))
         assert journal["new_word_budget"] == {
             "date": today.isoformat(),
             "count": Tutor.NEW_WORD_BUDGET_GRANT,

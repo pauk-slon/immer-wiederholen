@@ -3,11 +3,10 @@ from aiogram.methods import EditMessageReplyMarkup
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.journal_backend import read_journal, seed_journal
+from tests.plugins.journal_backend import ReadJournal, SeedJournal
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.journal_backend import JournalBackend
 from wiederholen.tutoring import Course
 
 
@@ -39,11 +38,11 @@ async def test_reset_command_responds_in_current_language(
 async def test_confirming_reset_clears_schedule_only(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
-    journal_backend: JournalBackend,
+    seed_journal: SeedJournal,
+    read_journal: ReadJournal,
     chat_id: int,
 ) -> None:
     await seed_journal(
-        journal_backend,
         str(chat_id),
         {
             "word_schedule": {"warten": {"government": {}}},
@@ -55,7 +54,7 @@ async def test_confirming_reset_clears_schedule_only(
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_done
-    journal = await read_journal(journal_backend, str(chat_id))
+    journal = await read_journal(str(chat_id))
     assert journal["word_schedule"] == {}
     assert journal["last_exercise"]["is_recall_optional"] is False
 
@@ -63,13 +62,12 @@ async def test_confirming_reset_clears_schedule_only(
 async def test_confirming_reset_preserves_language(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
-    journal_backend: JournalBackend,
+    seed_journal: SeedJournal,
+    read_journal: ReadJournal,
     chat_id: int,
 ) -> None:
     await state.update_data(language="en")
-    await seed_journal(
-        journal_backend, str(chat_id), {"word_schedule": {"x": {"y": {}}}}
-    )
+    await seed_journal(str(chat_id), {"word_schedule": {"x": {"y": {}}}})
 
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
@@ -77,24 +75,25 @@ async def test_confirming_reset_preserves_language(
     assert requests[0].text == EN.reset_done
     data = await state.get_data()
     assert data["language"] == "en"
-    journal = await read_journal(journal_backend, str(chat_id))
+    journal = await read_journal(str(chat_id))
     assert journal["word_schedule"] == {}
 
 
 async def test_cancelling_reset_keeps_journal(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
-    journal_backend: JournalBackend,
+    seed_journal: SeedJournal,
+    read_journal: ReadJournal,
     chat_id: int,
 ) -> None:
     journal = {"word_schedule": {"warten": {"government": {}}}}
-    await seed_journal(journal_backend, str(chat_id), journal)
+    await seed_journal(str(chat_id), journal)
 
     requests = await feed_callback_query(RESET_CANCEL, course=Course([]))
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_cancelled
-    assert await read_journal(journal_backend, str(chat_id)) == journal
+    assert await read_journal(str(chat_id)) == journal
 
 
 async def test_reset_command_clears_a_stale_button_left_from_wiederholen(
