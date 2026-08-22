@@ -16,13 +16,15 @@ async def student_record_book(
     redis_storage: RedisStorage,
 ) -> AsyncIterator[StudentRecordBook]:
     # Depends on redis_storage purely for flush ordering: it shares the same
-    # Redis/DB (and the same --fsm-storage-db-override pin) as the
-    # redis_storage fixture (tests/plugins/aiogram.py), just a different key
-    # namespace ("student_record:*") — redis_storage's own flushdb() already covers
-    # this one too, so this fixture doesn't repeat it, just needs to run after.
+    # Redis/DB (and the same --redis-db-override pin) as the redis_storage
+    # fixture (tests/plugins/aiogram.py) today, just a different key namespace
+    # ("student_record:*") and its own env var (STUDENT_RECORD_STORAGE_URL) —
+    # redis_storage's own flushdb() already covers this one too, so this
+    # fixture doesn't repeat it, just needs to run after.
     # async with, not a bare instance + manual close(): StudentRecordBook has no
     # public close() at all, only the usual context-manager protocol.
-    async with RedisStudentRecordBook.from_url(os.environ["FSM_STORAGE_URL"]) as store:
+    url = os.environ["STUDENT_RECORD_STORAGE_URL"]
+    async with RedisStudentRecordBook.from_url(url) as store:
         yield store
 
 

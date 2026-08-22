@@ -31,19 +31,24 @@ def _db_override(value: str) -> int | None:
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--fsm-storage-db-override",
+        "--redis-db-override",
         action="store",
         type=_db_override,
     )
 
 
 def pytest_configure(config) -> None:
-    if (db_override := config.getoption("--fsm-storage-db-override")) is None:
+    if (db_override := config.getoption("--redis-db-override")) is None:
         return
-    fsm_storage_url = os.environ["FSM_STORAGE_URL"]
-    os.environ["FSM_STORAGE_URL"] = urlunsplit(
-        urlsplit(fsm_storage_url)._replace(path=f"/{db_override}"),
-    )
+    # Both env vars point at the same physical Redis/Valkey in dev/prod today
+    # (see CLAUDE.md's Persistence section) — pin both to the same dedicated
+    # test DB, so neither RedisStorage nor RedisStudentRecordBook can ever
+    # touch a DB a real dev/prod bot might be using, regardless of what's set
+    # in the environment.
+    for env_var in ("FSM_STORAGE_URL", "STUDENT_RECORD_STORAGE_URL"):
+        os.environ[env_var] = urlunsplit(
+            urlsplit(os.environ[env_var])._replace(path=f"/{db_override}"),
+        )
 
 
 @pytest.fixture

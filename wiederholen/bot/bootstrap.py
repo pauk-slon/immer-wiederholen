@@ -12,7 +12,7 @@ from .feature_flags import parse_feature_flags
 
 
 def load_student_record_book() -> StudentRecordBook:
-    return RedisStudentRecordBook.from_url(os.environ["FSM_STORAGE_URL"])
+    return RedisStudentRecordBook.from_url(os.environ["STUDENT_RECORD_STORAGE_URL"])
 
 
 def load_feature_flags() -> dict[str, frozenset[int]]:

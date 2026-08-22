@@ -37,16 +37,23 @@ def fsm_storage_url() -> str:
     return "redis://localhost:6379/0"
 
 
+@pytest.fixture
+def student_record_storage_url() -> str:
+    return "redis://localhost:6379/1"
+
+
 @pytest.fixture(autouse=True)
 def _env(
     monkeypatch,
     bot_token: str,
     fsm_storage_url: str,
+    student_record_storage_url: str,
     tmp_yaml_file: TmpYamlFile,
     exercise_data: ExerciseData,
 ) -> Generator[None]:
     monkeypatch.setenv("BOT_TOKEN", bot_token)
     monkeypatch.setenv("FSM_STORAGE_URL", fsm_storage_url)
+    monkeypatch.setenv("STUDENT_RECORD_STORAGE_URL", student_record_storage_url)
     # All optional and unrelated to most tests here — pinned absent so a
     # real value set on the host running these tests (e.g. compose.override.
     # yaml's local dev config) can't leak in.
@@ -163,6 +170,24 @@ async def test_configures_redis_storage_from_env(
     assert isinstance(storage, RedisStorage)
     expected = Redis.from_url(fsm_storage_url).connection_pool.connection_kwargs
     assert storage.redis.connection_pool.connection_kwargs == expected
+
+
+async def test_configures_student_record_book_from_its_own_env_var(
+    mock_main_io: MockMainIO, student_record_storage_url: str
+) -> None:
+    # A distinct DB number from fsm_storage_url (see the fixtures above) is
+    # what makes this test actually prove student_record_book reads
+    # STUDENT_RECORD_STORAGE_URL, rather than accidentally still sharing
+    # FSM_STORAGE_URL's connection.
+    with mock_main_io() as (_mock_request, mock_polling):
+        await main()
+
+    _args, kwargs = mock_polling.call_args
+    student_record_book = kwargs["student_record_book"]
+    expected = Redis.from_url(
+        student_record_storage_url
+    ).connection_pool.connection_kwargs
+    assert student_record_book.redis.connection_pool.connection_kwargs == expected
 
 
 async def test_sets_name_for_all_languages(mock_main_io: MockMainIO) -> None:
