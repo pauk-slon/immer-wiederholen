@@ -5,13 +5,14 @@ future non-Telegram frontend (a web chat, say) it'd be whatever notion of
 identity that frontend uses.
 
 Deliberately scoped to *only* the journal, not the rest of a chat's per-session
-state (language, ai_mode, mid-conversation UI bookkeeping, …) — that's Telegram
-session/UI state that stays in aiogram's own FSM storage (see
-`wiederholen.bot.bootstrap`), since it's not the kind of thing a web frontend
-would need to share with the Telegram bot the way the actual learning record
-is. `wiederholen.tutoring` (`Tutor`/`Journal`) still never touches this or any
-other storage itself — it only ever receives a plain `dict` — so this module
-doesn't change that invariant, it's a layer between a transport and `Tutor`.
+state (language, ai_mode, mid-conversation UI bookkeeping, …) — that's
+session/UI state a transport keeps by whatever means suits it (e.g. the
+Telegram bot's own aiogram FSM storage), since it's not the kind of thing a
+web frontend would need to share with a Telegram chat the way the actual
+learning record is. `wiederholen.tutoring` (`Tutor`/`Journal`) still never
+touches this or any other storage itself — it only ever receives a plain
+`dict` — so this module doesn't change that invariant, it's a layer between a
+transport and `Tutor`.
 """
 
 import json
@@ -38,15 +39,12 @@ class JournalBackend(ABC):
         `Tutor`, and save it back unconditionally on exit — including when
         the body raises, so a mutation already applied (e.g. `check_answer()`
         recording an answer) isn't silently lost just because something
-        *after* it, like sending the Telegram reply, failed. Built on
-        `get()`/`save()` alone, the same way aiogram's own `BaseStorage.
-        update_data()` is built on `get_data()`/`set_data()` — no subclass
-        needs to override this.
+        *after* it, like sending a reply, failed. Built on `get()`/`save()`
+        alone — no subclass needs to override this.
 
-        Not the right tool for a genuinely read-only call site (`/progress`
-        calls `get()` directly) or one with its own conditional-save logic
-        (the reminder worker only saves after a reminder actually sends, so
-        it also calls `get()`/`save()` directly rather than through here).
+        Not the right tool for a genuinely read-only caller, or one with its
+        own conditional-save logic — those call `get()`/`save()` directly
+        instead.
         """
         journal = await self.get(student_id)
         try:
@@ -56,10 +54,9 @@ class JournalBackend(ABC):
 
     @abstractmethod
     def __aiter__(self) -> AsyncIterator[tuple[str, dict]]:
-        """Every student with a stored journal, alongside their `student_id`.
-
-        Used by `wiederholen.bot.reminder` to sweep for due reviews — there's
-        no separate registry of known students beyond "who has a journal".
+        """Every student with a stored journal, alongside their `student_id`
+        — the only way to discover which students exist at all, for a caller
+        that needs to sweep all of them (there's no separate registry).
         """
 
     @abstractmethod
