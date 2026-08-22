@@ -62,10 +62,8 @@ async def handle_reset_confirm(
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    student_id = str(callback.from_user.id)
-    journal = await journal_backend.get_journal(student_id)
-    Journal.reset_progress(journal)
-    await journal_backend.save_journal(student_id, journal)
+    async with journal_backend.session(str(callback.from_user.id)) as journal:
+        Journal.reset_progress(journal)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(
             locale.reset_done, reply_markup=make_next_button(locale)

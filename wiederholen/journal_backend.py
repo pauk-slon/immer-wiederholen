@@ -17,6 +17,7 @@ doesn't change that invariant, it's a layer between a transport and `Tutor`.
 import json
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Self
 
 from redis.asyncio import Redis
@@ -24,15 +25,37 @@ from redis.asyncio import Redis
 
 class JournalBackend(ABC):
     @abstractmethod
-    async def get_journal(self, student_id: str) -> dict:
+    async def get(self, student_id: str) -> dict:
         """The student's journal dict, or `{}` if they have none yet."""
 
     @abstractmethod
-    async def save_journal(self, student_id: str, journal: dict) -> None:
+    async def save(self, student_id: str, journal: dict) -> None:
         """Overwrite the student's journal dict wholesale."""
 
+    @asynccontextmanager
+    async def session(self, student_id: str) -> AsyncIterator[dict]:
+        """Fetch a student's journal, yield it for in-place mutation via
+        `Tutor`, and save it back unconditionally on exit — including when
+        the body raises, so a mutation already applied (e.g. `check_answer()`
+        recording an answer) isn't silently lost just because something
+        *after* it, like sending the Telegram reply, failed. Built on
+        `get()`/`save()` alone, the same way aiogram's own `BaseStorage.
+        update_data()` is built on `get_data()`/`set_data()` — no subclass
+        needs to override this.
+
+        Not the right tool for a genuinely read-only call site (`/progress`
+        calls `get()` directly) or one with its own conditional-save logic
+        (the reminder worker only saves after a reminder actually sends, so
+        it also calls `get()`/`save()` directly rather than through here).
+        """
+        journal = await self.get(student_id)
+        try:
+            yield journal
+        finally:
+            await self.save(student_id, journal)
+
     @abstractmethod
-    def iter_journals(self) -> AsyncIterator[tuple[str, dict]]:
+    def __aiter__(self) -> AsyncIterator[tuple[str, dict]]:
         """Every student with a stored journal, alongside their `student_id`.
 
         Used by `wiederholen.bot.reminder` to sweep for due reviews — there's
@@ -55,7 +78,7 @@ class RedisJournalBackend(JournalBackend):
     def _key(student_id: str) -> str:
         return f"journal:{student_id}"
 
-    async def get_journal(self, student_id: str) -> dict:
+    async def get(self, student_id: str) -> dict:
         value = await self.redis.get(self._key(student_id))
         if value is None:
             return {}
@@ -63,21 +86,21 @@ class RedisJournalBackend(JournalBackend):
             value = value.decode("utf-8")
         return json.loads(value)
 
-    async def save_journal(self, student_id: str, journal: dict) -> None:
+    async def save(self, student_id: str, journal: dict) -> None:
         key = self._key(student_id)
         if not journal:
             # An empty journal is stored as "no key at all" rather than a
             # literal "{}", so a student with nothing recorded yet doesn't
-            # linger in iter_journals() as a hollow entry.
+            # linger in __aiter__() as a hollow entry.
             await self.redis.delete(key)
             return
         await self.redis.set(key, json.dumps(journal))
 
-    async def iter_journals(self) -> AsyncIterator[tuple[str, dict]]:
+    async def __aiter__(self) -> AsyncIterator[tuple[str, dict]]:
         async for raw_key in self.redis.scan_iter(match=self._key("*")):
             key = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
             student_id = key.removeprefix(self._key(""))
-            yield student_id, await self.get_journal(student_id)
+            yield student_id, await self.get(student_id)
 
     async def close(self) -> None:
         await self.redis.aclose(close_connection_pool=True)

@@ -106,13 +106,14 @@ async def _start_recall(
     message: Message,
     locale: Locale,
     course: Course,
-    journal_backend: JournalBackend,
     *,
     ai_mode: bool,
 ) -> None:
+    # journal is mutated in place; whichever journal_backend.session() the
+    # caller opened it under persists it on exit — this function itself
+    # never touches the backend.
     tutor = Tutor(course, journal)
     recall = tutor.request_recall(shown_exercise)
-    await journal_backend.save_journal(str(message.chat.id), journal)
     await state.set_state(UserState.recalling)
     await state.update_data(
         language=language,
@@ -244,48 +245,46 @@ async def command_wiederholen(
         trace.get_current_span().set_attribute("feature.ai_exercises", True)
     data = await state.get_data()
     language = get_language(data)
-    journal = await journal_backend.get_journal(str(message.chat.id))
     locale = LOCALES[language]
-    tutor = Tutor(course, journal)
-    exercise, events = tutor.next_exercise()
-    record_tutoring_events(events)
-    if exercise is None:
-        await journal_backend.save_journal(str(message.chat.id), journal)
-        sent = await message.answer(
-            locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
+    async with journal_backend.session(str(message.chat.id)) as journal:
+        tutor = Tutor(course, journal)
+        exercise, events = tutor.next_exercise()
+        record_tutoring_events(events)
+        if exercise is None:
+            sent = await message.answer(
+                locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
+            )
+            await remember_buttoned_message(state, sent)
+            return
+        # Only apply for topics the content repo has explicitly opted in via
+        # topics.yaml's ai_generation flag (see Course.ai_generatable_topics)
+        # — for topics where the question's exact wording encodes part of
+        # the answer (word banks, fixed "verb → form" templates,
+        # subject-dependent conjugation), a rewritten question can silently
+        # stop matching the untouched answer.
+        ai_mode = bool(data.get("ai_mode", False)) and (
+            exercise.topic in course.ai_generatable_topics
         )
-        await remember_buttoned_message(state, sent)
-        return
-    # Only apply for topics the content repo has explicitly opted in via
-    # topics.yaml's ai_generation flag (see Course.ai_generatable_topics) —
-    # for topics where the question's exact wording encodes part of the
-    # answer (word banks, fixed "verb → form" templates, subject-dependent
-    # conjugation), a rewritten question can silently stop matching the
-    # untouched answer.
-    ai_mode = bool(data.get("ai_mode", False)) and (
-        exercise.topic in course.ai_generatable_topics
-    )
-    bot = message.bot
-    assert bot is not None
-    exercise = await _apply_ai_mode(
-        exercise,
-        ai_mode=ai_mode,
-        anthropic_client=anthropic_client,
-        course=course,
-        authoring_guide=authoring_guide,
-        bot=bot,
-        chat_id=message.chat.id,
-    )
-    if exercise is None:
-        await message.answer(locale.ai_generation_failed)
-        return
-    await state.set_state(UserState.answering)
-    await journal_backend.save_journal(str(message.chat.id), journal)
-    await state.update_data(shown_exercise=exercise.to_dict())
-    question_text = _format_question(
-        exercise, language, course, is_ai_generated=ai_mode
-    )
-    await message.answer(question_text, **_show_exercise_kwargs(exercise))
+        bot = message.bot
+        assert bot is not None
+        exercise = await _apply_ai_mode(
+            exercise,
+            ai_mode=ai_mode,
+            anthropic_client=anthropic_client,
+            course=course,
+            authoring_guide=authoring_guide,
+            bot=bot,
+            chat_id=message.chat.id,
+        )
+        if exercise is None:
+            await message.answer(locale.ai_generation_failed)
+            return
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=exercise.to_dict())
+        question_text = _format_question(
+            exercise, language, course, is_ai_generated=ai_mode
+        )
+        await message.answer(question_text, **_show_exercise_kwargs(exercise))
 
 
 @router.message(UserState.answering)
@@ -300,48 +299,48 @@ async def handle_answer(
     await state.clear()
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
-    journal = await journal_backend.get_journal(str(message.chat.id))
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
-    tutor = Tutor(course, journal)
-    mark, events = tutor.check_answer(shown_exercise, message.text or "")
-    record_tutoring_events(events)
-    result_line = (
-        locale.correct
-        if mark.is_correct
-        else locale.wrong.format(answer=shown_exercise.answer)
-    )
-    if mark.recall == RecallMode.optional:
-        reply_markup = _make_recall_buttons(locale, locale.btn_recall)
-    elif mark.recall == RecallMode.none:
-        reply_markup = make_next_button(locale)
-    else:
-        reply_markup = None
-    first_reply_markup = ReplyKeyboardRemove() if shown_exercise.distractors else None
-    await message.answer(result_line, reply_markup=first_reply_markup)
-    sent_explanation = await message.answer(explanation, reply_markup=reply_markup)
-    if mark.recall == RecallMode.required:
-        await _start_recall(
-            state,
-            language,
-            journal,
-            state_data["shown_exercise"],
-            shown_exercise,
-            message,
-            locale,
-            course,
-            journal_backend,
-            ai_mode=ai_mode,
+    async with journal_backend.session(str(message.chat.id)) as journal:
+        tutor = Tutor(course, journal)
+        mark, events = tutor.check_answer(shown_exercise, message.text or "")
+        record_tutoring_events(events)
+        result_line = (
+            locale.correct
+            if mark.is_correct
+            else locale.wrong.format(answer=shown_exercise.answer)
         )
-    else:
-        await journal_backend.save_journal(str(message.chat.id), journal)
-        await state.update_data(
-            language=language,
-            shown_exercise=state_data["shown_exercise"],
-            ai_mode=ai_mode,
+        if mark.recall == RecallMode.optional:
+            reply_markup = _make_recall_buttons(locale, locale.btn_recall)
+        elif mark.recall == RecallMode.none:
+            reply_markup = make_next_button(locale)
+        else:
+            reply_markup = None
+        first_reply_markup = (
+            ReplyKeyboardRemove() if shown_exercise.distractors else None
         )
-        if reply_markup is not None:
-            await remember_buttoned_message(state, sent_explanation)
+        await message.answer(result_line, reply_markup=first_reply_markup)
+        sent_explanation = await message.answer(explanation, reply_markup=reply_markup)
+        if mark.recall == RecallMode.required:
+            await _start_recall(
+                state,
+                language,
+                journal,
+                state_data["shown_exercise"],
+                shown_exercise,
+                message,
+                locale,
+                course,
+                ai_mode=ai_mode,
+            )
+        else:
+            await state.update_data(
+                language=language,
+                shown_exercise=state_data["shown_exercise"],
+                ai_mode=ai_mode,
+            )
+            if reply_markup is not None:
+                await remember_buttoned_message(state, sent_explanation)
 
 
 @router.message(UserState.recalling)
@@ -355,7 +354,7 @@ async def handle_recall(
     ai_mode = state_data.get("ai_mode", False)
     await state.clear()
     language = get_language(state_data)
-    journal = await journal_backend.get_journal(str(message.chat.id))
+    journal = await journal_backend.get(str(message.chat.id))
     shown_recall = Recall.from_dict(state_data["shown_recall"])
     await state.update_data(
         language=language,
@@ -365,8 +364,8 @@ async def handle_recall(
     )
     locale = LOCALES[language]
     # check_recall() is pure (never mutates journal), unlike request_recall()
-    # in _start_recall() above — no journal_backend.save_journal() call needed
-    # here.
+    # in _start_recall() above — get() alone is enough, no
+    # journal_backend.session()/save() needed here.
     tutor = Tutor(course, journal)
     if tutor.check_recall(shown_recall, message.text or ""):
         sent = await message.answer(
@@ -388,20 +387,19 @@ async def _respond_with_next_exercise(
     state: FSMContext,
     course: Course,
     tutor: Tutor,
-    journal: dict,
     language: Language,
     locale: Locale,
-    journal_backend: JournalBackend,
     *,
     ai_mode: bool,
     anthropic_client: AsyncAnthropic | None,
     authoring_guide: str | None,
 ) -> None:
-    student_id = str(callback.from_user.id)
+    # tutor already wraps the journal its caller opened via
+    # journal_backend.session() — this function only ever mutates through
+    # tutor, so it never needs the backend itself.
     exercise, events = tutor.next_exercise()
     record_tutoring_events(events)
     if exercise is None:
-        await journal_backend.save_journal(student_id, journal)
         if isinstance(callback.message, Message):
             await callback.message.edit_reply_markup(reply_markup=None)
             sent = await callback.message.answer(
@@ -428,7 +426,6 @@ async def _respond_with_next_exercise(
         chat_id=callback.message.chat.id if has_accessible_message else None,
     )
     if exercise is None:
-        await journal_backend.save_journal(student_id, journal)
         if isinstance(callback.message, Message):
             await callback.message.edit_reply_markup(reply_markup=None)
             await forget_buttoned_message(state)
@@ -436,7 +433,6 @@ async def _respond_with_next_exercise(
         await callback.answer()
         return
     await state.set_state(UserState.answering)
-    await journal_backend.save_journal(student_id, journal)
     await state.update_data(shown_exercise=exercise.to_dict())
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -459,22 +455,20 @@ async def handle_next_exercise(
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
-    journal = await journal_backend.get_journal(str(callback.from_user.id))
     locale = LOCALES[language]
-    tutor = Tutor(course, journal)
-    await _respond_with_next_exercise(
-        callback,
-        state,
-        course,
-        tutor,
-        journal,
-        language,
-        locale,
-        journal_backend,
-        ai_mode=state_data.get("ai_mode", False),
-        anthropic_client=anthropic_client,
-        authoring_guide=authoring_guide,
-    )
+    async with journal_backend.session(str(callback.from_user.id)) as journal:
+        tutor = Tutor(course, journal)
+        await _respond_with_next_exercise(
+            callback,
+            state,
+            course,
+            tutor,
+            language,
+            locale,
+            ai_mode=state_data.get("ai_mode", False),
+            anthropic_client=anthropic_client,
+            authoring_guide=authoring_guide,
+        )
 
 
 @router.callback_query(F.data == STUDY_MORE)
@@ -488,23 +482,21 @@ async def handle_study_more(
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
-    journal = await journal_backend.get_journal(str(callback.from_user.id))
     locale = LOCALES[language]
-    tutor = Tutor(course, journal)
-    tutor.grant_new_word_budget()
-    await _respond_with_next_exercise(
-        callback,
-        state,
-        course,
-        tutor,
-        journal,
-        language,
-        locale,
-        journal_backend,
-        ai_mode=state_data.get("ai_mode", False),
-        anthropic_client=anthropic_client,
-        authoring_guide=authoring_guide,
-    )
+    async with journal_backend.session(str(callback.from_user.id)) as journal:
+        tutor = Tutor(course, journal)
+        tutor.grant_new_word_budget()
+        await _respond_with_next_exercise(
+            callback,
+            state,
+            course,
+            tutor,
+            language,
+            locale,
+            ai_mode=state_data.get("ai_mode", False),
+            anthropic_client=anthropic_client,
+            authoring_guide=authoring_guide,
+        )
 
 
 @router.callback_query(F.data == RECALL)
@@ -516,22 +508,21 @@ async def handle_recall_request(
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
-    journal = await journal_backend.get_journal(str(callback.from_user.id))
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
-        await _start_recall(
-            state,
-            language,
-            journal,
-            state_data["shown_exercise"],
-            shown_exercise,
-            callback.message,
-            locale,
-            course,
-            journal_backend,
-            ai_mode=state_data.get("ai_mode", False),
-        )
+        async with journal_backend.session(str(callback.from_user.id)) as journal:
+            await _start_recall(
+                state,
+                language,
+                journal,
+                state_data["shown_exercise"],
+                shown_exercise,
+                callback.message,
+                locale,
+                course,
+                ai_mode=state_data.get("ai_mode", False),
+            )
     await callback.answer()

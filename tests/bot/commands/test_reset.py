@@ -41,7 +41,7 @@ async def test_confirming_reset_clears_schedule_only(
     journal_backend: JournalBackend,
     chat_id: int,
 ) -> None:
-    await journal_backend.save_journal(
+    await journal_backend.save(
         str(chat_id),
         {
             "word_schedule": {"warten": {"government": {}}},
@@ -53,7 +53,7 @@ async def test_confirming_reset_clears_schedule_only(
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_done
-    journal = await journal_backend.get_journal(str(chat_id))
+    journal = await journal_backend.get(str(chat_id))
     assert journal["word_schedule"] == {}
     assert journal["last_exercise"]["is_recall_optional"] is False
 
@@ -65,9 +65,7 @@ async def test_confirming_reset_preserves_language(
     chat_id: int,
 ) -> None:
     await state.update_data(language="en")
-    await journal_backend.save_journal(
-        str(chat_id), {"word_schedule": {"x": {"y": {}}}}
-    )
+    await journal_backend.save(str(chat_id), {"word_schedule": {"x": {"y": {}}}})
 
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
@@ -75,7 +73,7 @@ async def test_confirming_reset_preserves_language(
     assert requests[0].text == EN.reset_done
     data = await state.get_data()
     assert data["language"] == "en"
-    journal = await journal_backend.get_journal(str(chat_id))
+    journal = await journal_backend.get(str(chat_id))
     assert journal["word_schedule"] == {}
 
 
@@ -86,13 +84,13 @@ async def test_cancelling_reset_keeps_journal(
     chat_id: int,
 ) -> None:
     journal = {"word_schedule": {"warten": {"government": {}}}}
-    await journal_backend.save_journal(str(chat_id), journal)
+    await journal_backend.save(str(chat_id), journal)
 
     requests = await feed_callback_query(RESET_CANCEL, course=Course([]))
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_cancelled
-    assert await journal_backend.get_journal(str(chat_id)) == journal
+    assert await journal_backend.get(str(chat_id)) == journal
 
 
 async def test_reset_command_clears_a_stale_button_left_from_wiederholen(

@@ -47,7 +47,7 @@ async def _remind_chat(
             return
         span.set_attribute("reminder.sent", True)
         tutor.record_reminder_sent()
-        await journal_backend.save_journal(str(chat_id), journal)
+        await journal_backend.save(str(chat_id), journal)
 
 
 async def tick(
@@ -57,7 +57,7 @@ async def tick(
     course: Course,
 ) -> None:
     with default_tracer.start_as_current_span("reminder.tick"):
-        async for student_id, journal in journal_backend.iter_journals():
+        async for student_id, journal in journal_backend:
             chat_id = int(student_id)
             try:
                 await _remind_chat(

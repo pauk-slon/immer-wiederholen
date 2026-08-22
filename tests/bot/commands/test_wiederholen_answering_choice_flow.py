@@ -209,7 +209,7 @@ class TestNextExerciseButton:
             explanation={"ru": "x", "en": "y"},
         )
         await state.update_data(language="ru")
-        await journal_backend.save_journal(
+        await journal_backend.save(
             str(chat_id), {"last_exercise": {"question": mit.question}}
         )
 
@@ -243,9 +243,7 @@ class TestNextExerciseButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await journal_backend.save_journal(
-            str(chat_id), {"word_schedule": word_schedule}
-        )
+        await journal_backend.save(str(chat_id), {"word_schedule": word_schedule})
 
         requests = await feed_callback_query(
             NEXT_EXERCISE, course=Course([exercise, *capped_exercises])
@@ -287,9 +285,7 @@ class TestStudyMoreButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await journal_backend.save_journal(
-            str(chat_id), {"word_schedule": word_schedule}
-        )
+        await journal_backend.save(str(chat_id), {"word_schedule": word_schedule})
 
         requests = await feed_callback_query(
             STUDY_MORE,
@@ -325,16 +321,14 @@ class TestStudyMoreButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await journal_backend.save_journal(
-            str(chat_id), {"word_schedule": word_schedule}
-        )
+        await journal_backend.save(str(chat_id), {"word_schedule": word_schedule})
 
         await feed_callback_query(
             STUDY_MORE,
             course=Course([exercise, *capped_exercises]),
         )
 
-        journal = await journal_backend.get_journal(str(chat_id))
+        journal = await journal_backend.get(str(chat_id))
         assert journal["new_word_budget"] == {
             "date": today.isoformat(),
             "count": Tutor.NEW_WORD_BUDGET_GRANT,

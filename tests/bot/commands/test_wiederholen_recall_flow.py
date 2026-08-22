@@ -202,7 +202,7 @@ async def test_clicking_retry_starts_recall_again(
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
     )
-    await journal_backend.save_journal(
+    await journal_backend.save(
         str(chat_id), {"last_exercise": {"is_recall_optional": False}}
     )
 
@@ -238,7 +238,7 @@ async def test_retry_avoids_repeating_last_recall_variant(
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
     )
-    await journal_backend.save_journal(
+    await journal_backend.save(
         str(chat_id),
         {
             "last_exercise": {
@@ -276,12 +276,12 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
     }
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
-    await journal_backend.save_journal(str(chat_id), journal)
+    await journal_backend.save(str(chat_id), journal)
 
     await feed_message(exercise.answer, course=Course([exercise]))
     await feed_callback_query(RECALL, course=Course([exercise]))
 
-    journal = await journal_backend.get_journal(str(chat_id))
+    journal = await journal_backend.get(str(chat_id))
     entry = journal["word_schedule"]["warten"]["government"]
     assert entry["repetition_interval"] == 8
     assert entry["due_date"] == (today + timedelta(days=8)).isoformat()

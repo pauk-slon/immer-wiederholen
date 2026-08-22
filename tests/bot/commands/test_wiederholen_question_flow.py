@@ -193,7 +193,7 @@ async def test_avoids_repeating_previously_shown_question(
         distractors=["mit", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )
-    await journal_backend.save_journal(
+    await journal_backend.save(
         str(chat_id), {"last_exercise": {"question": mit.question}}
     )
 
@@ -224,7 +224,7 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
         }
         for i in range(Tutor.NEW_WORDS_PER_DAY)
     }
-    await journal_backend.save_journal(str(chat_id), {"word_schedule": word_schedule})
+    await journal_backend.save(str(chat_id), {"word_schedule": word_schedule})
 
     requests = await feed_message(
         "/wiederholen", course=Course([exercise, *capped_exercises])

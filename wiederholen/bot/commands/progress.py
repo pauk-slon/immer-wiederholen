@@ -27,7 +27,7 @@ async def command_progress(
     language = get_language(data)
     # progress() is read-only (see wiederholen.tutoring.session), so there's
     # nothing to save back here.
-    journal = await journal_backend.get_journal(str(message.chat.id))
+    journal = await journal_backend.get(str(message.chat.id))
     locale = LOCALES[language]
     progress = Tutor(course, journal).progress()
     sent = await message.answer(

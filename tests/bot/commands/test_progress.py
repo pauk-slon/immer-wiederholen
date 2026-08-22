@@ -75,7 +75,7 @@ async def test_reflects_journal_breakdown(
             },
         }
     }
-    await journal_backend.save_journal(str(chat_id), journal)
+    await journal_backend.save(str(chat_id), journal)
 
     requests = await feed_message("/progress", course=Course([new, learning, mastered]))
 
@@ -99,7 +99,7 @@ async def test_reflects_todays_answer_count(
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date().isoformat()
     journal = {"today_answers": {"date": today, "answered": 12, "correct": 9}}
-    await journal_backend.save_journal(str(chat_id), journal)
+    await journal_backend.save(str(chat_id), journal)
 
     requests = await feed_message("/progress", course=Course([exercise]))
 
