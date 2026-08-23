@@ -1,6 +1,7 @@
 import os
 import random
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Final
 
 from litestar import Litestar, Request, post
@@ -8,6 +9,9 @@ from litestar.config.cors import CORSConfig
 from litestar.datastructures import State
 from litestar.exceptions import HTTPException
 from litestar.response import Response
+from litestar.static_files import create_static_files_router
+
+_STATIC_DIR: Final = Path(__file__).parent / "static"
 
 from wiederholen.school import (
     Course,
@@ -161,8 +165,11 @@ async def check_answer(
 
 def create_app() -> Litestar:
     course, student_record_book, session_store = load_web_course_and_storage()
+    static_router = create_static_files_router(
+        path="/widget", directories=[_STATIC_DIR]
+    )
     return Litestar(
-        route_handlers=[next_exercise, check_answer],
+        route_handlers=[next_exercise, check_answer, static_router],
         state=State(
             {
                 "course": course,
