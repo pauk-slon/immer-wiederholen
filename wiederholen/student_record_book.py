@@ -37,15 +37,8 @@ class StudentRecordBook(ABC):
 
     @asynccontextmanager
     async def check_out(self, student_id: str) -> AsyncIterator[dict]:
-        """Fetch a student's record and yield it for in-place mutation via
-        `Tutor`. Saved back on exit only if it actually changed from what was
-        fetched — regardless of whether the body raised, so a mutation
-        already applied (e.g. `check_answer()` recording an answer) isn't
-        lost just because something *after* it, like sending a reply, failed;
-        and a caller that only reads never triggers a write at all. This is
-        the sole public way to read or write one student's record — built on
-        `_get()`/`_save()` alone, which no caller outside this class needs
-        directly.
+        """Fetch that student's record and save it back on exit, but only if
+        it actually changed.
         """
         student_record = await self._get(student_id)
         before = copy.deepcopy(student_record)
