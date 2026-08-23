@@ -4,6 +4,8 @@ import logging
 from aiogram.exceptions import TelegramRetryAfter
 from aiogram.types import BotCommand
 
+from wiederholen.tracing import configure_tracing, instrument_redis
+
 from . import dispatcher
 from .bootstrap import (
     load_anthropic_client,
@@ -12,7 +14,6 @@ from .bootstrap import (
     load_feature_flags,
 )
 from .l10n import LOCALES
-from .tracing import configure_tracing, instrument_redis
 
 logger = logging.getLogger(__name__)
 

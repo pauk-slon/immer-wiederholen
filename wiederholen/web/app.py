@@ -8,6 +8,7 @@ from litestar import Litestar, Request, post
 from litestar.config.cors import CORSConfig
 from litestar.datastructures import State
 from litestar.exceptions import HTTPException
+from litestar.plugins.opentelemetry import OpenTelemetryConfig, OpenTelemetryPlugin
 from litestar.response import Response
 from litestar.static_files import create_static_files_router
 
@@ -182,4 +183,15 @@ def create_app() -> Litestar:
             allow_origins=os.environ["WEB_ALLOWED_ORIGINS"].split(","),
             allow_credentials=True,
         ),
+        # Wraps every request in a server span, same reason
+        # wiederholen.bot.tracing.TracingMiddleware wraps every Telegram
+        # update in one: without it, every Redis call
+        # next_exercise()/check_answer() makes via student_record_book/
+        # session_store would show up as its own orphan root span instead of
+        # grouped under the request that made it. No explicit tracer_provider
+        # passed — like default_tracer elsewhere, it resolves the current
+        # global provider lazily, so this is a safe no-op until
+        # configure_tracing() (wiederholen.web.__main__.main()) actually
+        # installs one.
+        plugins=[OpenTelemetryPlugin(OpenTelemetryConfig())],
     )
