@@ -51,7 +51,7 @@ def _env(
     exercise_data: ExerciseData,
 ) -> Generator[None]:
     monkeypatch.setenv("BOT_TOKEN", bot_token)
-    monkeypatch.setenv("FSM_STORAGE_URL", fsm_storage_url)
+    monkeypatch.setenv("BOT_FSM_STORAGE_URL", fsm_storage_url)
     monkeypatch.setenv("STUDENT_RECORD_STORAGE_URL", student_record_storage_url)
     # All optional and unrelated to most tests here — pinned absent so a
     # real value set on the host running these tests (e.g. compose.override.
@@ -177,7 +177,7 @@ async def test_configures_student_record_book_from_its_own_env_var(
     # A distinct DB number from fsm_storage_url (see the fixtures above) is
     # what makes this test actually prove student_record_book reads
     # STUDENT_RECORD_STORAGE_URL, rather than accidentally still sharing
-    # FSM_STORAGE_URL's connection.
+    # BOT_FSM_STORAGE_URL's connection.
     with mock_main_io() as (_mock_request, mock_polling):
         await main()
 

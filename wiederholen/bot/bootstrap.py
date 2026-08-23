@@ -56,5 +56,5 @@ def load_bot_course_and_storage() -> tuple[
     token = os.environ["BOT_TOKEN"]
     course = Course.load(Path(os.environ.get("COURSE_PATH", "data")))
     bot = Bot(token=token)
-    storage_url = os.environ["FSM_STORAGE_URL"]
+    storage_url = os.environ["BOT_FSM_STORAGE_URL"]
     return bot, course, RedisStorage.from_url(storage_url), load_student_record_book()

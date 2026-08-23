@@ -24,7 +24,7 @@ jobs:
           --health-retries 5
     env:
       STUDENT_RECORD_STORAGE_URL: redis://localhost:6379/0
-      FSM_STORAGE_URL: redis://localhost:6379/1
+      BOT_FSM_STORAGE_URL: redis://localhost:6379/1
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7

@@ -20,7 +20,7 @@ async def student_record_book(
 ) -> AsyncIterator[StudentRecordBook]:
     # Flushes its own DB rather than relying on redis_storage's flushdb() to
     # incidentally cover it too: STUDENT_RECORD_STORAGE_URL and
-    # FSM_STORAGE_URL point at different DB numbers by default (compose.yaml,
+    # BOT_FSM_STORAGE_URL point at different DB numbers by default (compose.yaml,
     # CI) precisely to prove the two stores are genuinely independent — they
     # only coincide when the --redis-db-override pin forces both to the same
     # overridden DB for a local pytest run (see tests/plugins/aiogram.py).
