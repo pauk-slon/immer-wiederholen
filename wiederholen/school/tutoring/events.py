@@ -56,12 +56,5 @@ def _attributes(event: TutoringEvent) -> dict[str, Any]:
 
 
 def emit(event: TutoringEvent) -> None:
-    # opentelemetry-api, not the SDK: a safe no-op without a configured
-    # provider, unlike a real infra dependency (redis, an HTTP client) —
-    # deliberately acceptable here even though the rest of this package
-    # otherwise imports nothing beyond the standard library. Deciding *what*
-    # counts as a meaningful event and *when* it fires is domain knowledge,
-    # so it's emitted right where it happens rather than collected and
-    # bridged to spans by a caller reconstructing it from before/after state.
     span = trace.get_current_span()
     span.add_event(type(event).__name__, attributes=_attributes(event))
