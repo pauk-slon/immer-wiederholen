@@ -40,12 +40,16 @@ def pytest_addoption(parser):
 def pytest_configure(config) -> None:
     if (db_override := config.getoption("--redis-db-override")) is None:
         return
-    # Both env vars point at the same physical Redis/Valkey in dev/prod today
-    # (see CLAUDE.md's Persistence section) — pin both to the same dedicated
-    # test DB, so neither RedisStorage nor RedisStudentRecordBook can ever
-    # touch a DB a real dev/prod bot might be using, regardless of what's set
-    # in the environment.
-    for env_var in ("BOT_FSM_STORAGE_URL", "STUDENT_RECORD_STORAGE_URL"):
+    # All three env vars point at the same physical Redis/Valkey in dev/prod
+    # today (see CLAUDE.md's Persistence section) — pin all of them to the
+    # same dedicated test DB, so RedisStorage/RedisStudentRecordBook/
+    # WebSessionStore can never touch a DB a real dev/prod bot might be
+    # using, regardless of what's set in the environment.
+    for env_var in (
+        "BOT_FSM_STORAGE_URL",
+        "STUDENT_RECORD_STORAGE_URL",
+        "WEB_SESSION_STORAGE_URL",
+    ):
         os.environ[env_var] = urlunsplit(
             urlsplit(os.environ[env_var])._replace(path=f"/{db_override}"),
         )

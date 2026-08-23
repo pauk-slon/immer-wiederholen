@@ -9,6 +9,12 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       BOT_FSM_STORAGE_URL: redis://valkey:6379/1
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
+      # Only tests run in this service exercise wiederholen.web too (see
+      # `docker compose run --rm bot pytest`) — the web service itself runs
+      # as its own separate service below.
+      WEB_SESSION_STORAGE_URL: redis://valkey:6379/2
+      WEB_ALLOWED_ORIGINS: ${WEB_ALLOWED_ORIGINS:-http://localhost:3000}
+      WEB_COOKIE_DOMAIN: ${WEB_COOKIE_DOMAIN:-localhost}
     volumes:
       - .:/app
     depends_on:
@@ -22,6 +28,25 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       BOT_FSM_STORAGE_URL: redis://valkey:6379/1
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - valkey
+
+  web:
+    build:
+      context: .
+      target: dev
+    image: ghcr.io/pauk-slon/immer-wiederholen:dev
+    restart: unless-stopped
+    command: python -m wiederholen.web
+    environment:
+      STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
+      WEB_SESSION_STORAGE_URL: redis://valkey:6379/2
+      WEB_ALLOWED_ORIGINS: ${WEB_ALLOWED_ORIGINS:-http://localhost:3000}
+      WEB_COOKIE_DOMAIN: ${WEB_COOKIE_DOMAIN:-localhost}
+    ports:
+      - "8000:8000"
     volumes:
       - .:/app
     depends_on:
