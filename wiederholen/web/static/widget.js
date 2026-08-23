@@ -169,10 +169,17 @@ class GermanExerciseWidget extends HTMLElement {
     });
     const form = this._shadow.querySelector("[data-answer-form]");
     if (form) {
+      const input = form.querySelector("input");
       form.addEventListener("submit", (event) => {
         event.preventDefault();
-        this._submitAnswer(form.querySelector("input").value);
+        this._submitAnswer(input.value);
       });
+      // Same reasoning as _renderResult()'s Next-button focus: _render()
+      // just wiped whatever had focus (e.g. the previous question's Next
+      // button), so without this the learner has to click the input by
+      // hand before they can type — breaking a keyboard-only flow right
+      // where it matters most.
+      input.focus();
     }
   }
 
