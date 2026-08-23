@@ -45,8 +45,6 @@ services:
       WEB_SESSION_STORAGE_URL: redis://valkey:6379/2
       WEB_ALLOWED_ORIGINS: ${WEB_ALLOWED_ORIGINS:-http://localhost:3000}
       WEB_COOKIE_DOMAIN: ${WEB_COOKIE_DOMAIN:-localhost}
-    ports:
-      - "8000:8000"
     volumes:
       - .:/app
     depends_on:
