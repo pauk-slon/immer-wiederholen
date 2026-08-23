@@ -142,7 +142,48 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   connectedCallback() {
+    // Reuse whatever question was already showing before a plain page
+    // reload, instead of always spending a fresh /api/exercise/next call —
+    // the server's own session (WebSessionStore's shown_exercise) hasn't
+    // moved on either, since only actually submitting an answer does that,
+    // so re-rendering the cached DTO is exactly consistent with what the
+    // backend still thinks is "shown" for this student.
+    const cached = this._readCachedExercise();
+    if (cached) {
+      this._renderQuestion(cached);
+      return;
+    }
     this._loadNext();
+  }
+
+  // sessionStorage, not localStorage: it survives a reload of this same tab
+  // (the actual complaint this caches against) but clears once the tab/
+  // session ends, so a genuinely new visit just gets a fresh question
+  // without needing any separate expiry bookkeeping here — that alone
+  // roughly tracks WebSessionStore's own 1h TTL for the common case of
+  // reloading soon after the page was first opened. If the two ever do
+  // drift apart (tab left open past that hour, then answered), check_answer
+  // 409s and the learner sees the existing error+retry path, not a crash.
+  get _cacheKey() {
+    return `wiederholen-widget:${this._topics.join(",")}:${this._language}`;
+  }
+
+  _readCachedExercise() {
+    const raw = sessionStorage.getItem(this._cacheKey);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  _writeCachedExercise(exercise) {
+    sessionStorage.setItem(this._cacheKey, JSON.stringify(exercise));
+  }
+
+  _clearCachedExercise() {
+    sessionStorage.removeItem(this._cacheKey);
   }
 
   get _topics() {
@@ -183,11 +224,13 @@ class GermanExerciseWidget extends HTMLElement {
         language: this._language,
       });
       if (exercise === null) {
+        this._clearCachedExercise();
         this._render(
           `<div class="widget centered"><p class="muted">Nothing to practice here right now — come back later!</p></div>`
         );
         return;
       }
+      this._writeCachedExercise(exercise);
       this._renderQuestion(exercise);
     } catch {
       this._renderError();
@@ -201,6 +244,11 @@ class GermanExerciseWidget extends HTMLElement {
         answer,
         language: this._language,
       });
+      // The just-answered exercise is no longer "pending" — a reload right
+      // now must not resurrect it from cache and let it be answered again,
+      // so this clears before rendering the result rather than only when
+      // the learner actually clicks "Next" afterward.
+      this._clearCachedExercise();
       this._renderResult(result);
     } catch {
       this._renderError();
