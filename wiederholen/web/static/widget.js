@@ -35,54 +35,45 @@ const STYLES = `
        (a description/instruction line or not, one choice row or two, a
        short vs. long explanation), and a min-height alone still let the
        widget resize between every step — still jolting the surrounding
-       page, just less often. A fixed height stops that outright; content
-       that genuinely doesn't fit scrolls inside the widget instead of
-       resizing it. Sized to comfortably fit the common case (description +
-       instruction + question + a wrapped choices row) without a scrollbar. */
+       page, just less often. A fixed height stops that outright. overflow
+       is hidden here, not scrollable — .body below is the one thing that
+       scrolls internally; see its own comment for why that split exists.
+       Sized to comfortably fit the common case (description + instruction
+       + question + a wrapped choices row) without .body needing to scroll. */
     height: 14rem;
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   /* Short, single-purpose states (a loading placeholder, an error, "nothing
      available") — centering them in the fixed-height box reads as an
      intentional state screen rather than a stray line stuck at the top of a
      mostly-empty box. Not applied to .widget generally: a real question or
-     result's content should start from the top like normal reading order,
-     and centering combined with scrolling on overflow can make a tall
-     block's own start awkward to reach. */
+     result's content should start from the top like normal reading order. */
   .widget.centered {
-    display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
   }
-  /* The question and result states are both usually much shorter than the
-     fixed-height box, leaving their last element (the answer control, the
-     Next button) stranded right under the text above it with a lot of
-     empty space below — margin-top: auto on that last child, the standard
-     flex "push to the end" trick, anchors it to the bottom instead, which
-     reads as an intentional layout rather than leftover space. Two
-     separate modifiers, not one shared with .centered, since each needs
-     the default (not overridden) align-items: stretch — the same behavior
-     block layout already gave every child full width, which matters for
-     .question's <form>'s input[type="text"] { flex: 1 } in particular: an
-     overridden align-items here (flex-start/center, as .centered uses)
-     would size the form itself to fit-content instead of the full widget
-     width, visibly narrowing the input. */
-  .widget.question {
-    display: flex;
-    flex-direction: column;
-  }
-  .widget.question > .choices,
-  .widget.question > form {
-    margin-top: auto;
-  }
-  .widget.result {
-    display: flex;
-    flex-direction: column;
-  }
-  .widget.result button[data-next] {
-    margin-top: auto;
+  /* The question/result states each wrap their variable-length content (the
+     description/instruction/question, or the label/explanation) in .body,
+     leaving the answer control (.choices/the typed-input form) or the
+     "Next" button as a plain sibling after it — a toolbar that's never part
+     of the scrolling region. flex: 1 makes .body claim all the vertical
+     space the toolbar doesn't need, which is also what pins a short
+     toolbar to the bottom of the fixed-height box without a separate
+     margin-top: auto rule (an earlier version of this used exactly that,
+     directly on the toolbar element — it visually anchored the toolbar
+     correctly, but .widget's own overflow-y: auto still scrolled the
+     *entire* box including the toolbar for a too-long question, taking the
+     answer control out of view along with it). min-height: 0 overrides a
+     flex item's default min-height: auto, which would otherwise keep .body
+     at its content's full height and defeat overflow-y: auto entirely —
+     a well-known flexbox-plus-scrolling gotcha, not a redundant rule. */
+  .widget .body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
   p { margin: 0 0 0.75rem; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
@@ -215,8 +206,8 @@ class GermanExerciseWidget extends HTMLElement {
         `<input type="text" autocomplete="off" />` +
         `<button type="submit">✓</button></form>`;
     this._render(
-      `<div class="widget question">${description}${instruction}` +
-        `<p class="question">❓ ${escapeHtml(exercise.question)}</p>` +
+      `<div class="widget"><div class="body">${description}${instruction}` +
+        `<p class="question">❓ ${escapeHtml(exercise.question)}</p></div>` +
         `${answerArea}</div>`
     );
     this._shadow.querySelectorAll("[data-choice]").forEach((button) => {
@@ -250,8 +241,8 @@ class GermanExerciseWidget extends HTMLElement {
       ? `<p class="correct">✅ Correct!</p>`
       : `<p class="wrong">❌ Correct answer: ${escapeHtml(result.answer)}</p>`;
     this._render(
-      `<div class="widget result">${label}` +
-        `<p>${escapeHtml(result.explanation)}</p>` +
+      `<div class="widget"><div class="body">${label}` +
+        `<p>${escapeHtml(result.explanation)}</p></div>` +
         `<button data-next>Next</button></div>`
     );
     const nextButton = this._shadow.querySelector("[data-next]");
