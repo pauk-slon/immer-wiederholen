@@ -6,27 +6,15 @@ from wiederholen.school.student_record_book import (
     StudentID,
     StudentRecordBook,
 )
-from wiederholen.school.tutoring import (
-    ExerciseAnswered,
-    Mark,
-    NoExerciseAvailable,
-    Progress,
-    RecallMode,
-    StudentRecord,
-    TopicUnlocked,
-    Tutor,
-    TutoringEvent,
-)
+from wiederholen.school.tutoring import Mark, Progress, RecallMode, StudentRecord, Tutor
 
 __all__ = [
     "LANGUAGES",
     "AIGenerationError",
     "Course",
     "Exercise",
-    "ExerciseAnswered",
     "Language",
     "Mark",
-    "NoExerciseAvailable",
     "Progress",
     "Recall",
     "RecallMode",
@@ -35,8 +23,6 @@ __all__ = [
     "StudentRecord",
     "StudentRecordBook",
     "Topic",
-    "TopicUnlocked",
     "Tutor",
-    "TutoringEvent",
     "generate_shadow_exercise",
 ]

@@ -30,7 +30,6 @@ from wiederholen.bot.pending_buttons import (
     remember_buttoned_message,
 )
 from wiederholen.bot.telegram_student_id import TelegramStudentID
-from wiederholen.bot.tracing import record_tutoring_events
 from wiederholen.school import (
     AIGenerationError,
     Course,
@@ -258,8 +257,7 @@ async def command_wiederholen(
         TelegramStudentID.encode(message.chat.id)
     ) as student_record:
         tutor = Tutor(course, student_record)
-        exercise, events = tutor.next_exercise()
-        record_tutoring_events(events)
+        exercise = tutor.next_exercise()
         if exercise is None:
             sent = await message.answer(
                 locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
@@ -315,8 +313,7 @@ async def handle_answer(
         TelegramStudentID.encode(message.chat.id)
     ) as student_record:
         tutor = Tutor(course, student_record)
-        mark, events = tutor.check_answer(shown_exercise, message.text or "")
-        record_tutoring_events(events)
+        mark = tutor.check_answer(shown_exercise, message.text or "")
         result_line = (
             locale.correct
             if mark.is_correct
@@ -411,8 +408,7 @@ async def _respond_with_next_exercise(
     # tutor already wraps the student_record its caller opened via
     # student_record_book.check_out() — this function only ever mutates through
     # tutor, so it never needs the store itself.
-    exercise, events = tutor.next_exercise()
-    record_tutoring_events(events)
+    exercise = tutor.next_exercise()
     if exercise is None:
         if isinstance(callback.message, Message):
             await callback.message.edit_reply_markup(reply_markup=None)

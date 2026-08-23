@@ -6,11 +6,11 @@ import pytest
 
 from tests.plugins.curriculum import make_exercise
 from wiederholen.school.curriculum import Course, Exercise
-from wiederholen.school.tutoring import NoExerciseAvailable, StudentRecord, Tutor
+from wiederholen.school.tutoring import StudentRecord, Tutor
 
 
 def _next(tutor: Tutor) -> Exercise:
-    exercise, _events = tutor.next_exercise()
+    exercise = tutor.next_exercise()
     assert exercise is not None
     return exercise
 
@@ -56,10 +56,9 @@ def test_next_exercise_returns_none_when_nothing_is_due_or_available() -> None:
     }
     tutor = Tutor(Course(exercises), state)
 
-    exercise, events = tutor.next_exercise()
+    exercise = tutor.next_exercise()
 
     assert exercise is None
-    assert events == [NoExerciseAvailable(reason="nothing_available")]
 
 
 def test_next_exercise_returns_none_when_the_whole_course_is_gated() -> None:
@@ -69,10 +68,9 @@ def test_next_exercise_returns_none_when_the_whole_course_is_gated() -> None:
     gated_topics = frozenset({"preposition_meaning"})
     tutor = Tutor(Course([exercise], gated_topics=gated_topics), {})
 
-    exercise_, events = tutor.next_exercise()
+    exercise_ = tutor.next_exercise()
 
     assert exercise_ is None
-    assert events == [NoExerciseAvailable(reason="nothing_available")]
 
 
 def test_progress_remaining_today_is_zero_for_empty_course() -> None:
@@ -1102,10 +1100,9 @@ class TestNewWordDailyCap:
         }
         tutor = Tutor(Course(exercises), state)
 
-        exercise, events = tutor.next_exercise()
+        exercise = tutor.next_exercise()
 
         assert exercise is None
-        assert events == [NoExerciseAvailable(reason="daily_cap_reached")]
 
     def test_still_returns_a_due_review_when_cap_reached(self) -> None:
         today = datetime.now(UTC).date()
@@ -1419,7 +1416,7 @@ class TestNewWordBudget:
             "word_schedule": _introduced_today_schedule(Tutor.NEW_WORDS_PER_DAY, today),
         }
         tutor = Tutor(Course(exercises), state)
-        exercise, _events = tutor.next_exercise()
+        exercise = tutor.next_exercise()
         assert exercise is None
 
         tutor.grant_new_word_budget()
@@ -1440,7 +1437,7 @@ class TestNewWordBudget:
         }
         tutor = Tutor(Course(exercises), state)
         tutor.grant_new_word_budget()
-        exercise, _events = tutor.next_exercise()
+        exercise = tutor.next_exercise()
         assert exercise is None
 
         tutor.grant_new_word_budget()
@@ -1460,7 +1457,7 @@ class TestNewWordBudget:
         }
         tutor = Tutor(Course(exercises), state)
 
-        exercise, _events = tutor.next_exercise()
+        exercise = tutor.next_exercise()
         assert exercise is None
 
     def test_grant_is_a_noop_when_the_cap_is_not_currently_reached(self) -> None:

@@ -121,7 +121,7 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert kwargs["feature_flags"] == {}
     assert kwargs["anthropic_client"] is None
     assert kwargs["authoring_guide"] is None
-    exercise, _events = Tutor(kwargs["course"], {}).next_exercise()
+    exercise = Tutor(kwargs["course"], {}).next_exercise()
     assert exercise is not None
     loaded_exercise = exercise.to_dict()
     if not loaded_exercise["recalls"]:
