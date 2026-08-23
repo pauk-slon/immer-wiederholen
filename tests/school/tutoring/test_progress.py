@@ -1,7 +1,8 @@
 from datetime import UTC, datetime, timedelta
 
-from tests.plugins.tutoring import make_exercise
-from wiederholen.tutoring import Course, Tutor
+from tests.plugins.curriculum import make_exercise
+from wiederholen.school.curriculum import Course
+from wiederholen.school.tutoring import Tutor
 
 
 def test_progress_word_with_no_scheduled_topics_is_neither_learning_nor_mastered() -> (
@@ -17,7 +18,7 @@ def test_progress_word_with_no_scheduled_topics_is_neither_learning_nor_mastered
 
 def test_progress_word_below_max_interval_is_learning() -> None:
     exercise = make_exercise(word="warten")
-    journal = {
+    student_record = {
         "word_schedule": {
             "warten": {
                 "government": {
@@ -30,7 +31,7 @@ def test_progress_word_below_max_interval_is_learning() -> None:
         }
     }
 
-    progress = Tutor(Course([exercise]), journal).progress()
+    progress = Tutor(Course([exercise]), student_record).progress()
 
     assert progress.learning == 1
     assert progress.mastered == 0
@@ -38,7 +39,7 @@ def test_progress_word_below_max_interval_is_learning() -> None:
 
 def test_progress_word_at_max_interval_is_mastered() -> None:
     exercise = make_exercise(word="warten")
-    journal = {
+    student_record = {
         "word_schedule": {
             "warten": {
                 "government": {
@@ -51,7 +52,7 @@ def test_progress_word_at_max_interval_is_mastered() -> None:
         }
     }
 
-    progress = Tutor(Course([exercise]), journal).progress()
+    progress = Tutor(Course([exercise]), student_record).progress()
 
     assert progress.mastered == 1
     assert progress.learning == 0
@@ -63,7 +64,7 @@ def test_progress_word_is_learning_until_every_one_of_its_topics_is_mastered() -
     government = make_exercise(word="sprechen", topic="government", answer="auf")
     partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
     today = datetime.now(UTC).date()
-    journal = {
+    student_record = {
         "word_schedule": {
             "sprechen": {
                 "government": {
@@ -78,7 +79,7 @@ def test_progress_word_is_learning_until_every_one_of_its_topics_is_mastered() -
         }
     }
 
-    progress = Tutor(Course([government, partizip]), journal).progress()
+    progress = Tutor(Course([government, partizip]), student_record).progress()
 
     assert progress.learning == 1
     assert progress.mastered == 0
@@ -100,7 +101,7 @@ def test_progress_counts_distinct_words_not_schedule_keys() -> None:
     # Two YAML entries for the same word+topic share one schedule key.
     duplicate_1 = make_exercise(word="helfen")
     duplicate_2 = make_exercise(word="helfen")
-    journal = {
+    student_record = {
         "word_schedule": {
             "helfen": {
                 "government": {
@@ -113,24 +114,24 @@ def test_progress_counts_distinct_words_not_schedule_keys() -> None:
         }
     }
 
-    progress = Tutor(Course([duplicate_1, duplicate_2]), journal).progress()
+    progress = Tutor(Course([duplicate_1, duplicate_2]), student_record).progress()
 
     assert progress.learning == 1
 
 
 def test_progress_does_not_persist_entries_for_unscheduled_topics() -> None:
     exercise = make_exercise(word="warten")
-    journal: dict = {}
+    student_record: dict = {}
 
-    Tutor(Course([exercise]), journal).progress()
+    Tutor(Course([exercise]), student_record).progress()
 
-    assert journal == {}
+    assert student_record == {}
 
 
 def test_progress_remaining_today_counts_overdue_reviews() -> None:
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date()
-    journal = {
+    student_record = {
         "word_schedule": {
             "warten": {
                 "government": {
@@ -141,7 +142,7 @@ def test_progress_remaining_today_counts_overdue_reviews() -> None:
         }
     }
 
-    assert Tutor(Course([exercise]), journal).progress().remaining_today == 1
+    assert Tutor(Course([exercise]), student_record).progress().remaining_today == 1
 
 
 def test_progress_remaining_today_counts_a_due_but_not_yet_introduced_pair() -> None:
@@ -150,7 +151,7 @@ def test_progress_remaining_today_counts_a_due_but_not_yet_introduced_pair() -> 
     # counts toward remaining_today even though it isn't "introduced" yet.
     exercise = make_exercise(word="mit", topic="preposition_meaning")
     today = datetime.now(UTC).date()
-    journal = {
+    student_record = {
         "word_schedule": {
             "mit": {
                 "preposition_meaning": {
@@ -161,7 +162,7 @@ def test_progress_remaining_today_counts_a_due_but_not_yet_introduced_pair() -> 
         }
     }
 
-    assert Tutor(Course([exercise]), journal).progress().remaining_today == 1
+    assert Tutor(Course([exercise]), student_record).progress().remaining_today == 1
 
 
 def test_progress_remaining_today_does_not_count_untouched_pairs() -> None:
@@ -175,8 +176,8 @@ def test_progress_remaining_today_does_not_count_untouched_pairs() -> None:
 
 def test_progress_new_today_counts_words_introduced_today() -> None:
     exercise = make_exercise(word="warten", answer="auf")
-    journal: dict = {}
-    tutor = Tutor(Course([exercise]), journal)
+    student_record: dict = {}
+    tutor = Tutor(Course([exercise]), student_record)
 
     tutor.check_answer(exercise, "auf")
 
@@ -188,8 +189,8 @@ def test_progress_new_today_counts_distinct_words_not_pairs() -> None:
     # is still just one new word for the day, not two.
     government = make_exercise(word="sprechen", topic="government", answer="auf")
     partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
-    journal: dict = {}
-    tutor = Tutor(Course([government, partizip]), journal)
+    student_record: dict = {}
+    tutor = Tutor(Course([government, partizip]), student_record)
 
     tutor.check_answer(government, "auf")
     tutor.check_answer(partizip, "gesprochen")
@@ -209,7 +210,7 @@ def test_progress_new_today_excludes_a_queued_but_never_answered_word() -> None:
     # introduced_at anywhere for this word. Queued isn't introduced.
     exercise = make_exercise(word="mit", topic="preposition_meaning")
     today = datetime.now(UTC).date()
-    journal = {
+    student_record = {
         "word_schedule": {
             "mit": {
                 "preposition_meaning": {
@@ -220,7 +221,7 @@ def test_progress_new_today_excludes_a_queued_but_never_answered_word() -> None:
         }
     }
 
-    assert Tutor(Course([exercise]), journal).progress().new_today == 0
+    assert Tutor(Course([exercise]), student_record).progress().new_today == 0
 
 
 def test_progress_new_today_excludes_a_word_already_introduced_earlier() -> None:
@@ -230,7 +231,7 @@ def test_progress_new_today_excludes_a_word_already_introduced_earlier() -> None
     government = make_exercise(word="sprechen", topic="government", answer="auf")
     partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
     today = datetime.now(UTC).date()
-    journal = {
+    student_record = {
         "word_schedule": {
             "sprechen": {
                 "government": {
@@ -241,7 +242,7 @@ def test_progress_new_today_excludes_a_word_already_introduced_earlier() -> None
             },
         }
     }
-    tutor = Tutor(Course([government, partizip]), journal)
+    tutor = Tutor(Course([government, partizip]), student_record)
 
     tutor.check_answer(partizip, "gesprochen")
 

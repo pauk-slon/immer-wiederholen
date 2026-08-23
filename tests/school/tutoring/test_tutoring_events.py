@@ -1,8 +1,8 @@
 from datetime import UTC, datetime, timedelta
 
-from tests.plugins.tutoring import make_exercise
-from wiederholen.tutoring import (
-    Course,
+from tests.plugins.curriculum import make_exercise
+from wiederholen.school.curriculum import Course
+from wiederholen.school.tutoring import (
     ExerciseAnswered,
     RecallMode,
     TopicUnlocked,

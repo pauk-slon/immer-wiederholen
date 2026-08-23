@@ -22,7 +22,6 @@ from aiogram.types import (
 from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
-from wiederholen.authoring import AIGenerationError, generate_shadow_exercise
 from wiederholen.bot.feature_flags import has_feature
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 from wiederholen.bot.pending_buttons import (
@@ -30,9 +29,19 @@ from wiederholen.bot.pending_buttons import (
     forget_buttoned_message,
     remember_buttoned_message,
 )
+from wiederholen.bot.telegram_student_id import TelegramStudentID
 from wiederholen.bot.tracing import record_tutoring_events
-from wiederholen.i18n import Language
-from wiederholen.tutoring import Course, Exercise, Recall, RecallMode, Tutor
+from wiederholen.school import (
+    AIGenerationError,
+    Course,
+    Exercise,
+    Language,
+    Recall,
+    RecallMode,
+    StudentRecordBook,
+    Tutor,
+    generate_shadow_exercise,
+)
 
 router = Router()
 
@@ -99,7 +108,7 @@ def _make_recall_buttons(locale: Locale, label: str) -> InlineKeyboardMarkup:
 async def _start_recall(
     state: FSMContext,
     language: Language,
-    journal: dict,
+    student_record: dict,
     shown_exercise_dict: dict,
     shown_exercise: Exercise,
     message: Message,
@@ -108,12 +117,14 @@ async def _start_recall(
     *,
     ai_mode: bool,
 ) -> None:
-    tutor = Tutor(course, journal)
+    # student_record is mutated in place; whichever student_record_book.check_out() the
+    # caller opened it under persists it on exit — this function itself
+    # never touches the store.
+    tutor = Tutor(course, student_record)
     recall = tutor.request_recall(shown_exercise)
     await state.set_state(UserState.recalling)
     await state.update_data(
         language=language,
-        journal=journal,
         shown_exercise=shown_exercise_dict,
         shown_recall=recall.to_dict(),
         ai_mode=ai_mode,
@@ -169,7 +180,7 @@ async def _show_typing_while(bot: Bot, chat_id: int) -> AsyncIterator[None]:
     # Telegram's "typing..." indicator auto-expires after ~5s (or once a
     # message is sent) — full shadow-exercise generation (question, answer,
     # distractors, explanation, recalls, all written fresh — see
-    # wiederholen.authoring.shadow_exercises) can easily run past that, so a
+    # wiederholen.school.authoring) can easily run past that, so a
     # single one-shot call wouldn't stay visible for the whole wait. Refresh
     # it on a loop in the background instead, cancelled once generation
     # finishes either way (success or AIGenerationError).
@@ -230,6 +241,7 @@ async def command_wiederholen(
     message: Message,
     state: FSMContext,
     course: Course,
+    student_record_book: StudentRecordBook,
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
@@ -241,50 +253,48 @@ async def command_wiederholen(
         trace.get_current_span().set_attribute("feature.ai_exercises", True)
     data = await state.get_data()
     language = get_language(data)
-    journal = data.get("journal", {})
     locale = LOCALES[language]
-    tutor = Tutor(course, journal)
-    exercise, events = tutor.next_exercise()
-    record_tutoring_events(events)
-    if exercise is None:
-        await state.update_data(journal=journal)
-        sent = await message.answer(
-            locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
+    async with student_record_book.check_out(
+        TelegramStudentID.encode(message.chat.id)
+    ) as student_record:
+        tutor = Tutor(course, student_record)
+        exercise, events = tutor.next_exercise()
+        record_tutoring_events(events)
+        if exercise is None:
+            sent = await message.answer(
+                locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
+            )
+            await remember_buttoned_message(state, sent)
+            return
+        # Only apply for topics the content repo has explicitly opted in via
+        # topics.yaml's ai_generation flag (see Course.ai_generatable_topics)
+        # — for topics where the question's exact wording encodes part of
+        # the answer (word banks, fixed "verb → form" templates,
+        # subject-dependent conjugation), a rewritten question can silently
+        # stop matching the untouched answer.
+        ai_mode = bool(data.get("ai_mode", False)) and (
+            exercise.topic in course.ai_generatable_topics
         )
-        await remember_buttoned_message(state, sent)
-        return
-    # Only apply for topics the content repo has explicitly opted in via
-    # topics.yaml's ai_generation flag (see Course.ai_generatable_topics) —
-    # for topics where the question's exact wording encodes part of the
-    # answer (word banks, fixed "verb → form" templates, subject-dependent
-    # conjugation), a rewritten question can silently stop matching the
-    # untouched answer.
-    ai_mode = bool(data.get("ai_mode", False)) and (
-        exercise.topic in course.ai_generatable_topics
-    )
-    bot = message.bot
-    assert bot is not None
-    exercise = await _apply_ai_mode(
-        exercise,
-        ai_mode=ai_mode,
-        anthropic_client=anthropic_client,
-        course=course,
-        authoring_guide=authoring_guide,
-        bot=bot,
-        chat_id=message.chat.id,
-    )
-    if exercise is None:
-        await message.answer(locale.ai_generation_failed)
-        return
-    await state.set_state(UserState.answering)
-    await state.update_data(
-        shown_exercise=exercise.to_dict(),
-        journal=journal,
-    )
-    question_text = _format_question(
-        exercise, language, course, is_ai_generated=ai_mode
-    )
-    await message.answer(question_text, **_show_exercise_kwargs(exercise))
+        bot = message.bot
+        assert bot is not None
+        exercise = await _apply_ai_mode(
+            exercise,
+            ai_mode=ai_mode,
+            anthropic_client=anthropic_client,
+            course=course,
+            authoring_guide=authoring_guide,
+            bot=bot,
+            chat_id=message.chat.id,
+        )
+        if exercise is None:
+            await message.answer(locale.ai_generation_failed)
+            return
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=exercise.to_dict())
+        question_text = _format_question(
+            exercise, language, course, is_ai_generated=ai_mode
+        )
+        await message.answer(question_text, **_show_exercise_kwargs(exercise))
 
 
 @router.message(UserState.answering)
@@ -292,84 +302,97 @@ async def handle_answer(
     message: Message,
     state: FSMContext,
     course: Course,
+    student_record_book: StudentRecordBook,
 ) -> None:
     state_data = await state.get_data()
     ai_mode = state_data.get("ai_mode", False)
     await state.clear()
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
-    journal = state_data.get("journal", {})
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
-    tutor = Tutor(course, journal)
-    mark, events = tutor.check_answer(shown_exercise, message.text or "")
-    record_tutoring_events(events)
-    result_line = (
-        locale.correct
-        if mark.is_correct
-        else locale.wrong.format(answer=shown_exercise.answer)
-    )
-    if mark.recall == RecallMode.optional:
-        reply_markup = _make_recall_buttons(locale, locale.btn_recall)
-    elif mark.recall == RecallMode.none:
-        reply_markup = make_next_button(locale)
-    else:
-        reply_markup = None
-    first_reply_markup = ReplyKeyboardRemove() if shown_exercise.distractors else None
-    await message.answer(result_line, reply_markup=first_reply_markup)
-    sent_explanation = await message.answer(explanation, reply_markup=reply_markup)
-    if mark.recall == RecallMode.required:
-        await _start_recall(
-            state,
-            language,
-            journal,
-            state_data["shown_exercise"],
-            shown_exercise,
-            message,
-            locale,
-            course,
-            ai_mode=ai_mode,
+    async with student_record_book.check_out(
+        TelegramStudentID.encode(message.chat.id)
+    ) as student_record:
+        tutor = Tutor(course, student_record)
+        mark, events = tutor.check_answer(shown_exercise, message.text or "")
+        record_tutoring_events(events)
+        result_line = (
+            locale.correct
+            if mark.is_correct
+            else locale.wrong.format(answer=shown_exercise.answer)
         )
-    else:
-        await state.update_data(
-            language=language,
-            journal=journal,
-            shown_exercise=state_data["shown_exercise"],
-            ai_mode=ai_mode,
+        if mark.recall == RecallMode.optional:
+            reply_markup = _make_recall_buttons(locale, locale.btn_recall)
+        elif mark.recall == RecallMode.none:
+            reply_markup = make_next_button(locale)
+        else:
+            reply_markup = None
+        first_reply_markup = (
+            ReplyKeyboardRemove() if shown_exercise.distractors else None
         )
-        if reply_markup is not None:
-            await remember_buttoned_message(state, sent_explanation)
+        await message.answer(result_line, reply_markup=first_reply_markup)
+        sent_explanation = await message.answer(explanation, reply_markup=reply_markup)
+        if mark.recall == RecallMode.required:
+            await _start_recall(
+                state,
+                language,
+                student_record,
+                state_data["shown_exercise"],
+                shown_exercise,
+                message,
+                locale,
+                course,
+                ai_mode=ai_mode,
+            )
+        else:
+            await state.update_data(
+                language=language,
+                shown_exercise=state_data["shown_exercise"],
+                ai_mode=ai_mode,
+            )
+            if reply_markup is not None:
+                await remember_buttoned_message(state, sent_explanation)
 
 
 @router.message(UserState.recalling)
-async def handle_recall(message: Message, state: FSMContext, course: Course) -> None:
+async def handle_recall(
+    message: Message,
+    state: FSMContext,
+    course: Course,
+    student_record_book: StudentRecordBook,
+) -> None:
     state_data = await state.get_data()
     ai_mode = state_data.get("ai_mode", False)
     await state.clear()
     language = get_language(state_data)
-    journal = state_data.get("journal", {})
     shown_recall = Recall.from_dict(state_data["shown_recall"])
     await state.update_data(
         language=language,
-        journal=journal,
         shown_exercise=state_data["shown_exercise"],
         shown_recall=state_data["shown_recall"],
         ai_mode=ai_mode,
     )
     locale = LOCALES[language]
-    tutor = Tutor(course, journal)
-    if tutor.check_recall(shown_recall, message.text or ""):
-        sent = await message.answer(
-            locale.recall_correct,
-            reply_markup=make_next_button(locale),
-        )
-    else:
-        correct_answer = _highlight_diff(message.text or "", shown_recall.answer[0])
-        sent = await message.answer(
-            locale.recall_wrong.format(answer=correct_answer),
-            reply_markup=_make_recall_buttons(locale, locale.btn_recall_retry),
-            parse_mode="HTML",
-        )
+    # check_recall() is pure (never mutates student_record), unlike request_recall()
+    # in _start_recall() above — open() detects that nothing changed and
+    # skips the write on its own, no separate read-only path needed here.
+    async with student_record_book.check_out(
+        TelegramStudentID.encode(message.chat.id)
+    ) as student_record:
+        tutor = Tutor(course, student_record)
+        if tutor.check_recall(shown_recall, message.text or ""):
+            sent = await message.answer(
+                locale.recall_correct,
+                reply_markup=make_next_button(locale),
+            )
+        else:
+            correct_answer = _highlight_diff(message.text or "", shown_recall.answer[0])
+            sent = await message.answer(
+                locale.recall_wrong.format(answer=correct_answer),
+                reply_markup=_make_recall_buttons(locale, locale.btn_recall_retry),
+                parse_mode="HTML",
+            )
     await remember_buttoned_message(state, sent)
 
 
@@ -378,7 +401,6 @@ async def _respond_with_next_exercise(
     state: FSMContext,
     course: Course,
     tutor: Tutor,
-    journal: dict,
     language: Language,
     locale: Locale,
     *,
@@ -386,10 +408,12 @@ async def _respond_with_next_exercise(
     anthropic_client: AsyncAnthropic | None,
     authoring_guide: str | None,
 ) -> None:
+    # tutor already wraps the student_record its caller opened via
+    # student_record_book.check_out() — this function only ever mutates through
+    # tutor, so it never needs the store itself.
     exercise, events = tutor.next_exercise()
     record_tutoring_events(events)
     if exercise is None:
-        await state.update_data(journal=journal)
         if isinstance(callback.message, Message):
             await callback.message.edit_reply_markup(reply_markup=None)
             sent = await callback.message.answer(
@@ -416,7 +440,6 @@ async def _respond_with_next_exercise(
         chat_id=callback.message.chat.id if has_accessible_message else None,
     )
     if exercise is None:
-        await state.update_data(journal=journal)
         if isinstance(callback.message, Message):
             await callback.message.edit_reply_markup(reply_markup=None)
             await forget_buttoned_message(state)
@@ -424,7 +447,7 @@ async def _respond_with_next_exercise(
         await callback.answer()
         return
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
+    await state.update_data(shown_exercise=exercise.to_dict())
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
@@ -440,26 +463,28 @@ async def handle_next_exercise(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
+    student_record_book: StudentRecordBook,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
-    journal = state_data.get("journal", {})
     locale = LOCALES[language]
-    tutor = Tutor(course, journal)
-    await _respond_with_next_exercise(
-        callback,
-        state,
-        course,
-        tutor,
-        journal,
-        language,
-        locale,
-        ai_mode=state_data.get("ai_mode", False),
-        anthropic_client=anthropic_client,
-        authoring_guide=authoring_guide,
-    )
+    async with student_record_book.check_out(
+        TelegramStudentID.encode(callback.from_user.id)
+    ) as student_record:
+        tutor = Tutor(course, student_record)
+        await _respond_with_next_exercise(
+            callback,
+            state,
+            course,
+            tutor,
+            language,
+            locale,
+            ai_mode=state_data.get("ai_mode", False),
+            anthropic_client=anthropic_client,
+            authoring_guide=authoring_guide,
+        )
 
 
 @router.callback_query(F.data == STUDY_MORE)
@@ -467,27 +492,29 @@ async def handle_study_more(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
+    student_record_book: StudentRecordBook,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
-    journal = state_data.get("journal", {})
     locale = LOCALES[language]
-    tutor = Tutor(course, journal)
-    tutor.grant_new_word_budget()
-    await _respond_with_next_exercise(
-        callback,
-        state,
-        course,
-        tutor,
-        journal,
-        language,
-        locale,
-        ai_mode=state_data.get("ai_mode", False),
-        anthropic_client=anthropic_client,
-        authoring_guide=authoring_guide,
-    )
+    async with student_record_book.check_out(
+        TelegramStudentID.encode(callback.from_user.id)
+    ) as student_record:
+        tutor = Tutor(course, student_record)
+        tutor.grant_new_word_budget()
+        await _respond_with_next_exercise(
+            callback,
+            state,
+            course,
+            tutor,
+            language,
+            locale,
+            ai_mode=state_data.get("ai_mode", False),
+            anthropic_client=anthropic_client,
+            authoring_guide=authoring_guide,
+        )
 
 
 @router.callback_query(F.data == RECALL)
@@ -495,24 +522,27 @@ async def handle_recall_request(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
+    student_record_book: StudentRecordBook,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
-    journal = state_data.get("journal", {})
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
-        await _start_recall(
-            state,
-            language,
-            journal,
-            state_data["shown_exercise"],
-            shown_exercise,
-            callback.message,
-            locale,
-            course,
-            ai_mode=state_data.get("ai_mode", False),
-        )
+        async with student_record_book.check_out(
+            TelegramStudentID.encode(callback.from_user.id)
+        ) as student_record:
+            await _start_recall(
+                state,
+                language,
+                student_record,
+                state_data["shown_exercise"],
+                shown_exercise,
+                callback.message,
+                locale,
+                course,
+                ai_mode=state_data.get("ai_mode", False),
+            )
     await callback.answer()

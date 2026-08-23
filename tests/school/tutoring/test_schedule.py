@@ -4,8 +4,9 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
-from tests.plugins.tutoring import make_exercise
-from wiederholen.tutoring import Course, Exercise, Journal, NoExerciseAvailable, Tutor
+from tests.plugins.curriculum import make_exercise
+from wiederholen.school.curriculum import Course, Exercise
+from wiederholen.school.tutoring import NoExerciseAvailable, StudentRecord, Tutor
 
 
 def _next(tutor: Tutor) -> Exercise:
@@ -80,7 +81,7 @@ def test_progress_remaining_today_is_zero_for_empty_course() -> None:
 
 def test_progress_remaining_today_excludes_not_yet_due_topics() -> None:
     exercise = make_exercise(word="warten")
-    journal = {
+    student_record = {
         "word_schedule": {
             "warten": {
                 "government": {
@@ -93,7 +94,7 @@ def test_progress_remaining_today_excludes_not_yet_due_topics() -> None:
         }
     }
 
-    assert Tutor(Course([exercise]), journal).progress().remaining_today == 0
+    assert Tutor(Course([exercise]), student_record).progress().remaining_today == 0
 
 
 def test_progress_remaining_today_counts_shared_schedule_key_once() -> None:
@@ -101,7 +102,7 @@ def test_progress_remaining_today_counts_shared_schedule_key_once() -> None:
     # due review counts once regardless of how many entries back it.
     duplicate_1 = make_exercise(word="helfen")
     duplicate_2 = make_exercise(word="helfen")
-    journal = {
+    student_record = {
         "word_schedule": {
             "helfen": {
                 "government": {
@@ -114,7 +115,7 @@ def test_progress_remaining_today_counts_shared_schedule_key_once() -> None:
         }
     }
 
-    progress = Tutor(Course([duplicate_1, duplicate_2]), journal).progress()
+    progress = Tutor(Course([duplicate_1, duplicate_2]), student_record).progress()
 
     assert progress.remaining_today == 1
 
@@ -257,20 +258,20 @@ def test_wrong_answer_resets_interval_to_zero_and_is_due_today() -> None:
 
 def test_check_answer_records_last_answered_question() -> None:
     exercise = make_exercise(word="warten", answer="auf")
-    journal: dict = {}
+    student_record: dict = {}
 
-    Tutor(Course([exercise]), journal).check_answer(exercise, "auf")
+    Tutor(Course([exercise]), student_record).check_answer(exercise, "auf")
 
-    assert journal["last_exercise"]["question"] == exercise.question
+    assert student_record["last_exercise"]["question"] == exercise.question
 
 
 def test_check_answer_records_last_answered_at() -> None:
     exercise = make_exercise(word="warten", answer="auf")
-    journal: dict = {}
+    student_record: dict = {}
 
-    Tutor(Course([exercise]), journal).check_answer(exercise, "auf")
+    Tutor(Course([exercise]), student_record).check_answer(exercise, "auf")
 
-    assert "answered_at" in journal["last_exercise"]
+    assert "answered_at" in student_record["last_exercise"]
 
 
 @pytest.mark.parametrize(
@@ -1037,7 +1038,7 @@ class TestChainedTopicGating:
         )
         chained_topics = {"preposition_case": ["preposition_meaning"]}
         gated_topics = frozenset({"preposition_meaning"})
-        journal = {
+        student_record = {
             "word_schedule": {
                 "mit": {
                     "preposition_case": {
@@ -1055,7 +1056,7 @@ class TestChainedTopicGating:
                 word_chained_topics=chained_topics,
                 gated_topics=gated_topics,
             ),
-            journal,
+            student_record,
         )
 
         assert tutor.progress().remaining_today == 1
@@ -1268,9 +1269,11 @@ class TestNewWordDailyCap:
             },
         }
 
-        Journal.reset_progress(data)
+        StudentRecord.reset_progress(data)
 
-        assert Journal(data).get_repetition_interval("warten", "government") is None
+        assert (
+            StudentRecord(data).get_repetition_interval("warten", "government") is None
+        )
 
     def test_reset_progress_clears_todays_answer_stats(self) -> None:
         today = datetime.now(UTC).date().isoformat()
@@ -1278,9 +1281,9 @@ class TestNewWordDailyCap:
             "today_answers": {"date": today, "answered": 5, "correct": 4},
         }
 
-        Journal.reset_progress(data)
+        StudentRecord.reset_progress(data)
 
-        assert Journal(data).get_answer_stats_today() == (0, 0)
+        assert StudentRecord(data).get_answer_stats_today() == (0, 0)
 
     def test_expedited_dependent_is_not_stamped_as_introduced_until_answered(
         self,
@@ -1543,7 +1546,7 @@ class TestRequestRecallInterval:
     def test_halves_the_interval_after_a_correct_answer(self) -> None:
         exercise = make_exercise(recalls=True)
         today = datetime.now(UTC).date()
-        journal = {
+        student_record = {
             "word_schedule": {
                 "warten": {
                     "government": {
@@ -1553,19 +1556,19 @@ class TestRequestRecallInterval:
                 },
             }
         }
-        tutor = Tutor(Course([exercise]), journal)
+        tutor = Tutor(Course([exercise]), student_record)
         tutor.check_answer(exercise, exercise.answer)
 
         tutor.request_recall(exercise)
 
-        entry = journal["word_schedule"]["warten"]["government"]
+        entry = student_record["word_schedule"]["warten"]["government"]
         assert entry["repetition_interval"] == 8
         assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
 
     def test_only_halves_once_per_episode(self) -> None:
         exercise = make_exercise(recalls=True)
         today = datetime.now(UTC).date()
-        journal = {
+        student_record = {
             "word_schedule": {
                 "warten": {
                     "government": {
@@ -1575,19 +1578,19 @@ class TestRequestRecallInterval:
                 },
             }
         }
-        tutor = Tutor(Course([exercise]), journal)
+        tutor = Tutor(Course([exercise]), student_record)
         tutor.check_answer(exercise, exercise.answer)
 
         tutor.request_recall(exercise)
         tutor.request_recall(exercise)
 
-        entry = journal["word_schedule"]["warten"]["government"]
+        entry = student_record["word_schedule"]["warten"]["government"]
         assert entry["repetition_interval"] == 8
 
     def test_does_not_halve_when_last_mark_is_required(self) -> None:
         exercise = make_exercise(recalls=True)
         today = datetime.now(UTC).date()
-        journal = {
+        student_record = {
             "last_exercise": {"is_recall_optional": False},
             "word_schedule": {
                 "warten": {
@@ -1598,9 +1601,9 @@ class TestRequestRecallInterval:
                 },
             },
         }
-        tutor = Tutor(Course([exercise]), journal)
+        tutor = Tutor(Course([exercise]), student_record)
 
         tutor.request_recall(exercise)
 
-        entry = journal["word_schedule"]["warten"]["government"]
+        entry = student_record["word_schedule"]["warten"]["government"]
         assert entry["repetition_interval"] == 8

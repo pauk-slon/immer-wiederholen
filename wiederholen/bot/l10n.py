@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Final, Literal
 
-from wiederholen.i18n import LANGUAGES, Language
+from wiederholen.school import LANGUAGES, Language
 
 _RU_UNIT_FORMS: Final[dict[str, tuple[str, str, str]]] = {
     "exercises": ("упражнение", "упражнения", "упражнений"),

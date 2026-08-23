@@ -5,10 +5,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.tutoring import make_exercise
+from tests.plugins.curriculum import make_exercise
+from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.tutoring import Course
+from wiederholen.bot.telegram_student_id import TelegramStudentID
+from wiederholen.school import Course
 
 
 def _strip_tags(text: str) -> str:
@@ -27,7 +29,6 @@ async def test_correct_input_shows_success(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
-        journal={},
     )
 
     requests = await feed_message("Ich warte auf den Bus.", course=Course([exercise]))
@@ -48,7 +49,6 @@ async def test_wrong_input_shows_correct_sentence(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
-        journal={},
     )
 
     requests = await feed_message(
@@ -71,7 +71,6 @@ async def test_wrong_input_highlights_the_typo(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
-        journal={},
     )
 
     requests = await feed_message("Ich warte auf den Bas.", course=Course([exercise]))
@@ -92,7 +91,6 @@ async def test_normalizes_case_and_whitespace(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
-        journal={},
     )
 
     requests = await feed_message("ich warte  auf den bus.", course=Course([exercise]))
@@ -115,7 +113,6 @@ async def test_accepts_any_of_multiple_answers(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
-        journal={},
     )
 
     requests = await feed_message(
@@ -134,7 +131,7 @@ async def test_recall_prompt_sent_after_answering(
         recalls=[{"hint": {"ru": "die Rede — речь", "en": "die Rede — speech"}}],
     )
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message(exercise.distractors[0], course=Course([exercise]))
     recall_message = requests[2]
@@ -150,7 +147,7 @@ async def test_recall_accepted_after_answering(
 ) -> None:
     exercise = make_exercise(recalls=True)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     assert exercise.recalls
     await feed_message(exercise.distractors[0], course=Course([exercise]))
@@ -175,7 +172,6 @@ async def test_retry_button_appears_after_wrong_recall(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
-        journal={},
     )
 
     requests = await feed_message(
@@ -195,6 +191,8 @@ async def test_clicking_retry_starts_recall_again(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
+    seed_student_record: SeedStudentRecord,
+    chat_id: int,
 ) -> None:
     exercise = make_exercise(
         recalls=[{"answer": ["Ich warte auf den Bus."]}],
@@ -204,7 +202,10 @@ async def test_clicking_retry_starts_recall_again(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
-        journal={"last_exercise": {"is_recall_optional": False}},
+    )
+    await seed_student_record(
+        TelegramStudentID.encode(chat_id),
+        {"last_exercise": {"is_recall_optional": False}},
     )
 
     await feed_message("Es hängt alles in der Situation ab.", course=Course([exercise]))
@@ -220,6 +221,8 @@ async def test_retry_avoids_repeating_last_recall_variant(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
+    seed_student_record: SeedStudentRecord,
+    chat_id: int,
 ) -> None:
     exercise = make_exercise(
         word="helfen",
@@ -236,7 +239,10 @@ async def test_retry_avoids_repeating_last_recall_variant(
         shown_exercise=exercise.to_dict(),
         shown_recall=exercise.recalls[0].to_dict(),
         language="ru",
-        journal={
+    )
+    await seed_student_record(
+        TelegramStudentID.encode(chat_id),
+        {
             "last_exercise": {
                 "is_recall_optional": False,
                 "recall_question": exercise.recalls[0].question,
@@ -255,10 +261,13 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
+    seed_student_record: SeedStudentRecord,
+    read_student_record: ReadStudentRecord,
+    chat_id: int,
 ) -> None:
     exercise = make_exercise(recalls=True)
     today = datetime.now(UTC).date()
-    journal = {
+    student_record = {
         "word_schedule": {
             "warten": {
                 "government": {
@@ -269,12 +278,13 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
         }
     }
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal=journal)
+    await state.update_data(shown_exercise=exercise.to_dict())
+    await seed_student_record(TelegramStudentID.encode(chat_id), student_record)
 
     await feed_message(exercise.answer, course=Course([exercise]))
     await feed_callback_query(RECALL, course=Course([exercise]))
 
-    data = await state.get_data()
-    entry = data["journal"]["word_schedule"]["warten"]["government"]
+    student_record = await read_student_record(TelegramStudentID.encode(chat_id))
+    entry = student_record["word_schedule"]["warten"]["government"]
     assert entry["repetition_interval"] == 8
     assert entry["due_date"] == (today + timedelta(days=8)).isoformat()

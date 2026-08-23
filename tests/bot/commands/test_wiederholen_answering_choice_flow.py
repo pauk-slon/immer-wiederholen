@@ -4,7 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.tutoring import make_exercise
+from tests.plugins.curriculum import make_exercise
+from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from wiederholen.bot.commands.wiederholen import (
     NEXT_EXERCISE,
     RECALL,
@@ -12,7 +13,8 @@ from wiederholen.bot.commands.wiederholen import (
     UserState,
 )
 from wiederholen.bot.l10n import RU
-from wiederholen.tutoring import Course, Exercise, Tutor
+from wiederholen.bot.telegram_student_id import TelegramStudentID
+from wiederholen.school import Course, Exercise, Tutor
 
 
 class TestHandleAnswer:
@@ -23,7 +25,7 @@ class TestHandleAnswer:
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict())
 
         requests = await feed_message(exercise.answer, course=Course([exercise]))
 
@@ -37,7 +39,7 @@ class TestHandleAnswer:
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict())
 
         requests = await feed_message(
             exercise.distractors[0], course=Course([exercise])
@@ -55,7 +57,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict())
 
         requests = await feed_message(exercise.answer, course=Course([exercise]))
 
@@ -74,7 +76,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise(recalls=False)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict())
 
         requests = await feed_message(
             exercise.distractors[0], course=Course([exercise])
@@ -95,7 +97,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise(recalls=True)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict())
 
         requests = await feed_message(
             exercise.distractors[0], course=Course([exercise])
@@ -116,7 +118,6 @@ class TestNextExerciseButton:
             shown_exercise=exercise.to_dict(),
             shown_recall=exercise.recalls[0].to_dict(),
             language="ru",
-            journal={},
         )
 
         requests = await feed_message(
@@ -139,7 +140,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise(recalls=True)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict())
 
         requests = await feed_message(exercise.answer, course=Course([exercise]))
 
@@ -159,7 +160,7 @@ class TestNextExerciseButton:
     ) -> None:
         exercise = make_exercise(recalls=True)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+        await state.update_data(shown_exercise=exercise.to_dict())
 
         await feed_message(exercise.answer, course=Course([exercise]))
         requests = await feed_callback_query(RECALL, course=Course([exercise]))
@@ -175,7 +176,7 @@ class TestNextExerciseButton:
         feed_callback_query: FeedCallbackQuery,
     ) -> None:
         exercise = make_exercise()
-        await state.update_data(language="ru", journal={})
+        await state.update_data(language="ru")
 
         requests = await feed_callback_query(NEXT_EXERCISE, course=Course([exercise]))
 
@@ -189,6 +190,8 @@ class TestNextExerciseButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
+        seed_student_record: SeedStudentRecord,
+        chat_id: int,
     ) -> None:
         mit = Exercise(
             word="sprechen",
@@ -206,8 +209,10 @@ class TestNextExerciseButton:
             distractors=["mit", "an", "für"],
             explanation={"ru": "x", "en": "y"},
         )
-        await state.update_data(
-            language="ru", journal={"last_exercise": {"question": mit.question}}
+        await state.update_data(language="ru")
+        await seed_student_record(
+            TelegramStudentID.encode(chat_id),
+            {"last_exercise": {"question": mit.question}},
         )
 
         requests = await feed_callback_query(NEXT_EXERCISE, course=Course([mit, ueber]))
@@ -221,6 +226,8 @@ class TestNextExerciseButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
+        seed_student_record: SeedStudentRecord,
+        chat_id: int,
     ) -> None:
         exercise = make_exercise(word="warten")
         today = datetime.now(UTC).date()
@@ -237,9 +244,9 @@ class TestNextExerciseButton:
             }
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
-        await state.update_data(
-            language="ru",
-            journal={"word_schedule": word_schedule},
+        await state.update_data(language="ru")
+        await seed_student_record(
+            TelegramStudentID.encode(chat_id), {"word_schedule": word_schedule}
         )
 
         requests = await feed_callback_query(
@@ -263,6 +270,8 @@ class TestStudyMoreButton:
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
+        seed_student_record: SeedStudentRecord,
+        chat_id: int,
     ) -> None:
         exercise = make_exercise(word="warten")
         today = datetime.now(UTC).date()
@@ -279,9 +288,9 @@ class TestStudyMoreButton:
             }
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
-        await state.update_data(
-            language="ru",
-            journal={"word_schedule": word_schedule},
+        await state.update_data(language="ru")
+        await seed_student_record(
+            TelegramStudentID.encode(chat_id), {"word_schedule": word_schedule}
         )
 
         requests = await feed_callback_query(
@@ -295,10 +304,13 @@ class TestStudyMoreButton:
         assert exercise.question in send_message.text
         assert await state.get_state() == UserState.answering
 
-    async def test_clicking_persists_the_grant_in_the_journal(
+    async def test_clicking_persists_the_grant_in_the_student_record(
         self,
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
+        seed_student_record: SeedStudentRecord,
+        read_student_record: ReadStudentRecord,
+        chat_id: int,
     ) -> None:
         exercise = make_exercise(word="warten")
         today = datetime.now(UTC).date()
@@ -315,9 +327,9 @@ class TestStudyMoreButton:
             }
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
-        await state.update_data(
-            language="ru",
-            journal={"word_schedule": word_schedule},
+        await state.update_data(language="ru")
+        await seed_student_record(
+            TelegramStudentID.encode(chat_id), {"word_schedule": word_schedule}
         )
 
         await feed_callback_query(
@@ -325,8 +337,8 @@ class TestStudyMoreButton:
             course=Course([exercise, *capped_exercises]),
         )
 
-        data = await state.get_data()
-        assert data["journal"]["new_word_budget"] == {
+        student_record = await read_student_record(TelegramStudentID.encode(chat_id))
+        assert student_record["new_word_budget"] == {
             "date": today.isoformat(),
             "count": Tutor.NEW_WORD_BUDGET_GRANT,
         }

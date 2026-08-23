@@ -2,9 +2,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.methods import EditMessageReplyMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.tutoring import make_exercise
+from tests.plugins.curriculum import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, UserState
-from wiederholen.tutoring import Course
+from wiederholen.school import Course
 
 
 async def test_command_clears_a_stale_button_before_responding(
@@ -41,7 +41,7 @@ async def test_next_button_left_pending_after_answer_is_remembered(
 ) -> None:
     exercise = make_exercise(word="warten", recalls=False)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
 
     await feed_message(exercise.answer, course=Course([exercise]))
 
@@ -55,7 +55,7 @@ async def test_typing_a_command_instead_of_tapping_next_clears_it(
 ) -> None:
     exercise = make_exercise(word="warten", recalls=False)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
     other_exercise = make_exercise(word="hoffen")
 
     await feed_message(exercise.answer, course=Course([exercise, other_exercise]))
@@ -76,7 +76,7 @@ async def test_clicking_the_button_itself_leaves_nothing_pending(
 ) -> None:
     exercise = make_exercise(word="warten", recalls=False)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict(), journal={})
+    await state.update_data(shown_exercise=exercise.to_dict())
     other_exercise = make_exercise(word="hoffen")
     course = Course([exercise, other_exercise])
 

@@ -34,7 +34,7 @@ class AnswerStats(TypedDict):
     correct: int
 
 
-class Journal:
+class StudentRecord:
     _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(_ScheduleEntry)
     _WORD_SCHEDULE_KEY: Final = "word_schedule"
     _TODAY_ANSWERS_KEY: Final = "today_answers"

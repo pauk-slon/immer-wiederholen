@@ -7,8 +7,7 @@ the env var and restarting, same as BOT_TOKEN/OTEL_* already work.
 
 Deliberately bot-layer-only: feature gating is config/infra, not part of
 the learning-domain model, so a chat_id/flag never reaches
-wiederholen.tutoring — same reasoning that keeps wiederholen.bot.tracing
-out of the tutoring package.
+wiederholen.school.
 """
 
 

@@ -1,5 +1,6 @@
-from tests.plugins.tutoring import make_exercise
-from wiederholen.tutoring import Course, Mark, RecallMode, Tutor
+from tests.plugins.curriculum import make_exercise
+from wiederholen.school.curriculum import Course
+from wiederholen.school.tutoring import Mark, RecallMode, Tutor
 
 
 def test_check_returns_none_recall_without_recall_field() -> None:

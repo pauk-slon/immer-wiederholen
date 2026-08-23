@@ -3,10 +3,12 @@ from aiogram.methods import EditMessageReplyMarkup
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
+from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.tutoring import Course
+from wiederholen.bot.telegram_student_id import TelegramStudentID
+from wiederholen.school import Course
 
 
 async def test_reset_command_asks_for_confirmation(feed_message: FeedMessage) -> None:
@@ -37,28 +39,38 @@ async def test_reset_command_responds_in_current_language(
 async def test_confirming_reset_clears_schedule_only(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
+    seed_student_record: SeedStudentRecord,
+    read_student_record: ReadStudentRecord,
+    chat_id: int,
 ) -> None:
-    await state.update_data(
-        journal={
+    await seed_student_record(
+        TelegramStudentID.encode(chat_id),
+        {
             "word_schedule": {"warten": {"government": {}}},
             "last_exercise": {"is_recall_optional": False},
-        }
+        },
     )
 
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_done
-    data = await state.get_data()
-    assert data["journal"]["word_schedule"] == {}
-    assert data["journal"]["last_exercise"]["is_recall_optional"] is False
+    student_record = await read_student_record(TelegramStudentID.encode(chat_id))
+    assert student_record["word_schedule"] == {}
+    assert student_record["last_exercise"]["is_recall_optional"] is False
 
 
 async def test_confirming_reset_preserves_language(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
+    seed_student_record: SeedStudentRecord,
+    read_student_record: ReadStudentRecord,
+    chat_id: int,
 ) -> None:
-    await state.update_data(language="en", journal={"word_schedule": {"x": {"y": {}}}})
+    await state.update_data(language="en")
+    await seed_student_record(
+        TelegramStudentID.encode(chat_id), {"word_schedule": {"x": {"y": {}}}}
+    )
 
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
@@ -66,22 +78,27 @@ async def test_confirming_reset_preserves_language(
     assert requests[0].text == EN.reset_done
     data = await state.get_data()
     assert data["language"] == "en"
-    assert data["journal"]["word_schedule"] == {}
+    student_record = await read_student_record(TelegramStudentID.encode(chat_id))
+    assert student_record["word_schedule"] == {}
 
 
-async def test_cancelling_reset_keeps_journal(
+async def test_cancelling_reset_keeps_student_record(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
+    seed_student_record: SeedStudentRecord,
+    read_student_record: ReadStudentRecord,
+    chat_id: int,
 ) -> None:
-    journal = {"word_schedule": {"warten": {"government": {}}}}
-    await state.update_data(journal=journal)
+    student_record = {"word_schedule": {"warten": {"government": {}}}}
+    await seed_student_record(TelegramStudentID.encode(chat_id), student_record)
 
     requests = await feed_callback_query(RESET_CANCEL, course=Course([]))
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_cancelled
-    data = await state.get_data()
-    assert data["journal"] == journal
+    assert (
+        await read_student_record(TelegramStudentID.encode(chat_id)) == student_record
+    )
 
 
 async def test_reset_command_clears_a_stale_button_left_from_wiederholen(
@@ -108,11 +125,8 @@ async def test_reset_command_remembers_its_own_confirm_buttons(
 
 
 async def test_confirming_reset_offers_a_next_exercise_button(
-    state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
-    await state.update_data(journal={})
-
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
     edit_text = next(r for r in requests if hasattr(r, "text"))
@@ -129,7 +143,7 @@ async def test_confirming_reset_remembers_its_next_exercise_button(
     state: FSMContext,
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
-    await state.update_data(journal={}, last_buttoned_message_id=1)
+    await state.update_data(last_buttoned_message_id=1)
 
     await feed_callback_query(RESET_CONFIRM, course=Course([]))
 

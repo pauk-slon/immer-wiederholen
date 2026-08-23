@@ -11,7 +11,7 @@ from opentelemetry.trace import Tracer
 
 from wiederholen.bot import tracing
 from wiederholen.bot.tracing import TracingMiddleware
-from wiederholen.tutoring import ExerciseAnswered, RecallMode, TopicUnlocked
+from wiederholen.school import ExerciseAnswered, RecallMode, TopicUnlocked
 
 
 def _attributes(span: ReadableSpan) -> dict[str, Any]:
