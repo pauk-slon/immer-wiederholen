@@ -37,8 +37,8 @@ class StudentRecordBook(ABC):
 
     @asynccontextmanager
     async def check_out(self, student_id: str) -> AsyncIterator[dict]:
-        """Fetch that student's record and save it back on exit, but only if
-        it actually changed.
+        """Fetch that student's record, yield it for in-place mutation, and
+        save it back on exit — but only if it actually changed.
         """
         student_record = await self._get(student_id)
         before = copy.deepcopy(student_record)
