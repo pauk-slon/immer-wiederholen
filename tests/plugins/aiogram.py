@@ -45,7 +45,7 @@ def pytest_configure(config) -> None:
     # test DB, so neither RedisStorage nor RedisStudentRecordBook can ever
     # touch a DB a real dev/prod bot might be using, regardless of what's set
     # in the environment.
-    for env_var in ("FSM_STORAGE_URL", "STUDENT_RECORD_STORAGE_URL"):
+    for env_var in ("BOT_FSM_STORAGE_URL", "STUDENT_RECORD_STORAGE_URL"):
         os.environ[env_var] = urlunsplit(
             urlsplit(os.environ[env_var])._replace(path=f"/{db_override}"),
         )
@@ -125,7 +125,7 @@ def state(bot: Bot, dispatcher: Dispatcher, user_id: int, chat_id: int) -> FSMCo
 
 @pytest.fixture
 async def redis_storage() -> AsyncIterator[RedisStorage]:
-    storage = RedisStorage.from_url(os.environ["FSM_STORAGE_URL"])
+    storage = RedisStorage.from_url(os.environ["BOT_FSM_STORAGE_URL"])
     await storage.redis.flushdb()
     yield storage
     await storage.close()

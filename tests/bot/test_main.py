@@ -51,14 +51,14 @@ def _env(
     exercise_data: ExerciseData,
 ) -> Generator[None]:
     monkeypatch.setenv("BOT_TOKEN", bot_token)
-    monkeypatch.setenv("FSM_STORAGE_URL", fsm_storage_url)
+    monkeypatch.setenv("BOT_FSM_STORAGE_URL", fsm_storage_url)
     monkeypatch.setenv("STUDENT_RECORD_STORAGE_URL", student_record_storage_url)
     # All optional and unrelated to most tests here — pinned absent so a
     # real value set on the host running these tests (e.g. compose.override.
     # yaml's local dev config) can't leak in.
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("AUTHORING_GUIDE_PATH", raising=False)
-    monkeypatch.delenv("FEATURE_FLAGS", raising=False)
+    monkeypatch.delenv("BOT_FEATURE_FLAGS", raising=False)
     with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         yield None
@@ -134,7 +134,7 @@ async def test_starts_polling_with_bot_and_dependencies(
 async def test_starts_polling_with_feature_flags_from_env(
     monkeypatch, mock_main_io: MockMainIO
 ) -> None:
-    monkeypatch.setenv("FEATURE_FLAGS", "ai_exercises:1,2")
+    monkeypatch.setenv("BOT_FEATURE_FLAGS", "ai_exercises:1,2")
 
     with mock_main_io() as (_mock_request, mock_polling):
         await main()
@@ -177,7 +177,7 @@ async def test_configures_student_record_book_from_its_own_env_var(
     # A distinct DB number from fsm_storage_url (see the fixtures above) is
     # what makes this test actually prove student_record_book reads
     # STUDENT_RECORD_STORAGE_URL, rather than accidentally still sharing
-    # FSM_STORAGE_URL's connection.
+    # BOT_FSM_STORAGE_URL's connection.
     with mock_main_io() as (_mock_request, mock_polling):
         await main()
 

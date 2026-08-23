@@ -1,4 +1,4 @@
-"""Per-user feature flags via the FEATURE_FLAGS env var.
+"""Per-user feature flags via the BOT_FEATURE_FLAGS env var.
 
 Format: "flag_name:chat_id1,chat_id2;other_flag:chat_id3" — parsed once at
 startup (see wiederholen.bot.bootstrap.load_feature_flags()). No

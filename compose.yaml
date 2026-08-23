@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
-      FSM_STORAGE_URL: redis://valkey:6379/1
+      BOT_FSM_STORAGE_URL: redis://valkey:6379/1
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
     volumes:
       - .:/app
@@ -20,7 +20,7 @@ services:
     command: python -m wiederholen.bot.reminder
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
-      FSM_STORAGE_URL: redis://valkey:6379/1
+      BOT_FSM_STORAGE_URL: redis://valkey:6379/1
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
     volumes:
       - .:/app

@@ -15,7 +15,7 @@ def load_student_record_book() -> StudentRecordBook:
 
 
 def load_feature_flags() -> dict[str, frozenset[int]]:
-    return parse_feature_flags(os.environ.get("FEATURE_FLAGS", ""))
+    return parse_feature_flags(os.environ.get("BOT_FEATURE_FLAGS", ""))
 
 
 def load_anthropic_client() -> AsyncAnthropic | None:
@@ -56,5 +56,5 @@ def load_bot_course_and_storage() -> tuple[
     token = os.environ["BOT_TOKEN"]
     course = Course.load(Path(os.environ.get("COURSE_PATH", "data")))
     bot = Bot(token=token)
-    storage_url = os.environ["FSM_STORAGE_URL"]
+    storage_url = os.environ["BOT_FSM_STORAGE_URL"]
     return bot, course, RedisStorage.from_url(storage_url), load_student_record_book()
