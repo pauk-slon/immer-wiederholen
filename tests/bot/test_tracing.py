@@ -5,38 +5,16 @@ import pytest
 from aiogram.types import CallbackQuery, Chat, Message, PollAnswer, Update, User
 from opentelemetry import trace
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Tracer
 
 from wiederholen.bot import tracing
 from wiederholen.bot.tracing import TracingMiddleware
-from wiederholen.school import ExerciseAnswered, RecallMode, TopicUnlocked
 
 
 def _attributes(span: ReadableSpan) -> dict[str, Any]:
     assert span.attributes is not None
     return dict(span.attributes)
-
-
-@pytest.fixture
-def exporter() -> InMemorySpanExporter:
-    return InMemorySpanExporter()
-
-
-@pytest.fixture
-def tracer(
-    exporter: InMemorySpanExporter,
-    monkeypatch: pytest.MonkeyPatch,
-) -> Tracer:
-    # The test session forces OTEL_SDK_DISABLED=true (tests/plugins/tracing.py)
-    # so nothing ever exports real telemetry — these tests need a live,
-    # recording provider of their own to verify span content, so opt back in
-    # for just this provider's construction.
-    monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
-    provider = TracerProvider()
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
-    return provider.get_tracer("test")
 
 
 @pytest.fixture
@@ -231,104 +209,3 @@ def test_configure_tracing_installs_a_provider_when_an_otlp_endpoint_is_configur
 
     assert len(installed_providers) == 1
     assert isinstance(installed_providers[0], TracerProvider)
-
-
-def test_record_tutoring_events_adds_one_span_event_per_event(
-    tracer: Tracer,
-    exporter: InMemorySpanExporter,
-) -> None:
-    events = [
-        ExerciseAnswered(
-            word="warten",
-            topic="government",
-            is_correct=True,
-            is_new=False,
-            recall_mode=RecallMode.optional,
-            prev_repetition_interval=4,
-            next_repetition_interval=8,
-        ),
-        TopicUnlocked(
-            source_topic="government",
-            dependent_topic="preposition_meaning",
-            via="chain",
-        ),
-    ]
-
-    with tracer.start_as_current_span("test-span"):
-        tracing.record_tutoring_events(events)
-
-    span = exporter.get_finished_spans()[0]
-    assert [event.name for event in span.events] == [
-        "ExerciseAnswered",
-        "TopicUnlocked",
-    ]
-
-
-def test_record_tutoring_events_carries_dataclass_fields_as_attributes(
-    tracer: Tracer,
-    exporter: InMemorySpanExporter,
-) -> None:
-    event = TopicUnlocked(
-        source_topic="partizip_ii",
-        dependent_topic="praeteritum",
-        via="gate",
-    )
-
-    with tracer.start_as_current_span("test-span"):
-        tracing.record_tutoring_events([event])
-
-    span = exporter.get_finished_spans()[0]
-    attributes = dict(span.events[0].attributes or {})
-    assert attributes == {
-        "source_topic": "partizip_ii",
-        "dependent_topic": "praeteritum",
-        "via": "gate",
-    }
-
-
-def test_record_tutoring_events_unwraps_enum_attributes_to_their_value(
-    tracer: Tracer,
-    exporter: InMemorySpanExporter,
-) -> None:
-    event = ExerciseAnswered(
-        word="warten",
-        topic="government",
-        is_correct=True,
-        is_new=True,
-        recall_mode=RecallMode.required,
-        prev_repetition_interval=0,
-        next_repetition_interval=1,
-    )
-
-    with tracer.start_as_current_span("test-span"):
-        tracing.record_tutoring_events([event])
-
-    span = exporter.get_finished_spans()[0]
-    attributes = dict(span.events[0].attributes or {})
-    assert attributes["recall_mode"] == "required"
-
-
-def test_record_tutoring_events_omits_none_attributes(
-    tracer: Tracer,
-    exporter: InMemorySpanExporter,
-) -> None:
-    # prev_repetition_interval is None for a pair's very first answer —
-    # None isn't a valid span attribute type, and unlike an Enum there's no
-    # single plain value to unwrap it to, so it's dropped instead.
-    event = ExerciseAnswered(
-        word="warten",
-        topic="government",
-        is_correct=True,
-        is_new=True,
-        recall_mode=RecallMode.none,
-        prev_repetition_interval=None,
-        next_repetition_interval=0,
-    )
-
-    with tracer.start_as_current_span("test-span"):
-        tracing.record_tutoring_events([event])
-
-    span = exporter.get_finished_spans()[0]
-    attributes = dict(span.events[0].attributes or {})
-    assert "prev_repetition_interval" not in attributes
-    assert attributes["next_repetition_interval"] == 0

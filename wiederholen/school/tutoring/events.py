@@ -1,6 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
+
+from opentelemetry import trace
 
 
 class RecallMode(Enum):
@@ -36,3 +38,16 @@ class NoExerciseAvailable:
 
 
 TutoringEvent = ExerciseAnswered | TopicUnlocked | NoExerciseAvailable
+
+
+def _to_otel_attributes(event: TutoringEvent) -> dict[str, Any]:
+    return {
+        key: value.value if isinstance(value, Enum) else value
+        for key, value in asdict(event).items()
+        if value is not None
+    }
+
+
+def emit(event: TutoringEvent) -> None:
+    span = trace.get_current_span()
+    span.add_event(type(event).__name__, attributes=_to_otel_attributes(event))

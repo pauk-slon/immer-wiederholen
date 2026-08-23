@@ -10,7 +10,7 @@ from wiederholen.school.tutoring.events import (
     NoExerciseAvailable,
     RecallMode,
     TopicUnlocked,
-    TutoringEvent,
+    emit,
 )
 from wiederholen.school.tutoring.selection import SelectablePairs
 from wiederholen.school.tutoring.student_record import StudentRecord
@@ -103,14 +103,15 @@ class Tutor:
             return None
         return (word, topic)
 
-    def next_exercise(self) -> tuple[Exercise | None, list[TutoringEvent]]:
+    def next_exercise(self) -> Exercise | None:
         selectable_pairs = SelectablePairs(
             due_introduced=self._get_due_pairs(is_introduced=True),
             due_not_introduced=self._get_due_pairs(is_introduced=False),
             not_scheduled=self._get_available_not_scheduled_pairs(),
         )
         if not selectable_pairs:
-            return None, [NoExerciseAvailable(reason="nothing_available")]
+            emit(NoExerciseAvailable(reason="nothing_available"))
+            return None
         budget = max(
             self._get_effective_cap() - len(self._get_words_introduced_today()),
             0,
@@ -122,7 +123,8 @@ class Tutor:
             last_pair,
         )
         if selected_word is None:
-            return None, [NoExerciseAvailable(reason="daily_cap_reached")]
+            emit(NoExerciseAvailable(reason="daily_cap_reached"))
+            return None
         selected_topic = selectable_pairs.select_topic(selected_word, last_pair)
         candidates = self._exercises_by_word_topic[selected_word][selected_topic]
         last_exercise = self._student_record.get_last_exercise()
@@ -134,7 +136,7 @@ class Tutor:
             ]
         ):
             candidates = filtered_exercises
-        return random.choice(candidates), []
+        return random.choice(candidates)
 
     def progress(self) -> Progress:
         learning = 0
@@ -188,40 +190,34 @@ class Tutor:
         self._student_record.schedule_pair(word, topic, repetition_interval=0)
         return True
 
-    def _topic_unlocked_event(
-        self, source_topic: str, dependent_topic: str
-    ) -> TopicUnlocked:
+    def _emit_topic_unlocked(self, source_topic: str, dependent_topic: str) -> None:
         via: Literal["chain", "gate"] = (
             "gate" if dependent_topic in self._course.gated_topics else "chain"
         )
-        return TopicUnlocked(
-            source_topic=source_topic,
-            dependent_topic=dependent_topic,
-            via=via,
+        emit(
+            TopicUnlocked(
+                source_topic=source_topic,
+                dependent_topic=dependent_topic,
+                via=via,
+            )
         )
 
-    def _expedite_chained_topics(self, exercise: Exercise) -> list[TopicUnlocked]:
-        events: list[TopicUnlocked] = []
+    def _expedite_chained_topics(self, exercise: Exercise) -> None:
         for dependent_topic in self._course.word_chained_topics.get(exercise.topic, []):
             if self._expedite_dependent(exercise.word, dependent_topic):
-                events.append(
-                    self._topic_unlocked_event(exercise.topic, dependent_topic)
-                )
+                self._emit_topic_unlocked(exercise.topic, dependent_topic)
         for dependent_topic in self._course.answer_chained_topics.get(
             exercise.topic,
             [],
         ):
             if self._expedite_dependent(exercise.answer, dependent_topic):
-                events.append(
-                    self._topic_unlocked_event(exercise.topic, dependent_topic)
-                )
-        return events
+                self._emit_topic_unlocked(exercise.topic, dependent_topic)
 
     def check_answer(
         self,
         exercise: Exercise,
         answer: str,
-    ) -> tuple[Mark, list[TutoringEvent]]:
+    ) -> Mark:
         is_correct = answer.strip().lower() == exercise.answer.strip().lower()
         if not exercise.recalls:
             recall_mode = RecallMode.none
@@ -252,7 +248,7 @@ class Tutor:
             # repetition_interval default instead.
             due_interval=0 if (is_new or not is_correct) else None,
         )
-        events: list[TutoringEvent] = [
+        emit(
             ExerciseAnswered(
                 word=exercise.word,
                 topic=exercise.topic,
@@ -261,10 +257,10 @@ class Tutor:
                 recall_mode=recall_mode,
                 prev_repetition_interval=prev_repetition_interval,
                 next_repetition_interval=next_repetition_interval,
-            ),
-            *self._expedite_chained_topics(exercise),
-        ]
-        return Mark(is_correct=is_correct, recall=recall_mode), events
+            )
+        )
+        self._expedite_chained_topics(exercise)
+        return Mark(is_correct=is_correct, recall=recall_mode)
 
     def check_recall(self, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:
