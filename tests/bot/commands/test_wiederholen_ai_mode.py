@@ -6,11 +6,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.methods import SendChatAction
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.tutoring import make_exercise
-from wiederholen.authoring import AIGenerationError
+from tests.plugins.curriculum import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.tutoring import Course, Exercise
+from wiederholen.school import AIGenerationError, Course, Exercise
 
 
 async def _slow_shadow_of(client, exercise: Exercise, course, *, authoring_guide=None):

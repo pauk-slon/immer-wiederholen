@@ -22,7 +22,6 @@ from aiogram.types import (
 from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
-from wiederholen.authoring import AIGenerationError, generate_shadow_exercise
 from wiederholen.bot.feature_flags import has_feature
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 from wiederholen.bot.pending_buttons import (
@@ -31,9 +30,17 @@ from wiederholen.bot.pending_buttons import (
     remember_buttoned_message,
 )
 from wiederholen.bot.tracing import record_tutoring_events
-from wiederholen.i18n import Language
-from wiederholen.student_record_book import StudentRecordBook
-from wiederholen.tutoring import Course, Exercise, Recall, RecallMode, Tutor
+from wiederholen.school import (
+    AIGenerationError,
+    Course,
+    Exercise,
+    Language,
+    Recall,
+    RecallMode,
+    StudentRecordBook,
+    Tutor,
+    generate_shadow_exercise,
+)
 
 router = Router()
 
@@ -172,7 +179,7 @@ async def _show_typing_while(bot: Bot, chat_id: int) -> AsyncIterator[None]:
     # Telegram's "typing..." indicator auto-expires after ~5s (or once a
     # message is sent) — full shadow-exercise generation (question, answer,
     # distractors, explanation, recalls, all written fresh — see
-    # wiederholen.authoring.shadow_exercises) can easily run past that, so a
+    # wiederholen.school.authoring) can easily run past that, so a
     # single one-shot call wouldn't stay visible for the whole wait. Refresh
     # it on a loop in the background instead, cancelled once generation
     # finishes either way (success or AIGenerationError).

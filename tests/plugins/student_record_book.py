@@ -5,7 +5,10 @@ import pytest
 from aiogram import Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
 
-from wiederholen.student_record_book import RedisStudentRecordBook, StudentRecordBook
+from wiederholen.school.student_record_book import (
+    RedisStudentRecordBook,
+    StudentRecordBook,
+)
 
 type SeedStudentRecord = Callable[[str, dict], Awaitable[None]]
 type ReadStudentRecord = Callable[[str], Awaitable[dict]]

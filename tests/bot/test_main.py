@@ -19,12 +19,11 @@ from anthropic import AsyncAnthropic
 from redis.asyncio import Redis
 
 from tests.conftest import TmpYamlFile
-from tests.plugins.tutoring import ExerciseData, make_exercise_data
+from tests.plugins.curriculum import ExerciseData, make_exercise_data
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
-from wiederholen.student_record_book import StudentRecordBook
-from wiederholen.tutoring import Course, Tutor
+from wiederholen.school import Course, StudentRecordBook, Tutor
 
 
 @pytest.fixture

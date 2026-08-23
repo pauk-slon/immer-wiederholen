@@ -5,11 +5,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
+from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
-from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.tutoring import Course
+from wiederholen.school import Course
 
 
 def _strip_tags(text: str) -> str:

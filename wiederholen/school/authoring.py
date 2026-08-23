@@ -21,11 +21,14 @@ design had for all of `answer`/`distractors`/`recalls` — only
 `distractors`/`recalls`, generated fresh around the fixed `answer`, still
 depend on the model getting it right.
 
-Deliberately outside `wiederholen.tutoring`: that package imports nothing
-beyond the standard library and its own sibling modules, which is what keeps
-`Tutor`/`StudentRecord` testable without mocking a network call. This module
-is the one place in the codebase that talks to an LLM, and neither
-`session.py` nor `student_record.py` import it.
+Deliberately a sibling of `wiederholen.school.tutoring`, not a dependency of
+it or a part of it: that package imports nothing beyond the standard library
+and its own sibling modules, which is what keeps `Tutor`/`StudentRecord`
+testable without mocking a network call. This module is the one place in the
+school that talks to an LLM, and neither `session.py` nor `student_record.py`
+import it — it only needs `Course`/`Exercise`/`Recall`, the shared curriculum
+model both this module and `tutoring` depend on independently, so it reaches
+for `wiederholen.school.curriculum` directly rather than through `tutoring`.
 """
 
 import dataclasses
@@ -35,7 +38,7 @@ import yaml
 from anthropic import AnthropicError, AsyncAnthropic
 from anthropic.types import MessageParam, TextBlockParam, ToolParam, ToolUseBlock
 
-from wiederholen.tutoring import Course, Exercise, Recall
+from wiederholen.school.curriculum import Course, Exercise, Recall
 
 MODEL: Final = "claude-haiku-4-5-20251001"
 _MAX_TOKENS: Final = 3072

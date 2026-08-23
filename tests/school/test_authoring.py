@@ -5,10 +5,14 @@ import yaml
 from anthropic import AnthropicError, AsyncAnthropic
 from anthropic.types import Message, TextBlock, ToolUseBlock
 
-from tests.plugins.tutoring import RecallKwargs, make_exercise
-from wiederholen.authoring import AIGenerationError, generate_shadow_exercise
-from wiederholen.authoring.shadow_exercises import _TOOL_NAME, MODEL
-from wiederholen.tutoring import Course
+from tests.plugins.curriculum import RecallKwargs, make_exercise
+from wiederholen.school.authoring import (
+    _TOOL_NAME,
+    MODEL,
+    AIGenerationError,
+    generate_shadow_exercise,
+)
+from wiederholen.school.curriculum import Course
 
 
 def _make_tool_use(tool_input: dict) -> ToolUseBlock:

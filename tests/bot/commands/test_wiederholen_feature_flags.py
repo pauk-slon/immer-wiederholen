@@ -3,8 +3,8 @@ from unittest.mock import patch
 from opentelemetry import trace as otel_trace
 
 from tests.plugins.aiogram import FeedMessage
-from tests.plugins.tutoring import make_exercise
-from wiederholen.tutoring import Course
+from tests.plugins.curriculum import make_exercise
+from wiederholen.school import Course
 
 
 async def test_sets_feature_attribute_when_flag_matches_chat_id(

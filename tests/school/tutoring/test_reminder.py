@@ -1,7 +1,8 @@
 from datetime import UTC, datetime, timedelta
 
-from tests.plugins.tutoring import make_exercise
-from wiederholen.tutoring import Course, Tutor
+from tests.plugins.curriculum import make_exercise
+from wiederholen.school.curriculum import Course
+from wiederholen.school.tutoring import Tutor
 
 
 def test_record_reminder_sent_sets_last_reminded_at() -> None:

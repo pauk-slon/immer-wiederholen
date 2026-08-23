@@ -6,8 +6,7 @@ from aiogram.exceptions import TelegramForbiddenError
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 
-from wiederholen.student_record_book import StudentRecordBook
-from wiederholen.tutoring import Course, Tutor
+from wiederholen.school import Course, StudentRecordBook, Tutor
 
 from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES, get_language

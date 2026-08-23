@@ -2,9 +2,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.methods import EditMessageReplyMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
-from tests.plugins.tutoring import make_exercise
+from tests.plugins.curriculum import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, UserState
-from wiederholen.tutoring import Course
+from wiederholen.school import Course
 
 
 async def test_command_clears_a_stale_button_before_responding(

@@ -4,8 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
+from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
-from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import (
     NEXT_EXERCISE,
     RECALL,
@@ -13,7 +13,7 @@ from wiederholen.bot.commands.wiederholen import (
     UserState,
 )
 from wiederholen.bot.l10n import RU
-from wiederholen.tutoring import Course, Exercise, Tutor
+from wiederholen.school import Course, Exercise, Tutor
 
 
 class TestHandleAnswer:

@@ -17,8 +17,7 @@ from wiederholen.bot.pending_buttons import (
     forget_buttoned_message,
     remember_buttoned_message,
 )
-from wiederholen.student_record_book import StudentRecordBook
-from wiederholen.tutoring import StudentRecord
+from wiederholen.school import StudentRecord, StudentRecordBook
 
 router = Router()
 

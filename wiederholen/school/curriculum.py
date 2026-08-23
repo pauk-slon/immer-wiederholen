@@ -5,7 +5,7 @@ from typing import Self, TypedDict
 
 import yaml
 
-from wiederholen.i18n import LANGUAGES, Language
+from wiederholen.school.i18n import LANGUAGES, Language
 
 type Topic = str
 

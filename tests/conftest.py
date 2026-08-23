@@ -11,7 +11,7 @@ pytest_plugins = [
     "tests.plugins.telegram",
     "tests.plugins.aiogram",
     "tests.plugins.student_record_book",
-    "tests.plugins.tutoring",
+    "tests.plugins.curriculum",
 ]
 
 

@@ -8,12 +8,11 @@ from aiogram.types import (
 )
 
 from tests.plugins.aiogram import FeedMessage
+from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import SeedStudentRecord
-from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import STUDY_MORE, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.i18n import Language
-from wiederholen.tutoring import Course, Exercise, Tutor
+from wiederholen.school import Course, Exercise, Language, Tutor
 
 
 async def test_sends_exercise_question(

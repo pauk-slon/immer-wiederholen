@@ -1,27 +1,20 @@
-from wiederholen.tutoring.curriculum import Course, Exercise, Recall, Topic
-from wiederholen.tutoring.session import (
+from wiederholen.school.tutoring.events import (
     ExerciseAnswered,
-    Mark,
     NoExerciseAvailable,
-    Progress,
     RecallMode,
     TopicUnlocked,
-    Tutor,
     TutoringEvent,
 )
-from wiederholen.tutoring.student_record import StudentRecord
+from wiederholen.school.tutoring.session import Mark, Progress, Tutor
+from wiederholen.school.tutoring.student_record import StudentRecord
 
 __all__ = [
-    "Course",
-    "Exercise",
     "ExerciseAnswered",
     "Mark",
     "NoExerciseAvailable",
     "Progress",
-    "Recall",
     "RecallMode",
     "StudentRecord",
-    "Topic",
     "TopicUnlocked",
     "Tutor",
     "TutoringEvent",

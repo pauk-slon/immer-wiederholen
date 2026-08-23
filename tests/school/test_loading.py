@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import TmpYamlFile
-from tests.plugins.tutoring import make_exercise_data
-from wiederholen.tutoring import Course
+from tests.plugins.curriculum import make_exercise_data
+from wiederholen.school.curriculum import Course
 
 
 class TestExerciseValidation:

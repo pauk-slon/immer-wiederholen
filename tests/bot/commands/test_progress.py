@@ -5,11 +5,11 @@ from aiogram.methods import EditMessageReplyMarkup
 from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedMessage
+from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import SeedStudentRecord
-from tests.plugins.tutoring import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU, format_count
-from wiederholen.tutoring import Course
+from wiederholen.school import Course
 
 
 async def test_defaults_to_ru(feed_message: FeedMessage) -> None:

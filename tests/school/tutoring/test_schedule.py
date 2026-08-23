@@ -4,14 +4,9 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
-from tests.plugins.tutoring import make_exercise
-from wiederholen.tutoring import (
-    Course,
-    Exercise,
-    NoExerciseAvailable,
-    StudentRecord,
-    Tutor,
-)
+from tests.plugins.curriculum import make_exercise
+from wiederholen.school.curriculum import Course, Exercise
+from wiederholen.school.tutoring import NoExerciseAvailable, StudentRecord, Tutor
 
 
 def _next(tutor: Tutor) -> Exercise:

@@ -9,11 +9,10 @@ from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.methods import SendMessage
 
 from tests.conftest import TmpYamlFile
+from tests.plugins.curriculum import ExerciseData, make_exercise, make_exercise_data
 from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
-from tests.plugins.tutoring import ExerciseData, make_exercise, make_exercise_data
 from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
-from wiederholen.student_record_book import StudentRecordBook
-from wiederholen.tutoring import Course
+from wiederholen.school import Course, StudentRecordBook
 
 
 def _stale_answer() -> str:

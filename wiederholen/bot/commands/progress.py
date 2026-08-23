@@ -9,8 +9,7 @@ from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     remember_buttoned_message,
 )
-from wiederholen.student_record_book import StudentRecordBook
-from wiederholen.tutoring import Course, Tutor
+from wiederholen.school import Course, StudentRecordBook, Tutor
 
 router = Router()
 
@@ -26,8 +25,8 @@ async def command_progress(
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
-    # progress() is read-only (see wiederholen.tutoring.session) — open()
-    # detects that nothing changed and skips the write on its own.
+    # progress() is read-only (see wiederholen.school.tutoring.session) —
+    # open() detects that nothing changed and skips the write on its own.
     async with student_record_book.check_out(str(message.chat.id)) as student_record:
         progress = Tutor(course, student_record).progress()
     sent = await message.answer(

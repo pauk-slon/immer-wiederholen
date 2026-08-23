@@ -7,7 +7,7 @@ from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentReco
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.tutoring import Course
+from wiederholen.school import Course
 
 
 async def test_reset_command_asks_for_confirmation(feed_message: FeedMessage) -> None:

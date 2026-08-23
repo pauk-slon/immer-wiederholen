@@ -18,7 +18,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Tracer
 
-from wiederholen.tutoring import TutoringEvent
+from wiederholen.school import TutoringEvent
 
 default_tracer: Final = trace.get_tracer(__name__)
 
@@ -63,9 +63,9 @@ def _event_attributes(event: TutoringEvent) -> dict[str, Any]:
 
 def record_tutoring_events(events: Sequence[TutoringEvent]) -> None:
     # A generic bridge, deliberately with no knowledge of what any given
-    # TutoringEvent means — wiederholen.tutoring decides what counts as an
-    # event and when it fires; this just serializes whatever it hands back
-    # onto the current span.
+    # TutoringEvent means — wiederholen.school.tutoring decides what counts
+    # as an event and when it fires; this just serializes whatever it hands
+    # back onto the current span.
     span = trace.get_current_span()
     for event in events:
         span.add_event(type(event).__name__, attributes=_event_attributes(event))

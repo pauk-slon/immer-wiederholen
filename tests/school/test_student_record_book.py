@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from wiederholen.student_record_book import StudentRecordBook
+from wiederholen.school.student_record_book import StudentRecordBook
 
 
 async def test_open_yields_an_empty_dict_for_an_unknown_student(

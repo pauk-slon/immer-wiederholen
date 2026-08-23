@@ -5,8 +5,7 @@ from aiogram import Bot
 from aiogram.fsm.storage.redis import RedisStorage
 from anthropic import AsyncAnthropic
 
-from wiederholen.student_record_book import RedisStudentRecordBook, StudentRecordBook
-from wiederholen.tutoring import Course
+from wiederholen.school import Course, RedisStudentRecordBook, StudentRecordBook
 
 from .feature_flags import parse_feature_flags
 
