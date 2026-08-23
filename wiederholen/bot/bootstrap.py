@@ -15,7 +15,7 @@ def load_student_record_book() -> StudentRecordBook:
 
 
 def load_feature_flags() -> dict[str, frozenset[int]]:
-    return parse_feature_flags(os.environ.get("FEATURE_FLAGS", ""))
+    return parse_feature_flags(os.environ.get("BOT_FEATURE_FLAGS", ""))
 
 
 def load_anthropic_client() -> AsyncAnthropic | None:

@@ -58,7 +58,7 @@ def _env(
     # yaml's local dev config) can't leak in.
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("AUTHORING_GUIDE_PATH", raising=False)
-    monkeypatch.delenv("FEATURE_FLAGS", raising=False)
+    monkeypatch.delenv("BOT_FEATURE_FLAGS", raising=False)
     with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         yield None
@@ -134,7 +134,7 @@ async def test_starts_polling_with_bot_and_dependencies(
 async def test_starts_polling_with_feature_flags_from_env(
     monkeypatch, mock_main_io: MockMainIO
 ) -> None:
-    monkeypatch.setenv("FEATURE_FLAGS", "ai_exercises:1,2")
+    monkeypatch.setenv("BOT_FEATURE_FLAGS", "ai_exercises:1,2")
 
     with mock_main_io() as (_mock_request, mock_polling):
         await main()
