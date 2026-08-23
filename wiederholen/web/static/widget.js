@@ -56,6 +56,34 @@ const STYLES = `
     justify-content: center;
     text-align: center;
   }
+  /* The question and result states are both usually much shorter than the
+     fixed-height box, leaving their last element (the answer control, the
+     Next button) stranded right under the text above it with a lot of
+     empty space below — margin-top: auto on that last child, the standard
+     flex "push to the end" trick, anchors it to the bottom instead, which
+     reads as an intentional layout rather than leftover space. Two
+     separate modifiers, not one shared with .centered, since each needs
+     the default (not overridden) align-items: stretch — the same behavior
+     block layout already gave every child full width, which matters for
+     .question's <form>'s input[type="text"] { flex: 1 } in particular: an
+     overridden align-items here (flex-start/center, as .centered uses)
+     would size the form itself to fit-content instead of the full widget
+     width, visibly narrowing the input. */
+  .widget.question {
+    display: flex;
+    flex-direction: column;
+  }
+  .widget.question > .choices,
+  .widget.question > form {
+    margin-top: auto;
+  }
+  .widget.result {
+    display: flex;
+    flex-direction: column;
+  }
+  .widget.result button[data-next] {
+    margin-top: auto;
+  }
   p { margin: 0 0 0.75rem; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
   .description, .instruction { font-size: 0.9em; color: var(--gew-muted); }
@@ -187,7 +215,7 @@ class GermanExerciseWidget extends HTMLElement {
         `<input type="text" autocomplete="off" />` +
         `<button type="submit">✓</button></form>`;
     this._render(
-      `<div class="widget">${description}${instruction}` +
+      `<div class="widget question">${description}${instruction}` +
         `<p class="question">❓ ${escapeHtml(exercise.question)}</p>` +
         `${answerArea}</div>`
     );
@@ -222,7 +250,7 @@ class GermanExerciseWidget extends HTMLElement {
       ? `<p class="correct">✅ Correct!</p>`
       : `<p class="wrong">❌ Correct answer: ${escapeHtml(result.answer)}</p>`;
     this._render(
-      `<div class="widget">${label}` +
+      `<div class="widget result">${label}` +
         `<p>${escapeHtml(result.explanation)}</p>` +
         `<button data-next>Next</button></div>`
     );
