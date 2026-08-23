@@ -30,6 +30,50 @@ const STYLES = `
     border: 1px solid var(--gew-border);
     border-radius: 0.5rem;
     padding: 1rem;
+    box-sizing: border-box;
+    /* A fixed height, not just a floor: real questions vary a lot in size
+       (a description/instruction line or not, one choice row or two, a
+       short vs. long explanation), and a min-height alone still let the
+       widget resize between every step — still jolting the surrounding
+       page, just less often. A fixed height stops that outright. overflow
+       is hidden here, not scrollable — .body below is the one thing that
+       scrolls internally; see its own comment for why that split exists.
+       Sized to comfortably fit the common case (description + instruction
+       + question + a wrapped choices row) without .body needing to scroll. */
+    height: 14rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Short, single-purpose states (a loading placeholder, an error, "nothing
+     available") — centering them in the fixed-height box reads as an
+     intentional state screen rather than a stray line stuck at the top of a
+     mostly-empty box. Not applied to .widget generally: a real question or
+     result's content should start from the top like normal reading order. */
+  .widget.centered {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  /* The question/result states each wrap their variable-length content (the
+     description/instruction/question, or the label/explanation) in .body,
+     leaving the answer control (.choices/the typed-input form) or the
+     "Next" button as a plain sibling after it — a toolbar that's never part
+     of the scrolling region. flex: 1 makes .body claim all the vertical
+     space the toolbar doesn't need, which is also what pins a short
+     toolbar to the bottom of the fixed-height box without a separate
+     margin-top: auto rule (an earlier version of this used exactly that,
+     directly on the toolbar element — it visually anchored the toolbar
+     correctly, but .widget's own overflow-y: auto still scrolled the
+     *entire* box including the toolbar for a too-long question, taking the
+     answer control out of view along with it). min-height: 0 overrides a
+     flex item's default min-height: auto, which would otherwise keep .body
+     at its content's full height and defeat overflow-y: auto entirely —
+     a well-known flexbox-plus-scrolling gotcha, not a redundant rule. */
+  .widget .body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
   p { margin: 0 0 0.75rem; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
@@ -102,7 +146,7 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   async _loadNext() {
-    this._render(`<div class="widget"><p class="muted">…</p></div>`);
+    this._renderLoading();
     try {
       const exercise = await this._post("/api/exercise/next", {
         topics: this._topics,
@@ -110,7 +154,7 @@ class GermanExerciseWidget extends HTMLElement {
       });
       if (exercise === null) {
         this._render(
-          `<div class="widget"><p class="muted">Nothing to practice here right now — come back later!</p></div>`
+          `<div class="widget centered"><p class="muted">Nothing to practice here right now — come back later!</p></div>`
         );
         return;
       }
@@ -121,7 +165,7 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   async _submitAnswer(answer) {
-    this._render(`<div class="widget"><p class="muted">…</p></div>`);
+    this._renderLoading();
     try {
       const result = await this._post("/api/exercise/check", {
         answer,
@@ -133,9 +177,13 @@ class GermanExerciseWidget extends HTMLElement {
     }
   }
 
+  _renderLoading() {
+    this._render(`<div class="widget centered"><p class="muted">…</p></div>`);
+  }
+
   _renderError() {
     this._render(
-      `<div class="widget"><p class="wrong">Something went wrong.</p>` +
+      `<div class="widget centered"><p class="wrong">Something went wrong.</p>` +
         `<button data-retry>Try again</button></div>`
     );
     this._shadow
@@ -158,8 +206,8 @@ class GermanExerciseWidget extends HTMLElement {
         `<input type="text" autocomplete="off" />` +
         `<button type="submit">✓</button></form>`;
     this._render(
-      `<div class="widget">${description}${instruction}` +
-        `<p class="question">❓ ${escapeHtml(exercise.question)}</p>` +
+      `<div class="widget"><div class="body">${description}${instruction}` +
+        `<p class="question">❓ ${escapeHtml(exercise.question)}</p></div>` +
         `${answerArea}</div>`
     );
     this._shadow.querySelectorAll("[data-choice]").forEach((button) => {
@@ -193,8 +241,8 @@ class GermanExerciseWidget extends HTMLElement {
       ? `<p class="correct">✅ Correct!</p>`
       : `<p class="wrong">❌ Correct answer: ${escapeHtml(result.answer)}</p>`;
     this._render(
-      `<div class="widget">${label}` +
-        `<p>${escapeHtml(result.explanation)}</p>` +
+      `<div class="widget"><div class="body">${label}` +
+        `<p>${escapeHtml(result.explanation)}</p></div>` +
         `<button data-next>Next</button></div>`
     );
     const nextButton = this._shadow.querySelector("[data-next]");
