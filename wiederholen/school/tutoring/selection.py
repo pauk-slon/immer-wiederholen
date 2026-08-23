@@ -1,12 +1,3 @@
-"""`SelectablePairs` — `next_exercise()`'s word/topic selection engine,
-factored out because its logic is entirely pairs-derived: it needs only a
-handful of externally-supplied primitives (`introduced_words`, `budget`,
-`last_pair`), never `Tutor`/`StudentRecord` state directly. `Tutor` gathers
-those few values once and passes them in, rather than this class reaching
-into student_record itself — which keeps it student_record-agnostic, same
-as the rest of this package.
-"""
-
 import random
 from dataclasses import dataclass
 

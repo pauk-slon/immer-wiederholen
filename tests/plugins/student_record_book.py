@@ -20,13 +20,14 @@ async def student_record_book(
 ) -> AsyncIterator[StudentRecordBook]:
     # Flushes its own DB rather than relying on redis_storage's flushdb() to
     # incidentally cover it too: STUDENT_RECORD_STORAGE_URL and
-    # FSM_STORAGE_URL happen to point at the same DB in local dev/compose,
-    # but nothing guarantees that in every environment (e.g. CI can and does
-    # point them at different DB numbers to prove the two stores are
-    # genuinely independent) — piggybacking on a same-DB assumption would
-    # silently stop cleaning this store the moment that assumption stops
-    # holding. redis_storage is still depended on for fixture ordering
-    # relative to _reset_storage, not for its flush.
+    # FSM_STORAGE_URL point at different DB numbers by default (compose.yaml,
+    # CI) precisely to prove the two stores are genuinely independent — they
+    # only coincide when the --redis-db-override pin forces both to the same
+    # overridden DB for a local pytest run (see tests/plugins/aiogram.py).
+    # Piggybacking on a same-DB assumption would silently stop cleaning this
+    # store the moment that assumption didn't hold. redis_storage is still
+    # depended on for fixture ordering relative to _reset_storage, not for
+    # its flush.
     # async with, not a bare instance + manual close(): StudentRecordBook has no
     # public close() at all, only the usual context-manager protocol.
     url = os.environ["STUDENT_RECORD_STORAGE_URL"]

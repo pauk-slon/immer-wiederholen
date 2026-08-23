@@ -10,6 +10,7 @@ from wiederholen.school import Course, StudentRecordBook, Tutor
 
 from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES, get_language
+from .telegram_student_id import NotATelegramStudentIdError, TelegramStudentID
 from .tracing import configure_tracing, default_tracer, instrument_redis
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,8 @@ async def _remind_chat(
         "reminder.check_chat",
         attributes={"telegram.chat_id": chat_id, "reminder.sent": False},
     ) as span:
-        async with student_record_book.check_out(str(chat_id)) as student_record:
+        student_id = TelegramStudentID.encode(chat_id)
+        async with student_record_book.check_out(student_id) as student_record:
             tutor = Tutor(course, student_record)
             if not tutor.should_remind():
                 return
@@ -60,7 +62,10 @@ async def tick(
 ) -> None:
     with default_tracer.start_as_current_span("reminder.tick"):
         async for student_id in student_record_book:
-            chat_id = int(student_id)
+            try:
+                chat_id = TelegramStudentID.decode(student_id)
+            except NotATelegramStudentIdError:
+                continue
             try:
                 await _remind_chat(
                     bot, fsm_storage, student_record_book, course, chat_id

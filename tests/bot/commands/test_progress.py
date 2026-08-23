@@ -9,6 +9,7 @@ from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import SeedStudentRecord
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU, format_count
+from wiederholen.bot.telegram_student_id import TelegramStudentID
 from wiederholen.school import Course
 
 
@@ -75,7 +76,7 @@ async def test_reflects_student_record_breakdown(
             },
         }
     }
-    await seed_student_record(str(chat_id), student_record)
+    await seed_student_record(TelegramStudentID.encode(chat_id), student_record)
 
     requests = await feed_message("/progress", course=Course([new, learning, mastered]))
 
@@ -99,7 +100,7 @@ async def test_reflects_todays_answer_count(
     exercise = make_exercise(word="warten")
     today = datetime.now(UTC).date().isoformat()
     student_record = {"today_answers": {"date": today, "answered": 12, "correct": 9}}
-    await seed_student_record(str(chat_id), student_record)
+    await seed_student_record(TelegramStudentID.encode(chat_id), student_record)
 
     requests = await feed_message("/progress", course=Course([exercise]))
 

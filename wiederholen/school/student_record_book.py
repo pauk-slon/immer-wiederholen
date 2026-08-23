@@ -1,21 +1,3 @@
-"""An abstract, transport-agnostic book of records — one entry per student —
-for exactly one thing: the per-student record dict
-`wiederholen.school.tutoring.StudentRecord`/`Tutor` operate on, addressed by
-a plain string `student_id` — for the Telegram bot that's `str(chat_id)`,
-for any future non-Telegram frontend (a web chat, say) it'd be whatever
-notion of identity that frontend uses.
-
-Deliberately scoped to *only* that record, not the rest of a chat's
-per-session state (language, ai_mode, mid-conversation UI bookkeeping, …) —
-that's session/UI state a transport keeps by whatever means suits it (e.g.
-the Telegram bot's own aiogram FSM storage), since it's not the kind of thing
-a web frontend would need to share with a Telegram chat the way the actual
-learning record is. `wiederholen.school.tutoring` (`Tutor`/`StudentRecord`)
-still never touches this or any other storage itself — it only ever
-receives a plain `dict` — so this module doesn't change that invariant, it's
-a layer between a transport and `Tutor`.
-"""
-
 import copy
 import json
 from abc import ABC, abstractmethod

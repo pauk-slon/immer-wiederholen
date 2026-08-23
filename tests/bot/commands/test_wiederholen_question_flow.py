@@ -12,6 +12,7 @@ from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import SeedStudentRecord
 from wiederholen.bot.commands.wiederholen import STUDY_MORE, UserState
 from wiederholen.bot.l10n import RU
+from wiederholen.bot.telegram_student_id import TelegramStudentID
 from wiederholen.school import Course, Exercise, Language, Tutor
 
 
@@ -193,7 +194,7 @@ async def test_avoids_repeating_previously_shown_question(
         explanation={"ru": "x", "en": "y"},
     )
     await seed_student_record(
-        str(chat_id), {"last_exercise": {"question": mit.question}}
+        TelegramStudentID.encode(chat_id), {"last_exercise": {"question": mit.question}}
     )
 
     requests = await feed_message("/wiederholen", course=Course([mit, ueber]))
@@ -223,7 +224,9 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
         }
         for i in range(Tutor.NEW_WORDS_PER_DAY)
     }
-    await seed_student_record(str(chat_id), {"word_schedule": word_schedule})
+    await seed_student_record(
+        TelegramStudentID.encode(chat_id), {"word_schedule": word_schedule}
+    )
 
     requests = await feed_message(
         "/wiederholen", course=Course([exercise, *capped_exercises])

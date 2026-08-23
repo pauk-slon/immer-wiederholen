@@ -12,6 +12,7 @@ from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import ExerciseData, make_exercise, make_exercise_data
 from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
+from wiederholen.bot.telegram_student_id import TelegramStudentID
 from wiederholen.school import Course, StudentRecordBook
 
 
@@ -28,7 +29,9 @@ async def test_tick_sends_reminder_and_records_it(
 ) -> None:
     exercise = make_exercise()
     bot = Bot(token=bot_token)
-    await seed_student_record("1", {"last_exercise": {"answered_at": _stale_answer()}})
+    await seed_student_record(
+        TelegramStudentID.encode(1), {"last_exercise": {"answered_at": _stale_answer()}}
+    )
 
     mock_request = AsyncMock(return_value=True)
     with patch.object(bot.session, "make_request", mock_request):
@@ -41,7 +44,7 @@ async def test_tick_sends_reminder_and_records_it(
     ]
     assert len(sent) == 1
     assert sent[0].chat_id == 1
-    assert "last_reminded_at" in await read_student_record("1")
+    assert "last_reminded_at" in await read_student_record(TelegramStudentID.encode(1))
 
 
 async def test_tick_skips_chat_with_nothing_due(
@@ -53,7 +56,7 @@ async def test_tick_skips_chat_with_nothing_due(
     exercise = make_exercise(word="warten")
     bot = Bot(token=bot_token)
     await seed_student_record(
-        "1",
+        TelegramStudentID.encode(1),
         {
             "word_schedule": {
                 "warten": {
@@ -85,7 +88,9 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
 ) -> None:
     exercise = make_exercise()
     bot = Bot(token=bot_token)
-    await seed_student_record("1", {"last_exercise": {"answered_at": _stale_answer()}})
+    await seed_student_record(
+        TelegramStudentID.encode(1), {"last_exercise": {"answered_at": _stale_answer()}}
+    )
 
     async def make_request_side_effect(bot, method, timeout=None):
         if isinstance(method, SendMessage):
@@ -98,7 +103,9 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
     with patch.object(bot.session, "make_request", mock_request):
         await tick(bot, redis_storage, student_record_book, Course([exercise]))
 
-    assert "last_reminded_at" not in await read_student_record("1")
+    assert "last_reminded_at" not in await read_student_record(
+        TelegramStudentID.encode(1)
+    )
 
 
 async def test_tick_continues_after_one_chat_fails(
@@ -109,10 +116,13 @@ async def test_tick_continues_after_one_chat_fails(
 ) -> None:
     exercise = make_exercise()
     bot = Bot(token=bot_token)
-    await seed_student_record("1", {"last_exercise": {"answered_at": _stale_answer()}})
+    await seed_student_record(
+        TelegramStudentID.encode(1), {"last_exercise": {"answered_at": _stale_answer()}}
+    )
     # malformed data for chat 2 raises while parsing, must not affect chat 1
     await seed_student_record(
-        "2", {"last_exercise": {"answered_at": "not-a-valid-datetime"}}
+        TelegramStudentID.encode(2),
+        {"last_exercise": {"answered_at": "not-a-valid-datetime"}},
     )
 
     mock_request = AsyncMock(return_value=True)
@@ -125,6 +135,27 @@ async def test_tick_continues_after_one_chat_fails(
         if isinstance(call.args[1], SendMessage)
     }
     assert sent_chat_ids == {1}
+
+
+async def test_tick_skips_a_student_id_from_a_different_frontend(
+    bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    # Not this worker's concern to remind — e.g. a future web frontend
+    # sharing this same store, addressed by its own id scheme.
+    exercise = make_exercise()
+    bot = Bot(token=bot_token)
+    await seed_student_record(
+        "web:1", {"last_exercise": {"answered_at": _stale_answer()}}
+    )
+
+    mock_request = AsyncMock(return_value=True)
+    with patch.object(bot.session, "make_request", mock_request):
+        await tick(bot, redis_storage, student_record_book, Course([exercise]))
+
+    assert mock_request.call_args_list == []
 
 
 async def test_run_ticks_then_sleeps_between_iterations(

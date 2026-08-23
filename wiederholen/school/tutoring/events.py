@@ -1,14 +1,3 @@
-"""Observability events `Tutor` reports back from `check_answer()`/
-`next_exercise()` — plain frozen dataclasses with zero dependency on
-opentelemetry or any other infra package, same as the rest of
-`wiederholen.school.tutoring`. Deciding what counts as a meaningful event
-and when it fires is domain knowledge, so it belongs next to the rules it's
-describing, not reconstructed by a caller from before/after state.
-
-`wiederholen.bot.tracing.record_tutoring_events()` is the generic,
-semantics-free bridge that turns these into span events.
-"""
-
 from dataclasses import dataclass
 from enum import Enum
 from typing import Literal

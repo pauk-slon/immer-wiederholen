@@ -29,6 +29,7 @@ from wiederholen.bot.pending_buttons import (
     forget_buttoned_message,
     remember_buttoned_message,
 )
+from wiederholen.bot.telegram_student_id import TelegramStudentID
 from wiederholen.bot.tracing import record_tutoring_events
 from wiederholen.school import (
     AIGenerationError,
@@ -253,7 +254,9 @@ async def command_wiederholen(
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
-    async with student_record_book.check_out(str(message.chat.id)) as student_record:
+    async with student_record_book.check_out(
+        TelegramStudentID.encode(message.chat.id)
+    ) as student_record:
         tutor = Tutor(course, student_record)
         exercise, events = tutor.next_exercise()
         record_tutoring_events(events)
@@ -308,7 +311,9 @@ async def handle_answer(
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
-    async with student_record_book.check_out(str(message.chat.id)) as student_record:
+    async with student_record_book.check_out(
+        TelegramStudentID.encode(message.chat.id)
+    ) as student_record:
         tutor = Tutor(course, student_record)
         mark, events = tutor.check_answer(shown_exercise, message.text or "")
         record_tutoring_events(events)
@@ -372,7 +377,9 @@ async def handle_recall(
     # check_recall() is pure (never mutates student_record), unlike request_recall()
     # in _start_recall() above — open() detects that nothing changed and
     # skips the write on its own, no separate read-only path needed here.
-    async with student_record_book.check_out(str(message.chat.id)) as student_record:
+    async with student_record_book.check_out(
+        TelegramStudentID.encode(message.chat.id)
+    ) as student_record:
         tutor = Tutor(course, student_record)
         if tutor.check_recall(shown_recall, message.text or ""):
             sent = await message.answer(
@@ -464,7 +471,7 @@ async def handle_next_exercise(
     language = get_language(state_data)
     locale = LOCALES[language]
     async with student_record_book.check_out(
-        str(callback.from_user.id)
+        TelegramStudentID.encode(callback.from_user.id)
     ) as student_record:
         tutor = Tutor(course, student_record)
         await _respond_with_next_exercise(
@@ -493,7 +500,7 @@ async def handle_study_more(
     language = get_language(state_data)
     locale = LOCALES[language]
     async with student_record_book.check_out(
-        str(callback.from_user.id)
+        TelegramStudentID.encode(callback.from_user.id)
     ) as student_record:
         tutor = Tutor(course, student_record)
         tutor.grant_new_word_budget()
@@ -525,7 +532,7 @@ async def handle_recall_request(
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
         async with student_record_book.check_out(
-            str(callback.from_user.id)
+            TelegramStudentID.encode(callback.from_user.id)
         ) as student_record:
             await _start_recall(
                 state,
