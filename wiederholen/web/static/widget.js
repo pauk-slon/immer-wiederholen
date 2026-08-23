@@ -65,10 +65,29 @@ class GermanExerciseWidget extends HTMLElement {
   constructor() {
     super();
     this._shadow = this.attachShadow({ mode: "open" });
+    // Bound once so add/removeEventListener refer to the same function.
+    // Keyboard events cross the shadow boundary (composed: true by default),
+    // so listening on the host element itself sees a keypress anywhere
+    // inside — including a focused choice button or the answer input.
+    this._onKeydown = this._onKeydown.bind(this);
   }
 
   connectedCallback() {
+    this.addEventListener("keydown", this._onKeydown);
     this._loadNext();
+  }
+
+  disconnectedCallback() {
+    this.removeEventListener("keydown", this._onKeydown);
+  }
+
+  _onKeydown(event) {
+    // Only meaningful once a result is showing — the answer forms already
+    // submit on Enter natively (a text <input> inside a <form>, or a
+    // focused choice <button>), so this is scoped to the "Next" step only.
+    if (event.key !== "Enter") return;
+    const nextButton = this._shadow.querySelector("[data-next]");
+    if (nextButton) nextButton.click();
   }
 
   get _topics() {
