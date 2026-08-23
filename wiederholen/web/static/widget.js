@@ -178,8 +178,13 @@ class GermanExerciseWidget extends HTMLElement {
       // just wiped whatever had focus (e.g. the previous question's Next
       // button), so without this the learner has to click the input by
       // hand before they can type — breaking a keyboard-only flow right
-      // where it matters most.
-      input.focus();
+      // where it matters most. preventScroll: true, since .focus()'s
+      // default scroll-into-view behavior would otherwise yank the whole
+      // page down to the widget the moment it loads on a page where it
+      // isn't already at the top (e.g. embedded partway down a landing
+      // page) — jarring on first load, and not something a learner who's
+      // already looking at the widget needs on every subsequent question.
+      input.focus({ preventScroll: true });
     }
   }
 
@@ -199,8 +204,11 @@ class GermanExerciseWidget extends HTMLElement {
     // focus falls back to <body> — a keydown there never reaches this
     // element's shadow tree. Focusing the button directly sidesteps that:
     // a focused <button> already activates on Enter per native browser
-    // behavior, no separate keyboard handling needed.
-    nextButton.focus();
+    // behavior, no separate keyboard handling needed. preventScroll: true
+    // for the same reason as _renderQuestion()'s input — the widget is
+    // already in view by the time an answer's been submitted, so there's
+    // nothing to scroll to, but no reason to risk it either.
+    nextButton.focus({ preventScroll: true });
   }
 
   _render(html) {
