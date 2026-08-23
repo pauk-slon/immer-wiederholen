@@ -7,6 +7,7 @@ requires-python = ">=3.14"
 dependencies = [
     "aiogram[redis]~=3.30.0",
     "anthropic>=0.121.0",
+    "litestar[standard]>=2.24.0",
     "opentelemetry-api>=1.44.0",
     "opentelemetry-exporter-otlp-proto-http>=1.44.0",
     "opentelemetry-instrumentation-redis>=0.65b0",

@@ -12,6 +12,7 @@ pytest_plugins = [
     "tests.plugins.aiogram",
     "tests.plugins.student_record_book",
     "tests.plugins.curriculum",
+    "tests.plugins.web",
 ]
 
 

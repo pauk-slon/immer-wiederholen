@@ -1,5 +1,5 @@
-from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Self, TypedDict
 
@@ -141,4 +141,27 @@ class Course:
         return cls(
             cls._load_exercises(path / "exercises.yaml"),
             **cls._load_topics(path / "topics.yaml"),
+        )
+
+    def restricted_to(self, topics: Iterable[Topic]) -> Self:
+        # A narrower view of this course, e.g. for a web widget embedded on
+        # a page about specific grammar topics — same student_record works
+        # against either view, since schedule entries are keyed by
+        # (word, topic), not by which Course object selected them.
+        #
+        # word_chained_topics/answer_chained_topics/gated_topics/
+        # topic_instructions/ai_generatable_topics are deliberately left
+        # untouched rather than filtered down too: a chain/gate pointing at
+        # a topic excluded here just never finds an exercise to expedite
+        # (Tutor._expedite_dependent() already treats "dependent topic has
+        # no exercises" as a no-op, the same case a topic with genuinely no
+        # exercises in the full course hits), and the rest are inert,
+        # unused data for a topic that can never appear in this view's
+        # exercises anyway.
+        allowed = frozenset(topics)
+        return replace(
+            self,
+            exercises=[
+                exercise for exercise in self.exercises if exercise.topic in allowed
+            ],
         )
