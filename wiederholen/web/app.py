@@ -8,6 +8,7 @@ from litestar import Litestar, Request, post
 from litestar.config.cors import CORSConfig
 from litestar.datastructures import State
 from litestar.exceptions import HTTPException
+from litestar.plugins.opentelemetry import OpenTelemetryConfig, OpenTelemetryPlugin
 from litestar.response import Response
 from litestar.static_files import create_static_files_router
 
@@ -182,4 +183,5 @@ def create_app() -> Litestar:
             allow_origins=os.environ["WEB_ALLOWED_ORIGINS"].split(","),
             allow_credentials=True,
         ),
+        plugins=[OpenTelemetryPlugin(OpenTelemetryConfig())],
     )
