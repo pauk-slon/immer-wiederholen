@@ -34,12 +34,12 @@ def exercise_data() -> ExerciseData:
 
 @pytest.fixture
 def fsm_storage_url() -> str:
-    return "redis://localhost:6379/0"
+    return "redis://localhost:6379/1"
 
 
 @pytest.fixture
 def student_record_storage_url() -> str:
-    return "redis://localhost:6379/1"
+    return "redis://localhost:6379/0"
 
 
 @pytest.fixture(autouse=True)
