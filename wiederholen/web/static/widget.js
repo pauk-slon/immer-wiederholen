@@ -252,7 +252,13 @@ class GermanExerciseWidget extends HTMLElement {
     return response.json();
   }
 
-  async _loadNext() {
+  // focusOnLoad distinguishes "this render is a direct response to the
+  // learner tapping something" (Next, Retry — where autofocusing the typed-
+  // answer input, and the mobile keyboard that comes with it, is expected)
+  // from a cold connectedCallback() render, where it isn't: popping the
+  // keyboard open the instant the page loads, before the learner has done
+  // anything at all, was a real complaint from a real mobile screenshot.
+  async _loadNext(focusOnLoad = false) {
     this._renderLoading();
     try {
       const exercise = await this._post("/api/exercise/next", {
@@ -267,7 +273,7 @@ class GermanExerciseWidget extends HTMLElement {
         return;
       }
       this._writeCachedExercise(exercise);
-      this._renderQuestion(exercise);
+      this._renderQuestion(exercise, focusOnLoad);
     } catch {
       this._renderError();
     }
@@ -302,10 +308,10 @@ class GermanExerciseWidget extends HTMLElement {
     );
     this._shadow
       .querySelector("[data-retry]")
-      .addEventListener("click", () => this._loadNext());
+      .addEventListener("click", () => this._loadNext(true));
   }
 
-  _renderQuestion(exercise) {
+  _renderQuestion(exercise, focusOnLoad = false) {
     const description = exercise.description
       ? `<p class="description">💭 ${escapeHtml(exercise.description)}</p>`
       : "";
@@ -346,7 +352,14 @@ class GermanExerciseWidget extends HTMLElement {
       // isn't already at the top (e.g. embedded partway down a landing
       // page) — jarring on first load, and not something a learner who's
       // already looking at the widget needs on every subsequent question.
-      input.focus({ preventScroll: true });
+      // Gated on focusOnLoad, though: on mobile, focusing a text input pops
+      // the on-screen keyboard open immediately — welcome right after the
+      // learner taps "Next"/"Try again", but not the instant the page
+      // itself finishes loading, before they've done anything at all
+      // (caught from a real mobile report).
+      if (focusOnLoad) {
+        input.focus({ preventScroll: true });
+      }
     }
   }
 
@@ -360,7 +373,7 @@ class GermanExerciseWidget extends HTMLElement {
         `<button data-next>Next</button></div>`
     );
     const nextButton = this._shadow.querySelector("[data-next]");
-    nextButton.addEventListener("click", () => this._loadNext());
+    nextButton.addEventListener("click", () => this._loadNext(true));
     // Re-rendering (_render() replaces the whole shadow subtree) drops
     // whatever had focus before this answer was submitted, so the page's
     // focus falls back to <body> — a keydown there never reaches this
