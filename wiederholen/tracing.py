@@ -1,15 +1,3 @@
-# Generic OpenTelemetry setup shared by every process that talks to Redis
-# and/or wants a configured span exporter — wiederholen.bot.__main__,
-# wiederholen.bot.reminder, and wiederholen.web.__main__ all call
-# configure_tracing()/instrument_redis() from here. Deliberately a top-level
-# module, a sibling of school/bot/web, not tucked inside wiederholen.bot: the
-# bot package's own tracing.py (TracingMiddleware, aiogram-Update-specific)
-# is bot-only by nature, but this generic setup is exactly the kind of thing
-# wiederholen.web would otherwise have had to import from wiederholen.bot to
-# get — which the "sibling of wiederholen.bot, not a dependency of it or vice
-# versa" rule (see CLAUDE.md's "Web frontend" section) rules out. Living here
-# instead means both bot and web depend on this shared module without either
-# depending on the other.
 import os
 from typing import Final
 
