@@ -39,8 +39,12 @@ const STYLES = `
        is hidden here, not scrollable — .body below is the one thing that
        scrolls internally; see its own comment for why that split exists.
        Sized to comfortably fit the common case (description + instruction
-       + question + a wrapped choices row) without .body needing to scroll. */
-    height: 14rem;
+       + question + a wrapped choices row) without .body needing to scroll
+       on a typical desktop-width embed — narrower viewports need more of
+       it (the same German sentence wraps to more lines at, say, 350px than
+       at 450px), so this is intentionally a bit taller than the bare
+       desktop minimum rather than exactly it. */
+    height: 16rem;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -74,6 +78,17 @@ const STYLES = `
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    /* A soft fade at the very bottom edge, not a hard cutoff — hints that
+       there's more to scroll to on narrow viewports especially (a long
+       German sentence wraps to more lines there, more easily filling
+       .body's fixed height than on a wider desktop embed). mask-image
+       fades this element's own content toward transparent, revealing
+       whatever's actually behind it, so it works regardless of the site's
+       (or dark mode's) actual background color — no color to keep in sync.
+       Harmless when content already fits without scrolling: at most it
+       softens the last few pixels of the final line, which reads as
+       intentional rather than a visible bug either way. */
+    mask-image: linear-gradient(to bottom, black 92%, transparent 100%);
   }
   p { margin: 0 0 0.75rem; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
@@ -81,7 +96,22 @@ const STYLES = `
   .question { font-size: 1.1em; font-weight: 600; }
   .correct { color: var(--gew-correct); font-weight: 600; }
   .wrong { color: var(--gew-wrong); font-weight: 600; }
-  .choices { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  /* grid, not flex-wrap: flex-wrap sizes each button to its own text,
+     leaving column edges ragged whenever one choice is longer than its
+     neighbor (e.g. "mein Wunsch" next to "meines Wunsches") — grid's equal-
+     width columns (and its default stretch, which fills each button to its
+     own cell) keep every button in a row the same width and every column
+     aligned, however uneven the choice text lengths are. A fixed 2 columns,
+     not auto-fit: nearly every real exercise has exactly 4 choices (345 of
+     346 in the actual course data), and auto-fit sized to a minmax(7rem,
+     1fr) track sometimes decided 3 columns fit the widget's own width —
+     leaving the 4th choice stranded alone on its own row instead of the
+     clean 2x2 that 4 choices in a fixed 2-column grid always gives. */
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
   button, input[type="text"] {
     font: inherit;
     border-radius: 0.375rem;
