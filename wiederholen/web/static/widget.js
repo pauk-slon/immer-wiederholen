@@ -18,6 +18,8 @@ const STYLES = `
     --gew-fg: #1a1a1a;
     --gew-muted: #6b7280;
     --gew-border: #d1d5db;
+    --gew-bg: #ffffff;
+    --gew-choice-bg: #ffffff;
     --gew-primary: #2563eb;
     --gew-correct: #16a34a;
     --gew-wrong: #dc2626;
@@ -26,10 +28,38 @@ const STYLES = `
     color: var(--gew-fg);
     max-width: 28rem;
   }
+  /* Following the OS/browser preference directly, not something read off
+     the host page: the host (this project's own landing pages) has no
+     manual light/dark toggle of its own either, just this same media
+     query, so the two can never disagree in practice — and the Shadow DOM
+     boundary doesn't affect prefers-color-scheme at all, since it's an
+     environment feature, not something host-page CSS could leak through
+     even without encapsulation. Every color below is redefined here rather
+     than left to inherit from the host page's own --bg/--text (or similar)
+     custom properties, since the widget must render sanely on a page it
+     knows nothing about, dark-mode-aware or not. */
+  @media (prefers-color-scheme: dark) {
+    :host {
+      --gew-fg: #e5e7eb;
+      --gew-muted: #9ca3af;
+      --gew-border: #3f3f46;
+      --gew-bg: #18181b;
+      --gew-choice-bg: #27272a;
+      --gew-primary: #3b82f6;
+      --gew-correct: #4ade80;
+      --gew-wrong: #f87171;
+    }
+  }
   .widget {
     border: 1px solid var(--gew-border);
     border-radius: 0.5rem;
     padding: 1rem;
+    /* Explicit, not left transparent: without this, the widget's own text
+       color (--gew-fg) rendered straight onto whatever the host page's
+       background happened to be — invisible dark-on-dark text on a page
+       using prefers-color-scheme: dark, since only the border/text colors
+       were ever theme-aware, not the widget's own backing surface. */
+    background: var(--gew-bg);
     box-sizing: border-box;
     /* A fixed height, not just a floor: real questions vary a lot in size
        (a description/instruction line or not, one choice row or two, a
@@ -117,8 +147,14 @@ const STYLES = `
     border-radius: 0.375rem;
     border: 1px solid var(--gew-border);
     padding: 0.5rem 0.75rem;
+    /* color: inherit isn't the default for form controls (button/input
+       have their own UA-stylesheet color, not "inherit"), so without this
+       both would silently keep light-mode-appropriate black text even
+       once --gew-fg switches for dark mode. */
+    color: inherit;
+    background: var(--gew-choice-bg);
   }
-  button { cursor: pointer; background: white; }
+  button { cursor: pointer; }
   button:hover { border-color: var(--gew-primary); }
   button[data-next], button[type="submit"] {
     background: var(--gew-primary);
