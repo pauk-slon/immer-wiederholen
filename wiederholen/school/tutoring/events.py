@@ -40,14 +40,7 @@ class NoExerciseAvailable:
 TutoringEvent = ExerciseAnswered | TopicUnlocked | NoExerciseAvailable
 
 
-def _attributes(event: TutoringEvent) -> dict[str, Any]:
-    # Enum values (e.g. RecallMode) aren't valid span event attribute types,
-    # so unwrap them to their plain value; None isn't valid either (e.g.
-    # ExerciseAnswered.prev_repetition_interval for a pair's very first
-    # answer, which has no previous interval at all) — omit it rather than
-    # invent a sentinel that could be mistaken for a real value like 0.
-    # Everything else in a TutoringEvent is already a span-attribute-safe
-    # type (str/bool/int).
+def _to_otel_attributes(event: TutoringEvent) -> dict[str, Any]:
     return {
         key: value.value if isinstance(value, Enum) else value
         for key, value in asdict(event).items()
@@ -57,4 +50,4 @@ def _attributes(event: TutoringEvent) -> dict[str, Any]:
 
 def emit(event: TutoringEvent) -> None:
     span = trace.get_current_span()
-    span.add_event(type(event).__name__, attributes=_attributes(event))
+    span.add_event(type(event).__name__, attributes=_to_otel_attributes(event))
