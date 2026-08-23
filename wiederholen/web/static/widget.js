@@ -30,6 +30,31 @@ const STYLES = `
     border: 1px solid var(--gew-border);
     border-radius: 0.5rem;
     padding: 1rem;
+    box-sizing: border-box;
+    /* A fixed height, not just a floor: real questions vary a lot in size
+       (a description/instruction line or not, one choice row or two, a
+       short vs. long explanation), and a min-height alone still let the
+       widget resize between every step — still jolting the surrounding
+       page, just less often. A fixed height stops that outright; content
+       that genuinely doesn't fit scrolls inside the widget instead of
+       resizing it. Sized to comfortably fit the common case (description +
+       instruction + question + a wrapped choices row) without a scrollbar. */
+    height: 14rem;
+    overflow-y: auto;
+  }
+  /* Short, single-purpose states (a loading placeholder, an error, "nothing
+     available") — centering them in the fixed-height box reads as an
+     intentional state screen rather than a stray line stuck at the top of a
+     mostly-empty box. Not applied to .widget generally: a real question or
+     result's content should start from the top like normal reading order,
+     and centering combined with scrolling on overflow can make a tall
+     block's own start awkward to reach. */
+  .widget.centered {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
   p { margin: 0 0 0.75rem; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
@@ -102,7 +127,7 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   async _loadNext() {
-    this._render(`<div class="widget"><p class="muted">…</p></div>`);
+    this._renderLoading();
     try {
       const exercise = await this._post("/api/exercise/next", {
         topics: this._topics,
@@ -110,7 +135,7 @@ class GermanExerciseWidget extends HTMLElement {
       });
       if (exercise === null) {
         this._render(
-          `<div class="widget"><p class="muted">Nothing to practice here right now — come back later!</p></div>`
+          `<div class="widget centered"><p class="muted">Nothing to practice here right now — come back later!</p></div>`
         );
         return;
       }
@@ -121,7 +146,7 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   async _submitAnswer(answer) {
-    this._render(`<div class="widget"><p class="muted">…</p></div>`);
+    this._renderLoading();
     try {
       const result = await this._post("/api/exercise/check", {
         answer,
@@ -133,9 +158,13 @@ class GermanExerciseWidget extends HTMLElement {
     }
   }
 
+  _renderLoading() {
+    this._render(`<div class="widget centered"><p class="muted">…</p></div>`);
+  }
+
   _renderError() {
     this._render(
-      `<div class="widget"><p class="wrong">Something went wrong.</p>` +
+      `<div class="widget centered"><p class="wrong">Something went wrong.</p>` +
         `<button data-retry>Try again</button></div>`
     );
     this._shadow
