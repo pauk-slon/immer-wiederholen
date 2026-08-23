@@ -25,18 +25,20 @@ from typing import Self
 
 from redis.asyncio import Redis
 
+type StudentID = str
+
 
 class StudentRecordBook(ABC):
     @abstractmethod
-    async def _get(self, student_id: str) -> dict:
+    async def _get(self, student_id: StudentID) -> dict:
         """That student's record dict, or `{}` if they have none yet."""
 
     @abstractmethod
-    async def _save(self, student_id: str, student_record: dict) -> None:
+    async def _save(self, student_id: StudentID, student_record: dict) -> None:
         """Overwrite that student's record dict wholesale."""
 
     @asynccontextmanager
-    async def check_out(self, student_id: str) -> AsyncIterator[dict]:
+    async def check_out(self, student_id: StudentID) -> AsyncIterator[dict]:
         student_record = await self._get(student_id)
         before = copy.deepcopy(student_record)
         try:
@@ -46,12 +48,7 @@ class StudentRecordBook(ABC):
                 await self._save(student_id, student_record)
 
     @abstractmethod
-    def __aiter__(self) -> AsyncIterator[str]:
-        """Every `student_id` with a stored record — the only way to
-        discover which students exist at all, for a caller that needs to
-        sweep all of them (there's no separate registry). Read a given
-        student's record itself via `check_out()`.
-        """
+    def __aiter__(self) -> AsyncIterator[StudentID]: ...
 
 
 class RedisStudentRecordBook(StudentRecordBook):
@@ -63,10 +60,10 @@ class RedisStudentRecordBook(StudentRecordBook):
         return cls(Redis.from_url(url))
 
     @staticmethod
-    def _key(student_id: str) -> str:
+    def _key(student_id: StudentID) -> str:
         return f"student_record:{student_id}"
 
-    async def _get(self, student_id: str) -> dict:
+    async def _get(self, student_id: StudentID) -> dict:
         value = await self.redis.get(self._key(student_id))
         if value is None:
             return {}
@@ -74,7 +71,7 @@ class RedisStudentRecordBook(StudentRecordBook):
             value = value.decode("utf-8")
         return json.loads(value)
 
-    async def _save(self, student_id: str, student_record: dict) -> None:
+    async def _save(self, student_id: StudentID, student_record: dict) -> None:
         key = self._key(student_id)
         if not student_record:
             # An empty record is stored as "no key at all" rather than a
@@ -84,7 +81,7 @@ class RedisStudentRecordBook(StudentRecordBook):
             return
         await self.redis.set(key, json.dumps(student_record))
 
-    async def __aiter__(self) -> AsyncIterator[str]:
+    async def __aiter__(self) -> AsyncIterator[StudentID]:
         async for raw_key in self.redis.scan_iter(match=self._key("*")):
             key = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
             yield key.removeprefix(self._key(""))
