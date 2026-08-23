@@ -23,10 +23,6 @@ def _otlp_endpoint_configured() -> bool:
 
 
 def configure_tracing() -> None:
-    # OTLPSpanExporter() defaults to http://localhost:4318, a convention for a
-    # local collector sidecar this project's deployment doesn't have — without
-    # an explicit endpoint there's nowhere valid to export to, so skip wiring
-    # up a real provider at all rather than let it retry into the void.
     if not _otlp_endpoint_configured():
         return
     provider = TracerProvider(resource=Resource.create())
