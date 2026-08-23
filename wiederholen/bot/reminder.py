@@ -7,11 +7,11 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 
 from wiederholen.school import Course, StudentRecordBook, Tutor
+from wiederholen.tracing import configure_tracing, default_tracer, instrument_redis
 
 from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES, get_language
 from .telegram_student_id import NotATelegramStudentIdError, TelegramStudentID
-from .tracing import configure_tracing, default_tracer, instrument_redis
 
 logger = logging.getLogger(__name__)
 
