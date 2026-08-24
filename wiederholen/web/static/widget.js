@@ -117,6 +117,14 @@ const STYLES = `
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    /* display: flex here isn't for .body's own alignment (justify-content
+       stays default/top-packed) — it's what lets .question's own
+       margin-top/margin-bottom: auto (see its rule below) center *just the
+       question* within whatever space description/instruction don't use,
+       while they themselves stay pinned to the top. See .question's own
+       comment for why. */
+    display: flex;
+    flex-direction: column;
     /* A soft fade at the very bottom edge, not a hard cutoff — hints that
        there's more to scroll to on narrow viewports especially (a long
        German sentence wraps to more lines there, more easily filling
@@ -132,7 +140,30 @@ const STYLES = `
   p { margin: 0 0 0.75rem; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
   .description, .instruction { font-size: 0.9em; color: var(--gew-muted); }
-  .question { font-size: 1.1em; font-weight: 600; }
+  .question {
+    font-size: 1.1em;
+    font-weight: 600;
+    text-align: center;
+    /* Centers the question — both axes, like an actual flashcard — within
+       whatever space description/instruction (plain top-aligned
+       paragraphs, unaffected by this) don't use. margin-top/margin-bottom:
+       auto is a flexbox behavior (see .body's own display: flex, added
+       for exactly this) that splits available main-axis space evenly
+       above and below when there's slack — a card sized well past its
+       content (the standalone app's bigger --gew-height override in
+       particular) otherwise left the question stranded in the top-left
+       corner with a dead gap below it, reported from a real screenshot.
+       Auto margins can't go negative, so on the rare question long enough
+       to actually need .body's own scroll, they just compute to 0 and the
+       question packs at the top like a plain paragraph would — no worse
+       than top-alignment already was, unlike plain justify-content:
+       center on .body itself would have been (that can push a flex
+       group's start past the scrollable area's top edge on overflow,
+       making the beginning of the text unreachable by scrolling — the
+       same pitfall .centered avoids for the same reason elsewhere). */
+    margin-top: auto;
+    margin-bottom: auto;
+  }
   .correct { color: var(--gew-correct); font-weight: 600; }
   .wrong { color: var(--gew-wrong); font-weight: 600; }
   /* grid, not flex-wrap: flex-wrap sizes each button to its own text,
