@@ -62,6 +62,33 @@ class CheckAnswerResponse:
     explanation: str
 
 
+@dataclass
+class RecallRequest:
+    language: Language = "ru"
+
+
+@dataclass
+class RecallDTO:
+    question: str
+    hint: str | None
+
+
+@dataclass
+class CheckRecallRequest:
+    answer: str
+
+
+@dataclass
+class CheckRecallResponse:
+    correct: bool
+    # The recall's own canonical answer text — recall.answer[0], the same
+    # index the bot's own _highlight_diff call uses — shown on a wrong
+    # attempt. No diff-highlighting here (that's Telegram-HTML-specific);
+    # the widget already shows a plain "correct answer: X" line for the
+    # main exercise's own wrong answers, so this matches that precedent.
+    answer: str
+
+
 def _student_id_from_request(request: Request) -> tuple[StudentID, bool]:
     """Returns `(student_id, is_new)` — `is_new` tells the caller whether it
     still needs to set the cookie in its response.
@@ -170,6 +197,72 @@ async def check_answer(
     )
 
 
+@post("/api/exercise/recall", status_code=200)
+async def request_recall(
+    data: RecallRequest, request: Request, state: State
+) -> Response[RecallDTO]:
+    course: Course = state["course"]
+    student_record_book: StudentRecordBook = state["student_record_book"]
+    session_store: WebSessionStore = state["session_store"]
+    student_id, _ = _student_id_from_request(request)
+
+    shown_exercise = await session_store.get_shown_exercise(student_id)
+    if shown_exercise is None:
+        raise HTTPException(
+            status_code=409,
+            detail="no exercise currently shown for this student",
+        )
+
+    # Tutor.request_recall() mutates student_record (records the shown
+    # recall_question for repeat-avoidance, and — the first time an
+    # *optional* recall is requested for a pair — halves its repetition
+    # interval), the same side effects the bot's own _start_recall() relies
+    # on; check_out() is what makes that mutation actually persist. Called
+    # once per recall step, including retries — each call re-picks via
+    # request_recall(), which already excludes the immediately-previous
+    # recall_question when alternatives exist, so a retry naturally varies
+    # like it does in the bot.
+    async with student_record_book.check_out(student_id) as student_record:
+        recall = Tutor(course, student_record).request_recall(shown_exercise)
+
+    await session_store.set_shown_recall(student_id, recall)
+    return Response(
+        RecallDTO(
+            question=recall.question,
+            hint=recall.hint.get(data.language) if recall.hint else None,
+        )
+    )
+
+
+@post("/api/exercise/recall/check", status_code=200)
+async def check_recall(
+    data: CheckRecallRequest, request: Request, state: State
+) -> Response[CheckRecallResponse]:
+    course: Course = state["course"]
+    student_record_book: StudentRecordBook = state["student_record_book"]
+    session_store: WebSessionStore = state["session_store"]
+    student_id, _ = _student_id_from_request(request)
+
+    shown_recall = await session_store.get_shown_recall(student_id)
+    if shown_recall is None:
+        raise HTTPException(
+            status_code=409,
+            detail="no recall currently shown for this student",
+        )
+
+    # check_recall() is pure (never mutates student_record) — same as the
+    # bot's own comment on this — so check_out()'s own change-detection
+    # skips the write on its own; no separate read-only path needed here.
+    async with student_record_book.check_out(student_id) as student_record:
+        is_correct = Tutor(course, student_record).check_recall(
+            shown_recall, data.answer
+        )
+
+    return Response(
+        CheckRecallResponse(correct=is_correct, answer=shown_recall.answer[0])
+    )
+
+
 def create_app() -> Litestar:
     course, student_record_book, session_store = load_web_course_and_storage()
     widget_router = create_static_files_router(
@@ -187,7 +280,14 @@ def create_app() -> Litestar:
         name="app",
     )
     return Litestar(
-        route_handlers=[next_exercise, check_answer, widget_router, app_router],
+        route_handlers=[
+            next_exercise,
+            check_answer,
+            request_recall,
+            check_recall,
+            widget_router,
+            app_router,
+        ],
         state=State(
             {
                 "course": course,

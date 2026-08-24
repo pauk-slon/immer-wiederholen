@@ -9,7 +9,13 @@ from litestar.testing import AsyncTestClient
 from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import make_exercise, make_exercise_data
 from wiederholen.school import Course, RedisStudentRecordBook, StudentRecordBook
-from wiederholen.web.app import check_answer, create_app, next_exercise
+from wiederholen.web.app import (
+    check_answer,
+    check_recall,
+    create_app,
+    next_exercise,
+    request_recall,
+)
 from wiederholen.web.session import WebSessionStore
 
 type WebAppFactory = Callable[[Course], Litestar]
@@ -30,7 +36,7 @@ def web_app_factory(
 ) -> WebAppFactory:
     def factory(course: Course) -> Litestar:
         return Litestar(
-            route_handlers=[next_exercise, check_answer],
+            route_handlers=[next_exercise, check_answer, request_recall, check_recall],
             state=State(
                 {
                     "course": course,
@@ -207,6 +213,106 @@ async def test_check_answer_respects_the_requested_language(
         )
 
     assert response.json()["explanation"] == exercise.explanation["en"]
+
+
+async def test_request_recall_returns_a_recall_question(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(word="warten", recalls=True)
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        await client.post("/api/exercise/check", json={"answer": "auf"})
+        response = await client.post("/api/exercise/recall", json={})
+
+    assert response.status_code == 200
+    assert response.json()["question"] == exercise.recalls[0].question
+
+
+async def test_request_recall_respects_the_requested_language(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(
+        word="warten",
+        recalls=[{"hint": {"ru": "подсказка", "en": "hint"}}],
+    )
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        await client.post("/api/exercise/check", json={"answer": "auf"})
+        response = await client.post("/api/exercise/recall", json={"language": "en"})
+
+    assert response.json()["hint"] == "hint"
+
+
+async def test_request_recall_without_a_shown_exercise_is_a_conflict(
+    web_app_factory: WebAppFactory,
+) -> None:
+    app = web_app_factory(Course([make_exercise(recalls=True)]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.post("/api/exercise/recall", json={})
+
+    assert response.status_code == 409
+
+
+async def test_check_recall_reports_correctness(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(
+        word="warten", recalls=[{"answer": ["Ich warte auf den Bus."]}]
+    )
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        await client.post("/api/exercise/check", json={"answer": "auf"})
+        await client.post("/api/exercise/recall", json={})
+        response = await client.post(
+            "/api/exercise/recall/check", json={"answer": "Ich warte auf den Bus."}
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["correct"] is True
+    assert body["answer"] == "Ich warte auf den Bus."
+
+
+async def test_check_recall_reports_wrong_answers_too(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(
+        word="warten", recalls=[{"answer": ["Ich warte auf den Bus."]}]
+    )
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        await client.post("/api/exercise/check", json={"answer": "auf"})
+        await client.post("/api/exercise/recall", json={})
+        response = await client.post(
+            "/api/exercise/recall/check", json={"answer": "wrong"}
+        )
+
+    assert response.json()["correct"] is False
+
+
+async def test_check_recall_without_a_shown_recall_is_a_conflict(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(word="warten", recalls=True)
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        await client.post("/api/exercise/check", json={"answer": "auf"})
+        response = await client.post(
+            "/api/exercise/recall/check", json={"answer": "anything"}
+        )
+
+    assert response.status_code == 409
 
 
 async def test_two_visitors_get_distinct_student_ids(

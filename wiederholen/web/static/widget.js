@@ -280,6 +280,28 @@ const STYLES = `
   }
   form { display: flex; gap: 0.5rem; }
   input[type="text"] { flex: 1; }
+  /* A recall step is appended to .body, not swapped in over it (see
+     _startRecall()'s own comment for why) — the border marks it as a new
+     step starting, distinct from the result above it that's still fully
+     visible. .body's own gap: 1rem (see above) already provides the space
+     *before* this border; padding-top here is deliberately smaller
+     (0.5rem, not another 1rem) — the border itself already reads as a
+     break, so doubling the full rhythm on top of it would read as an
+     oversized gap rather than a clean divider. */
+  .recall-question {
+    font-weight: 600;
+    border-top: 1px solid var(--gew-border);
+    padding-top: 0.5rem;
+  }
+  /* The two-button toolbar shared by both recall-offer states — "Закрепить"
+     (after a correct answer with recalls available) and "Попробовать ещё
+     раз" (after a wrong recall attempt) — paired with "Дальше" either way,
+     mirroring the bot's own _make_recall_buttons(), which always shows the
+     same two side by side. Equal-width buttons via flex: 1, the same
+     pattern form's own input[type="text"] already uses for its one growing
+     child. */
+  .actions { display: flex; gap: 0.5rem; }
+  .actions button { flex: 1; }
 `;
 
 function escapeHtml(value) {
@@ -303,6 +325,15 @@ const STRINGS = {
     next: "Дальше",
     correct: "Верно!",
     correctAnswer: (answer) => `Правильный ответ: ${answer}`,
+    // Mirrors the bot's own l10n.py wording exactly (btn_recall,
+    // btn_recall_retry, recall_correct, recall_wrong) — recallRetry is kept
+    // distinct from tryAgain above (a different button, for the unrelated
+    // network-error-retry case) since the bot's own ru copy for the two
+    // differs ("Попробовать ещё раз" vs "Попробовать снова").
+    recallDrill: "Закрепить",
+    recallRetry: "Попробовать ещё раз",
+    recallCorrect: "Правильно!",
+    recallWrong: (answer) => `Неправильно. Правильный вариант: ${answer}`,
   },
   en: {
     nothingAvailable: "Nothing to practice here right now — come back later!",
@@ -311,6 +342,10 @@ const STRINGS = {
     next: "Next",
     correct: "Correct!",
     correctAnswer: (answer) => `Correct answer: ${answer}`,
+    recallDrill: "Drill",
+    recallRetry: "Try again",
+    recallCorrect: "Correct!",
+    recallWrong: (answer) => `Wrong. Correct answer: ${answer}`,
   },
 };
 
@@ -519,7 +554,7 @@ class GermanExerciseWidget extends HTMLElement {
       `<div class="widget"><div class="body">${instruction}` +
         `<div class="centered-pair"><p class="question">❓ ${escapeHtml(exercise.question)}</p>` +
         `${description}</div></div>` +
-        `${answerArea}</div>`
+        `<div class="toolbar">${answerArea}</div></div>`
     );
     this._shadow.querySelectorAll("[data-choice]").forEach((button) => {
       button.addEventListener("click", () =>
@@ -565,24 +600,160 @@ class GermanExerciseWidget extends HTMLElement {
       // worth remembering, so it plays .question's role, and the grammar
       // note backing it up plays .description's — see .explanation's own
       // comment for the reasoning, and .centered-pair's for why grouping
-      // beats leaving the two as independent top-packed siblings.
+      // beats leaving the two as independent top-packed siblings. An
+      // empty .toolbar here — filled in just below, once recall mode is
+      // known — rather than baked into this same template string, so
+      // _startRecall()/etc. below can all go through the one _setToolbar()
+      // path instead of a separate one just for this initial render.
       `<div class="widget"><div class="body">` +
         `<div class="centered-pair">${label}` +
         `<p class="explanation">${escapeHtml(result.explanation)}</p></div></div>` +
+        `<div class="toolbar"></div></div>`
+    );
+    // result.recall mirrors the bot's own RecallMode: "none" (no recalls on
+    // this exercise at all — plain Next, unchanged from before recall
+    // existed), "optional" (answered correctly, a recall is offered but not
+    // required), "required" (answered wrong, a recall must be attempted
+    // before moving on — started immediately, no offer needed since it
+    // isn't optional). See CLAUDE.md's "Web frontend" section for why
+    // recall *appends* to this same card instead of replacing it.
+    if (result.recall === "required") {
+      this._startRecall();
+    } else if (result.recall === "optional") {
+      this._setToolbarToActions(this._strings.recallDrill, () => this._startRecall());
+    } else {
+      this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);
+      this._wireNextButton();
+    }
+  }
+
+  // Fetches a recall (POST /api/exercise/recall) and appends it to .body —
+  // never replaces what's already shown, so the just-answered result stays
+  // visible for reference throughout the recall step (the whole reason
+  // recall is append-only rather than its own full-screen replacement, see
+  // CLAUDE.md). Used both for a fresh recall (called directly from
+  // _renderResult() above) and for a retry after a wrong attempt (called
+  // from _submitRecallAnswer()'s own wrong branch below) — either way it's
+  // a brand new recall.question/hint, appended as a new block below
+  // whatever's already there, which is what makes a retry read as the log
+  // growing rather than the previous attempt being erased.
+  async _startRecall() {
+    this._setToolbar(`<p class="muted">…</p>`);
+    try {
+      const recall = await this._post("/api/exercise/recall", {
+        language: this._language,
+      });
+      const hint = recall.hint
+        ? `<p class="description">💡 ${escapeHtml(recall.hint)}</p>`
+        : "";
+      this._appendToBody(
+        `<p class="recall-question">❓ ${escapeHtml(recall.question)}</p>${hint}`
+      );
+      this._setToolbar(
+        `<form data-recall-form><input type="text" autocomplete="off" />` +
+          `<button type="submit">✓</button></form>`
+      );
+      const form = this._shadow.querySelector("[data-recall-form]");
+      const input = form.querySelector("input");
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        this._submitRecallAnswer(input.value);
+      });
+      // Not focusOnLoad-gated like _renderQuestion()'s own input: this is
+      // always the direct result of a deliberate action (submitting the
+      // main answer that triggered a required recall, or tapping
+      // "Закрепить"/"Попробовать ещё раз"), never a cold page load — the
+      // one case that gating exists to avoid (see _renderQuestion()'s own
+      // comment).
+      input.focus({ preventScroll: true });
+    } catch {
+      // Never leaves the learner stuck: same fallback as any other failed
+      // fetch here, just appended rather than replacing the card, so the
+      // result above (and this error) both stay visible.
+      this._appendToBody(
+        `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>`
+      );
+      this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);
+      this._wireNextButton();
+    }
+  }
+
+  async _submitRecallAnswer(answer) {
+    this._setToolbar(`<p class="muted">…</p>`);
+    try {
+      const result = await this._post("/api/exercise/recall/check", { answer });
+      if (result.correct) {
+        this._appendToBody(
+          `<p class="correct">✅ ${escapeHtml(this._strings.recallCorrect)}</p>`
+        );
+        this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);
+        this._wireNextButton();
+      } else {
+        this._appendToBody(
+          `<p class="wrong">❌ ${escapeHtml(this._strings.recallWrong(result.answer))}</p>`
+        );
+        this._setToolbarToActions(this._strings.recallRetry, () => this._startRecall());
+      }
+    } catch {
+      this._appendToBody(
+        `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>`
+      );
+      this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);
+      this._wireNextButton();
+    }
+  }
+
+  // Shared by both recall-offer states — "Закрепить" after a correct
+  // answer, "Попробовать ещё раз" after a wrong recall attempt — which
+  // always pair their own trigger with a "Дальше" button, mirroring the
+  // bot's own _make_recall_buttons() (always the same two-button shape,
+  // just a different label on the first one).
+  _setToolbarToActions(triggerLabel, onTrigger) {
+    this._setToolbar(
+      `<div class="actions">` +
+        `<button data-recall-trigger>${escapeHtml(triggerLabel)}</button>` +
         `<button data-next>${escapeHtml(this._strings.next)}</button></div>`
     );
+    this._shadow
+      .querySelector("[data-recall-trigger]")
+      .addEventListener("click", onTrigger);
+    this._wireNextButton();
+  }
+
+  // Wires whichever [data-next] button is currently in .toolbar and
+  // focuses it — factored out since a fresh Next button appears in several
+  // places now (the plain result screen, after a correct recall, alongside
+  // a recall-offer/retry button), all wanting the exact same click/focus
+  // behavior _renderResult() used to attach inline by itself.
+  _wireNextButton() {
     const nextButton = this._shadow.querySelector("[data-next]");
     nextButton.addEventListener("click", () => this._loadNext(true));
-    // Re-rendering (_render() replaces the whole shadow subtree) drops
-    // whatever had focus before this answer was submitted, so the page's
-    // focus falls back to <body> — a keydown there never reaches this
-    // element's shadow tree. Focusing the button directly sidesteps that:
-    // a focused <button> already activates on Enter per native browser
-    // behavior, no separate keyboard handling needed. preventScroll: true
-    // for the same reason as _renderQuestion()'s input — the widget is
-    // already in view by the time an answer's been submitted, so there's
-    // nothing to scroll to, but no reason to risk it either.
+    // Re-rendering/re-toolbaring drops whatever had focus before, so the
+    // page's focus falls back to <body> — a keydown there never reaches
+    // this element's shadow tree. Focusing the button directly sidesteps
+    // that: a focused <button> already activates on Enter per native
+    // browser behavior, no separate keyboard handling needed.
+    // preventScroll: true since the widget is already in view by the time
+    // any of this runs, so there's nothing to scroll to, but no reason to
+    // risk it either.
     nextButton.focus({ preventScroll: true });
+  }
+
+  _setToolbar(html) {
+    this._shadow.querySelector(".toolbar").innerHTML = html;
+  }
+
+  // Inserts new content at the end of .body without touching what's
+  // already there (unlike _render(), which wipes everything) — this is the
+  // one piece of machinery the whole append-not-replace recall design (see
+  // CLAUDE.md) actually needs. Scrolls .body to the newly-added content's
+  // bottom afterward — .body already scrolls internally on overflow (see
+  // its own comment), and without this a learner would have to notice and
+  // manually scroll down to see a just-appended recall question.
+  _appendToBody(html) {
+    const body = this._shadow.querySelector(".body");
+    body.insertAdjacentHTML("beforeend", html);
+    body.scrollTop = body.scrollHeight;
   }
 
   _render(html) {
