@@ -171,6 +171,32 @@ function escapeHtml(value) {
   return div.innerHTML;
 }
 
+// The exercise's own content (question/description/instruction/explanation)
+// is already localized server-side via the `language` request param — this
+// is just the widget's own fixed chrome (buttons, error/empty-state text)
+// around it, which the server never sees and has no way to translate. "en"
+// is included even though it duplicates the English literals that used to
+// be inline, so a topic/language combination the API doesn't recognize
+// still degrades to a real language rather than a KeyError.
+const STRINGS = {
+  ru: {
+    nothingAvailable: "Пока нечего тренировать — загляните позже!",
+    somethingWrong: "Что-то пошло не так.",
+    tryAgain: "Попробовать снова",
+    next: "Дальше",
+    correct: "Верно!",
+    correctAnswer: (answer) => `Правильный ответ: ${answer}`,
+  },
+  en: {
+    nothingAvailable: "Nothing to practice here right now — come back later!",
+    somethingWrong: "Something went wrong.",
+    tryAgain: "Try again",
+    next: "Next",
+    correct: "Correct!",
+    correctAnswer: (answer) => `Correct answer: ${answer}`,
+  },
+};
+
 class GermanExerciseWidget extends HTMLElement {
   constructor() {
     super();
@@ -233,6 +259,13 @@ class GermanExerciseWidget extends HTMLElement {
     return this.getAttribute("lang") || "ru";
   }
 
+  // Falls back to ru, not en, for an unrecognized lang attribute — matches
+  // _language's own default above, so the two stay consistent rather than
+  // disagreeing about which language an unset/unsupported attribute means.
+  get _strings() {
+    return STRINGS[this._language] || STRINGS.ru;
+  }
+
   get _apiBase() {
     const explicit = this.getAttribute("api-base");
     if (explicit) return explicit.replace(/\/$/, "");
@@ -268,7 +301,7 @@ class GermanExerciseWidget extends HTMLElement {
       if (exercise === null) {
         this._clearCachedExercise();
         this._render(
-          `<div class="widget centered"><p class="muted">Nothing to practice here right now — come back later!</p></div>`
+          `<div class="widget centered"><p class="muted">${escapeHtml(this._strings.nothingAvailable)}</p></div>`
         );
         return;
       }
@@ -303,8 +336,8 @@ class GermanExerciseWidget extends HTMLElement {
 
   _renderError() {
     this._render(
-      `<div class="widget centered"><p class="wrong">Something went wrong.</p>` +
-        `<button data-retry>Try again</button></div>`
+      `<div class="widget centered"><p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
+        `<button data-retry>${escapeHtml(this._strings.tryAgain)}</button></div>`
     );
     this._shadow
       .querySelector("[data-retry]")
@@ -365,12 +398,12 @@ class GermanExerciseWidget extends HTMLElement {
 
   _renderResult(result) {
     const label = result.correct
-      ? `<p class="correct">✅ Correct!</p>`
-      : `<p class="wrong">❌ Correct answer: ${escapeHtml(result.answer)}</p>`;
+      ? `<p class="correct">✅ ${escapeHtml(this._strings.correct)}</p>`
+      : `<p class="wrong">❌ ${escapeHtml(this._strings.correctAnswer(result.answer))}</p>`;
     this._render(
       `<div class="widget"><div class="body">${label}` +
         `<p>${escapeHtml(result.explanation)}</p></div>` +
-        `<button data-next>Next</button></div>`
+        `<button data-next>${escapeHtml(this._strings.next)}</button></div>`
     );
     const nextButton = this._shadow.querySelector("[data-next]");
     nextButton.addEventListener("click", () => this._loadNext(true));
