@@ -5,6 +5,10 @@
 // see CLAUDE.md's "Web frontend" section for the reasoning behind this and
 // the API it talks to.
 //
+// A bare `recall` attribute opts into the recall step (off by default —
+// see _recallEnabled's own comment for why a landing-page embed shouldn't
+// just get it for free).
+//
 // `api-base` defaults to the origin this very script was loaded from
 // (captured once, below, while `document.currentScript` is still valid —
 // it stops being usable the moment this file finishes its first pass, long
@@ -442,6 +446,19 @@ class GermanExerciseWidget extends HTMLElement {
     return this.getAttribute("lang") || "ru";
   }
 
+  // Off by default — a landing-page embed is meant to stay a light,
+  // low-commitment sample of practicing, not the full bot-parity
+  // experience; the standalone app (the one place actually working toward
+  // that parity) opts in explicitly with the bare `recall` attribute, the
+  // same boolean-attribute convention `disabled`/`required` use natively.
+  // A single shared component with this one behavior gated, rather than a
+  // second forked file, is deliberate: the two contexts already share
+  // everything else (layout, sizing via --gew-*, i18n, focus handling),
+  // and forking would mean applying every future fix twice.
+  get _recallEnabled() {
+    return this.hasAttribute("recall");
+  }
+
   // Falls back to ru, not en, for an unrecognized lang attribute — matches
   // _language's own default above, so the two stay consistent rather than
   // disagreeing about which language an unset/unsupported attribute means.
@@ -616,10 +633,15 @@ class GermanExerciseWidget extends HTMLElement {
     // required), "required" (answered wrong, a recall must be attempted
     // before moving on — started immediately, no offer needed since it
     // isn't optional). See CLAUDE.md's "Web frontend" section for why
-    // recall *appends* to this same card instead of replacing it.
-    if (result.recall === "required") {
+    // recall *appends* to this same card instead of replacing it. Forced
+    // to "none" when _recallEnabled is off (the default — see its own
+    // comment), rather than a separate branch duplicating "none"'s own
+    // body — an embed that never asked for recall takes exactly the same
+    // path as an exercise with no recalls at all.
+    const recallMode = this._recallEnabled ? result.recall : "none";
+    if (recallMode === "required") {
       this._startRecall();
-    } else if (result.recall === "optional") {
+    } else if (recallMode === "optional") {
       this._setToolbarToActions(this._strings.recallDrill, () => this._startRecall());
     } else {
       this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);

@@ -101,8 +101,13 @@
     <!-- No topics attribute at all: the API treats an empty topics list as
          "the whole course", not "nothing" — see wiederholen/web/app.py's
          next_exercise(). Unlike a landing page's embedded widget, this app
-         has no fixed grammar topic of its own to scope itself to. -->
-    <german-exercise-widget id="widget" lang="ru"></german-exercise-widget>
+         has no fixed grammar topic of its own to scope itself to.
+
+         recall is opted into here specifically: this app is the surface
+         working toward full bot-parity functionality, unlike a landing
+         page's embedded widget, which stays a deliberately lighter sample
+         (see widget.js's own _recallEnabled comment for the reasoning). -->
+    <german-exercise-widget id="widget" lang="ru" recall></german-exercise-widget>
 
     <script>
       // Runs synchronously during parsing, before the widget.js <script>
