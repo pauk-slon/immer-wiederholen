@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Immer wiederholen</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --text: #1a1a1a;
+        --muted: #6b7280;
+        --border: #d1d5db;
+        --accent: #2563eb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b0b0f;
+          --text: #e5e7eb;
+          --muted: #9ca3af;
+          --border: #3f3f46;
+          --accent: #3b82f6;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem 1rem;
+      }
+      header {
+        width: 100%;
+        max-width: 28rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
+      h1 { font-size: 1.2rem; margin: 0; }
+      .lang-toggle {
+        display: flex;
+        gap: 0.25rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.15rem;
+      }
+      .lang-toggle button {
+        font: inherit;
+        font-size: 0.85rem;
+        border: none;
+        background: none;
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 0.25rem 0.75rem;
+        cursor: pointer;
+      }
+      .lang-toggle button[aria-pressed="true"] {
+        background: var(--accent);
+        color: #fff;
+      }
+      footer {
+        margin-top: 2rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+        text-align: center;
+      }
+      footer a { color: inherit; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Immer wiederholen</h1>
+      <div class="lang-toggle" role="group" aria-label="Язык">
+        <button type="button" data-lang="ru">ru</button>
+        <button type="button" data-lang="en">en</button>
+      </div>
+    </header>
+
+    <!-- No topics attribute at all: the API treats an empty topics list as
+         "the whole course", not "nothing" — see wiederholen/web/app.py's
+         next_exercise(). Unlike a landing page's embedded widget, this app
+         has no fixed grammar topic of its own to scope itself to. -->
+    <german-exercise-widget id="widget" lang="ru"></german-exercise-widget>
+
+    <footer>
+      Хотите тренироваться с напоминаниями каждый день?
+      <a href="https://t.me/ImmerWiederholenBot">Откройте бота в Telegram →</a>
+    </footer>
+
+    <script>
+      // Runs synchronously during parsing, before the widget.js <script>
+      // below is even fetched — so a saved language preference takes
+      // effect on the widget's very first request, not only after the
+      // learner has already toggled it once this page load. app.js (loaded
+      // last) only needs to handle the toggle buttons themselves.
+      (function () {
+        var saved = localStorage.getItem("wiederholen-lang");
+        if (saved) {
+          document.getElementById("widget").setAttribute("lang", saved);
+        }
+      })();
+    </script>
+    <!-- Not the local-config.js/widget-loader.js dance the content repo's
+         landing pages need — this page is served by wiederholen.web itself,
+         so widget.js is always reachable at this same fixed, same-origin
+         path, in every environment. -->
+    <script src="/widget/widget.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
