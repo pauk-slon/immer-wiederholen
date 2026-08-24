@@ -158,62 +158,85 @@ const STYLES = `
        whatever's actually behind it, so it works regardless of the site's
        (or dark mode's) actual background color — no color to keep in sync.
        A fixed, deliberately small fade zone (calc(100% - 0.35rem)), not a
-       percentage of .body's own height: .description (when present)
-       always ends up flush against .body's own bottom edge — see
-       .question's flex: 1 comment above, nothing is ever left over
-       between them by design — so the fade always lands on its actual
-       last line of text, not on blank space, however the zone is sized.
-       A percentage-based zone (the original design) scales with .body's
-       height rather than with the text it's fading, and the standalone
-       app's taller --gew-height card (see CLAUDE.md's "Web frontend")
-       turned the originally-intended "soften the last couple of pixels"
-       into most of an entire line reading visibly faded (caught from a
-       real screenshot) — widening the box just widened the fade. A small
-       fixed zone keeps that softening to what it was always meant to be:
-       a few pixels of the line's own bottom edge, not the line itself. */
+       percentage of .body's own height: a percentage-based zone (the
+       original design) scales with .body's height rather than with the
+       text it's fading — harmless for most content, which (like .qa
+       below) has centering slack around it and never touches the fade
+       zone at all, but the standalone app's taller --gew-height card
+       (see CLAUDE.md's "Web frontend") could still turn it into most of
+       a line reading visibly faded on whichever content ends up flush
+       against .body's bottom edge — e.g. a genuinely long instruction
+       pushing .qa down far enough to fill the rest of .body outright, or
+       .body's own scroll kicking in (caught from a real screenshot, back
+       when .description itself sat flush against .body's bottom by
+       design instead of inside .qa). A small fixed zone keeps the
+       softening to what it was always meant to be regardless: a few
+       pixels of a line's own bottom edge, not the line itself. */
     mask-image: linear-gradient(to bottom, black calc(100% - 0.35rem), transparent 100%);
   }
   p { margin: 0; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
-  .description, .instruction { font-size: 0.9em; color: var(--gew-muted); }
-  .question {
+  .instruction { font-size: 0.9em; color: var(--gew-muted); }
+  /* .question and .description (when present) are wrapped together in
+     .qa — a translation of .question into the student's language reads
+     as a mirror of it, one line down in a quieter voice, not a separate
+     fact — so the two need to move and center as one unit rather than
+     .description drifting off toward the bottom of the card on its own.
+     flex: 1 is the *only* growable item in .body's column (instruction
+     stays sized to its own content), so .qa claims 100% of whatever
+     vertical space instruction doesn't need, and this nested flex column
+     centers the pair as a group within whatever it claimed. A card sized
+     well past its content (the standalone app's bigger --gew-height
+     override in particular) otherwise left the question stranded in the
+     top-left corner with a dead gap below it, reported from a real
+     screenshot. gap: 0.5rem between .question/.description is
+     deliberately *tighter* than .body's own 1rem rhythm elsewhere (see
+     below) — that larger interval separates genuinely distinct pieces of
+     the card, while this smaller one is what visually reads as "the same
+     line, translated" rather than two unrelated ones. On the rare
+     question long enough to actually need .body's own scroll, flex: 1
+     still can't shrink .qa below its content's natural height, so it
+     just packs at the top like a plain paragraph would — no worse than
+     top-alignment already was, unlike plain justify-content: center on
+     .body itself would have been (that can push a flex group's start
+     past the scrollable area's top edge on overflow, making the
+     beginning of the text unreachable by scrolling — the same pitfall
+     .centered avoids for the same reason elsewhere). An earlier version
+     used margin-top/margin-bottom: auto on .question instead, matched by
+     a mirrored margin-top: auto on .description to pin it to the bottom
+     — mathematically sound, but a flex container splits its free space
+     *equally* across however many auto margins are actually present at
+     once, so the resulting gaps scaled unevenly depending on which of
+     instruction/description happened to be there for a given exercise,
+     and it left .description visually stranded far from .question with
+     no sense that the two were related at all (caught from a real user
+     report). flex: 1 plus .body's own gap (below) replaces all of that
+     with one consistent rule that already produces an even rhythm
+     everywhere, with no piece bolted on separately. */
+  .qa {
     flex: 1;
-    /* Centers the question — both axes, like an actual flashcard — within
-       whatever space instruction/description (plain paragraphs, sized to
-       their own content, unaffected by this) don't use: flex: 1 is the
-       *only* growable item in .body's column, so it claims 100% of the
-       leftover space, and this nested flex context centers the question's
-       own text within whatever it claimed. A card sized well past its
-       content (the standalone app's bigger --gew-height override in
-       particular) otherwise left the question stranded in the top-left
-       corner with a dead gap below it, reported from a real screenshot.
-       On the rare question long enough to actually need .body's own
-       scroll, flex: 1 still can't shrink below its content's natural
-       height, so it just packs at the top like a plain paragraph would —
-       no worse than top-alignment already was, unlike plain
-       justify-content: center on .body itself would have been (that can
-       push a flex group's start past the scrollable area's top edge on
-       overflow, making the beginning of the text unreachable by
-       scrolling — the same pitfall .centered avoids for the same reason
-       elsewhere). An earlier version used margin-top/margin-bottom: auto
-       on .question instead, matched by a mirrored margin-top: auto on
-       .description to pin it to the bottom — mathematically sound, but a
-       flex container splits its free space *equally* across however many
-       auto margins are actually present at once, so the resulting gaps
-       scaled unevenly depending on which of instruction/description
-       happened to be there for a given exercise, and needed a separate,
-       disconnected fixed gap glued onto the .body-to-toolbar boundary
-       alone, since that boundary sat outside the auto-margin system
-       entirely. flex: 1 plus .body's own gap (above) replaces all of that
-       with one consistent rule that already produces an even rhythm
-       everywhere, with no piece bolted on separately. */
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 0.5rem;
+  }
+  .question {
     font-size: 1.1em;
     font-weight: 600;
     text-align: center;
   }
+  /* Centered, not left-aligned like .instruction: .description is a
+     translation of .question, not a how-to-answer note the way
+     .instruction is (the two are the same sentence in two languages),
+     and it now sits directly under .question inside .qa rather than
+     pinned to the bottom of the card — centering it there is what makes
+     it read as .question's own mirror rather than an unrelated aside;
+     that same centering looked disconnected when tried on the old,
+     far-away bottom-pinned position (caught from a real screenshot). Its
+     smaller font-size/muted color (above, shared with .instruction) is
+     what keeps it visually secondary to .question, not its alignment. */
+  .description { text-align: center; }
   .correct { color: var(--gew-correct); font-weight: 600; }
   .wrong { color: var(--gew-wrong); font-weight: 600; }
   /* grid, not flex-wrap: flex-wrap sizes each button to its own text,
@@ -480,15 +503,17 @@ class GermanExerciseWidget extends HTMLElement {
         `<input type="text" autocomplete="off" />` +
         `<button type="submit">✓</button></form>`;
     this._render(
-      // instruction first, description last — not source order — so
-      // instruction always sits at the same fixed spot regardless of
-      // whether a given exercise has a description at all, and description
-      // (context for the target sentence, not an instruction on how to
-      // answer) reads as a footnote at the bottom of the card instead of
-      // shifting instruction down when present. See .description's own
-      // comment for how it actually gets pinned there.
+      // instruction, then .qa (question + description together) — not
+      // source order — so instruction always sits at the same fixed spot
+      // regardless of whether a given exercise has a description at all.
+      // question and description are wrapped in .qa so they move and
+      // center as one unit — description (a translation of question, not
+      // an instruction on how to answer) reads as question's own mirror,
+      // one line down in a quieter voice, not a footnote adrift at the
+      // bottom of the card. See .qa's own comment for the reasoning.
       `<div class="widget"><div class="body">${instruction}` +
-        `<p class="question">❓ ${escapeHtml(exercise.question)}</p>${description}</div>` +
+        `<div class="qa"><p class="question">❓ ${escapeHtml(exercise.question)}</p>` +
+        `${description}</div></div>` +
         `${answerArea}</div>`
     );
     this._shadow.querySelectorAll("[data-choice]").forEach((button) => {
