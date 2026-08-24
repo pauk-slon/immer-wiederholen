@@ -176,14 +176,6 @@ const STYLES = `
   p { margin: 0; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
   .description, .instruction { font-size: 0.9em; color: var(--gew-muted); }
-  /* Centered, unlike .instruction: .description is a translation of
-     .question (see CLAUDE.md's "Web frontend"), not a how-to-answer note
-     like .instruction — the two are the same sentence in two languages,
-     so centering both pairs them visually as source+translation rather
-     than leaving .description read as a disconnected footnote at the
-     bottom of the card. Smaller font-size/muted color (above) is what
-     still keeps it visually secondary to .question, not its alignment. */
-  .description { text-align: center; }
   .question {
     flex: 1;
     /* Centers the question — both axes, like an actual flashcard — within
