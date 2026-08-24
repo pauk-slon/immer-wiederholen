@@ -87,6 +87,21 @@ const STYLES = `
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    /* A guaranteed gap between .body and the toolbar after it (the answer
+       control or "Next" button) — without this, that boundary had no
+       spacing of its own at all, only whatever margin the last paragraph
+       inside .body happened to carry (the default p { margin-bottom:
+       0.75rem }, or nothing for a toolbar-only state like .centered).
+       .question's/.description's own margin: auto (see their comments)
+       distribute space *within* .body proportionally to how much slack
+       there is, which is exactly right for them — but that system has
+       nothing to do with the .body-to-toolbar boundary, so pairing it with
+       only a 0.75rem paragraph margin there reads as an afterthought next
+       to the much more generous auto-computed gaps above it (caught from
+       a real screenshot: description sat nearly flush against the answer
+       input). A fixed gap here is deliberately simple rather than trying
+       to make this boundary participate in the same auto-margin math. */
+    gap: 1rem;
   }
   /* Short, single-purpose states (a loading placeholder, an error, "nothing
      available") — centering them in the fixed-height box reads as an
@@ -117,14 +132,24 @@ const STYLES = `
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    /* display: flex here isn't for .body's own alignment (justify-content
-       stays default/top-packed) — it's what lets .question's own
-       margin-top/margin-bottom: auto (see its rule below) center *just the
-       question* within whatever space description/instruction don't use,
-       while they themselves stay pinned to the top. See .question's own
-       comment for why. */
     display: flex;
     flex-direction: column;
+    /* One consistent 1rem rhythm for every boundary in the card — this gap
+       between whichever of instruction/question/description are actually
+       present, matching .widget's own gap (above) between .body and the
+       toolbar after it. flexbox's gap only inserts space *between* items
+       that actually exist, so a topic with no instruction (or no
+       description — both are independently optional per exercise, see
+       CLAUDE.md) never leaves a phantom empty gap where it would've been:
+       there's simply one fewer boundary to space. An earlier version tried
+       to get this same top-fixed/center/bottom-pinned shape from
+       margin: auto (see .question's git history) — mathematically correct,
+       but its gaps scaled with the leftover space in a way that visually
+       came out uneven, and it needed a *separate*, disconnected fixed gap
+       glued on for the .body-to-toolbar boundary alone (which this system
+       makes redundant, since that boundary now uses the exact same
+       mechanism). */
+    gap: 1rem;
     /* A soft fade at the very bottom edge, not a hard cutoff — hints that
        there's more to scroll to on narrow viewports especially (a long
        German sentence wraps to more lines there, more easily filling
@@ -137,41 +162,46 @@ const STYLES = `
        intentional rather than a visible bug either way. */
     mask-image: linear-gradient(to bottom, black 92%, transparent 100%);
   }
-  p { margin: 0 0 0.75rem; line-height: 1.4; }
+  p { margin: 0; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
   .description, .instruction { font-size: 0.9em; color: var(--gew-muted); }
-  /* Pins .description to the bottom of .body's available space, the same
-     margin-auto mechanism .question uses to center itself (see its own
-     comment) — flexbox splits total free space equally across every auto
-     margin present, so with .question's own top+bottom auto margins also
-     in play, this doesn't fight them: instruction stays fixed at the top,
-     question centers in the space between instruction and description, and
-     description (having no margin-bottom: auto of its own) lands flush
-     against .body's bottom edge, right above the toolbar. */
-  .description { margin-top: auto; }
   .question {
-    font-size: 1.1em;
-    font-weight: 600;
-    text-align: center;
+    flex: 1;
     /* Centers the question — both axes, like an actual flashcard — within
-       whatever space description/instruction (plain top-aligned
-       paragraphs, unaffected by this) don't use. margin-top/margin-bottom:
-       auto is a flexbox behavior (see .body's own display: flex, added
-       for exactly this) that splits available main-axis space evenly
-       above and below when there's slack — a card sized well past its
+       whatever space instruction/description (plain paragraphs, sized to
+       their own content, unaffected by this) don't use: flex: 1 is the
+       *only* growable item in .body's column, so it claims 100% of the
+       leftover space, and this nested flex context centers the question's
+       own text within whatever it claimed. A card sized well past its
        content (the standalone app's bigger --gew-height override in
        particular) otherwise left the question stranded in the top-left
        corner with a dead gap below it, reported from a real screenshot.
-       Auto margins can't go negative, so on the rare question long enough
-       to actually need .body's own scroll, they just compute to 0 and the
-       question packs at the top like a plain paragraph would — no worse
-       than top-alignment already was, unlike plain justify-content:
-       center on .body itself would have been (that can push a flex
-       group's start past the scrollable area's top edge on overflow,
-       making the beginning of the text unreachable by scrolling — the
-       same pitfall .centered avoids for the same reason elsewhere). */
-    margin-top: auto;
-    margin-bottom: auto;
+       On the rare question long enough to actually need .body's own
+       scroll, flex: 1 still can't shrink below its content's natural
+       height, so it just packs at the top like a plain paragraph would —
+       no worse than top-alignment already was, unlike plain
+       justify-content: center on .body itself would have been (that can
+       push a flex group's start past the scrollable area's top edge on
+       overflow, making the beginning of the text unreachable by
+       scrolling — the same pitfall .centered avoids for the same reason
+       elsewhere). An earlier version used margin-top/margin-bottom: auto
+       on .question instead, matched by a mirrored margin-top: auto on
+       .description to pin it to the bottom — mathematically sound, but a
+       flex container splits its free space *equally* across however many
+       auto margins are actually present at once, so the resulting gaps
+       scaled unevenly depending on which of instruction/description
+       happened to be there for a given exercise, and needed a separate,
+       disconnected fixed gap glued onto the .body-to-toolbar boundary
+       alone, since that boundary sat outside the auto-margin system
+       entirely. flex: 1 plus .body's own gap (above) replaces all of that
+       with one consistent rule that already produces an even rhythm
+       everywhere, with no piece bolted on separately. */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1em;
+    font-weight: 600;
+    text-align: center;
   }
   .correct { color: var(--gew-correct); font-weight: 600; }
   .wrong { color: var(--gew-wrong); font-weight: 600; }

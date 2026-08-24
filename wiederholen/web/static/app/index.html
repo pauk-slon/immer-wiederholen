@@ -39,11 +39,17 @@
         font-family: system-ui, sans-serif;
         padding: 2rem 1rem;
       }
+      /* No brand/product name here — a page title is content, the same as
+         the "open the bot in Telegram" link that was removed for the same
+         reason: it belongs in the content repo (immer-wiederholen-de),
+         which can inject one later, not hardcoded in this code repo. The
+         header for now is just the language toggle, right-aligned since
+         it's the only thing left in it. */
       header {
         max-width: 36rem;
         margin: 0 auto 1.5rem;
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;
         align-items: center;
       }
       german-exercise-widget {
@@ -58,7 +64,6 @@
         --gew-height: 26rem;
         margin: 0 auto;
       }
-      h1 { font-size: 1.2rem; margin: 0; }
       .lang-toggle {
         display: flex;
         gap: 0.25rem;
@@ -84,7 +89,6 @@
   </head>
   <body>
     <header>
-      <h1>Immer wiederholen</h1>
       <div class="lang-toggle" role="group" aria-label="Язык">
         <button type="button" data-lang="ru">ru</button>
         <button type="button" data-lang="en">en</button>
