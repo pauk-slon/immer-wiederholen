@@ -23,10 +23,19 @@ const STYLES = `
     --gew-primary: #2563eb;
     --gew-correct: #16a34a;
     --gew-wrong: #dc2626;
+    /* Sizing, not just color, is a custom property too — a host page can
+       override --gew-max-width/--gew-height (custom properties inherit
+       through the Shadow DOM boundary even though ordinary properties
+       don't) to make the same component read as a small embedded aside on
+       a landing page (the default here) or a full standalone practice
+       screen on its own dedicated page, without forking the component or
+       reaching inside its shadow tree. */
+    --gew-max-width: 28rem;
+    --gew-height: 16rem;
     display: block;
     font-family: system-ui, sans-serif;
     color: var(--gew-fg);
-    max-width: 28rem;
+    max-width: var(--gew-max-width);
   }
   /* Following the OS/browser preference directly, not something read off
      the host page: the host (this project's own landing pages) has no
@@ -74,7 +83,7 @@ const STYLES = `
        it (the same German sentence wraps to more lines at, say, 350px than
        at 450px), so this is intentionally a bit taller than the bare
        desktop minimum rather than exactly it. */
-    height: 16rem;
+    height: var(--gew-height);
     overflow: hidden;
     display: flex;
     flex-direction: column;

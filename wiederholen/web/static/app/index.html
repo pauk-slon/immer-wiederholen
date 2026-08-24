@@ -23,24 +23,40 @@
         }
       }
       * { box-sizing: border-box; }
+      /* Not display: flex + align-items: center on body — a flex item's
+         width defaults to shrink-to-fit-content instead of a plain block
+         box's "fill the container, capped by max-width", which made the
+         widget (and header/footer) visibly change width between states
+         (a short loading placeholder vs. a full question). margin: 0 auto
+         on each of the three top-level elements instead — same fix as the
+         content repo's own widget-band section already needed for the
+         embedded widget. */
       body {
         margin: 0;
         min-height: 100vh;
         background: var(--bg);
         color: var(--text);
         font-family: system-ui, sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
         padding: 2rem 1rem;
       }
       header {
-        width: 100%;
-        max-width: 28rem;
+        max-width: 36rem;
+        margin: 0 auto 1.5rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem;
+      }
+      german-exercise-widget {
+        /* Bigger than the ~28rem/16rem default the embedded widget on a
+           landing page uses — this page's whole purpose is practicing, so
+           the practice card itself should be the clear focal point, not a
+           small aside the way it is when embedded partway down an article.
+           Overriding these two custom properties (see widget.js's own
+           :host rule) is the whole mechanism; nothing else about the
+           component changes. */
+        --gew-max-width: 36rem;
+        --gew-height: 26rem;
+        margin: 0 auto;
       }
       h1 { font-size: 1.2rem; margin: 0; }
       .lang-toggle {
@@ -64,13 +80,6 @@
         background: var(--accent);
         color: #fff;
       }
-      footer {
-        margin-top: 2rem;
-        font-size: 0.85rem;
-        color: var(--muted);
-        text-align: center;
-      }
-      footer a { color: inherit; }
     </style>
   </head>
   <body>
@@ -87,11 +96,6 @@
          next_exercise(). Unlike a landing page's embedded widget, this app
          has no fixed grammar topic of its own to scope itself to. -->
     <german-exercise-widget id="widget" lang="ru"></german-exercise-widget>
-
-    <footer>
-      Хотите тренироваться с напоминаниями каждый день?
-      <a href="https://t.me/ImmerWiederholenBot">Откройте бота в Telegram →</a>
-    </footer>
 
     <script>
       // Runs synchronously during parsing, before the widget.js <script>
