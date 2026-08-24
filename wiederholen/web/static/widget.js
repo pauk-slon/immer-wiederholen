@@ -157,10 +157,21 @@ const STYLES = `
        fades this element's own content toward transparent, revealing
        whatever's actually behind it, so it works regardless of the site's
        (or dark mode's) actual background color — no color to keep in sync.
-       Harmless when content already fits without scrolling: at most it
-       softens the last few pixels of the final line, which reads as
-       intentional rather than a visible bug either way. */
-    mask-image: linear-gradient(to bottom, black 92%, transparent 100%);
+       A fixed, deliberately small fade zone (calc(100% - 0.35rem)), not a
+       percentage of .body's own height: .description (when present)
+       always ends up flush against .body's own bottom edge — see
+       .question's flex: 1 comment above, nothing is ever left over
+       between them by design — so the fade always lands on its actual
+       last line of text, not on blank space, however the zone is sized.
+       A percentage-based zone (the original design) scales with .body's
+       height rather than with the text it's fading, and the standalone
+       app's taller --gew-height card (see CLAUDE.md's "Web frontend")
+       turned the originally-intended "soften the last couple of pixels"
+       into most of an entire line reading visibly faded (caught from a
+       real screenshot) — widening the box just widened the fade. A small
+       fixed zone keeps that softening to what it was always meant to be:
+       a few pixels of the line's own bottom edge, not the line itself. */
+    mask-image: linear-gradient(to bottom, black calc(100% - 0.35rem), transparent 100%);
   }
   p { margin: 0; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
