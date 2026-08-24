@@ -291,12 +291,23 @@ const STYLES = `
      *before* this border; padding-top here is deliberately smaller
      (0.5rem, not another 1rem) — the border itself already reads as a
      break, so doubling the full rhythm on top of it would read as an
-     oversized gap rather than a clean divider. */
-  .recall-question {
-    font-weight: 600;
+     oversized gap rather than a clean divider. The recall question is
+     still a question, the same as .question on the question screen — so
+     it (and its hint, when present) get the exact same centered/tight-gap
+     treatment .centered-pair gives question+description, just without
+     .centered-pair's own flex: 1 (there's no claimed vertical space to
+     center *within* here — this is flowing, appended log content, not a
+     card's sole focus — only the horizontal centering and internal
+     rhythm carry over, not the vertical-centering machinery). */
+  .recall {
     border-top: 1px solid var(--gew-border);
     padding-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
   }
+  .recall-question { font-weight: 600; }
   /* The two-button toolbar shared by both recall-offer states — "Закрепить"
      (after a correct answer with recalls available) and "Попробовать ещё
      раз" (after a wrong recall attempt) — paired with "Дальше" either way,
@@ -669,7 +680,7 @@ class GermanExerciseWidget extends HTMLElement {
         ? `<p class="description">💡 ${escapeHtml(recall.hint)}</p>`
         : "";
       this._appendToBody(
-        `<p class="recall-question">❓ ${escapeHtml(recall.question)}</p>${hint}`
+        `<div class="recall"><p class="recall-question">❓ ${escapeHtml(recall.question)}</p>${hint}</div>`
       );
       this._setToolbar(
         `<form data-recall-form><input type="text" autocomplete="off" />` +
