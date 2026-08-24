@@ -201,6 +201,8 @@ class GermanExerciseWidget extends HTMLElement {
   constructor() {
     super();
     this._shadow = this.attachShadow({ mode: "open" });
+    // Bound once so add/removeEventListener refer to the same function.
+    this._onViewportResize = this._onViewportResize.bind(this);
   }
 
   connectedCallback() {
@@ -213,9 +215,38 @@ class GermanExerciseWidget extends HTMLElement {
     const cached = this._readCachedExercise();
     if (cached) {
       this._renderQuestion(cached);
-      return;
+    } else {
+      this._loadNext();
     }
-    this._loadNext();
+    // visualViewport, not the input's own focus event: the on-screen
+    // keyboard's height isn't known yet at the moment focus fires, only
+    // once it's actually finished opening — which is exactly when
+    // visualViewport fires its own resize. Optional chaining, since
+    // visualViewport isn't universally available; on a browser without it
+    // this degrades to the native scroll-to-input behavior the issue this
+    // fixes was filed against, not a crash.
+    window.visualViewport?.addEventListener("resize", this._onViewportResize);
+  }
+
+  disconnectedCallback() {
+    window.visualViewport?.removeEventListener(
+      "resize",
+      this._onViewportResize
+    );
+  }
+
+  _onViewportResize() {
+    // this._shadow.activeElement, not a reference captured at render time:
+    // _render() replaces the whole shadow subtree (and thus the <input>
+    // itself) on every step, and this listener is only ever attached once
+    // for the element's whole lifetime — a stale reference to an already-
+    // replaced <input> would never match. Only scrolls for the typed-answer
+    // input specifically (the only <input> this widget ever renders) — a
+    // resize while a choice button is focused, say, needs no correction,
+    // since tapping a button doesn't open the keyboard in the first place.
+    if (this._shadow.activeElement?.tagName === "INPUT") {
+      this.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   }
 
   // sessionStorage, not localStorage: it survives a reload of this same tab
