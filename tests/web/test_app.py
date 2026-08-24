@@ -126,6 +126,18 @@ async def test_next_exercise_restricts_to_the_given_topics(
     assert response.json()["topic"] == "partizip_ii"
 
 
+async def test_next_exercise_with_empty_topics_draws_from_the_whole_course(
+    web_app_factory: WebAppFactory,
+) -> None:
+    government = make_exercise(word="warten", topic="government")
+    app = web_app_factory(Course([government]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.post("/api/exercise/next", json={"topics": []})
+
+    assert response.json()["topic"] == "government"
+
+
 async def test_next_exercise_returns_null_when_nothing_matches_the_topics(
     web_app_factory: WebAppFactory,
 ) -> None:
@@ -292,3 +304,22 @@ async def test_widget_js_is_served_as_a_static_file(
 
     assert response.status_code == 200
     assert "customElements.define" in response.text
+
+
+async def test_standalone_app_is_served_at_the_root_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_yaml_file: TmpYamlFile,
+    student_record_book: StudentRecordBook,
+    web_session_store: WebSessionStore,
+) -> None:
+    monkeypatch.setenv("WEB_ALLOWED_ORIGINS", "https://example.com")
+    monkeypatch.setenv("WEB_COOKIE_DOMAIN", "example.com")
+    with tmp_yaml_file([], filename="exercises.yaml") as path:
+        monkeypatch.setenv("COURSE_PATH", str(path.parent))
+        app = create_app()
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.get("/")
+
+    assert response.status_code == 200
+    assert "german-exercise-widget" in response.text

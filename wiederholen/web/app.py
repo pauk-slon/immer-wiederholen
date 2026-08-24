@@ -115,7 +115,13 @@ async def next_exercise(
     session_store: WebSessionStore = state["session_store"]
     student_id, is_new = _student_id_from_request(request)
 
-    restricted_course = course.restricted_to(data.topics)
+    # An empty topics list means "no restriction" — the whole course — not
+    # "restrict to nothing": Course.restricted_to([]) would otherwise filter
+    # every exercise out, since an empty frozenset matches no topic. This is
+    # what lets the standalone app practice across the whole course without
+    # needing to know (or send) every topic name up front, unlike a landing
+    # page's embedded widget, which always names its own specific topics.
+    restricted_course = course.restricted_to(data.topics) if data.topics else course
     async with student_record_book.check_out(student_id) as student_record:
         exercise = Tutor(restricted_course, student_record).next_exercise()
 
@@ -166,11 +172,22 @@ async def check_answer(
 
 def create_app() -> Litestar:
     course, student_record_book, session_store = load_web_course_and_storage()
-    static_router = create_static_files_router(
+    widget_router = create_static_files_router(
         path="/widget", directories=[_STATIC_DIR]
     )
+    # The standalone app (index.html/app.js — no fixed topics of its own,
+    # see next_exercise()'s empty-topics handling above) at the root path.
+    # html_mode serves index.html for "/", the same way a plain static host
+    # would. A distinct name from widget_router's own default ("static") —
+    # Litestar requires route handler names to be unique within one app.
+    app_router = create_static_files_router(
+        path="/",
+        directories=[_STATIC_DIR / "app"],
+        html_mode=True,
+        name="app",
+    )
     return Litestar(
-        route_handlers=[next_exercise, check_answer, static_router],
+        route_handlers=[next_exercise, check_answer, widget_router, app_router],
         state=State(
             {
                 "course": course,
