@@ -140,6 +140,15 @@ const STYLES = `
   p { margin: 0 0 0.75rem; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
   .description, .instruction { font-size: 0.9em; color: var(--gew-muted); }
+  /* Pins .description to the bottom of .body's available space, the same
+     margin-auto mechanism .question uses to center itself (see its own
+     comment) — flexbox splits total free space equally across every auto
+     margin present, so with .question's own top+bottom auto margins also
+     in play, this doesn't fight them: instruction stays fixed at the top,
+     question centers in the space between instruction and description, and
+     description (having no margin-bottom: auto of its own) lands flush
+     against .body's bottom edge, right above the toolbar. */
+  .description { margin-top: auto; }
   .question {
     font-size: 1.1em;
     font-weight: 600;
@@ -430,8 +439,15 @@ class GermanExerciseWidget extends HTMLElement {
         `<input type="text" autocomplete="off" />` +
         `<button type="submit">✓</button></form>`;
     this._render(
-      `<div class="widget"><div class="body">${description}${instruction}` +
-        `<p class="question">❓ ${escapeHtml(exercise.question)}</p></div>` +
+      // instruction first, description last — not source order — so
+      // instruction always sits at the same fixed spot regardless of
+      // whether a given exercise has a description at all, and description
+      // (context for the target sentence, not an instruction on how to
+      // answer) reads as a footnote at the bottom of the card instead of
+      // shifting instruction down when present. See .description's own
+      // comment for how it actually gets pinned there.
+      `<div class="widget"><div class="body">${instruction}` +
+        `<p class="question">❓ ${escapeHtml(exercise.question)}</p>${description}</div>` +
         `${answerArea}</div>`
     );
     this._shadow.querySelectorAll("[data-choice]").forEach((button) => {
