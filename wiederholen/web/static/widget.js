@@ -160,16 +160,16 @@ const STYLES = `
        A fixed, deliberately small fade zone (calc(100% - 0.35rem)), not a
        percentage of .body's own height: a percentage-based zone (the
        original design) scales with .body's height rather than with the
-       text it's fading — harmless for most content, which (like .qa
+       text it's fading — harmless for most content, which (like .centered-pair
        below) has centering slack around it and never touches the fade
        zone at all, but the standalone app's taller --gew-height card
        (see CLAUDE.md's "Web frontend") could still turn it into most of
        a line reading visibly faded on whichever content ends up flush
        against .body's bottom edge — e.g. a genuinely long instruction
-       pushing .qa down far enough to fill the rest of .body outright, or
+       pushing .centered-pair down far enough to fill the rest of .body outright, or
        .body's own scroll kicking in (caught from a real screenshot, back
        when .description itself sat flush against .body's bottom by
-       design instead of inside .qa). A small fixed zone keeps the
+       design instead of inside .centered-pair). A small fixed zone keeps the
        softening to what it was always meant to be regardless: a few
        pixels of a line's own bottom edge, not the line itself. */
     mask-image: linear-gradient(to bottom, black calc(100% - 0.35rem), transparent 100%);
@@ -177,68 +177,72 @@ const STYLES = `
   p { margin: 0; line-height: 1.4; }
   .muted { color: var(--gew-muted); }
   .instruction { font-size: 0.9em; color: var(--gew-muted); }
-  /* .question and .description (when present) are wrapped together in
-     .qa — a translation of .question into the student's language reads
-     as a mirror of it, one line down in a quieter voice, not a separate
-     fact — so the two need to move and center as one unit rather than
-     .description drifting off toward the bottom of the card on its own.
-     flex: 1 is the *only* growable item in .body's column (instruction
-     stays sized to its own content), so .qa claims 100% of whatever
-     vertical space instruction doesn't need, and this nested flex column
-     centers the pair as a group within whatever it claimed. A card sized
-     well past its content (the standalone app's bigger --gew-height
-     override in particular) otherwise left the question stranded in the
-     top-left corner with a dead gap below it, reported from a real
-     screenshot. gap: 0.5rem between .question/.description is
-     deliberately *tighter* than .body's own 1rem rhythm elsewhere (see
-     below) — that larger interval separates genuinely distinct pieces of
-     the card, while this smaller one is what visually reads as "the same
-     line, translated" rather than two unrelated ones. On the rare
-     question long enough to actually need .body's own scroll, flex: 1
-     still can't shrink .qa below its content's natural height, so it
-     just packs at the top like a plain paragraph would — no worse than
-     top-alignment already was, unlike plain justify-content: center on
-     .body itself would have been (that can push a flex group's start
-     past the scrollable area's top edge on overflow, making the
-     beginning of the text unreachable by scrolling — the same pitfall
-     .centered avoids for the same reason elsewhere). An earlier version
-     used margin-top/margin-bottom: auto on .question instead, matched by
-     a mirrored margin-top: auto on .description to pin it to the bottom
-     — mathematically sound, but a flex container splits its free space
-     *equally* across however many auto margins are actually present at
-     once, so the resulting gaps scaled unevenly depending on which of
-     instruction/description happened to be there for a given exercise,
-     and it left .description visually stranded far from .question with
-     no sense that the two were related at all (caught from a real user
-     report). flex: 1 plus .body's own gap (below) replaces all of that
-     with one consistent rule that already produces an even rhythm
-     everywhere, with no piece bolted on separately. */
-  .qa {
+  /* .centered-pair groups a card's two central pieces of text into one
+     visual unit that moves and centers together, rather than leaving the
+     second one to drift off on its own: on the question screen that's
+     .question + .description (a translation of .question into the
+     student's language reads as a mirror of it, one line down in a
+     quieter voice, not a separate fact); on the result screen it's the
+     ✅/❌ label + explanation (the verdict, and the grammar note backing
+     it up). flex: 1 is the *only* growable item in .body's column
+     (instruction, when present, stays sized to its own content), so
+     .centered-pair claims 100% of whatever vertical space it doesn't
+     need, and this nested flex column centers the pair as a group within
+     whatever it claimed — instead of the pair packing at the top of the
+     card with a dead gap below it before the toolbar, reported from real
+     screenshots on *both* screens (the question one first, then the
+     result one once the same imbalance was noticed there too). gap:
+     0.5rem inside the pair is deliberately *tighter* than .body's own
+     1rem rhythm elsewhere (see below) — that larger interval separates
+     genuinely distinct pieces of the card, while this smaller one is
+     what visually reads as one connected thought rather than two
+     unrelated lines. text-align: center here, not repeated on each
+     child, covers both children by inheritance. On the rare case long
+     enough to actually need .body's own scroll, flex: 1 still can't
+     shrink the pair below its content's natural height, so it just packs
+     at the top like a plain paragraph would — no worse than top-
+     alignment already was, unlike plain justify-content: center on .body
+     itself would have been (that can push a flex group's start past the
+     scrollable area's top edge on overflow, making the beginning of the
+     text unreachable by scrolling — the same pitfall .centered avoids
+     for the same reason elsewhere). An earlier version kept .question
+     and .description independent, .description pinned to the bottom of
+     .body on its own (first via margin-top/margin-bottom: auto on
+     .question mirrored by margin-top: auto on .description, later via
+     flex: 1 on .question alone) — mathematically sound either way, but
+     it left .description visually stranded far from .question with no
+     sense that the two were related at all, regardless of description's
+     own alignment (centering it in that far-away position was tried and
+     reverted for the same reason — caught from real user reports both
+     times). Grouping them under one flex: 1 replaced all of that with a
+     single rule that already produces an even rhythm and a real visual
+     pairing, with no piece bolted on separately. */
+  .centered-pair {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-  }
-  .question {
-    font-size: 1.1em;
-    font-weight: 600;
     text-align: center;
   }
-  /* Centered, not left-aligned like .instruction: .description is a
-     translation of .question, not a how-to-answer note the way
-     .instruction is (the two are the same sentence in two languages),
-     and it now sits directly under .question inside .qa rather than
-     pinned to the bottom of the card — centering it there is what makes
-     it read as .question's own mirror rather than an unrelated aside;
-     that same centering looked disconnected when tried on the old,
-     far-away bottom-pinned position (caught from a real screenshot). Its
-     smaller font-size/muted color (above, shared with .instruction) is
-     what keeps it visually secondary to .question, not its alignment. */
-  .description { text-align: center; }
-  .correct { color: var(--gew-correct); font-weight: 600; }
-  .wrong { color: var(--gew-wrong); font-weight: 600; }
+  .question { font-size: 1.1em; font-weight: 600; }
+  /* font-size: 1.1em matches .question — on the result screen, this
+     label (the ✅/❌ verdict plus, when wrong, the correct answer itself)
+     plays .question's role in its own .centered-pair with .explanation
+     (below): it's the actual fact worth remembering, so it gets the same
+     visual weight .question gets on the question screen, not a
+     shrunken-down status tag. See .explanation's own comment. */
+  .correct { color: var(--gew-correct); font-weight: 600; font-size: 1.1em; }
+  .wrong { color: var(--gew-wrong); font-weight: 600; font-size: 1.1em; }
+  /* .explanation plays .description's role in its own .centered-pair
+     with the ✅/❌ label (above) on the result screen — the supporting
+     grammar note under the answer that actually matters, styled exactly
+     like .description for the same reason: smaller and muted, visually
+     secondary to the label next to it. Sharing .description's own rule
+     (rather than a separate one with the same values) keeps the "smaller
+     secondary text in a pair" look defined in one place. */
+  .description, .explanation { font-size: 0.9em; color: var(--gew-muted); }
   /* grid, not flex-wrap: flex-wrap sizes each button to its own text,
      leaving column edges ragged whenever one choice is longer than its
      neighbor (e.g. "mein Wunsch" next to "meines Wunsches") — grid's equal-
@@ -503,16 +507,17 @@ class GermanExerciseWidget extends HTMLElement {
         `<input type="text" autocomplete="off" />` +
         `<button type="submit">✓</button></form>`;
     this._render(
-      // instruction, then .qa (question + description together) — not
-      // source order — so instruction always sits at the same fixed spot
-      // regardless of whether a given exercise has a description at all.
-      // question and description are wrapped in .qa so they move and
-      // center as one unit — description (a translation of question, not
-      // an instruction on how to answer) reads as question's own mirror,
-      // one line down in a quieter voice, not a footnote adrift at the
-      // bottom of the card. See .qa's own comment for the reasoning.
+      // instruction, then .centered-pair (question + description
+      // together) — not source order — so instruction always sits at the
+      // same fixed spot regardless of whether a given exercise has a
+      // description at all. question and description are wrapped
+      // together so they move and center as one unit — description (a
+      // translation of question, not an instruction on how to answer)
+      // reads as question's own mirror, one line down in a quieter
+      // voice, not a footnote adrift at the bottom of the card. See
+      // .centered-pair's own comment for the reasoning.
       `<div class="widget"><div class="body">${instruction}` +
-        `<div class="qa"><p class="question">❓ ${escapeHtml(exercise.question)}</p>` +
+        `<div class="centered-pair"><p class="question">❓ ${escapeHtml(exercise.question)}</p>` +
         `${description}</div></div>` +
         `${answerArea}</div>`
     );
@@ -554,8 +559,16 @@ class GermanExerciseWidget extends HTMLElement {
       ? `<p class="correct">✅ ${escapeHtml(this._strings.correct)}</p>`
       : `<p class="wrong">❌ ${escapeHtml(this._strings.correctAnswer(result.answer))}</p>`;
     this._render(
-      `<div class="widget"><div class="body">${label}` +
-        `<p>${escapeHtml(result.explanation)}</p></div>` +
+      // label + explanation share one .centered-pair, the same treatment
+      // question + description get on the question screen: the verdict
+      // (and, when wrong, the correct answer itself) is the actual fact
+      // worth remembering, so it plays .question's role, and the grammar
+      // note backing it up plays .description's — see .explanation's own
+      // comment for the reasoning, and .centered-pair's for why grouping
+      // beats leaving the two as independent top-packed siblings.
+      `<div class="widget"><div class="body">` +
+        `<div class="centered-pair">${label}` +
+        `<p class="explanation">${escapeHtml(result.explanation)}</p></div></div>` +
         `<button data-next>${escapeHtml(this._strings.next)}</button></div>`
     );
     const nextButton = this._shadow.querySelector("[data-next]");
