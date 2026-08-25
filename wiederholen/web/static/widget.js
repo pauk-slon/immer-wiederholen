@@ -588,19 +588,30 @@ class GermanExerciseWidget extends HTMLElement {
       this._clearCachedExercise();
       this._renderResult(result);
     } catch {
-      // Restores the question card's own toolbar to an error + a genuine
-      // retry (re-submitting the same answer — already in scope via this
-      // closure, so a real retry costs nothing extra here) rather than
-      // routing through the shared, full-reset _renderError(): that would
-      // wipe the question card too, the same thing _startRecall()'s own
-      // catch (below) is careful to avoid.
+      // Restores the question card's own toolbar to an error + "Next" —
+      // deliberately *not* a retry of this same check_answer() call. A
+      // real-world failure here is far more often a 409 (the server's
+      // WebSessionStore session for this exercise expired — 1h TTL — while
+      // sessionStorage's own cached copy, which has none, kept letting the
+      // learner answer a question the backend no longer has any record of
+      // showing) than a transient network blip: retrying the identical
+      // request would just 409 again forever, since nothing about the
+      // mismatch changes between attempts (caught from a real 409 in
+      // production logs after an earlier version of this tried exactly
+      // that "genuine retry"). Fetching a fresh exercise is what actually
+      // recovers either way — same shape as _startRecall()'s own catch
+      // (below), and this clears the stale cache outright too, so even a
+      // reload before tapping "Next" won't resurrect the same doomed
+      // question. Deliberately not routed through the shared, full-reset
+      // _renderError() either: that's still correct for _loadNext()'s own
+      // failures, but would wipe this question card here, same reasoning
+      // as _startRecall()'s own catch.
+      this._clearCachedExercise();
       this._setToolbar(
         `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
-          `<button data-retry>${escapeHtml(this._strings.tryAgain)}</button>`
+          `<button data-next>${escapeHtml(this._strings.next)}</button>`
       );
-      this._shadow
-        .querySelector("[data-retry]")
-        .addEventListener("click", () => this._submitAnswer(answer));
+      this._wireNextButton();
     }
   }
 
