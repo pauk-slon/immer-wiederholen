@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 from dataclasses import dataclass
@@ -11,8 +12,11 @@ from litestar.exceptions import HTTPException
 from litestar.plugins.opentelemetry import OpenTelemetryConfig, OpenTelemetryPlugin
 from litestar.response import Response
 from litestar.static_files import create_static_files_router
+from opentelemetry import trace
 
 _STATIC_DIR: Final = Path(__file__).parent / "static"
+
+logger = logging.getLogger(__name__)
 
 from wiederholen.school import (
     Course,
@@ -60,6 +64,33 @@ class CheckAnswerResponse:
     recall: str
     answer: str
     explanation: str
+
+
+@dataclass
+class RecallRequest:
+    language: Language = "ru"
+
+
+@dataclass
+class RecallDTO:
+    question: str
+    hint: str | None
+
+
+@dataclass
+class CheckRecallRequest:
+    answer: str
+
+
+@dataclass
+class CheckRecallResponse:
+    correct: bool
+    # The recall's own canonical answer text — recall.answer[0], the same
+    # index the bot's own _highlight_diff call uses — shown on a wrong
+    # attempt. No diff-highlighting here (that's Telegram-HTML-specific);
+    # the widget already shows a plain "correct answer: X" line for the
+    # main exercise's own wrong answers, so this matches that precedent.
+    answer: str
 
 
 def _student_id_from_request(request: Request) -> tuple[StudentID, bool]:
@@ -170,6 +201,105 @@ async def check_answer(
     )
 
 
+@post("/api/exercise/recall", status_code=200)
+async def request_recall(
+    data: RecallRequest, request: Request, state: State
+) -> Response[RecallDTO]:
+    course: Course = state["course"]
+    student_record_book: StudentRecordBook = state["student_record_book"]
+    session_store: WebSessionStore = state["session_store"]
+    student_id, _ = _student_id_from_request(request)
+
+    shown_exercise = await session_store.get_shown_exercise(student_id)
+    if shown_exercise is None:
+        raise HTTPException(
+            status_code=409,
+            detail="no exercise currently shown for this student",
+        )
+
+    # Tutor.request_recall() mutates student_record (records the shown
+    # recall_question for repeat-avoidance, and — the first time an
+    # *optional* recall is requested for a pair — halves its repetition
+    # interval), the same side effects the bot's own _start_recall() relies
+    # on; check_out() is what makes that mutation actually persist. Called
+    # once per recall step, including retries — each call re-picks via
+    # request_recall(), which already excludes the immediately-previous
+    # recall_question when alternatives exist, so a retry naturally varies
+    # like it does in the bot.
+    async with student_record_book.check_out(student_id) as student_record:
+        recall = Tutor(course, student_record).request_recall(shown_exercise)
+
+    await session_store.set_shown_recall(student_id, recall)
+    return Response(
+        RecallDTO(
+            question=recall.question,
+            hint=recall.hint.get(data.language) if recall.hint else None,
+        )
+    )
+
+
+@post("/api/exercise/recall/check", status_code=200)
+async def check_recall(
+    data: CheckRecallRequest, request: Request, state: State
+) -> Response[CheckRecallResponse]:
+    course: Course = state["course"]
+    student_record_book: StudentRecordBook = state["student_record_book"]
+    session_store: WebSessionStore = state["session_store"]
+    student_id, _ = _student_id_from_request(request)
+
+    shown_recall = await session_store.get_shown_recall(student_id)
+    if shown_recall is None:
+        raise HTTPException(
+            status_code=409,
+            detail="no recall currently shown for this student",
+        )
+
+    # check_recall() is pure (never mutates student_record) — same as the
+    # bot's own comment on this — so check_out()'s own change-detection
+    # skips the write on its own; no separate read-only path needed here.
+    async with student_record_book.check_out(student_id) as student_record:
+        is_correct = Tutor(course, student_record).check_recall(
+            shown_recall, data.answer
+        )
+
+    return Response(
+        CheckRecallResponse(correct=is_correct, answer=shown_recall.answer[0])
+    )
+
+
+@dataclass
+class ClientErrorRequest:
+    # Which widget.js step failed — a fixed set of names the client itself
+    # chooses from (_reportClientError()'s own callers), not free text.
+    step: str
+    # The failed fetch's own HTTP status, when there was a response at all
+    # (e.g. 409 — a stale WebSessionStore session, the most common real
+    # cause) — absent for a fetch that never got a response back (offline,
+    # DNS, timeout).
+    status: int | None = None
+
+
+@post("/api/client-error", status_code=204)
+async def client_error(data: ClientErrorRequest) -> None:
+    # Best-effort, fire-and-forget from the client (see widget.js's own
+    # _reportClientError(), which swallows any failure of this call too —
+    # a broken error report must never itself become a new user-facing
+    # error). Without this, a real failure in the wild is only visible as
+    # a raw docker-logs access-log line (the 409 that prompted this
+    # endpoint) with no way to tell what the learner's browser actually
+    # did next, short of manually reproducing it. logger.warning() mirrors
+    # the bot/reminder's own logging.warning() convention, for the same
+    # signal without needing Honeycomb access; the span attributes are
+    # what make it queryable there — this request already has its own
+    # auto-instrumented span via OpenTelemetryPlugin (see create_app()),
+    # so no manual span creation is needed, just attributes on it.
+    logger.warning("Client-reported error: step=%s status=%s", data.step, data.status)
+    span = trace.get_current_span()
+    span.set_attribute("client.error.step", data.step)
+    if data.status is not None:
+        span.set_attribute("client.error.status", data.status)
+
+
 def create_app() -> Litestar:
     course, student_record_book, session_store = load_web_course_and_storage()
     widget_router = create_static_files_router(
@@ -187,7 +317,15 @@ def create_app() -> Litestar:
         name="app",
     )
     return Litestar(
-        route_handlers=[next_exercise, check_answer, widget_router, app_router],
+        route_handlers=[
+            next_exercise,
+            check_answer,
+            request_recall,
+            check_recall,
+            client_error,
+            widget_router,
+            app_router,
+        ],
         state=State(
             {
                 "course": course,
