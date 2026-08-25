@@ -63,31 +63,54 @@ const STYLES = `
       --gew-wrong: #f87171;
     }
   }
-  .widget {
+  /* The sized viewport: one exercise's steps (question, result, a recall
+     question, a recall result, ...) are each their own separate .card (see
+     below), laid out side by side in .track and clipped to one card's
+     width here. Swiping/scrolling .track, or the .deck-nav arrows, moves
+     between them — see CLAUDE.md's "Web frontend" section for why cards
+     are separate and swipeable rather than one card growing with appended
+     content (the design this replaced). */
+  .deck {
+    position: relative;
+    width: 100%;
+    height: var(--gew-height);
+    overflow: hidden;
+  }
+  /* scroll-snap-type, not a JS-driven carousel: swipe/trackpad scrolling
+     works natively, for free, and always lands cleanly on a card boundary
+     — no framework, no per-frame JS. The scrollbar itself is hidden (both
+     properties needed — Firefox honors the standard one, Chrome/Safari
+     need the pseudo-element) since .deck-nav's arrows are the intended
+     visible control, not a thin native scrollbar sitting under the cards. */
+  .track {
+    display: flex;
+    height: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .track::-webkit-scrollbar { display: none; }
+  .card {
+    /* flex: 0 0 100% — exactly one card's width per "page"; stretched to
+       .track's full height by flex's own default align-items: stretch, no
+       explicit height needed here. scroll-snap-align: start is what makes
+       a swipe/arrow-click always come to rest with a card's left edge
+       flush against .deck's, rather than stopping mid-scroll between two. */
+    flex: 0 0 100%;
+    scroll-snap-align: start;
     border: 1px solid var(--gew-border);
     border-radius: 0.5rem;
     padding: 1rem;
-    /* Explicit, not left transparent: without this, the widget's own text
+    /* Explicit, not left transparent: without this, the card's own text
        color (--gew-fg) rendered straight onto whatever the host page's
        background happened to be — invisible dark-on-dark text on a page
        using prefers-color-scheme: dark, since only the border/text colors
-       were ever theme-aware, not the widget's own backing surface. */
+       were ever theme-aware, not the card's own backing surface. */
     background: var(--gew-bg);
     box-sizing: border-box;
-    /* A fixed height, not just a floor: real questions vary a lot in size
-       (a description/instruction line or not, one choice row or two, a
-       short vs. long explanation), and a min-height alone still let the
-       widget resize between every step — still jolting the surrounding
-       page, just less often. A fixed height stops that outright. overflow
-       is hidden here, not scrollable — .body below is the one thing that
-       scrolls internally; see its own comment for why that split exists.
-       Sized to comfortably fit the common case (description + instruction
-       + question + a wrapped choices row) without .body needing to scroll
-       on a typical desktop-width embed — narrower viewports need more of
-       it (the same German sentence wraps to more lines at, say, 350px than
-       at 450px), so this is intentionally a bit taller than the bare
-       desktop minimum rather than exactly it. */
-    height: var(--gew-height);
+    /* overflow: hidden, not scrollable — .body below is the one thing
+       that scrolls internally within a card; see its own comment for why
+       that split exists. */
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -95,7 +118,7 @@ const STYLES = `
        control or "Next" button) — without this, that boundary had no
        spacing of its own at all, only whatever margin the last paragraph
        inside .body happened to carry (the default p { margin-bottom:
-       0.75rem }, or nothing for a toolbar-only state like .centered).
+       0.75rem }, or nothing for a toolbar-only state like .card.centered).
        .question's/.description's own margin: auto (see their comments)
        distribute space *within* .body proportionally to how much slack
        there is, which is exactly right for them — but that system has
@@ -110,29 +133,66 @@ const STYLES = `
   /* Short, single-purpose states (a loading placeholder, an error, "nothing
      available") — centering them in the fixed-height box reads as an
      intentional state screen rather than a stray line stuck at the top of a
-     mostly-empty box. Not applied to .widget generally: a real question or
+     mostly-empty box. Not applied to .card generally: a real question or
      result's content should start from the top like normal reading order. */
-  .widget.centered {
+  .card.centered {
     align-items: center;
     justify-content: center;
     text-align: center;
   }
+  /* Small circular buttons at .deck's own left/right edges, using the
+     existing --gew-* tokens so they're theme-aware for free — not a
+     separate class, so .deck-nav.prev/.next only differ in which edge
+     they sit on. Hidden via the plain hidden attribute (see
+     _updateDeckNav()), not just visually, whenever there's nothing to
+     navigate to — a fresh, not-yet-answered question is the one genuinely
+     single-card state (nothing to page through yet), so both arrows stay
+     hidden until the first answer; from then on the result is already a
+     second card in its own right (a distinct message, not just recall's
+     doing), so at least one arrow shows for the rest of the exercise. */
+  .deck-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background: var(--gew-bg);
+    color: var(--gew-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.85;
+  }
+  .deck-nav:hover { opacity: 1; }
+  .deck-nav.prev { left: 0.5rem; }
+  .deck-nav.next { right: 0.5rem; }
+  /* .deck-nav's own display: flex above has the same specificity as the
+     browser's built-in [hidden] { display: none } rule, and author styles
+     beat the user-agent stylesheet regardless of selector order — without
+     this, the hidden attribute _updateDeckNav() sets would be silently
+     ineffective and both arrows would render always-visible (caught from
+     a real screenshot: a "next" arrow showing on the deck's very last
+     card, right where there is nothing to go next to). */
+  .deck-nav[hidden] { display: none; }
   /* The question/result states each wrap their variable-length content (the
      description/instruction/question, or the label/explanation) in .body,
      leaving the answer control (.choices/the typed-input form) or the
      "Next" button as a plain sibling after it — a toolbar that's never part
      of the scrolling region. flex: 1 makes .body claim all the vertical
      space the toolbar doesn't need, which is also what pins a short
-     toolbar to the bottom of the fixed-height box without a separate
+     toolbar to the bottom of the fixed-height card without a separate
      margin-top: auto rule (an earlier version of this used exactly that,
      directly on the toolbar element — it visually anchored the toolbar
-     correctly, but .widget's own overflow-y: auto still scrolled the
-     *entire* box including the toolbar for a too-long question, taking the
-     answer control out of view along with it). min-height: 0 overrides a
+     correctly, but .card's own overflow: hidden still let a too-long
+     question take the answer control out of view along with it). min-height: 0 overrides a
      flex item's default min-height: auto, which would otherwise keep .body
      at its content's full height and defeat overflow-y: auto entirely —
      a well-known flexbox-plus-scrolling gotcha, not a redundant rule. */
-  .widget .body {
+  .card .body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -140,7 +200,7 @@ const STYLES = `
     flex-direction: column;
     /* One consistent 1rem rhythm for every boundary in the card — this gap
        between whichever of instruction/question/description are actually
-       present, matching .widget's own gap (above) between .body and the
+       present, matching .card's own gap (above) between .body and the
        toolbar after it. flexbox's gap only inserts space *between* items
        that actually exist, so a topic with no instruction (or no
        description — both are independently optional per exercise, see
@@ -170,12 +230,13 @@ const STYLES = `
        (see CLAUDE.md's "Web frontend") could still turn it into most of
        a line reading visibly faded on whichever content ends up flush
        against .body's bottom edge — e.g. a genuinely long instruction
-       pushing .centered-pair down far enough to fill the rest of .body outright, or
-       .body's own scroll kicking in (caught from a real screenshot, back
-       when .description itself sat flush against .body's bottom by
-       design instead of inside .centered-pair). A small fixed zone keeps the
-       softening to what it was always meant to be regardless: a few
-       pixels of a line's own bottom edge, not the line itself. */
+       pushing .centered-pair down far enough to fill the rest of .body
+       outright, or .body's own scroll kicking in (caught from a real
+       screenshot, back when .description itself sat flush against
+       .body's bottom by design instead of inside .centered-pair). A
+       small fixed zone keeps the softening to what it was always meant
+       to be regardless: a few pixels of a line's own bottom edge, not
+       the line itself. */
     mask-image: linear-gradient(to bottom, black calc(100% - 0.35rem), transparent 100%);
   }
   p { margin: 0; line-height: 1.4; }
@@ -183,12 +244,18 @@ const STYLES = `
   .instruction { font-size: 0.9em; color: var(--gew-muted); }
   /* .centered-pair groups a card's two central pieces of text into one
      visual unit that moves and centers together, rather than leaving the
-     second one to drift off on its own: on the question screen that's
+     second one to drift off on its own: on the question card that's
      .question + .description (a translation of .question into the
      student's language reads as a mirror of it, one line down in a
-     quieter voice, not a separate fact); on the result screen it's the
+     quieter voice, not a separate fact); on the result card it's the
      ✅/❌ label + explanation (the verdict, and the grammar note backing
-     it up). flex: 1 is the *only* growable item in .body's column
+     it up); a recall card reuses .question/.description directly for its
+     own question/hint, since it's every bit as much "a question, plus an
+     optional note under it" as the original — now that recall gets its
+     own dedicated card with its own claimed vertical space (see
+     CLAUDE.md's "Web frontend"), there's no reason for it to need a
+     special case of its own, unlike an earlier version of this design.
+     flex: 1 is the *only* growable item in .body's column
      (instruction, when present, stays sized to its own content), so
      .centered-pair claims 100% of whatever vertical space it doesn't
      need, and this nested flex column centers the pair as a group within
@@ -208,7 +275,7 @@ const STYLES = `
      alignment already was, unlike plain justify-content: center on .body
      itself would have been (that can push a flex group's start past the
      scrollable area's top edge on overflow, making the beginning of the
-     text unreachable by scrolling — the same pitfall .centered avoids
+     text unreachable by scrolling — the same pitfall .card.centered avoids
      for the same reason elsewhere). An earlier version kept .question
      and .description independent, .description pinned to the bottom of
      .body on its own (first via margin-top/margin-bottom: auto on
@@ -231,16 +298,16 @@ const STYLES = `
     text-align: center;
   }
   .question { font-size: 1.1em; font-weight: 600; }
-  /* font-size: 1.1em matches .question — on the result screen, this
+  /* font-size: 1.1em matches .question — on the result card, this
      label (the ✅/❌ verdict plus, when wrong, the correct answer itself)
      plays .question's role in its own .centered-pair with .explanation
      (below): it's the actual fact worth remembering, so it gets the same
-     visual weight .question gets on the question screen, not a
+     visual weight .question gets on the question card, not a
      shrunken-down status tag. See .explanation's own comment. */
   .correct { color: var(--gew-correct); font-weight: 600; font-size: 1.1em; }
   .wrong { color: var(--gew-wrong); font-weight: 600; font-size: 1.1em; }
   /* .explanation plays .description's role in its own .centered-pair
-     with the ✅/❌ label (above) on the result screen — the supporting
+     with the ✅/❌ label (above) on the result card — the supporting
      grammar note under the answer that actually matters, styled exactly
      like .description for the same reason: smaller and muted, visually
      secondary to the label next to it. Sharing .description's own rule
@@ -255,7 +322,7 @@ const STYLES = `
      aligned, however uneven the choice text lengths are. A fixed 2 columns,
      not auto-fit: nearly every real exercise has exactly 4 choices (345 of
      346 in the actual course data), and auto-fit sized to a minmax(7rem,
-     1fr) track sometimes decided 3 columns fit the widget's own width —
+     1fr) track sometimes decided 3 columns fit the card's own width —
      leaving the 4th choice stranded alone on its own row instead of the
      clean 2x2 that 4 choices in a fixed 2-column grid always gives. */
   .choices {
@@ -284,30 +351,6 @@ const STYLES = `
   }
   form { display: flex; gap: 0.5rem; }
   input[type="text"] { flex: 1; }
-  /* A recall step is appended to .body, not swapped in over it (see
-     _startRecall()'s own comment for why) — the border marks it as a new
-     step starting, distinct from the result above it that's still fully
-     visible. .body's own gap: 1rem (see above) already provides the space
-     *before* this border; padding-top here is deliberately smaller
-     (0.5rem, not another 1rem) — the border itself already reads as a
-     break, so doubling the full rhythm on top of it would read as an
-     oversized gap rather than a clean divider. The recall question is
-     still a question, the same as .question on the question screen — so
-     it (and its hint, when present) get the exact same centered/tight-gap
-     treatment .centered-pair gives question+description, just without
-     .centered-pair's own flex: 1 (there's no claimed vertical space to
-     center *within* here — this is flowing, appended log content, not a
-     card's sole focus — only the horizontal centering and internal
-     rhythm carry over, not the vertical-centering machinery). */
-  .recall {
-    border-top: 1px solid var(--gew-border);
-    padding-top: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    text-align: center;
-  }
-  .recall-question { font-weight: 600; }
   /* The two-button toolbar shared by both recall-offer states — "Закрепить"
      (after a correct answer with recalls available) and "Попробовать ещё
      раз" (after a wrong recall attempt) — paired with "Дальше" either way,
@@ -404,10 +447,11 @@ class GermanExerciseWidget extends HTMLElement {
 
   _onViewportResize() {
     // this._shadow.activeElement, not a reference captured at render time:
-    // _render() replaces the whole shadow subtree (and thus the <input>
-    // itself) on every step, and this listener is only ever attached once
-    // for the element's whole lifetime — a stale reference to an already-
-    // replaced <input> would never match. Only scrolls for the typed-answer
+    // both _render() (a fresh deck) and _addCard() (a fresh card within
+    // the existing deck) replace/add whatever <input> was there, and this
+    // listener is only ever attached once for the element's whole lifetime
+    // — a stale reference to an already-replaced <input> would never
+    // match. Only scrolls for the typed-answer
     // input specifically (the only <input> this widget ever renders) — a
     // resize while a choice button is focused, say, needs no correction,
     // since tapping a button doesn't open the keyboard in the first place.
@@ -503,6 +547,9 @@ class GermanExerciseWidget extends HTMLElement {
   // keyboard open the instant the page loads, before the learner has done
   // anything at all, was a real complaint from a real mobile screenshot.
   async _loadNext(focusOnLoad = false) {
+    // A full deck reset (not _addCard()) is correct at every branch below
+    // — this is always the start of a *new* exercise, so nothing from a
+    // previous one (if any) is worth keeping around to swipe back to.
     this._renderLoading();
     try {
       const exercise = await this._post("/api/exercise/next", {
@@ -512,7 +559,7 @@ class GermanExerciseWidget extends HTMLElement {
       if (exercise === null) {
         this._clearCachedExercise();
         this._render(
-          `<div class="widget centered"><p class="muted">${escapeHtml(this._strings.nothingAvailable)}</p></div>`
+          `<div class="card centered"><p class="muted">${escapeHtml(this._strings.nothingAvailable)}</p></div>`
         );
         return;
       }
@@ -524,7 +571,11 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   async _submitAnswer(answer) {
-    this._renderLoading();
+    // A transient loading state in the *current* (question) card's own
+    // toolbar, not a full _renderLoading() reset — the question stays in
+    // the deck throughout, so it's still there to swipe back to once the
+    // result card is added below.
+    this._setToolbar(`<p class="muted">…</p>`);
     try {
       const result = await this._post("/api/exercise/check", {
         answer,
@@ -537,17 +588,29 @@ class GermanExerciseWidget extends HTMLElement {
       this._clearCachedExercise();
       this._renderResult(result);
     } catch {
-      this._renderError();
+      // Restores the question card's own toolbar to an error + a genuine
+      // retry (re-submitting the same answer — already in scope via this
+      // closure, so a real retry costs nothing extra here) rather than
+      // routing through the shared, full-reset _renderError(): that would
+      // wipe the question card too, the same thing _startRecall()'s own
+      // catch (below) is careful to avoid.
+      this._setToolbar(
+        `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
+          `<button data-retry>${escapeHtml(this._strings.tryAgain)}</button>`
+      );
+      this._shadow
+        .querySelector("[data-retry]")
+        .addEventListener("click", () => this._submitAnswer(answer));
     }
   }
 
   _renderLoading() {
-    this._render(`<div class="widget centered"><p class="muted">…</p></div>`);
+    this._render(`<div class="card centered"><p class="muted">…</p></div>`);
   }
 
   _renderError() {
     this._render(
-      `<div class="widget centered"><p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
+      `<div class="card centered"><p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
         `<button data-retry>${escapeHtml(this._strings.tryAgain)}</button></div>`
     );
     this._shadow
@@ -579,7 +642,7 @@ class GermanExerciseWidget extends HTMLElement {
       // reads as question's own mirror, one line down in a quieter
       // voice, not a footnote adrift at the bottom of the card. See
       // .centered-pair's own comment for the reasoning.
-      `<div class="widget"><div class="body">${instruction}` +
+      `<div class="card"><div class="body">${instruction}` +
         `<div class="centered-pair"><p class="question">❓ ${escapeHtml(exercise.question)}</p>` +
         `${description}</div></div>` +
         `<div class="toolbar">${answerArea}</div></div>`
@@ -596,8 +659,8 @@ class GermanExerciseWidget extends HTMLElement {
         event.preventDefault();
         this._submitAnswer(input.value);
       });
-      // Same reasoning as _renderResult()'s Next-button focus: _render()
-      // just wiped whatever had focus (e.g. the previous question's Next
+      // Same reasoning as _wireNextButton()'s own focus call: _render()
+      // just wiped whatever had focus (e.g. the previous card's Next
       // button), so without this the learner has to click the input by
       // hand before they can type — breaking a keyboard-only flow right
       // where it matters most. preventScroll: true, since .focus()'s
@@ -621,9 +684,9 @@ class GermanExerciseWidget extends HTMLElement {
     const label = result.correct
       ? `<p class="correct">✅ ${escapeHtml(this._strings.correct)}</p>`
       : `<p class="wrong">❌ ${escapeHtml(this._strings.correctAnswer(result.answer))}</p>`;
-    this._render(
+    this._addCard(
       // label + explanation share one .centered-pair, the same treatment
-      // question + description get on the question screen: the verdict
+      // question + description get on the question card: the verdict
       // (and, when wrong, the correct answer itself) is the actual fact
       // worth remembering, so it plays .question's role, and the grammar
       // note backing it up plays .description's — see .explanation's own
@@ -633,7 +696,11 @@ class GermanExerciseWidget extends HTMLElement {
       // known — rather than baked into this same template string, so
       // _startRecall()/etc. below can all go through the one _setToolbar()
       // path instead of a separate one just for this initial render.
-      `<div class="widget"><div class="body">` +
+      // _addCard() (not _render()) is what makes this a new card of its
+      // own, freezing the question card above it rather than replacing it
+      // — see CLAUDE.md's "Web frontend" section for the deck this is part
+      // of.
+      `<div class="card"><div class="body">` +
         `<div class="centered-pair">${label}` +
         `<p class="explanation">${escapeHtml(result.explanation)}</p></div></div>` +
         `<div class="toolbar"></div></div>`
@@ -643,12 +710,10 @@ class GermanExerciseWidget extends HTMLElement {
     // existed), "optional" (answered correctly, a recall is offered but not
     // required), "required" (answered wrong, a recall must be attempted
     // before moving on — started immediately, no offer needed since it
-    // isn't optional). See CLAUDE.md's "Web frontend" section for why
-    // recall *appends* to this same card instead of replacing it. Forced
-    // to "none" when _recallEnabled is off (the default — see its own
-    // comment), rather than a separate branch duplicating "none"'s own
-    // body — an embed that never asked for recall takes exactly the same
-    // path as an exercise with no recalls at all.
+    // isn't optional). Forced to "none" when _recallEnabled is off (the
+    // default — see its own comment), rather than a separate branch
+    // duplicating "none"'s own body — an embed that never asked for recall
+    // takes exactly the same path as an exercise with no recalls at all.
     const recallMode = this._recallEnabled ? result.recall : "none";
     if (recallMode === "required") {
       this._startRecall();
@@ -660,33 +725,39 @@ class GermanExerciseWidget extends HTMLElement {
     }
   }
 
-  // Fetches a recall (POST /api/exercise/recall) and appends it to .body —
-  // never replaces what's already shown, so the just-answered result stays
-  // visible for reference throughout the recall step (the whole reason
-  // recall is append-only rather than its own full-screen replacement, see
-  // CLAUDE.md). Used both for a fresh recall (called directly from
-  // _renderResult() above) and for a retry after a wrong attempt (called
-  // from _submitRecallAnswer()'s own wrong branch below) — either way it's
-  // a brand new recall.question/hint, appended as a new block below
-  // whatever's already there, which is what makes a retry read as the log
-  // growing rather than the previous attempt being erased.
+  // Fetches a recall (POST /api/exercise/recall) and adds it as a brand new
+  // card — never replaces what's already shown, so the just-answered
+  // result stays fully intact, one swipe/arrow-click back (see CLAUDE.md's
+  // "Web frontend" section for the deck this belongs to). Used both for a
+  // fresh recall (called directly from _renderResult() above) and for a
+  // retry after a wrong attempt (called from _submitRecallAnswer()'s own
+  // wrong branch below) — either way it's a brand new recall.question/
+  // hint, its own new card, which is what makes a retry read as another
+  // page in the deck rather than overwriting the previous attempt.
   async _startRecall() {
+    // A transient loading state in the *current* card's own toolbar — not
+    // a new card yet, since there's nothing to show until the fetch
+    // resolves.
     this._setToolbar(`<p class="muted">…</p>`);
     try {
       const recall = await this._post("/api/exercise/recall", {
         language: this._language,
       });
+      // A recall question is still a question — reuses .question/
+      // .description directly, exactly like the question card, now that
+      // it gets its own dedicated card (and dedicated .centered-pair
+      // space) rather than being squeezed into someone else's.
       const hint = recall.hint
         ? `<p class="description">💡 ${escapeHtml(recall.hint)}</p>`
         : "";
-      this._appendToBody(
-        `<div class="recall"><p class="recall-question">❓ ${escapeHtml(recall.question)}</p>${hint}</div>`
+      this._addCard(
+        `<div class="card"><div class="body">` +
+          `<div class="centered-pair"><p class="question">❓ ${escapeHtml(recall.question)}</p>${hint}</div>` +
+          `</div><div class="toolbar">` +
+          `<form data-recall-form><input type="text" autocomplete="off" />` +
+          `<button type="submit">✓</button></form></div></div>`
       );
-      this._setToolbar(
-        `<form data-recall-form><input type="text" autocomplete="off" />` +
-          `<button type="submit">✓</button></form>`
-      );
-      const form = this._shadow.querySelector("[data-recall-form]");
+      const form = this._currentCard.querySelector("[data-recall-form]");
       const input = form.querySelector("input");
       form.addEventListener("submit", (event) => {
         event.preventDefault();
@@ -700,13 +771,13 @@ class GermanExerciseWidget extends HTMLElement {
       // comment).
       input.focus({ preventScroll: true });
     } catch {
-      // Never leaves the learner stuck: same fallback as any other failed
-      // fetch here, just appended rather than replacing the card, so the
-      // result above (and this error) both stay visible.
-      this._appendToBody(
-        `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>`
+      // Never leaves the learner stuck: restores the *current* card's own
+      // toolbar to an error + a way forward, rather than adding a new
+      // (empty, pointless) card for a recall that never actually arrived.
+      this._setToolbar(
+        `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
+          `<button data-next>${escapeHtml(this._strings.next)}</button>`
       );
-      this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);
       this._wireNextButton();
     }
   }
@@ -715,23 +786,31 @@ class GermanExerciseWidget extends HTMLElement {
     this._setToolbar(`<p class="muted">…</p>`);
     try {
       const result = await this._post("/api/exercise/recall/check", { answer });
+      // A new card for the verdict alone — a single-child .centered-pair
+      // centers it exactly the same way a two-child one does (align-items/
+      // justify-content don't care how many children there are).
+      const label = result.correct
+        ? `<p class="correct">✅ ${escapeHtml(this._strings.recallCorrect)}</p>`
+        : `<p class="wrong">❌ ${escapeHtml(this._strings.recallWrong(result.answer))}</p>`;
+      this._addCard(
+        `<div class="card"><div class="body">` +
+          `<div class="centered-pair">${label}</div></div>` +
+          `<div class="toolbar"></div></div>`
+      );
       if (result.correct) {
-        this._appendToBody(
-          `<p class="correct">✅ ${escapeHtml(this._strings.recallCorrect)}</p>`
-        );
         this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);
         this._wireNextButton();
       } else {
-        this._appendToBody(
-          `<p class="wrong">❌ ${escapeHtml(this._strings.recallWrong(result.answer))}</p>`
-        );
         this._setToolbarToActions(this._strings.recallRetry, () => this._startRecall());
       }
     } catch {
-      this._appendToBody(
-        `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>`
+      // Same reasoning as _startRecall()'s own catch: restore the current
+      // card's toolbar rather than adding a new card for a result that
+      // never actually arrived.
+      this._setToolbar(
+        `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
+          `<button data-next>${escapeHtml(this._strings.next)}</button>`
       );
-      this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);
       this._wireNextButton();
     }
   }
@@ -741,56 +820,134 @@ class GermanExerciseWidget extends HTMLElement {
   // always pair their own trigger with a "Дальше" button, mirroring the
   // bot's own _make_recall_buttons() (always the same two-button shape,
   // just a different label on the first one).
-  _setToolbarToActions(triggerLabel, onTrigger) {
+  _setToolbarToActions(triggerLabel, onTrigger, card = this._currentCard) {
     this._setToolbar(
       `<div class="actions">` +
         `<button data-recall-trigger>${escapeHtml(triggerLabel)}</button>` +
-        `<button data-next>${escapeHtml(this._strings.next)}</button></div>`
+        `<button data-next>${escapeHtml(this._strings.next)}</button></div>`,
+      card
     );
-    this._shadow
+    card
       .querySelector("[data-recall-trigger]")
       .addEventListener("click", onTrigger);
-    this._wireNextButton();
+    this._wireNextButton(card);
   }
 
-  // Wires whichever [data-next] button is currently in .toolbar and
-  // focuses it — factored out since a fresh Next button appears in several
-  // places now (the plain result screen, after a correct recall, alongside
-  // a recall-offer/retry button), all wanting the exact same click/focus
-  // behavior _renderResult() used to attach inline by itself.
-  _wireNextButton() {
-    const nextButton = this._shadow.querySelector("[data-next]");
+  // Wires whichever [data-next] button is in card's .toolbar and focuses
+  // it — factored out since a fresh Next button appears in several places
+  // now (the plain result card, after a correct recall, alongside a
+  // recall-offer/retry button), all wanting the exact same click/focus
+  // behavior. Defaults to _currentCard, but a caller that just built a
+  // *specific* card (rather than relying on it already being current)
+  // passes it explicitly — see _setToolbarToActions() above.
+  _wireNextButton(card = this._currentCard) {
+    const nextButton = card.querySelector("[data-next]");
     nextButton.addEventListener("click", () => this._loadNext(true));
-    // Re-rendering/re-toolbaring drops whatever had focus before, so the
-    // page's focus falls back to <body> — a keydown there never reaches
-    // this element's shadow tree. Focusing the button directly sidesteps
-    // that: a focused <button> already activates on Enter per native
-    // browser behavior, no separate keyboard handling needed.
-    // preventScroll: true since the widget is already in view by the time
-    // any of this runs, so there's nothing to scroll to, but no reason to
-    // risk it either.
+    // Re-toolbaring drops whatever had focus before, so the page's focus
+    // falls back to <body> — a keydown there never reaches this element's
+    // shadow tree. Focusing the button directly sidesteps that: a focused
+    // <button> already activates on Enter per native browser behavior, no
+    // separate keyboard handling needed. preventScroll: true since the
+    // card is already in view (either it's been there the whole time, or
+    // _addCard() already scrolled to it) — nothing to scroll to, but no
+    // reason to risk it either.
     nextButton.focus({ preventScroll: true });
   }
 
-  _setToolbar(html) {
-    this._shadow.querySelector(".toolbar").innerHTML = html;
+  // card, not just "the" toolbar: once a deck can hold several cards, a
+  // bare this._shadow.querySelector(".toolbar") would match the *first*
+  // one in document order, not necessarily the current one — every caller
+  // above defaults to _currentCard precisely to avoid that.
+  _setToolbar(html, card = this._currentCard) {
+    card.querySelector(".toolbar").innerHTML = html;
   }
 
-  // Inserts new content at the end of .body without touching what's
-  // already there (unlike _render(), which wipes everything) — this is the
-  // one piece of machinery the whole append-not-replace recall design (see
-  // CLAUDE.md) actually needs. Scrolls .body to the newly-added content's
-  // bottom afterward — .body already scrolls internally on overflow (see
-  // its own comment), and without this a learner would have to notice and
-  // manually scroll down to see a just-appended recall question.
-  _appendToBody(html) {
-    const body = this._shadow.querySelector(".body");
-    body.insertAdjacentHTML("beforeend", html);
-    body.scrollTop = body.scrollHeight;
+  // .track's last child — the newest step in the deck, and the only card
+  // whose toolbar should still be a live control surface (see _addCard()).
+  get _currentCard() {
+    return this._shadow.querySelector(".track").lastElementChild;
   }
 
-  _render(html) {
-    this._shadow.innerHTML = `<style>${STYLES}</style>${html}`;
+  // Adds a new card as a new step in the deck — unlike _render(), nothing
+  // already shown is touched, which is the whole point: a learner can
+  // still swipe/arrow-click back to every earlier step of this exercise
+  // (see CLAUDE.md's "Web frontend" section for why cards are separate and
+  // swipeable rather than one card growing with appended content).
+  //
+  // Before adding the new card, this freezes the *previous* current card's
+  // toolbar — clears it outright, not just disables it — so its controls
+  // can never be triggered a second time once superseded. This isn't just
+  // tidiness: check_answer() isn't idempotent, so a learner swiping back to
+  // the original question and tapping a choice again would record a real
+  // second mark against the same pair; a stale "Закрепить"/retry button
+  // would similarly kick off a redundant recall. A frozen card still shows
+  // its content in full, just with nothing left to click.
+  _addCard(html) {
+    const track = this._shadow.querySelector(".track");
+    const previousCard = track.lastElementChild;
+    const previousToolbar = previousCard?.querySelector(".toolbar");
+    if (previousToolbar) previousToolbar.innerHTML = "";
+    track.insertAdjacentHTML("beforeend", html);
+    const newCard = track.lastElementChild;
+    track.scrollTo({ left: newCard.offsetLeft, behavior: "smooth" });
+    this._updateDeckNav();
+  }
+
+  // Attaches the two arrow buttons' click handlers (each scrolls .track by
+  // one card width) and a scroll listener that keeps them in sync with
+  // *however* the deck moved — a click, but just as much a swipe or a
+  // trackpad scroll, neither of which goes through _addCard() at all.
+  // Called once per _render() (a fresh deck), not per card.
+  _wireDeckNav() {
+    const track = this._shadow.querySelector(".track");
+    const prev = this._shadow.querySelector("[data-deck-prev]");
+    const next = this._shadow.querySelector("[data-deck-next]");
+    prev.addEventListener("click", () =>
+      track.scrollBy({ left: -track.clientWidth, behavior: "smooth" })
+    );
+    next.addEventListener("click", () =>
+      track.scrollBy({ left: track.clientWidth, behavior: "smooth" })
+    );
+    track.addEventListener("scroll", () => this._updateDeckNav());
+    this._updateDeckNav();
+  }
+
+  // Both arrows stay hidden outright — not just disabled — whenever the
+  // deck holds only one card (track.scrollWidth <= track.clientWidth: no
+  // overflow, nothing to page through at all) — a fresh, not-yet-answered
+  // question, the only genuinely single-card state: the default
+  // experience looks and behaves exactly as it did before the deck
+  // existed for as long as that lasts. Once there's real overflow, each
+  // arrow hides itself specifically at
+  // its own end of the deck (nothing before the first card, nothing after
+  // the last/current one) rather than just disabling — a hidden control
+  // reads as "there's nothing that way" more clearly than a greyed-out one
+  // would on a card this small. The ±1 slack absorbs sub-pixel scroll
+  // position rounding, which would otherwise occasionally leave an arrow
+  // spuriously enabled (or hidden) right at either end.
+  _updateDeckNav() {
+    const track = this._shadow.querySelector(".track");
+    const prev = this._shadow.querySelector("[data-deck-prev]");
+    const next = this._shadow.querySelector("[data-deck-next]");
+    const hasOverflow = track.scrollWidth > track.clientWidth + 1;
+    prev.hidden = !hasOverflow || track.scrollLeft <= 0;
+    next.hidden =
+      !hasOverflow || track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
+  }
+
+  // Builds a fresh deck from scratch, holding just this one card — the
+  // only entry point that wipes everything (contrast _addCard(), which
+  // never does). Correct wherever it's used: _loadNext()'s loading/error/
+  // nothing-available states and its first successful _renderQuestion()
+  // call, all of which mean a genuinely new exercise, where nothing from
+  // any previous one is worth keeping around to swipe back to.
+  _render(cardHtml) {
+    this._shadow.innerHTML =
+      `<style>${STYLES}</style>` +
+      `<div class="deck"><div class="track">${cardHtml}</div>` +
+      `<button class="deck-nav prev" data-deck-prev hidden aria-label="Previous">‹</button>` +
+      `<button class="deck-nav next" data-deck-next hidden aria-label="Next">›</button></div>`;
+    this._wireDeckNav();
   }
 }
 
