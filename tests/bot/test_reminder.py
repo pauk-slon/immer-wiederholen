@@ -1,16 +1,21 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
+from itertools import count
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
-from aiogram.methods import SendMessage
+from aiogram.methods import EditMessageReplyMarkup, SendMessage, TelegramMethod
+from aiogram.types import Chat, Message
 
 from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import ExerciseData, make_exercise, make_exercise_data
 from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
+from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
 from wiederholen.bot.telegram_student_id import TelegramStudentID
 from wiederholen.school import Course, StudentRecordBook
@@ -18,6 +23,31 @@ from wiederholen.school import Course, StudentRecordBook
 
 def _stale_answer() -> str:
     return (datetime.now(UTC) - timedelta(hours=25)).isoformat()
+
+
+def _make_request_mock() -> AsyncMock:
+    # A realistic SendMessage response, mirroring tests/plugins/aiogram.py's
+    # own feed_raw_update fixture (see its comment): the reminder now reads
+    # the sent message's own message_id back (to track it via
+    # remember_buttoned_message()), so the bare `True` every other method
+    # still gets here isn't enough for SendMessage specifically. tick() has
+    # no incoming update to feed the way feed_raw_update does, so this
+    # builds an equivalent mock directly rather than reusing that fixture.
+    message_ids = count(1000)
+
+    def make_fake_response(method: TelegramMethod) -> object:
+        if isinstance(method, SendMessage):
+            assert isinstance(method.chat_id, int)
+            return Message(
+                message_id=next(message_ids),
+                date=datetime.now(tz=UTC),
+                chat=Chat(id=method.chat_id, type="private"),
+            )
+        return True
+
+    return AsyncMock(
+        side_effect=lambda bot, method, timeout=None: make_fake_response(method)
+    )
 
 
 async def test_tick_sends_reminder_and_records_it(
@@ -33,7 +63,7 @@ async def test_tick_sends_reminder_and_records_it(
         TelegramStudentID.encode(1), {"last_exercise": {"answered_at": _stale_answer()}}
     )
 
-    mock_request = AsyncMock(return_value=True)
+    mock_request = _make_request_mock()
     with patch.object(bot.session, "make_request", mock_request):
         await tick(bot, redis_storage, student_record_book, Course([exercise]))
 
@@ -45,6 +75,85 @@ async def test_tick_sends_reminder_and_records_it(
     assert len(sent) == 1
     assert sent[0].chat_id == 1
     assert "last_reminded_at" in await read_student_record(TelegramStudentID.encode(1))
+
+
+async def test_tick_sends_reminder_with_a_next_exercise_button(
+    bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    exercise = make_exercise()
+    bot = Bot(token=bot_token)
+    await seed_student_record(
+        TelegramStudentID.encode(1), {"last_exercise": {"answered_at": _stale_answer()}}
+    )
+
+    mock_request = _make_request_mock()
+    with patch.object(bot.session, "make_request", mock_request):
+        await tick(bot, redis_storage, student_record_book, Course([exercise]))
+
+    sent = [
+        call.args[1]
+        for call in mock_request.call_args_list
+        if isinstance(call.args[1], SendMessage)
+    ]
+    assert len(sent) == 1
+    assert sent[0].reply_markup is not None
+    assert sent[0].reply_markup.inline_keyboard[0][0].callback_data == NEXT_EXERCISE
+
+
+async def test_tick_clears_a_stale_button_before_reminding(
+    bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    exercise = make_exercise()
+    bot = Bot(token=bot_token)
+    await seed_student_record(
+        TelegramStudentID.encode(1), {"last_exercise": {"answered_at": _stale_answer()}}
+    )
+    state = FSMContext(
+        storage=redis_storage, key=StorageKey(bot_id=bot.id, chat_id=1, user_id=1)
+    )
+    await state.update_data(last_buttoned_message_id=77)
+
+    mock_request = _make_request_mock()
+    with patch.object(bot.session, "make_request", mock_request):
+        await tick(bot, redis_storage, student_record_book, Course([exercise]))
+
+    edits = [
+        call.args[1]
+        for call in mock_request.call_args_list
+        if isinstance(call.args[1], EditMessageReplyMarkup)
+    ]
+    assert len(edits) == 1
+    assert edits[0].message_id == 77
+    assert edits[0].reply_markup is None
+
+
+async def test_tick_remembers_the_reminder_message_as_the_new_buttoned_message(
+    bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    exercise = make_exercise()
+    bot = Bot(token=bot_token)
+    await seed_student_record(
+        TelegramStudentID.encode(1), {"last_exercise": {"answered_at": _stale_answer()}}
+    )
+    state = FSMContext(
+        storage=redis_storage, key=StorageKey(bot_id=bot.id, chat_id=1, user_id=1)
+    )
+
+    mock_request = _make_request_mock()
+    with patch.object(bot.session, "make_request", mock_request):
+        await tick(bot, redis_storage, student_record_book, Course([exercise]))
+
+    data = await state.get_data()
+    assert data["last_buttoned_message_id"] is not None
 
 
 async def test_tick_skips_chat_with_nothing_due(
@@ -125,7 +234,7 @@ async def test_tick_continues_after_one_chat_fails(
         {"last_exercise": {"answered_at": "not-a-valid-datetime"}},
     )
 
-    mock_request = AsyncMock(return_value=True)
+    mock_request = _make_request_mock()
     with patch.object(bot.session, "make_request", mock_request):
         await tick(bot, redis_storage, student_record_book, Course([exercise]))
 

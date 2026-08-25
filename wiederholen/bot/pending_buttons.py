@@ -16,6 +16,7 @@ ever has at most one live set of buttons pending a tap, since sending a new
 one (or a command handler clearing the old one) always supersedes it.
 """
 
+from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
@@ -29,16 +30,20 @@ async def forget_buttoned_message(state: FSMContext) -> None:
     await state.update_data(last_buttoned_message_id=None)
 
 
-async def clear_stale_buttons(message: Message, state: FSMContext) -> None:
+async def clear_stale_buttons(bot: Bot | None, chat_id: int, state: FSMContext) -> None:
+    # bot/chat_id, not a Message: every command handler has a real incoming
+    # Message to pull these from (message.bot/message.chat.id), but
+    # wiederholen.bot.reminder's background sweep has no incoming update at
+    # all — just the Bot and chat_id it already looked up — so the message-
+    # shaped fields are the actual primitive here, not the Message itself.
     data = await state.get_data()
     message_id = data.get("last_buttoned_message_id")
     if message_id is None:
         return
-    bot = message.bot
     assert bot is not None
     try:
         await bot.edit_message_reply_markup(
-            chat_id=message.chat.id, message_id=message_id, reply_markup=None
+            chat_id=chat_id, message_id=message_id, reply_markup=None
         )
     except TelegramBadRequest:
         # Already edited/deleted, or too old to edit — nothing to clean up.

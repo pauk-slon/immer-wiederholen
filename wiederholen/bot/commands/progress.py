@@ -22,7 +22,7 @@ async def command_progress(
     course: Course,
     student_record_book: StudentRecordBook,
 ) -> None:
-    await clear_stale_buttons(message, state)
+    await clear_stale_buttons(message.bot, message.chat.id, state)
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
