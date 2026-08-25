@@ -384,14 +384,19 @@ const STRINGS = {
     correct: "Верно!",
     correctAnswer: (answer) => `Правильный ответ: ${answer}`,
     // Mirrors the bot's own l10n.py wording exactly (btn_recall,
-    // btn_recall_retry, recall_correct, recall_wrong) — recallRetry is kept
-    // distinct from tryAgain above (a different button, for the unrelated
-    // network-error-retry case) since the bot's own ru copy for the two
-    // differs ("Попробовать ещё раз" vs "Попробовать снова").
+    // btn_recall_retry, recall_correct, recall_wrong, recall_prompt) —
+    // recallRetry is kept distinct from tryAgain above (a different
+    // button, for the unrelated network-error-retry case) since the bot's
+    // own ru copy for the two differs ("Попробовать ещё раз" vs
+    // "Попробовать снова"). recallInstruction drops recall_prompt's own
+    // "\n{recall}" — the widget already renders the recall question as
+    // its own .question line right below, so only the framing sentence
+    // itself is needed here.
     recallDrill: "Закрепить",
     recallRetry: "Попробовать ещё раз",
     recallCorrect: "Правильно!",
     recallWrong: (answer) => `Неправильно. Правильный вариант: ${answer}`,
+    recallInstruction: "Восстановите фразу",
   },
   en: {
     nothingAvailable: "Nothing to practice here right now — come back later!",
@@ -404,6 +409,7 @@ const STRINGS = {
     recallRetry: "Try again",
     recallCorrect: "Correct!",
     recallWrong: (answer) => `Wrong. Correct answer: ${answer}`,
+    recallInstruction: "Reconstruct the phrase",
   },
 };
 
@@ -757,12 +763,20 @@ class GermanExerciseWidget extends HTMLElement {
       // A recall question is still a question — reuses .question/
       // .description directly, exactly like the question card, now that
       // it gets its own dedicated card (and dedicated .centered-pair
-      // space) rather than being squeezed into someone else's.
+      // space) rather than being squeezed into someone else's. .instruction
+      // here plays the same role it does on the question card (a fixed
+      // note on how to answer *this* step, not part of the question text
+      // itself) — mirrors the bot's own recall_prompt ("Восстановите
+      // фразу:") — without it, a learner had no explanation of what a
+      // recall step even was or how it differs from the main exercise
+      // (caught from a direct user report: the bot has this framing, the
+      // widget didn't).
       const hint = recall.hint
         ? `<p class="description">💡 ${escapeHtml(recall.hint)}</p>`
         : "";
       this._addCard(
         `<div class="card"><div class="body">` +
+          `<p class="instruction">ℹ️ ${escapeHtml(this._strings.recallInstruction)}</p>` +
           `<div class="centered-pair"><p class="question">❓ ${escapeHtml(recall.question)}</p>${hint}</div>` +
           `</div><div class="toolbar">` +
           `<form data-recall-form><input type="text" autocomplete="off" />` +
