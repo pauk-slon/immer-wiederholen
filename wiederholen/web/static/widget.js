@@ -344,7 +344,14 @@ const STYLES = `
   }
   button { cursor: pointer; }
   button:hover { border-color: var(--gew-primary); }
-  button[data-next], button[type="submit"] {
+  /* button[data-recall-trigger]:only-child — the required-recall case's own
+     single-button toolbar (see _renderResult()'s own comment): :only-child
+     is what tells it apart from the *same* data-recall-trigger button in
+     the optional-offer/retry .actions row, where it's paired with a
+     sibling "Дальше" and should stay secondary-looking instead — no extra
+     markup/attribute needed, the two contexts are structurally already
+     distinguishable by whether the button is alone in its parent. */
+  button[data-next], button[type="submit"], button[data-recall-trigger]:only-child {
     background: var(--gew-primary);
     color: white;
     border-color: var(--gew-primary);
@@ -723,7 +730,7 @@ class GermanExerciseWidget extends HTMLElement {
     const label = result.correct
       ? `<p class="correct">✅ ${escapeHtml(this._strings.correct)}</p>`
       : `<p class="wrong">❌ ${escapeHtml(this._strings.correctAnswer(result.answer))}</p>`;
-    this._addCard(
+    this._render(
       // label + explanation share one .centered-pair, the same treatment
       // question + description get on the question card: the verdict
       // (and, when wrong, the correct answer itself) is the actual fact
@@ -735,10 +742,15 @@ class GermanExerciseWidget extends HTMLElement {
       // known — rather than baked into this same template string, so
       // _startRecall()/etc. below can all go through the one _setToolbar()
       // path instead of a separate one just for this initial render.
-      // _addCard() (not _render()) is what makes this a new card of its
-      // own, freezing the question card above it rather than replacing it
-      // — see CLAUDE.md's "Web frontend" section for the deck this is part
-      // of.
+      // _render() (not _addCard()) is deliberate: the question card is no
+      // longer useful once answered (its own content is a fill-in-the-
+      // blank prompt, superseded by the actual answer/explanation right
+      // here) and swiping back to it just to find working choice buttons
+      // gone — see check_answer()'s own not-idempotent reasoning below —
+      // isn't worth keeping around (caught from a direct user report).
+      // Recall cards (below) still _addCard() onto *this* card once it
+      // exists, so the explanation itself stays reviewable throughout a
+      // recall step, which is the part that's actually still useful.
       `<div class="card"><div class="body">` +
         `<div class="centered-pair">${label}` +
         `<p class="explanation">${escapeHtml(result.explanation)}</p></div></div>` +
@@ -748,14 +760,31 @@ class GermanExerciseWidget extends HTMLElement {
     // this exercise at all — plain Next, unchanged from before recall
     // existed), "optional" (answered correctly, a recall is offered but not
     // required), "required" (answered wrong, a recall must be attempted
-    // before moving on — started immediately, no offer needed since it
-    // isn't optional). Forced to "none" when _recallEnabled is off (the
+    // before moving on). Forced to "none" when _recallEnabled is off (the
     // default — see its own comment), rather than a separate branch
     // duplicating "none"'s own body — an embed that never asked for recall
     // takes exactly the same path as an exercise with no recalls at all.
     const recallMode = this._recallEnabled ? result.recall : "none";
     if (recallMode === "required") {
-      this._startRecall();
+      // A button, not an immediate _startRecall() call (an earlier version
+      // did that): triggering it right as this card is still finishing its
+      // own scroll-into-view meant the ❌ + explanation flashed by almost
+      // too quickly to read before the deck auto-advanced again — the one
+      // thing this result card exists to show is exactly what the recall
+      // step needs (caught from a direct user report). recallDrill
+      // ("Закрепить") reused verbatim, not a separate label: it's already
+      // the same action ("move into the recall step") the optional-offer
+      // button below uses, and the wrong-answer context here already
+      // supplies whatever "you need to do this" framing the label itself
+      // doesn't carry on its own. :only-child in the CSS is what gives
+      // this single button primary (blue) styling, distinct from the
+      // secondary look it gets paired with "Дальше" in the optional case.
+      this._setToolbar(
+        `<button data-recall-trigger>${escapeHtml(this._strings.recallDrill)}</button>`
+      );
+      const trigger = this._currentCard.querySelector("[data-recall-trigger]");
+      trigger.addEventListener("click", () => this._startRecall());
+      trigger.focus({ preventScroll: true });
     } else if (recallMode === "optional") {
       this._setToolbarToActions(this._strings.recallDrill, () => this._startRecall());
     } else {
