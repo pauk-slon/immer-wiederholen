@@ -344,29 +344,46 @@ const STYLES = `
   }
   button { cursor: pointer; }
   button:hover { border-color: var(--gew-primary); }
-  /* button[data-recall-trigger]:only-child — the required-recall case's own
-     single-button toolbar (see _renderResult()'s own comment): :only-child
-     is what tells it apart from the *same* data-recall-trigger button in
-     the optional-offer/retry .actions row, where it's paired with a
-     sibling "Дальше" and should stay secondary-looking instead — no extra
-     markup/attribute needed, the two contexts are structurally already
-     distinguishable by whether the button is alone in its parent. */
-  button[data-next], button[type="submit"], button[data-recall-trigger]:only-child {
+  /* Primary/blue styling is positional, not attribute-specific: the last
+     button in an .actions row (below) is always the card's forward
+     action, whatever it's actually labeled — "Дальше" when paired with a
+     secondary action, or "Закрепить" alone in the required-recall case,
+     spanning the row on its own (still .actions's *last* child either
+     way, see .actions's own comment). type="submit" covers the one
+     button that's never in .actions at all — the recall answer form's
+     own ✓. */
+  button[type="submit"], .actions > button:last-child {
     background: var(--gew-primary);
     color: white;
     border-color: var(--gew-primary);
   }
   form { display: flex; gap: 0.5rem; }
   input[type="text"] { flex: 1; }
-  /* The two-button toolbar shared by both recall-offer states — "Закрепить"
-     (after a correct answer with recalls available) and "Попробовать ещё
-     раз" (after a wrong recall attempt) — paired with "Дальше" either way,
-     mirroring the bot's own _make_recall_buttons(), which always shows the
-     same two side by side. Equal-width buttons via flex: 1, the same
-     pattern form's own input[type="text"] already uses for its one growing
-     child. */
-  .actions { display: flex; gap: 0.5rem; }
-  .actions button { flex: 1; }
+  /* .toolbar's own children stack with the same 0.5rem rhythm .actions
+     uses internally — covers the error states that pair a message with an
+     .actions row below it; a lone .actions/.choices/form filling the
+     whole toolbar is unaffected, a single flex child lays out the same
+     as a plain block one would. */
+  .toolbar { display: flex; flex-direction: column; gap: 0.5rem; }
+  /* Every button-only toolbar state uses this same grid now, not just the
+     two-button recall-offer/retry case it was first built for — buttons
+     should live in the same slot system regardless of how many of them a
+     given card has, the same way "Закрепить"/"Дальше" already sit side by
+     side. A lone forward action (a bare "Дальше", or the required-recall
+     case's single "Закрепить") goes through _primarySlot() to land in
+     this same .actions wrapper instead of rendered bare — :only-child
+     below spans it across both columns, rather than leaving it sized and
+     left-aligned to its own content the way plain block flow used to
+     (that read fine for a bare "Дальше" in isolation, but "Закрепить" is
+     used to sitting *left of* "Дальше" here — alone, keeping that same
+     leftward position didn't read as a deliberate action, just a pair
+     missing its other half — caught from a direct user report). */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  .actions > button:only-child { grid-column: 1 / -1; }
 `;
 
 function escapeHtml(value) {
@@ -644,7 +661,9 @@ class GermanExerciseWidget extends HTMLElement {
       this._clearCachedExercise();
       this._setToolbar(
         `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
-          `<button data-next>${escapeHtml(this._strings.next)}</button>`
+          this._primarySlot(
+            `<button data-next>${escapeHtml(this._strings.next)}</button>`
+          )
       );
       this._wireNextButton();
     }
@@ -776,11 +795,15 @@ class GermanExerciseWidget extends HTMLElement {
       // the same action ("move into the recall step") the optional-offer
       // button below uses, and the wrong-answer context here already
       // supplies whatever "you need to do this" framing the label itself
-      // doesn't carry on its own. :only-child in the CSS is what gives
-      // this single button primary (blue) styling, distinct from the
-      // secondary look it gets paired with "Дальше" in the optional case.
+      // doesn't carry on its own. _primarySlot() (the same .actions grid
+      // the optional case's own pair uses, see its own comment) is what
+      // spans this single button full-width and gives it primary (blue)
+      // styling, distinct from the secondary look the exact same button
+      // gets when it's paired with "Дальше" in the optional case below.
       this._setToolbar(
-        `<button data-recall-trigger>${escapeHtml(this._strings.recallDrill)}</button>`
+        this._primarySlot(
+          `<button data-recall-trigger>${escapeHtml(this._strings.recallDrill)}</button>`
+        )
       );
       const trigger = this._currentCard.querySelector("[data-recall-trigger]");
       trigger.addEventListener("click", () => this._startRecall());
@@ -788,7 +811,11 @@ class GermanExerciseWidget extends HTMLElement {
     } else if (recallMode === "optional") {
       this._setToolbarToActions(this._strings.recallDrill, () => this._startRecall());
     } else {
-      this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);
+      this._setToolbar(
+        this._primarySlot(
+          `<button data-next>${escapeHtml(this._strings.next)}</button>`
+        )
+      );
       this._wireNextButton();
     }
   }
@@ -853,7 +880,9 @@ class GermanExerciseWidget extends HTMLElement {
       // (empty, pointless) card for a recall that never actually arrived.
       this._setToolbar(
         `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
-          `<button data-next>${escapeHtml(this._strings.next)}</button>`
+          this._primarySlot(
+            `<button data-next>${escapeHtml(this._strings.next)}</button>`
+          )
       );
       this._wireNextButton();
     }
@@ -875,7 +904,11 @@ class GermanExerciseWidget extends HTMLElement {
           `<div class="toolbar"></div></div>`
       );
       if (result.correct) {
-        this._setToolbar(`<button data-next>${escapeHtml(this._strings.next)}</button>`);
+        this._setToolbar(
+          this._primarySlot(
+            `<button data-next>${escapeHtml(this._strings.next)}</button>`
+          )
+        );
         this._wireNextButton();
       } else {
         this._setToolbarToActions(this._strings.recallRetry, () => this._startRecall());
@@ -887,10 +920,21 @@ class GermanExerciseWidget extends HTMLElement {
       // never actually arrived.
       this._setToolbar(
         `<p class="wrong">${escapeHtml(this._strings.somethingWrong)}</p>` +
-          `<button data-next>${escapeHtml(this._strings.next)}</button>`
+          this._primarySlot(
+            `<button data-next>${escapeHtml(this._strings.next)}</button>`
+          )
       );
       this._wireNextButton();
     }
+  }
+
+  // Wraps a single button in the same .actions grid the two-button
+  // recall-offer/retry row uses — :only-child (see .actions's own
+  // comment) spans it across both columns, so every button-only toolbar
+  // state goes through one shared slot system rather than a lone button
+  // being left sized and positioned by plain block flow.
+  _primarySlot(buttonHtml) {
+    return `<div class="actions">${buttonHtml}</div>`;
   }
 
   // Shared by both recall-offer states — "Закрепить" after a correct
