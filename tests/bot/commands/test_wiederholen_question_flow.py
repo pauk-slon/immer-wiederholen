@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 
 from aiogram.fsm.context import FSMContext
@@ -69,6 +70,36 @@ async def test_reply_keyboard_remove_for_input_exercise(
 
     assert len(requests) == 1
     assert isinstance(requests[0].reply_markup, ReplyKeyboardRemove)
+
+
+async def test_omits_word_bank_parenthetical_when_absent(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise()
+    requests = await feed_message("/wiederholen", course=Course([exercise]))
+
+    assert len(requests) == 1
+    assert "(" not in requests[0].text
+
+
+async def test_shows_shuffled_word_bank_in_parentheses(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        topic="nebensatzkonjunktion_wortstellung",
+        answer="sie wohnt in Hamburg",
+        distractors=[],
+        word_bank=["sie", "wohnt", "in Hamburg"],
+    )
+    requests = await feed_message("/wiederholen", course=Course([exercise]))
+
+    assert len(requests) == 1
+    text = requests[0].text
+    assert exercise.question in text
+    match = re.search(r"\((.+)\)", text)
+    assert match is not None
+    assert exercise.word_bank is not None
+    assert sorted(match.group(1).split(" / ")) == sorted(exercise.word_bank)
 
 
 async def test_omits_description_block_when_absent(

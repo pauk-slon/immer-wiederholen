@@ -40,6 +40,7 @@ from wiederholen.school import (
     StudentRecordBook,
     Tutor,
     generate_shadow_exercise,
+    shuffle_word_bank,
 )
 
 router = Router()
@@ -145,6 +146,12 @@ def _format_question(
 ) -> str:
     prefix = "🤖 " if is_ai_generated else ""
     text = f"{prefix}❓ {exercise.question}"
+    if exercise.word_bank:
+        # Reconstructs exactly the shape question's own hand-written
+        # parenthetical hint used to have (see issue #191) — just shuffled
+        # fresh on every render instead of frozen once at authoring time,
+        # same as the web widget's own tile UI shuffles its copy.
+        text += f" ({' / '.join(shuffle_word_bank(exercise.word_bank))})"
     if exercise.description:
         text += f"\n💭 {exercise.description[language]}"
     instruction = course.topic_instructions.get(exercise.topic, {}).get(language)

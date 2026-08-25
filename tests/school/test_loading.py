@@ -49,6 +49,32 @@ class TestExerciseValidation:
         ):
             Course.load(tmp_path)
 
+    def test_word_bank_not_joining_into_answer_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        with (
+            pytest.raises(ValueError, match="must join into answer"),
+            tmp_yaml_file(
+                [make_exercise_data() | {"word_bank": ["nicht", "auf"]}],
+                filename="exercises.yaml",
+            ),
+        ):
+            Course.load(tmp_path)
+
+    def test_matching_word_bank_loads(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        exercise_data = make_exercise_data(answer="sie wohnt in Hamburg") | {
+            "word_bank": ["sie", "wohnt", "in Hamburg"]
+        }
+        with tmp_yaml_file([exercise_data], filename="exercises.yaml"):
+            course = Course.load(tmp_path)
+        assert course.exercises[0].word_bank == ["sie", "wohnt", "in Hamburg"]
+
 
 class TestTopicsConfigLoading:
     def test_missing_file_returns_empty(

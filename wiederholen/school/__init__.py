@@ -1,5 +1,11 @@
 from wiederholen.school.authoring import AIGenerationError, generate_shadow_exercise
-from wiederholen.school.curriculum import Course, Exercise, Recall, Topic
+from wiederholen.school.curriculum import (
+    Course,
+    Exercise,
+    Recall,
+    Topic,
+    shuffle_word_bank,
+)
 from wiederholen.school.i18n import LANGUAGES, Language
 from wiederholen.school.student_record_book import (
     RedisStudentRecordBook,
@@ -25,4 +31,5 @@ __all__ = [
     "Topic",
     "Tutor",
     "generate_shadow_exercise",
+    "shuffle_word_bank",
 ]

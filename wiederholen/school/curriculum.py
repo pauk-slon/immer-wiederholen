@@ -1,3 +1,4 @@
+import random
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
@@ -42,6 +43,16 @@ class Exercise:
     explanation: dict[Language, str]
     recalls: list[Recall] = field(default_factory=list)
     description: dict[Language, str] | None = None
+    # Only for word-order exercises (konjunktion_wortstellung/
+    # nebensatzkonjunktion_wortstellung): answer's own words, grouped into
+    # meaningful phrase chunks (e.g. "in Hamburg" stays one chunk, not two),
+    # in the *correct* order — not shuffled. Both frontends shuffle their own
+    # copy fresh at render time (see curriculum.shuffle_word_bank()) rather
+    # than reading a scramble baked in once at authoring time, which is what
+    # question's own hand-written parenthetical hint used to be before this
+    # field replaced it (see issue #191) — a single source of truth instead
+    # of a copy an author had to keep in sync by hand.
+    word_bank: list[str] | None = None
 
     def __post_init__(self) -> None:
         if self.answer in self.distractors:
@@ -54,6 +65,10 @@ class Exercise:
             raise ValueError(
                 f"description must have keys {LANGUAGES}, got {set(self.description.keys())}"
             )
+        if self.word_bank is not None and " ".join(self.word_bank) != self.answer:
+            raise ValueError(
+                f"word_bank {self.word_bank} must join into answer '{self.answer}'"
+            )
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -64,6 +79,24 @@ class Exercise:
         if d.get("recalls") is not None:
             d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
         return cls(**d)
+
+
+def shuffle_word_bank(word_bank: Sequence[str]) -> list[str]:
+    # Shared by wiederholen.bot (re-inserted as a "(a / b / c)" parenthetical
+    # after the question) and wiederholen.web (rendered as tap-to-arrange
+    # tiles) — one shuffle-with-reshuffle-guard implementation rather than
+    # each frontend keeping its own copy. A single-chunk word_bank has no
+    # other permutation to land on, so reshuffling would loop forever —
+    # returned as-is instead.
+    if len(word_bank) < 2:
+        return list(word_bank)
+    shuffled = list(word_bank)
+    # Reshuffle on the chance (real for a short sentence) that shuffle()
+    # lands back on the original order — the learner should never be handed
+    # an already-solved word bank.
+    while shuffled == list(word_bank):
+        random.shuffle(shuffled)
+    return shuffled
 
 
 class _TopicsConfig(TypedDict):
