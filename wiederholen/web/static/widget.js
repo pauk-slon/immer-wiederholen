@@ -820,24 +820,27 @@ class GermanExerciseWidget extends HTMLElement {
     }
   }
 
-  // Fetches a recall (POST /api/exercise/recall) and adds it as a brand new
-  // card — never replaces what's already shown, so the just-answered
-  // result stays fully intact, one swipe/arrow-click back (see CLAUDE.md's
-  // "Web frontend" section for the deck this belongs to). Used both for a
-  // fresh recall (called directly from _renderResult() above) and for a
-  // retry after a wrong attempt (called from _submitRecallAnswer()'s own
-  // wrong branch below) — either way it's a brand new recall.question/
-  // hint, its own new card, which is what makes a retry read as another
-  // page in the deck rather than overwriting the previous attempt.
+  // Fetches a recall (POST /api/exercise/recall) and adds it as a new
+  // card, dropping whatever recall card (a previous attempt's question or
+  // its feedback) was showing before it — see _dropRecallCards()'s own
+  // comment for why only the explanation card, not each individual
+  // recall attempt, is worth keeping around. Used both for a fresh recall
+  // (called directly from _renderResult() above) and for a retry after a
+  // wrong attempt (called from _submitRecallAnswer()'s own wrong branch
+  // below).
   async _startRecall() {
     // A transient loading state in the *current* card's own toolbar — not
     // a new card yet, since there's nothing to show until the fetch
-    // resolves.
+    // resolves. Deliberately before the drop below, not after: while the
+    // fetch is in flight, whatever was showing (the explanation, or a
+    // previous attempt's feedback) stays in place rather than jumping back
+    // to the explanation card a beat early.
     this._setToolbar(`<p class="muted">…</p>`);
     try {
       const recall = await this._post("/api/exercise/recall", {
         language: this._language,
       });
+      this._dropRecallCards();
       // A recall question is still a question — reuses .question/
       // .description directly, exactly like the question card, now that
       // it gets its own dedicated card (and dedicated .centered-pair
@@ -889,9 +892,14 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   async _submitRecallAnswer(answer) {
+    // Same reasoning as _startRecall()'s own loading state: shown before
+    // the drop below, so the just-submitted recall question stays visible
+    // while the fetch is in flight rather than jumping back to the
+    // explanation card before there's a real result to show.
     this._setToolbar(`<p class="muted">…</p>`);
     try {
       const result = await this._post("/api/exercise/recall/check", { answer });
+      this._dropRecallCards();
       // A new card for the verdict alone — a single-child .centered-pair
       // centers it exactly the same way a two-child one does (align-items/
       // justify-content don't care how many children there are).
@@ -992,9 +1000,13 @@ class GermanExerciseWidget extends HTMLElement {
 
   // Adds a new card as a new step in the deck — unlike _render(), nothing
   // already shown is touched, which is the whole point: a learner can
-  // still swipe/arrow-click back to every earlier step of this exercise
-  // (see CLAUDE.md's "Web frontend" section for why cards are separate and
-  // swipeable rather than one card growing with appended content).
+  // still swipe/arrow-click back to an earlier step (see CLAUDE.md's "Web
+  // frontend" section for why cards are separate and swipeable rather
+  // than one card growing with appended content). _startRecall()/
+  // _submitRecallAnswer() call _dropRecallCards() (below) right before
+  // this to trim that history down to just the explanation card first —
+  // see its own comment for why an individual recall attempt doesn't get
+  // the same "worth swiping back to" treatment the explanation does.
   //
   // Before adding the new card, this freezes the *previous* current card's
   // toolbar — clears it outright, not just disables it — so its controls
@@ -1013,6 +1025,26 @@ class GermanExerciseWidget extends HTMLElement {
     const newCard = track.lastElementChild;
     track.scrollTo({ left: newCard.offsetLeft, behavior: "smooth" });
     this._updateDeckNav();
+  }
+
+  // Removes every card after the explanation card — always index 0 by the
+  // time recall starts, since _renderResult() itself _render()s a fresh
+  // single-card deck (see its own comment) — leaving just it behind.
+  // Called right before _addCard()-ing any new recall-related card
+  // (_startRecall()'s question, _submitRecallAnswer()'s feedback), so the
+  // deck only ever holds the explanation plus *one* current recall step,
+  // never a growing trail of superseded attempts: unlike the explanation
+  // (the actual grammar note recall exists to reinforce), a previous
+  // attempt's own question or feedback stops being useful the moment a
+  // new one replaces it, and swiping back to find it was reported as
+  // clutter rather than something worth reviewing (caught from a direct
+  // user report). A no-op the very first time recall starts, since the
+  // deck is already just the explanation card then.
+  _dropRecallCards() {
+    const track = this._shadow.querySelector(".track");
+    while (track.children.length > 1) {
+      track.lastElementChild.remove();
+    }
   }
 
   // Attaches the two arrow buttons' click handlers (each scrolls .track by
