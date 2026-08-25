@@ -12,6 +12,7 @@ from wiederholen.school import Course, RedisStudentRecordBook, StudentRecordBook
 from wiederholen.web.app import (
     check_answer,
     check_recall,
+    client_error,
     create_app,
     next_exercise,
     request_recall,
@@ -36,7 +37,13 @@ def web_app_factory(
 ) -> WebAppFactory:
     def factory(course: Course) -> Litestar:
         return Litestar(
-            route_handlers=[next_exercise, check_answer, request_recall, check_recall],
+            route_handlers=[
+                next_exercise,
+                check_answer,
+                request_recall,
+                check_recall,
+                client_error,
+            ],
             state=State(
                 {
                     "course": course,
@@ -313,6 +320,30 @@ async def test_check_recall_without_a_shown_recall_is_a_conflict(
         )
 
     assert response.status_code == 409
+
+
+async def test_client_error_accepts_a_report_with_a_status(
+    web_app_factory: WebAppFactory,
+) -> None:
+    app = web_app_factory(Course([make_exercise()]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.post(
+            "/api/client-error", json={"step": "submitAnswer", "status": 409}
+        )
+
+    assert response.status_code == 204
+
+
+async def test_client_error_accepts_a_report_without_a_status(
+    web_app_factory: WebAppFactory,
+) -> None:
+    app = web_app_factory(Course([make_exercise()]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.post("/api/client-error", json={"step": "loadNext"})
+
+    assert response.status_code == 204
 
 
 async def test_two_visitors_get_distinct_student_ids(

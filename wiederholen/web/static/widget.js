@@ -541,9 +541,29 @@ class GermanExerciseWidget extends HTMLElement {
       body: JSON.stringify(body),
     });
     if (!response.ok) {
-      throw new Error(`${path} responded ${response.status}`);
+      // status is attached (not just embedded in the message string) so
+      // _reportClientError() below can report it as a real number the
+      // server can query on, not text a human has to parse back out.
+      throw Object.assign(new Error(`${path} responded ${response.status}`), {
+        status: response.status,
+      });
     }
     return response.json();
+  }
+
+  // Best-effort, fire-and-forget: POST /api/client-error turns into
+  // queryable attributes on that request's own auto-instrumented span
+  // (see CLAUDE.md's "Web frontend"/"Tracing" — the same OTel/Honeycomb
+  // pipeline the backend already uses, not a separate tool), so a real
+  // failure shows up as more than a bare docker-logs access-log line a
+  // human has to notice and manually reproduce. .catch(() => {}) here is
+  // deliberate: a failure to *report* an error must never itself become a
+  // new user-facing error — this call's own result is never awaited or
+  // otherwise allowed to affect what the caller does next.
+  _reportClientError(step, error) {
+    this._post("/api/client-error", { step, status: error?.status ?? null }).catch(
+      () => {}
+    );
   }
 
   // focusOnLoad distinguishes "this render is a direct response to the
@@ -571,7 +591,8 @@ class GermanExerciseWidget extends HTMLElement {
       }
       this._writeCachedExercise(exercise);
       this._renderQuestion(exercise, focusOnLoad);
-    } catch {
+    } catch (error) {
+      this._reportClientError("loadNext", error);
       this._renderError();
     }
   }
@@ -593,7 +614,8 @@ class GermanExerciseWidget extends HTMLElement {
       // the learner actually clicks "Next" afterward.
       this._clearCachedExercise();
       this._renderResult(result);
-    } catch {
+    } catch (error) {
+      this._reportClientError("submitAnswer", error);
       // Restores the question card's own toolbar to an error + "Next" —
       // deliberately *not* a retry of this same check_answer() call. A
       // real-world failure here is far more often a 409 (the server's
@@ -795,7 +817,8 @@ class GermanExerciseWidget extends HTMLElement {
       // one case that gating exists to avoid (see _renderQuestion()'s own
       // comment).
       input.focus({ preventScroll: true });
-    } catch {
+    } catch (error) {
+      this._reportClientError("startRecall", error);
       // Never leaves the learner stuck: restores the *current* card's own
       // toolbar to an error + a way forward, rather than adding a new
       // (empty, pointless) card for a recall that never actually arrived.
@@ -828,7 +851,8 @@ class GermanExerciseWidget extends HTMLElement {
       } else {
         this._setToolbarToActions(this._strings.recallRetry, () => this._startRecall());
       }
-    } catch {
+    } catch (error) {
+      this._reportClientError("submitRecallAnswer", error);
       // Same reasoning as _startRecall()'s own catch: restore the current
       // card's toolbar rather than adding a new card for a result that
       // never actually arrived.

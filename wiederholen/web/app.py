@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 from dataclasses import dataclass
@@ -11,8 +12,11 @@ from litestar.exceptions import HTTPException
 from litestar.plugins.opentelemetry import OpenTelemetryConfig, OpenTelemetryPlugin
 from litestar.response import Response
 from litestar.static_files import create_static_files_router
+from opentelemetry import trace
 
 _STATIC_DIR: Final = Path(__file__).parent / "static"
+
+logger = logging.getLogger(__name__)
 
 from wiederholen.school import (
     Course,
@@ -263,6 +267,39 @@ async def check_recall(
     )
 
 
+@dataclass
+class ClientErrorRequest:
+    # Which widget.js step failed — a fixed set of names the client itself
+    # chooses from (_reportClientError()'s own callers), not free text.
+    step: str
+    # The failed fetch's own HTTP status, when there was a response at all
+    # (e.g. 409 — a stale WebSessionStore session, the most common real
+    # cause) — absent for a fetch that never got a response back (offline,
+    # DNS, timeout).
+    status: int | None = None
+
+
+@post("/api/client-error", status_code=204)
+async def client_error(data: ClientErrorRequest) -> None:
+    # Best-effort, fire-and-forget from the client (see widget.js's own
+    # _reportClientError(), which swallows any failure of this call too —
+    # a broken error report must never itself become a new user-facing
+    # error). Without this, a real failure in the wild is only visible as
+    # a raw docker-logs access-log line (the 409 that prompted this
+    # endpoint) with no way to tell what the learner's browser actually
+    # did next, short of manually reproducing it. logger.warning() mirrors
+    # the bot/reminder's own logging.warning() convention, for the same
+    # signal without needing Honeycomb access; the span attributes are
+    # what make it queryable there — this request already has its own
+    # auto-instrumented span via OpenTelemetryPlugin (see create_app()),
+    # so no manual span creation is needed, just attributes on it.
+    logger.warning("Client-reported error: step=%s status=%s", data.step, data.status)
+    span = trace.get_current_span()
+    span.set_attribute("client.error.step", data.step)
+    if data.status is not None:
+        span.set_attribute("client.error.status", data.status)
+
+
 def create_app() -> Litestar:
     course, student_record_book, session_store = load_web_course_and_storage()
     widget_router = create_static_files_router(
@@ -285,6 +322,7 @@ def create_app() -> Litestar:
             check_answer,
             request_recall,
             check_recall,
+            client_error,
             widget_router,
             app_router,
         ],
