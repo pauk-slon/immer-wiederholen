@@ -1,7 +1,7 @@
 import logging
 import os
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
@@ -65,6 +65,13 @@ class ExerciseDTO:
 class CheckAnswerRequest:
     answer: str
     language: Language = "ru"
+    # Same topics the widget's own /api/exercise/next call for this exercise
+    # used — WebSessionStore's "shown exercise" is scoped by (student_id,
+    # topics), not just student_id, so this identifies *which* of a
+    # student's possibly-several concurrent widget sessions (different
+    # landing pages) this answer belongs to. See session.py's own comment
+    # for why student_id alone isn't enough.
+    topics: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -78,6 +85,8 @@ class CheckAnswerResponse:
 @dataclass
 class RecallRequest:
     language: Language = "ru"
+    # See CheckAnswerRequest.topics's own comment.
+    topics: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -89,6 +98,8 @@ class RecallDTO:
 @dataclass
 class CheckRecallRequest:
     answer: str
+    # See CheckAnswerRequest.topics's own comment.
+    topics: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -169,7 +180,7 @@ async def next_exercise(
 
     body: ExerciseDTO | None = None
     if exercise is not None:
-        await session_store.set_shown_exercise(student_id, exercise)
+        await session_store.set_shown_exercise(student_id, data.topics, exercise)
         body = _to_exercise_dto(exercise, course, data.language)
 
     response = Response(body)
@@ -192,7 +203,7 @@ async def check_answer(
     # handed (and sent back) a real cookie from an earlier request.
     student_id, _ = _student_id_from_request(request)
 
-    shown_exercise = await session_store.get_shown_exercise(student_id)
+    shown_exercise = await session_store.get_shown_exercise(student_id, data.topics)
     if shown_exercise is None:
         raise HTTPException(
             status_code=409,
@@ -221,7 +232,7 @@ async def request_recall(
     session_store: WebSessionStore = state["session_store"]
     student_id, _ = _student_id_from_request(request)
 
-    shown_exercise = await session_store.get_shown_exercise(student_id)
+    shown_exercise = await session_store.get_shown_exercise(student_id, data.topics)
     if shown_exercise is None:
         raise HTTPException(
             status_code=409,
@@ -240,7 +251,7 @@ async def request_recall(
     async with student_record_book.check_out(student_id) as student_record:
         recall = Tutor(course, student_record).request_recall(shown_exercise)
 
-    await session_store.set_shown_recall(student_id, recall)
+    await session_store.set_shown_recall(student_id, data.topics, recall)
     return Response(
         RecallDTO(
             question=recall.question,
@@ -258,7 +269,7 @@ async def check_recall(
     session_store: WebSessionStore = state["session_store"]
     student_id, _ = _student_id_from_request(request)
 
-    shown_recall = await session_store.get_shown_recall(student_id)
+    shown_recall = await session_store.get_shown_recall(student_id, data.topics)
     if shown_recall is None:
         raise HTTPException(
             status_code=409,

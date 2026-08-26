@@ -247,7 +247,9 @@ async def test_check_answer_reports_correctness_and_explanation(
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         await client.post("/api/exercise/next", json={"topics": ["government"]})
-        response = await client.post("/api/exercise/check", json={"answer": "auf"})
+        response = await client.post(
+            "/api/exercise/check", json={"answer": "auf", "topics": ["government"]}
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -264,7 +266,9 @@ async def test_check_answer_reports_wrong_answers_too(
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         await client.post("/api/exercise/next", json={"topics": ["government"]})
-        response = await client.post("/api/exercise/check", json={"answer": "für"})
+        response = await client.post(
+            "/api/exercise/check", json={"answer": "für", "topics": ["government"]}
+        )
 
     assert response.json()["correct"] is False
 
@@ -278,10 +282,41 @@ async def test_check_answer_respects_the_requested_language(
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         await client.post("/api/exercise/next", json={"topics": ["government"]})
         response = await client.post(
-            "/api/exercise/check", json={"answer": "auf", "language": "en"}
+            "/api/exercise/check",
+            json={"answer": "auf", "language": "en", "topics": ["government"]},
         )
 
     assert response.json()["explanation"] == exercise.explanation["en"]
+
+
+async def test_check_answer_is_scoped_to_its_own_topics(
+    web_app_factory: WebAppFactory,
+) -> None:
+    # The reported bug this scoping scheme exists to fix: visiting a second
+    # landing page (different topics) between loading a question and
+    # answering it used to make check_answer() compare the answer against
+    # the *second* page's exercise instead — reporting "incorrect" and
+    # citing the wrong page's answer as correct, even for a genuinely
+    # correct answer. Same student (one shared cookie/client), two
+    # different topics — simulating two different pages open in sequence.
+    government = make_exercise(word="warten", topic="government", answer="auf")
+    partizip = make_exercise(word="sprechen", topic="partizip_ii", answer="gesprochen")
+    app = web_app_factory(Course([government, partizip]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        # Visiting the second page's widget in between — this used to
+        # overwrite the *same* server-side slot the first page's answer
+        # would later be checked against.
+        await client.post("/api/exercise/next", json={"topics": ["partizip_ii"]})
+        response = await client.post(
+            "/api/exercise/check", json={"answer": "auf", "topics": ["government"]}
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["correct"] is True
+    assert body["answer"] == "auf"
 
 
 async def test_request_recall_returns_a_recall_question(
@@ -292,8 +327,12 @@ async def test_request_recall_returns_a_recall_question(
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         await client.post("/api/exercise/next", json={"topics": ["government"]})
-        await client.post("/api/exercise/check", json={"answer": "auf"})
-        response = await client.post("/api/exercise/recall", json={})
+        await client.post(
+            "/api/exercise/check", json={"answer": "auf", "topics": ["government"]}
+        )
+        response = await client.post(
+            "/api/exercise/recall", json={"topics": ["government"]}
+        )
 
     assert response.status_code == 200
     assert response.json()["question"] == exercise.recalls[0].question
@@ -310,8 +349,13 @@ async def test_request_recall_respects_the_requested_language(
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         await client.post("/api/exercise/next", json={"topics": ["government"]})
-        await client.post("/api/exercise/check", json={"answer": "auf"})
-        response = await client.post("/api/exercise/recall", json={"language": "en"})
+        await client.post(
+            "/api/exercise/check", json={"answer": "auf", "topics": ["government"]}
+        )
+        response = await client.post(
+            "/api/exercise/recall",
+            json={"language": "en", "topics": ["government"]},
+        )
 
     assert response.json()["hint"] == "hint"
 
@@ -337,10 +381,13 @@ async def test_check_recall_reports_correctness(
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         await client.post("/api/exercise/next", json={"topics": ["government"]})
-        await client.post("/api/exercise/check", json={"answer": "auf"})
-        await client.post("/api/exercise/recall", json={})
+        await client.post(
+            "/api/exercise/check", json={"answer": "auf", "topics": ["government"]}
+        )
+        await client.post("/api/exercise/recall", json={"topics": ["government"]})
         response = await client.post(
-            "/api/exercise/recall/check", json={"answer": "Ich warte auf den Bus."}
+            "/api/exercise/recall/check",
+            json={"answer": "Ich warte auf den Bus.", "topics": ["government"]},
         )
 
     assert response.status_code == 200
@@ -359,10 +406,13 @@ async def test_check_recall_reports_wrong_answers_too(
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         await client.post("/api/exercise/next", json={"topics": ["government"]})
-        await client.post("/api/exercise/check", json={"answer": "auf"})
-        await client.post("/api/exercise/recall", json={})
+        await client.post(
+            "/api/exercise/check", json={"answer": "auf", "topics": ["government"]}
+        )
+        await client.post("/api/exercise/recall", json={"topics": ["government"]})
         response = await client.post(
-            "/api/exercise/recall/check", json={"answer": "wrong"}
+            "/api/exercise/recall/check",
+            json={"answer": "wrong", "topics": ["government"]},
         )
 
     assert response.json()["correct"] is False
@@ -376,9 +426,12 @@ async def test_check_recall_without_a_shown_recall_is_a_conflict(
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         await client.post("/api/exercise/next", json={"topics": ["government"]})
-        await client.post("/api/exercise/check", json={"answer": "auf"})
+        await client.post(
+            "/api/exercise/check", json={"answer": "auf", "topics": ["government"]}
+        )
         response = await client.post(
-            "/api/exercise/recall/check", json={"answer": "anything"}
+            "/api/exercise/recall/check",
+            json={"answer": "anything", "topics": ["government"]},
         )
 
     assert response.status_code == 409
