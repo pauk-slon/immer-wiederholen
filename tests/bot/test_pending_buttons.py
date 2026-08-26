@@ -40,9 +40,8 @@ async def test_clear_stale_buttons_does_nothing_when_none_pending() -> None:
     bot = AsyncMock(spec=Bot)
     state = AsyncMock(spec=FSMContext)
     state.get_data.return_value = {}
-    message = _make_message(bot=bot)
 
-    await clear_stale_buttons(message, state)
+    await clear_stale_buttons(bot, 1, state)
 
     bot.edit_message_reply_markup.assert_not_awaited()
     state.update_data.assert_not_awaited()
@@ -52,9 +51,8 @@ async def test_clear_stale_buttons_clears_and_forgets_a_pending_message() -> Non
     bot = AsyncMock(spec=Bot)
     state = AsyncMock(spec=FSMContext)
     state.get_data.return_value = {"last_buttoned_message_id": 77}
-    message = _make_message(bot=bot)
 
-    await clear_stale_buttons(message, state)
+    await clear_stale_buttons(bot, 1, state)
 
     bot.edit_message_reply_markup.assert_awaited_once_with(
         chat_id=1, message_id=77, reply_markup=None
@@ -66,12 +64,11 @@ async def test_clear_stale_buttons_forgets_even_if_the_message_is_gone() -> None
     bot = AsyncMock(spec=Bot)
     state = AsyncMock(spec=FSMContext)
     state.get_data.return_value = {"last_buttoned_message_id": 77}
-    message = _make_message(bot=bot)
     method = EditMessageReplyMarkup(chat_id=1, message_id=77)
     bot.edit_message_reply_markup.side_effect = TelegramBadRequest(
         method=method, message="message to edit not found"
     )
 
-    await clear_stale_buttons(message, state)
+    await clear_stale_buttons(bot, 1, state)
 
     state.update_data.assert_awaited_once_with(last_buttoned_message_id=None)

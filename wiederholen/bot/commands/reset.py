@@ -43,7 +43,7 @@ def _make_confirm_buttons(locale: Locale) -> InlineKeyboardMarkup:
 
 @router.message(Command("reset"))
 async def command_reset(message: Message, state: FSMContext) -> None:
-    await clear_stale_buttons(message, state)
+    await clear_stale_buttons(message.bot, message.chat.id, state)
     language = get_language(await state.get_data())
     locale = LOCALES[language]
     sent = await message.answer(

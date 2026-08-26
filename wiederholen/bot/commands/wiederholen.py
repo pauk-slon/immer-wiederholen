@@ -252,7 +252,7 @@ async def command_wiederholen(
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
 ) -> None:
-    await clear_stale_buttons(message, state)
+    await clear_stale_buttons(message.bot, message.chat.id, state)
     # An example check point for #121's flag mechanism — no visible effect
     # yet, just a span attribute for whoever's testing the flag right now.
     if has_feature(feature_flags or {}, "ai_exercises", message.chat.id):
