@@ -669,9 +669,19 @@ class GermanExerciseWidget extends HTMLElement {
     // result card is added below.
     this._setToolbar(`<p class="muted">…</p>`);
     try {
+      // topics identifies *which* of this student's possibly-several
+      // concurrent widget sessions (different landing pages sharing one
+      // wiederholen_student_id cookie) this answer belongs to — the server
+      // scopes "shown exercise" by (student_id, topics), not just
+      // student_id, precisely so answering here after having since visited
+      // a different topics page doesn't get checked against *that* page's
+      // exercise instead (caught from a real user report). Every call below
+      // that reads back a shown exercise/recall passes the same topics for
+      // the same reason.
       const result = await this._post("/api/exercise/check", {
         answer,
         language: this._language,
+        topics: this._topics,
       });
       // The just-answered exercise is no longer "pending" — a reload right
       // now must not resurrect it from cache and let it be answered again,
@@ -951,6 +961,7 @@ class GermanExerciseWidget extends HTMLElement {
     try {
       const recall = await this._post("/api/exercise/recall", {
         language: this._language,
+        topics: this._topics,
       });
       this._dropRecallCards();
       // A recall question is still a question — reuses .question/
@@ -1010,7 +1021,10 @@ class GermanExerciseWidget extends HTMLElement {
     // explanation card before there's a real result to show.
     this._setToolbar(`<p class="muted">…</p>`);
     try {
-      const result = await this._post("/api/exercise/recall/check", { answer });
+      const result = await this._post("/api/exercise/recall/check", {
+        answer,
+        topics: this._topics,
+      });
       this._dropRecallCards();
       // A new card for the verdict alone — a single-child .centered-pair
       // centers it exactly the same way a two-child one does (align-items/
