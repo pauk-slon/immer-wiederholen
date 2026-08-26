@@ -814,7 +814,14 @@ class GermanExerciseWidget extends HTMLElement {
   // needs no change at all to handle it (see app.py). Skips .centered-pair,
   // unlike _renderQuestion()'s own typed/choice layout above: this content
   // needs normal top-down reading order, with most of the card's height
-  // left for the tiles themselves, not flashcard centering.
+  // left for the tiles themselves, not flashcard centering. The empty
+  // .word-order-assembled row starts with no placeholder text at all — an
+  // earlier version showed a muted "…" there, dropped per a direct user
+  // report: it read as a loading indicator ("still working on something"),
+  // not as "drop words here". .word-order-assembled's own min-height plus
+  // its dashed bottom border already mark it as a real, bounded drop zone
+  // without needing any text inside it, and the instruction line above
+  // already says what to do.
   _renderWordOrderQuestion(exercise, instruction, description) {
     const tilesHtml = exercise.word_bank
       .map((word) => `<button type="button" data-tile>${escapeHtml(word)}</button>`)
@@ -823,19 +830,16 @@ class GermanExerciseWidget extends HTMLElement {
       `<div class="card"><div class="body">${instruction}` +
         `<p class="question">❓ ${escapeHtml(exercise.question)}</p>${description}` +
         `<div class="word-order">` +
-        `<div class="word-order-assembled" data-assembled>` +
-        `<span class="muted" data-placeholder>…</span></div>` +
+        `<div class="word-order-assembled" data-assembled></div>` +
         `<div class="word-order-bank" data-bank>${tilesHtml}</div>` +
         `</div></div><div class="toolbar"></div></div>`
     );
     const card = this._currentCard;
     const bank = card.querySelector("[data-bank]");
     const assembled = card.querySelector("[data-assembled]");
-    const placeholder = card.querySelector("[data-placeholder]");
     card.querySelectorAll("[data-tile]").forEach((tile) => {
       tile.addEventListener("click", () => {
         (tile.parentElement === bank ? assembled : bank).appendChild(tile);
-        placeholder.hidden = assembled.querySelector("[data-tile]") !== null;
         if (bank.children.length === 0) {
           const answer = Array.from(assembled.querySelectorAll("[data-tile]"))
             .map((t) => t.textContent)
