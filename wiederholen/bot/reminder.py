@@ -3,14 +3,17 @@ import logging
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError
+from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 
+from wiederholen.bot.commands.wiederholen import make_next_button
 from wiederholen.school import Course, StudentRecordBook, Tutor
 from wiederholen.tracing import configure_tracing, default_tracer, instrument_redis
 
 from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES, get_language
+from .pending_buttons import clear_stale_buttons, remember_buttoned_message
 from .telegram_student_id import NotATelegramStudentIdError, TelegramStudentID
 
 logger = logging.getLogger(__name__)
@@ -36,18 +39,39 @@ async def _remind_chat(
                 return
             # language lives in aiogram's own FSM data, not the student_record —
             # this is the one point reminder.py still needs a real aiogram
-            # storage for (see "Persistence" in CLAUDE.md).
-            data = await fsm_storage.get_data(
-                StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=chat_id)
+            # storage for (see "Persistence" in CLAUDE.md). The same FSMContext
+            # also backs clear_stale_buttons()/remember_buttoned_message() below
+            # — reminder.py has no incoming Message the way a command handler
+            # does, but a StorageKey built from bot_id/chat_id/user_id is exactly
+            # what FSMContext wraps either way, so the pending_buttons helpers
+            # work identically here.
+            state = FSMContext(
+                storage=fsm_storage,
+                key=StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=chat_id),
             )
+            data = await state.get_data()
             locale = LOCALES[get_language(data)]
             try:
-                await bot.send_message(chat_id, locale.reminder_text)
+                # Clears whatever button group is still attached to an earlier
+                # message (e.g. a "Следующее задание" prompt the learner never
+                # tapped) before attaching a fresh one here — without this, a
+                # reminder used to leave that old button dangling forever, the
+                # same problem clear_stale_buttons() already solves for every
+                # command entry point (see its own module docstring). Both
+                # calls can raise TelegramForbiddenError for the same
+                # underlying reason (the chat blocked the bot), so one
+                # try/except covers both rather than duplicating the same
+                # catch twice.
+                await clear_stale_buttons(bot, chat_id, state)
+                sent = await bot.send_message(
+                    chat_id, locale.reminder_text, reply_markup=make_next_button(locale)
+                )
             except TelegramForbiddenError:
                 logger.info("Chat %s blocked the bot, skipping", chat_id)
                 return
             span.set_attribute("reminder.sent", True)
             tutor.record_reminder_sent()
+            await remember_buttoned_message(state, sent)
             # No explicit save here — student_record_book.check_out() persists the
             # record_reminder_sent() mutation on exit; the two early returns
             # above left the student_record untouched, so open() writes nothing for

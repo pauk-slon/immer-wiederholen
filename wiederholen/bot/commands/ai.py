@@ -21,7 +21,7 @@ async def command_ai(
     # other check points (see feature_flags.py).
     if not has_feature(feature_flags or {}, "ai_exercises", message.chat.id):
         return
-    await clear_stale_buttons(message, state)
+    await clear_stale_buttons(message.bot, message.chat.id, state)
     data = await state.get_data()
     locale = LOCALES[get_language(data)]
     ai_mode = not data.get("ai_mode", False)
