@@ -108,6 +108,68 @@ async def test_next_exercise_omits_choices_for_a_typed_input_exercise(
     assert response.json()["choices"] is None
 
 
+async def test_next_exercise_omits_word_bank_when_exercise_has_none(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(word="warten", distractors=[])
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.post(
+            "/api/exercise/next", json={"topics": ["government"]}
+        )
+
+    assert response.json()["word_bank"] is None
+
+
+async def test_next_exercise_returns_a_shuffled_word_bank(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(
+        word="weil",
+        topic="nebensatzkonjunktion_wortstellung",
+        answer="weil er heute keine Zeit hat",
+        distractors=[],
+        word_bank=["weil", "er", "heute", "keine Zeit", "hat"],
+    )
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.post(
+            "/api/exercise/next",
+            json={"topics": ["nebensatzkonjunktion_wortstellung"]},
+        )
+
+    body = response.json()
+    assert body["choices"] is None
+    assert exercise.word_bank is not None
+    assert sorted(body["word_bank"]) == sorted(exercise.word_bank)
+
+
+async def test_next_exercise_word_bank_for_a_single_chunk_answer_is_unshuffled(
+    web_app_factory: WebAppFactory,
+) -> None:
+    # shuffle_word_bank()'s reshuffle-until-different loop would spin
+    # forever on a single chunk — there's no other permutation to land on —
+    # so it returns the one-element list as-is instead.
+    exercise = make_exercise(
+        word="weil",
+        topic="nebensatzkonjunktion_wortstellung",
+        answer="Ja",
+        distractors=[],
+        word_bank=["Ja"],
+    )
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.post(
+            "/api/exercise/next",
+            json={"topics": ["nebensatzkonjunktion_wortstellung"]},
+        )
+
+    assert response.json()["word_bank"] == ["Ja"]
+
+
 async def test_next_exercise_reuses_an_existing_session_without_resetting_the_cookie(
     web_app_factory: WebAppFactory,
 ) -> None:

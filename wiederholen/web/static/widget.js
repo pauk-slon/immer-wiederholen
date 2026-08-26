@@ -330,6 +330,47 @@ const STYLES = `
     grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
   }
+  /* Tap-to-arrange word-order tiles (konjunktion_wortstellung/
+     nebensatzkonjunktion_wortstellung-style exercises — see
+     _renderWordOrderQuestion()). flex-wrap, not .choices's own fixed
+     2-column grid: a sentence's word count varies far more than "almost
+     always 4" multiple-choice options, so a fixed grid would either leave
+     ragged empty cells or force an awkwardly narrow wrap mid-word for a
+     longer sentence. min-height on both rows keeps the layout from
+     visibly collapsing/jumping as tiles move between them — most
+     noticeably right when the bank empties out and would otherwise shrink
+     to nothing. */
+  .word-order {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .word-order-bank,
+  .word-order-assembled {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+  }
+  .word-order-assembled {
+    border-bottom: 1px dashed var(--gew-border);
+    padding-bottom: 0.75rem;
+  }
+  /* An assembled tile reads as "chosen", not just relocated — filled with
+     the same primary color used for a forward action elsewhere, so the
+     bank/assembled rows are distinguishable at a glance, not only by
+     position. :disabled (set the instant the bank empties, right before
+     auto-submitting) keeps a tap from doing anything further while that
+     submission is in flight. */
+  .word-order-assembled button[data-tile] {
+    background: var(--gew-primary);
+    color: white;
+    border-color: var(--gew-primary);
+  }
+  .word-order-assembled button[data-tile]:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
   button, input[type="text"] {
     font: inherit;
     border-radius: 0.375rem;
@@ -690,6 +731,16 @@ class GermanExerciseWidget extends HTMLElement {
     const instruction = exercise.instruction
       ? `<p class="instruction">ℹ️ ${escapeHtml(exercise.instruction)}</p>`
       : "";
+    // word_bank exercises get a wholly different body layout (see
+    // _renderWordOrderQuestion()'s own comment for why) rather than a third
+    // branch of answerArea below — the tile UI isn't just a different
+    // "answer control" sitting under the same question+description
+    // treatment, it needs plain top-down reading order instead of
+    // .centered-pair's flashcard centering.
+    if (exercise.word_bank) {
+      this._renderWordOrderQuestion(exercise, instruction, description);
+      return;
+    }
     const answerArea = exercise.choices
       ? `<div class="choices">${exercise.choices
           .map((choice) => `<button data-choice>${escapeHtml(choice)}</button>`)
@@ -743,6 +794,67 @@ class GermanExerciseWidget extends HTMLElement {
         input.focus({ preventScroll: true });
       }
     }
+  }
+
+  // Tap-to-arrange word-order exercises (konjunktion_wortstellung/
+  // nebensatzkonjunktion_wortstellung — see wiederholen/web/app.py's own
+  // word_bank comment): the learner reorders a scrambled word bank instead
+  // of typing the whole sentence out by hand, a genuine complaint from a
+  // direct user report ("очень ломает... из-за того, что надо много
+  // печатать") now that the widget isn't limited to a chat's text input the
+  // way the Telegram bot is. Tapping a bank tile moves it to the end of the
+  // assembled row; tapping an assembled tile sends it back to the end of
+  // the bank — full reordering flexibility without drag-and-drop. Tiles are
+  // tracked as the actual DOM elements moved between the two containers,
+  // not by their text, so two identical words (e.g. two "der" tiles) are
+  // each independently clickable without any special-casing. No submit
+  // button: once the bank is empty, the assembled tiles' text joins with
+  // " " and goes straight to the existing _submitAnswer() — reconstructing
+  // exercise.answer exactly when arranged correctly, so check_answer()
+  // needs no change at all to handle it (see app.py). Skips .centered-pair,
+  // unlike _renderQuestion()'s own typed/choice layout above: this content
+  // needs normal top-down reading order, with most of the card's height
+  // left for the tiles themselves, not flashcard centering. The empty
+  // .word-order-assembled row starts with no placeholder text at all — an
+  // earlier version showed a muted "…" there, dropped per a direct user
+  // report: it read as a loading indicator ("still working on something"),
+  // not as "drop words here". .word-order-assembled's own min-height plus
+  // its dashed bottom border already mark it as a real, bounded drop zone
+  // without needing any text inside it, and the instruction line above
+  // already says what to do.
+  _renderWordOrderQuestion(exercise, instruction, description) {
+    const tilesHtml = exercise.word_bank
+      .map((word) => `<button type="button" data-tile>${escapeHtml(word)}</button>`)
+      .join("");
+    this._render(
+      `<div class="card"><div class="body">${instruction}` +
+        `<p class="question">❓ ${escapeHtml(exercise.question)}</p>${description}` +
+        `<div class="word-order">` +
+        `<div class="word-order-assembled" data-assembled></div>` +
+        `<div class="word-order-bank" data-bank>${tilesHtml}</div>` +
+        `</div></div><div class="toolbar"></div></div>`
+    );
+    const card = this._currentCard;
+    const bank = card.querySelector("[data-bank]");
+    const assembled = card.querySelector("[data-assembled]");
+    card.querySelectorAll("[data-tile]").forEach((tile) => {
+      tile.addEventListener("click", () => {
+        (tile.parentElement === bank ? assembled : bank).appendChild(tile);
+        if (bank.children.length === 0) {
+          const answer = Array.from(assembled.querySelectorAll("[data-tile]"))
+            .map((t) => t.textContent)
+            .join(" ");
+          // Frozen before submitting, same reasoning as _addCard()'s own
+          // toolbar-freezing: check_answer() isn't idempotent, and without
+          // this a tap on an assembled tile while the request is in flight
+          // could send it back to the bank mid-submission.
+          assembled
+            .querySelectorAll("[data-tile]")
+            .forEach((t) => (t.disabled = true));
+          this._submitAnswer(answer);
+        }
+      });
+    });
   }
 
   _renderResult(result) {

@@ -25,6 +25,7 @@ from wiederholen.school import (
     StudentID,
     StudentRecordBook,
     Tutor,
+    shuffle_word_bank,
 )
 from wiederholen.web.bootstrap import load_web_course_and_storage
 from wiederholen.web.session import WebSessionStore
@@ -50,6 +51,14 @@ class ExerciseDTO:
     choices: list[str] | None
     description: str | None
     instruction: str | None
+    # Only set for an Exercise.word_bank exercise — its phrase chunks,
+    # shuffled fresh for this response, for the widget's tap-to-arrange tile
+    # UI. Reassembling them in the correct order and joining with " "
+    # reconstructs `answer` exactly (Exercise.__post_init__ already
+    # guarantees " ".join(word_bank) == answer), so no change to
+    # check_answer()'s own comparison is needed; the widget just submits
+    # that joined string like any typed answer.
+    word_bank: list[str] | None = None
 
 
 @dataclass
@@ -127,6 +136,7 @@ def _to_exercise_dto(
     if exercise.distractors:
         choices = [*exercise.distractors, exercise.answer]
         random.shuffle(choices)
+    word_bank = shuffle_word_bank(exercise.word_bank) if exercise.word_bank else None
     return ExerciseDTO(
         word=exercise.word,
         topic=exercise.topic,
@@ -134,6 +144,7 @@ def _to_exercise_dto(
         choices=choices,
         description=exercise.description[language] if exercise.description else None,
         instruction=course.topic_instructions.get(exercise.topic, {}).get(language),
+        word_bank=word_bank,
     )
 
 
