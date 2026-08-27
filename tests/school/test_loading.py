@@ -89,6 +89,7 @@ class TestTopicsConfigLoading:
         assert course.answer_chained_topics == {}
         assert course.topic_instructions == {}
         assert course.ai_generatable_topics == frozenset()
+        assert course.cue_generatable_topics == frozenset()
 
     def test_loads_chains_and_gates(
         self,
@@ -147,6 +148,7 @@ class TestTopicsConfigLoading:
         assert course.answer_chained_topics == {}
         assert course.topic_instructions == {}
         assert course.ai_generatable_topics == frozenset()
+        assert course.cue_generatable_topics == frozenset()
 
     def test_loads_topic_instructions(
         self,
@@ -214,6 +216,35 @@ class TestTopicsConfigLoading:
         ):
             course = Course.load(tmp_path)
         assert course.ai_generatable_topics == frozenset()
+
+    def test_loads_cue_generation_flag(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        data = {
+            "preposition_meaning": {"cue_generation": True},
+            "partizip_ii": {"chains": ["preteritum"]},
+        }
+        with (
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            course = Course.load(tmp_path)
+        assert course.cue_generatable_topics == frozenset({"preposition_meaning"})
+
+    def test_cue_generation_false_is_not_included(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        data = {"preposition_meaning": {"cue_generation": False}}
+        with (
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            course = Course.load(tmp_path)
+        assert course.cue_generatable_topics == frozenset()
 
 
 class TestRecallValidation:

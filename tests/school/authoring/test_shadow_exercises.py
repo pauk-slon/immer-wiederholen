@@ -6,7 +6,7 @@ from anthropic import AnthropicError, AsyncAnthropic
 from anthropic.types import Message, TextBlock, ToolUseBlock
 
 from tests.plugins.curriculum import RecallKwargs, make_exercise
-from wiederholen.school.authoring import (
+from wiederholen.school.authoring.shadow_exercises import (
     _TOOL_NAME,
     MODEL,
     AIGenerationError,

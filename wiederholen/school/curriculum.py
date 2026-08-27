@@ -1,3 +1,4 @@
+import hashlib
 import random
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
@@ -80,6 +81,23 @@ class Exercise:
             d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
         return cls(**d)
 
+    @property
+    def cue_key(self) -> str:
+        # A hash of `question`, not a stored field — this is the one place
+        # the derivation lives, so wiederholen.cues (the worker, which
+        # uploads under this key) and wiederholen.school.cue_store (which
+        # looks it up at render time) can never disagree about what an
+        # exercise's key is. Deliberately keyed by `question`, not e.g.
+        # `word`+`topic`: several exercises in the same _meaning topic can
+        # share a word while each describing a distinct, separately-
+        # illustrated sentence (see CLAUDE.md's "AI-generated exercises").
+        # A consequence worth accepting rather than working around: editing
+        # `question` later (as the word_bank migration did) changes this
+        # hash, silently orphaning whatever cue was generated for the old
+        # wording — safe (never a mismatched cue), just means a re-run of
+        # the worker is needed after a content edit that touches wording.
+        return hashlib.sha256(self.question.encode()).hexdigest()
+
 
 def shuffle_word_bank(word_bank: Sequence[str]) -> list[str]:
     # Shared by wiederholen.bot (re-inserted as a "(a / b / c)" parenthetical
@@ -105,6 +123,7 @@ class _TopicsConfig(TypedDict):
     gated_topics: frozenset[str]
     topic_instructions: dict[str, dict[Language, str]]
     ai_generatable_topics: frozenset[str]
+    cue_generatable_topics: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -126,6 +145,9 @@ class Course:
     ai_generatable_topics: frozenset[str] = field(
         default_factory=frozenset, kw_only=True
     )
+    cue_generatable_topics: frozenset[str] = field(
+        default_factory=frozenset, kw_only=True
+    )
 
     @staticmethod
     def _load_exercises(path: Path) -> list[Exercise]:
@@ -142,6 +164,7 @@ class Course:
                 gated_topics=frozenset(),
                 topic_instructions={},
                 ai_generatable_topics=frozenset(),
+                cue_generatable_topics=frozenset(),
             )
         with open(path) as f:
             data = yaml.safe_load(f) or {}
@@ -150,6 +173,7 @@ class Course:
         answer_chained_topics: dict[str, list[str]] = {}
         topic_instructions: dict[str, dict[Language, str]] = {}
         ai_generatable_topics: set[str] = set()
+        cue_generatable_topics: set[str] = set()
         for source, relations in data.items():
             chains = relations.get("chains", [])
             gates = relations.get("gates", [])
@@ -161,12 +185,15 @@ class Course:
                 topic_instructions[source] = instruction
             if relations.get("ai_generation"):
                 ai_generatable_topics.add(source)
+            if relations.get("cue_generation"):
+                cue_generatable_topics.add(source)
         return _TopicsConfig(
             word_chained_topics=word_chained_topics,
             answer_chained_topics=answer_chained_topics,
             gated_topics=frozenset(gated_topics),
             topic_instructions=topic_instructions,
             ai_generatable_topics=frozenset(ai_generatable_topics),
+            cue_generatable_topics=frozenset(cue_generatable_topics),
         )
 
     @classmethod
@@ -183,8 +210,9 @@ class Course:
         # (word, topic), not by which Course object selected them.
         #
         # word_chained_topics/answer_chained_topics/gated_topics/
-        # topic_instructions/ai_generatable_topics are deliberately left
-        # untouched rather than filtered down too: a chain/gate pointing at
+        # topic_instructions/ai_generatable_topics/cue_generatable_topics
+        # are deliberately left untouched rather than filtered down too: a
+        # chain/gate pointing at
         # a topic excluded here just never finds an exercise to expedite
         # (Tutor._expedite_dependent() already treats "dependent topic has
         # no exercises" as a no-op, the same case a topic with genuinely no

@@ -32,6 +32,7 @@ def test_restricted_to_leaves_chains_gates_and_instructions_untouched() -> None:
         gated_topics=frozenset({"preposition_meaning"}),
         topic_instructions={"preposition_meaning": {"ru": "x", "en": "y"}},
         ai_generatable_topics=frozenset({"government"}),
+        cue_generatable_topics=frozenset({"government"}),
     )
 
     restricted = course.restricted_to(["government"])
@@ -46,6 +47,21 @@ def test_restricted_to_leaves_chains_gates_and_instructions_untouched() -> None:
         "preposition_meaning": {"ru": "x", "en": "y"}
     }
     assert restricted.ai_generatable_topics == frozenset({"government"})
+    assert restricted.cue_generatable_topics == frozenset({"government"})
+
+
+def test_cue_key_is_deterministic_for_the_same_question() -> None:
+    exercise = make_exercise(word="warten")
+    other = make_exercise(word="warten")
+
+    assert exercise.cue_key == other.cue_key
+
+
+def test_cue_key_differs_for_a_different_question() -> None:
+    a = make_exercise(word="warten")
+    b = make_exercise(word="sprechen")
+
+    assert a.cue_key != b.cue_key
 
 
 def test_shuffle_word_bank_returns_a_permutation_of_the_input() -> None:
