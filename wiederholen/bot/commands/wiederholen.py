@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import difflib
 import html
+import logging
 import random
 from collections.abc import AsyncIterator
 from typing import Final
@@ -33,6 +34,7 @@ from wiederholen.bot.telegram_student_id import TelegramStudentID
 from wiederholen.school import (
     AIGenerationError,
     Course,
+    CueStore,
     Exercise,
     Language,
     Recall,
@@ -43,11 +45,20 @@ from wiederholen.school import (
     shuffle_word_bank,
 )
 
+logger = logging.getLogger(__name__)
+
 router = Router()
 
 NEXT_EXERCISE: Final = "__next__"
 RECALL: Final = "__recall__"
 STUDY_MORE: Final = "__study_more__"
+
+# Telegram's own limit for a photo's caption — well below the 4096 a plain
+# text message gets. A question long enough to exceed it (word_bank's own
+# parenthetical, description, instruction all appended — see
+# _format_question()) falls back to a plain text message instead of a
+# truncated caption; see _answer_with_optional_cue().
+_PHOTO_CAPTION_LIMIT: Final = 1024
 
 
 class UserState(StatesGroup):
@@ -178,6 +189,44 @@ def _show_exercise_kwargs(exercise: Exercise) -> dict:
     return {"reply_markup": ReplyKeyboardRemove()}
 
 
+async def _answer_with_optional_cue(
+    target: Message,
+    text: str,
+    exercise: Exercise,
+    course: Course,
+    cue_store: CueStore | None,
+    **kwargs,
+) -> None:
+    # Only for topics the content repo has explicitly opted in via
+    # topics.yaml's cue_generation flag (see Course.cue_generatable_topics)
+    # — mirrors ai_generatable_topics's own per-topic gating, and for the
+    # same reason: whether an exercise's topic even has anything worth
+    # illustrating is a decision made once for the topic, not implied by
+    # whatever else the exercise happens to carry.
+    cue_url = None
+    if (
+        cue_store is not None
+        and exercise.topic in course.cue_generatable_topics
+        and len(text) <= _PHOTO_CAPTION_LIMIT
+    ):
+        try:
+            cue_url = await cue_store.get_cue_url(exercise)
+        except Exception:
+            # Best-effort, same shape as clear_stale_buttons()'s own
+            # TelegramBadRequest swallowing: a failed cue lookup degrades
+            # to the plain-text question rather than breaking the exercise
+            # flow — a learner is never blocked from practicing by an R2
+            # hiccup.
+            logger.warning(
+                "Failed to look up cue for exercise, falling back to text",
+                exc_info=True,
+            )
+    if cue_url is not None:
+        await target.answer_photo(cue_url, caption=text, **kwargs)
+    else:
+        await target.answer(text, **kwargs)
+
+
 _TYPING_INTERVAL_SECONDS: Final = 4  # Telegram's own indicator lasts ~5s
 
 
@@ -251,6 +300,7 @@ async def command_wiederholen(
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
+    cue_store: CueStore | None = None,
 ) -> None:
     await clear_stale_buttons(message.bot, message.chat.id, state)
     # An example check point for #121's flag mechanism — no visible effect
@@ -299,7 +349,14 @@ async def command_wiederholen(
         question_text = _format_question(
             exercise, language, course, is_ai_generated=ai_mode
         )
-        await message.answer(question_text, **_show_exercise_kwargs(exercise))
+        await _answer_with_optional_cue(
+            message,
+            question_text,
+            exercise,
+            course,
+            cue_store,
+            **_show_exercise_kwargs(exercise),
+        )
 
 
 @router.message(UserState.answering)
@@ -411,6 +468,7 @@ async def _respond_with_next_exercise(
     ai_mode: bool,
     anthropic_client: AsyncAnthropic | None,
     authoring_guide: str | None,
+    cue_store: CueStore | None,
 ) -> None:
     # tutor already wraps the student_record its caller opened via
     # student_record_book.check_out() — this function only ever mutates through
@@ -457,7 +515,14 @@ async def _respond_with_next_exercise(
         question_text = _format_question(
             exercise, language, course, is_ai_generated=ai_mode
         )
-        await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
+        await _answer_with_optional_cue(
+            callback.message,
+            question_text,
+            exercise,
+            course,
+            cue_store,
+            **_show_exercise_kwargs(exercise),
+        )
     await callback.answer()
 
 
@@ -469,6 +534,7 @@ async def handle_next_exercise(
     student_record_book: StudentRecordBook,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
+    cue_store: CueStore | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -487,6 +553,7 @@ async def handle_next_exercise(
             ai_mode=state_data.get("ai_mode", False),
             anthropic_client=anthropic_client,
             authoring_guide=authoring_guide,
+            cue_store=cue_store,
         )
 
 
@@ -498,6 +565,7 @@ async def handle_study_more(
     student_record_book: StudentRecordBook,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
+    cue_store: CueStore | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -517,6 +585,7 @@ async def handle_study_more(
             ai_mode=state_data.get("ai_mode", False),
             anthropic_client=anthropic_client,
             authoring_guide=authoring_guide,
+            cue_store=cue_store,
         )
 
 

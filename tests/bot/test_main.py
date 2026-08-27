@@ -23,7 +23,7 @@ from tests.plugins.curriculum import ExerciseData, make_exercise_data
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.bot.l10n import LOCALES
-from wiederholen.school import Course, StudentRecordBook, Tutor
+from wiederholen.school import Course, CueStore, StudentRecordBook, Tutor
 
 
 @pytest.fixture
@@ -59,6 +59,7 @@ def _env(
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("AUTHORING_GUIDE_PATH", raising=False)
     monkeypatch.delenv("BOT_FEATURE_FLAGS", raising=False)
+    monkeypatch.delenv("R2_ACCOUNT_ID", raising=False)
     with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         yield None
@@ -121,6 +122,7 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert kwargs["feature_flags"] == {}
     assert kwargs["anthropic_client"] is None
     assert kwargs["authoring_guide"] is None
+    assert kwargs["cue_store"] is None
     exercise = Tutor(kwargs["course"], {}).next_exercise()
     assert exercise is not None
     loaded_exercise = exercise.to_dict()
@@ -159,6 +161,22 @@ async def test_starts_polling_with_anthropic_client_and_guide_from_env(
     _args, kwargs = mock_polling.call_args
     assert isinstance(kwargs["anthropic_client"], AsyncAnthropic)
     assert kwargs["authoring_guide"] == "guide text"
+
+
+async def test_starts_polling_with_cue_store_from_env(
+    monkeypatch, mock_main_io: MockMainIO
+) -> None:
+    monkeypatch.setenv("R2_ACCOUNT_ID", "acc")
+    monkeypatch.setenv("R2_ACCESS_KEY_ID", "key")
+    monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("R2_BUCKET", "images")
+    monkeypatch.setenv("R2_PUBLIC_URL_BASE", "https://images.example.com")
+
+    with mock_main_io() as (_mock_request, mock_polling):
+        await main()
+
+    _args, kwargs = mock_polling.call_args
+    assert isinstance(kwargs["cue_store"], CueStore)
 
 
 async def test_configures_redis_storage_from_env(

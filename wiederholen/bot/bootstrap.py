@@ -5,13 +5,38 @@ from aiogram import Bot
 from aiogram.fsm.storage.redis import RedisStorage
 from anthropic import AsyncAnthropic
 
-from wiederholen.school import Course, RedisStudentRecordBook, StudentRecordBook
+from wiederholen.school import (
+    CachedCueStore,
+    Course,
+    CueStore,
+    R2CueStore,
+    RedisStudentRecordBook,
+    StudentRecordBook,
+)
 
 from .feature_flags import parse_feature_flags
 
 
 def load_student_record_book() -> StudentRecordBook:
     return RedisStudentRecordBook.from_url(os.environ["STUDENT_RECORD_STORAGE_URL"])
+
+
+def load_cue_store() -> CueStore | None:
+    # Optional, same "absence means off" shape as load_anthropic_client():
+    # only a deployment that's actually set up R2 needs this, and this
+    # project's own local dev/CI runs don't have real R2 credentials.
+    account_id = os.environ.get("R2_ACCOUNT_ID")
+    if not account_id:
+        return None
+    return CachedCueStore(
+        R2CueStore(
+            account_id=account_id,
+            access_key_id=os.environ["R2_ACCESS_KEY_ID"],
+            secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
+            bucket=os.environ["R2_BUCKET"],
+            public_url_base=os.environ["R2_PUBLIC_URL_BASE"],
+        )
+    )
 
 
 def load_feature_flags() -> dict[str, frozenset[int]]:

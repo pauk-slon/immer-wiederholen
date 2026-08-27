@@ -11,6 +11,7 @@ from .bootstrap import (
     load_anthropic_client,
     load_authoring_guide,
     load_bot_course_and_storage,
+    load_cue_store,
     load_feature_flags,
 )
 from .l10n import LOCALES
@@ -25,6 +26,7 @@ async def main() -> None:
     feature_flags = load_feature_flags()
     anthropic_client = load_anthropic_client()
     authoring_guide = load_authoring_guide()
+    cue_store = load_cue_store()
     dispatcher.fsm.storage = storage
     for language_code, locale in LOCALES.items():
         try:
@@ -60,6 +62,7 @@ async def main() -> None:
         feature_flags=feature_flags,
         anthropic_client=anthropic_client,
         authoring_guide=authoring_guide,
+        cue_store=cue_store,
     )
 
 

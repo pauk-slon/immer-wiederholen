@@ -1,7 +1,9 @@
 import re
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
 
 from aiogram.fsm.context import FSMContext
+from aiogram.methods import SendMessage, SendPhoto
 from aiogram.types import (
     InlineKeyboardMarkup,
     ReplyKeyboardMarkup,
@@ -14,7 +16,7 @@ from tests.plugins.student_record_book import SeedStudentRecord
 from wiederholen.bot.commands.wiederholen import STUDY_MORE, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.bot.telegram_student_id import TelegramStudentID
-from wiederholen.school import Course, Exercise, Language, Tutor
+from wiederholen.school import Course, CueStore, Exercise, Language, Tutor
 
 
 async def test_sends_exercise_question(
@@ -273,3 +275,76 @@ async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
         for btn in row
     ]
     assert STUDY_MORE in buttons
+
+
+async def test_attaches_image_when_the_store_finds_one(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        topic="preposition_meaning", description={"ru": "x", "en": "y"}
+    )
+    course = Course(
+        [exercise], cue_generatable_topics=frozenset({"preposition_meaning"})
+    )
+    cue_store = AsyncMock(spec=CueStore)
+    cue_store.get_cue_url.return_value = "https://images.example.com/abc.png"
+
+    requests = await feed_message("/wiederholen", course=course, cue_store=cue_store)
+
+    photos = [r for r in requests if isinstance(r, SendPhoto)]
+    assert len(photos) == 1
+    assert photos[0].photo == "https://images.example.com/abc.png"
+    assert photos[0].caption is not None
+    assert exercise.question in photos[0].caption
+    assert not any(isinstance(r, SendMessage) for r in requests)
+
+
+async def test_falls_back_to_text_when_the_store_has_no_image(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        topic="preposition_meaning", description={"ru": "x", "en": "y"}
+    )
+    course = Course(
+        [exercise], cue_generatable_topics=frozenset({"preposition_meaning"})
+    )
+    cue_store = AsyncMock(spec=CueStore)
+    cue_store.get_cue_url.return_value = None
+
+    requests = await feed_message("/wiederholen", course=course, cue_store=cue_store)
+
+    assert not any(isinstance(r, SendPhoto) for r in requests)
+    assert any(isinstance(r, SendMessage) for r in requests)
+
+
+async def test_falls_back_to_text_when_the_lookup_raises(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        topic="preposition_meaning", description={"ru": "x", "en": "y"}
+    )
+    course = Course(
+        [exercise], cue_generatable_topics=frozenset({"preposition_meaning"})
+    )
+    cue_store = AsyncMock(spec=CueStore)
+    cue_store.get_cue_url.side_effect = RuntimeError("boom")
+
+    requests = await feed_message("/wiederholen", course=course, cue_store=cue_store)
+
+    assert not any(isinstance(r, SendPhoto) for r in requests)
+    assert any(isinstance(r, SendMessage) for r in requests)
+
+
+async def test_ignores_the_cue_store_for_a_non_eligible_topic(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise()
+    cue_store = AsyncMock(spec=CueStore)
+    cue_store.get_cue_url.return_value = "https://images.example.com/abc.png"
+
+    requests = await feed_message(
+        "/wiederholen", course=Course([exercise]), cue_store=cue_store
+    )
+
+    assert not any(isinstance(r, SendPhoto) for r in requests)
+    cue_store.get_cue_url.assert_not_called()
