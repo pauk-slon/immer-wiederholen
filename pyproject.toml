@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "aiogram[redis]~=3.30.0",
+    "aiogram[redis]>=3.30,<3.32",
     "anthropic>=0.121.0",
     "litestar[standard]>=2.24.0",
     "opentelemetry-api>=1.44.0",
