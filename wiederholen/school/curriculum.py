@@ -53,6 +53,14 @@ class Exercise:
     # field replaced it (see issue #191) — a single source of truth instead
     # of a copy an author had to keep in sync by hand.
     word_bank: list[str] | None = None
+    # Opaque tags grouping words that behave the same way for this topic —
+    # an Ablaut vowel-pattern like "e-a-o" for partizip_ii/praeteritum, or a
+    # preposition+case combo like "an+Akk" for verb_preposition_case. Same
+    # treatment as word/topic: pure string equality, no meaning baked in
+    # here. Powers Tutor.get_hint()'s personalized "same as {word}" memory
+    # hint (immer-wiederholen#195) — an exercise can carry more than one
+    # class at once (e.g. both a narrow and a broad one), hence a list.
+    grammar_classes: list[str] | None = None
 
     def __post_init__(self) -> None:
         if self.answer in self.distractors:
@@ -69,6 +77,8 @@ class Exercise:
             raise ValueError(
                 f"word_bank {self.word_bank} must join into answer '{self.answer}'"
             )
+        if self.grammar_classes is not None and len(self.grammar_classes) == 0:
+            raise ValueError("grammar_classes must not be empty if set")
 
     def to_dict(self) -> dict:
         return asdict(self)

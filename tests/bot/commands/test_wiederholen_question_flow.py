@@ -234,6 +234,53 @@ async def test_avoids_repeating_previously_shown_question(
     assert ueber.question in requests[0].text
 
 
+async def test_omits_grammar_class_hint_when_absent(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise()
+    requests = await feed_message("/wiederholen", course=Course([exercise]))
+
+    assert len(requests) == 1
+    assert "🔍" not in requests[0].text
+
+
+async def test_shows_grammar_class_hint_when_a_qualifying_candidate_exists(
+    feed_message: FeedMessage,
+    seed_student_record: SeedStudentRecord,
+    chat_id: int,
+) -> None:
+    exercise = make_exercise(
+        word="singen", topic="praeteritum", grammar_classes=["i-a-u"]
+    )
+    candidate = make_exercise(
+        word="finden", topic="praeteritum", grammar_classes=["i-a-u"]
+    )
+    today = datetime.now(UTC).date()
+    await seed_student_record(
+        TelegramStudentID.encode(chat_id),
+        {
+            "word_schedule": {
+                # Due far in the future and already has an entry, so it's
+                # never selectable as the exercise itself — only readable as
+                # a hint candidate via get_repetition_interval().
+                "finden": {
+                    "praeteritum": {
+                        "repetition_interval": 5,
+                        "due_date": (today + timedelta(days=30)).isoformat(),
+                    }
+                }
+            }
+        },
+    )
+
+    requests = await feed_message("/wiederholen", course=Course([exercise, candidate]))
+
+    assert len(requests) == 1
+    assert requests[0].parse_mode == "HTML"
+    hint_text = RU.grammar_class_hint.format(word="finden")
+    assert f"<tg-spoiler>{hint_text}</tg-spoiler>" in requests[0].text
+
+
 async def test_shows_nothing_due_message_once_daily_new_word_cap_is_reached(
     state: FSMContext,
     feed_message: FeedMessage,
