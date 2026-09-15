@@ -145,11 +145,6 @@ def _format_question(
     is_ai_generated: bool = False,
     hint_word: str | None = None,
 ) -> str:
-    # hint_word (see Tutor.get_hint()) puts this message on parse_mode="HTML"
-    # for the first time — everything interpolated in here now needs
-    # html.escape(), not just the hint itself, or authored content
-    # containing "<"/">"/"&" would break the markup instead of just
-    # rendering as plain text the way it used to.
     prefix = "🤖 " if is_ai_generated else ""
     text = f"{prefix}❓ {html.escape(exercise.question)}"
     if exercise.word_bank:
