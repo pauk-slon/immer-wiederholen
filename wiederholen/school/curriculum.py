@@ -43,16 +43,8 @@ class Exercise:
     explanation: dict[Language, str]
     recalls: list[Recall] = field(default_factory=list)
     description: dict[Language, str] | None = None
-    # Only for word-order exercises (konjunktion_wortstellung/
-    # nebensatzkonjunktion_wortstellung): answer's own words, grouped into
-    # meaningful phrase chunks (e.g. "in Hamburg" stays one chunk, not two),
-    # in the *correct* order — not shuffled. Both frontends shuffle their own
-    # copy fresh at render time (see curriculum.shuffle_word_bank()) rather
-    # than reading a scramble baked in once at authoring time, which is what
-    # question's own hand-written parenthetical hint used to be before this
-    # field replaced it (see issue #191) — a single source of truth instead
-    # of a copy an author had to keep in sync by hand.
     word_bank: list[str] | None = None
+    grammar_classes: list[str] | None = None
 
     def __post_init__(self) -> None:
         if self.answer in self.distractors:
@@ -69,6 +61,8 @@ class Exercise:
             raise ValueError(
                 f"word_bank {self.word_bank} must join into answer '{self.answer}'"
             )
+        if self.grammar_classes is not None and len(self.grammar_classes) == 0:
+            raise ValueError("grammar_classes must not be empty if set")
 
     def to_dict(self) -> dict:
         return asdict(self)

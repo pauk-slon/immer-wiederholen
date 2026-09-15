@@ -143,20 +143,27 @@ def _format_question(
     course: Course,
     *,
     is_ai_generated: bool = False,
+    hint_word: str | None = None,
 ) -> str:
     prefix = "🤖 " if is_ai_generated else ""
-    text = f"{prefix}❓ {exercise.question}"
+    text = f"{prefix}❓ {html.escape(exercise.question)}"
     if exercise.word_bank:
         # Reconstructs exactly the shape question's own hand-written
         # parenthetical hint used to have (see issue #191) — just shuffled
         # fresh on every render instead of frozen once at authoring time,
         # same as the web widget's own tile UI shuffles its copy.
-        text += f" ({' / '.join(shuffle_word_bank(exercise.word_bank))})"
+        chunks = " / ".join(
+            html.escape(chunk) for chunk in shuffle_word_bank(exercise.word_bank)
+        )
+        text += f" ({chunks})"
     if exercise.description:
-        text += f"\n💭 {exercise.description[language]}"
+        text += f"\n💭 {html.escape(exercise.description[language])}"
     instruction = course.topic_instructions.get(exercise.topic, {}).get(language)
     if instruction:
-        text += f"\nℹ️ {instruction}"
+        text += f"\nℹ️ {html.escape(instruction)}"
+    if hint_word:
+        hint_text = LOCALES[language].grammar_class_hint.format(word=hint_word)
+        text += f"\n🔍 <tg-spoiler>{html.escape(hint_text)}</tg-spoiler>"
     return text
 
 
@@ -294,12 +301,15 @@ async def command_wiederholen(
         if exercise is None:
             await message.answer(locale.ai_generation_failed)
             return
+        hint_word = tutor.get_hint(exercise)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict())
         question_text = _format_question(
-            exercise, language, course, is_ai_generated=ai_mode
+            exercise, language, course, is_ai_generated=ai_mode, hint_word=hint_word
         )
-        await message.answer(question_text, **_show_exercise_kwargs(exercise))
+        await message.answer(
+            question_text, parse_mode="HTML", **_show_exercise_kwargs(exercise)
+        )
 
 
 @router.message(UserState.answering)
@@ -449,15 +459,18 @@ async def _respond_with_next_exercise(
             await callback.message.answer(locale.ai_generation_failed)
         await callback.answer()
         return
+    hint_word = tutor.get_hint(exercise)
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
         question_text = _format_question(
-            exercise, language, course, is_ai_generated=ai_mode
+            exercise, language, course, is_ai_generated=ai_mode, hint_word=hint_word
         )
-        await callback.message.answer(question_text, **_show_exercise_kwargs(exercise))
+        await callback.message.answer(
+            question_text, parse_mode="HTML", **_show_exercise_kwargs(exercise)
+        )
     await callback.answer()
 
 

@@ -130,6 +130,8 @@ async def test_starts_polling_with_bot_and_dependencies(
         del loaded_exercise["description"]
     if loaded_exercise["word_bank"] is None:
         del loaded_exercise["word_bank"]
+    if loaded_exercise["grammar_classes"] is None:
+        del loaded_exercise["grammar_classes"]
     assert loaded_exercise == exercise_data
 
 

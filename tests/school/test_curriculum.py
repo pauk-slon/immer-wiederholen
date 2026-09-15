@@ -1,5 +1,7 @@
+import pytest
+
 from tests.plugins.curriculum import make_exercise
-from wiederholen.school.curriculum import Course, shuffle_word_bank
+from wiederholen.school.curriculum import Course, Exercise, shuffle_word_bank
 
 
 def test_restricted_to_keeps_only_exercises_for_the_given_topics() -> None:
@@ -67,3 +69,18 @@ def test_shuffle_word_bank_returns_a_single_chunk_unchanged() -> None:
     # No other permutation exists to prefer — reshuffling would otherwise
     # loop forever comparing a one-element list against itself.
     assert shuffle_word_bank(["Hallo"]) == ["Hallo"]
+
+
+def test_grammar_classes_defaults_to_none() -> None:
+    assert make_exercise().grammar_classes is None
+
+
+def test_grammar_classes_must_not_be_empty_if_set() -> None:
+    with pytest.raises(ValueError, match="grammar_classes"):
+        make_exercise(grammar_classes=[])
+
+
+def test_grammar_classes_roundtrips_through_to_dict_and_from_dict() -> None:
+    exercise = make_exercise(grammar_classes=["e-a-o", "i-a-o"])
+
+    assert Exercise.from_dict(exercise.to_dict()) == exercise

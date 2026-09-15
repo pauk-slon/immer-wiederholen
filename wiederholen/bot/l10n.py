@@ -68,6 +68,7 @@ class Locale:
     ai_mode_on: str
     ai_mode_off: str
     ai_generation_failed: str
+    grammar_class_hint: str
 
 
 RU: Final = Locale(
@@ -109,6 +110,7 @@ RU: Final = Locale(
     ai_mode_on="🤖 AI-режим включён",
     ai_mode_off="AI-режим выключен",
     ai_generation_failed="⚠️ Не получилось сгенерировать упражнение. Попробуй ещё раз или отключи /ai",
+    grammar_class_hint="Так же, как и у {word}",
 )
 
 EN: Final = Locale(
@@ -150,6 +152,7 @@ EN: Final = Locale(
     ai_mode_on="🤖 AI mode is on",
     ai_mode_off="AI mode is off",
     ai_generation_failed="⚠️ Couldn't generate the exercise. Try again, or turn off /ai",
+    grammar_class_hint="Same as for {word}",
 )
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}

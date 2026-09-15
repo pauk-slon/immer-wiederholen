@@ -298,6 +298,36 @@ class Tutor:
         last_exercise["recall_question"] = recall.question
         return recall
 
+    def get_hint(self, exercise: Exercise) -> str | None:
+        if not exercise.grammar_classes:
+            return None
+        classes = set(exercise.grammar_classes)
+        candidate_words = {
+            other.word
+            for other in self._course.exercises
+            if other.topic == exercise.topic
+            and other.word != exercise.word
+            and other.grammar_classes
+            and classes & set(other.grammar_classes)
+        }
+        scored = [
+            (word, interval)
+            for word in candidate_words
+            if (
+                interval := self._student_record.get_repetition_interval(
+                    word, exercise.topic
+                )
+            )
+            is not None
+            and interval > 1
+        ]
+        if not scored:
+            return None
+        best_interval = max(interval for _, interval in scored)
+        return random.choice(
+            [word for word, interval in scored if interval == best_interval]
+        )
+
     def should_remind(self) -> bool:
         if not self._get_due_pairs() and not self._get_available_not_scheduled_pairs():
             return False
