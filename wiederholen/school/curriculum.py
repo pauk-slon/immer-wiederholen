@@ -43,23 +43,7 @@ class Exercise:
     explanation: dict[Language, str]
     recalls: list[Recall] = field(default_factory=list)
     description: dict[Language, str] | None = None
-    # Only for word-order exercises (konjunktion_wortstellung/
-    # nebensatzkonjunktion_wortstellung): answer's own words, grouped into
-    # meaningful phrase chunks (e.g. "in Hamburg" stays one chunk, not two),
-    # in the *correct* order — not shuffled. Both frontends shuffle their own
-    # copy fresh at render time (see curriculum.shuffle_word_bank()) rather
-    # than reading a scramble baked in once at authoring time, which is what
-    # question's own hand-written parenthetical hint used to be before this
-    # field replaced it (see issue #191) — a single source of truth instead
-    # of a copy an author had to keep in sync by hand.
     word_bank: list[str] | None = None
-    # Opaque tags grouping words that behave the same way for this topic —
-    # an Ablaut vowel-pattern like "e-a-o" for partizip_ii/praeteritum, or a
-    # preposition+case combo like "an+Akk" for verb_preposition_case. Same
-    # treatment as word/topic: pure string equality, no meaning baked in
-    # here. Powers Tutor.get_hint()'s personalized "same as {word}" memory
-    # hint (immer-wiederholen#195) — an exercise can carry more than one
-    # class at once (e.g. both a narrow and a broad one), hence a list.
     grammar_classes: list[str] | None = None
 
     def __post_init__(self) -> None:

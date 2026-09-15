@@ -299,15 +299,6 @@ class Tutor:
         return recall
 
     def get_hint(self, exercise: Exercise) -> str | None:
-        # Personalized "same as {word}" memory hint (immer-wiederholen#195):
-        # anchor exercise.word to another word of the same topic sharing a
-        # grammar_classes tag, that this learner already has a durable hold
-        # on. Deliberately not "ever answered correctly" — repetition_interval
-        # resets to 0 both on a wrong answer and on a pair's own first-ever
-        # answer regardless of correctness (see check_answer()), so 0 can't
-        # tell those apart. > 1 requires at least one confirmed doubling past
-        # the first answer, and doubles as a better anchor-quality bar than
-        # mere "answered correctly once" would be anyway.
         if not exercise.grammar_classes:
             return None
         classes = set(exercise.grammar_classes)
