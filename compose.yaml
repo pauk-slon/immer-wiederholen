@@ -7,9 +7,9 @@ services:
     restart: unless-stopped
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
-      BOT_FSM_STORAGE_URL: redis://valkey:6379/1
+      BOT_FSM_STORAGE_URL: redis://valkey:6379/3
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
-      STUDENT_IDENTITY_STORAGE_URL: redis://valkey:6379/3
+      STUDENT_IDENTITY_STORAGE_URL: redis://valkey:6379/1
       # Only tests run in this service exercise wiederholen.web too (see
       # `docker compose run --rm bot pytest`) — the web service itself runs
       # as its own separate service below.
@@ -27,9 +27,9 @@ services:
     command: python -m wiederholen.bot.reminder
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
-      BOT_FSM_STORAGE_URL: redis://valkey:6379/1
+      BOT_FSM_STORAGE_URL: redis://valkey:6379/3
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
-      STUDENT_IDENTITY_STORAGE_URL: redis://valkey:6379/3
+      STUDENT_IDENTITY_STORAGE_URL: redis://valkey:6379/1
     volumes:
       - .:/app
     depends_on:

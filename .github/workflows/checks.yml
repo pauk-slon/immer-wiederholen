@@ -24,9 +24,9 @@ jobs:
           --health-retries 5
     env:
       STUDENT_RECORD_STORAGE_URL: redis://localhost:6379/0
-      BOT_FSM_STORAGE_URL: redis://localhost:6379/1
+      STUDENT_IDENTITY_STORAGE_URL: redis://localhost:6379/1
       WEB_SESSION_STORAGE_URL: redis://localhost:6379/2
-      STUDENT_IDENTITY_STORAGE_URL: redis://localhost:6379/3
+      BOT_FSM_STORAGE_URL: redis://localhost:6379/3
       WEB_ALLOWED_ORIGINS: http://localhost:3000
       WEB_COOKIE_DOMAIN: localhost
     steps:
