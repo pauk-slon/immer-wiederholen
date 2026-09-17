@@ -9,6 +9,7 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       BOT_FSM_STORAGE_URL: redis://valkey:6379/1
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
+      STUDENT_IDENTITY_STORAGE_URL: redis://valkey:6379/3
       # Only tests run in this service exercise wiederholen.web too (see
       # `docker compose run --rm bot pytest`) — the web service itself runs
       # as its own separate service below.
@@ -28,6 +29,7 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       BOT_FSM_STORAGE_URL: redis://valkey:6379/1
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
+      STUDENT_IDENTITY_STORAGE_URL: redis://valkey:6379/3
     volumes:
       - .:/app
     depends_on:

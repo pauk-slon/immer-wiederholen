@@ -48,6 +48,7 @@ def pytest_configure(config) -> None:
     for env_var in (
         "BOT_FSM_STORAGE_URL",
         "STUDENT_RECORD_STORAGE_URL",
+        "STUDENT_IDENTITY_STORAGE_URL",
         "WEB_SESSION_STORAGE_URL",
     ):
         os.environ[env_var] = urlunsplit(

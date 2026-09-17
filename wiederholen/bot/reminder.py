@@ -8,13 +8,12 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 
 from wiederholen.bot.commands.wiederholen import make_next_button
-from wiederholen.school import Course, StudentRecordBook, Tutor
+from wiederholen.school import Course, StudentIdentityStore, StudentRecordBook, Tutor
 from wiederholen.tracing import configure_tracing, default_tracer, instrument_redis
 
 from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES, get_language
 from .pending_buttons import clear_stale_buttons, remember_buttoned_message
-from .telegram_student_id import NotATelegramStudentIdError, TelegramStudentID
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +26,12 @@ async def _remind_chat(
     student_record_book: StudentRecordBook,
     course: Course,
     chat_id: int,
+    student_id: str,
 ) -> None:
     with default_tracer.start_as_current_span(
         "reminder.check_chat",
         attributes={"telegram.chat_id": chat_id, "reminder.sent": False},
     ) as span:
-        student_id = TelegramStudentID.encode(chat_id)
         async with student_record_book.check_out(student_id) as student_record:
             tutor = Tutor(course, student_record)
             if not tutor.should_remind():
@@ -82,17 +81,17 @@ async def tick(
     bot: Bot,
     fsm_storage: RedisStorage,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     course: Course,
 ) -> None:
     with default_tracer.start_as_current_span("reminder.tick"):
-        async for student_id in student_record_book:
-            try:
-                chat_id = TelegramStudentID.decode(student_id)
-            except NotATelegramStudentIdError:
-                continue
+        async for identifier, student_id in student_identity_store.iter_identifiers(
+            "telegram"
+        ):
+            chat_id = int(identifier)
             try:
                 await _remind_chat(
-                    bot, fsm_storage, student_record_book, course, chat_id
+                    bot, fsm_storage, student_record_book, course, chat_id, student_id
                 )
             except Exception:
                 logger.exception("Failed to process reminder for chat %s", chat_id)
@@ -102,18 +101,23 @@ async def run(
     bot: Bot,
     fsm_storage: RedisStorage,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     course: Course,
 ) -> None:
     while True:
-        await tick(bot, fsm_storage, student_record_book, course)
+        await tick(
+            bot, fsm_storage, student_record_book, student_identity_store, course
+        )
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
 
 
 async def main() -> None:
     configure_tracing()
     instrument_redis()
-    bot, course, fsm_storage, student_record_book = load_bot_course_and_storage()
-    await run(bot, fsm_storage, student_record_book, course)
+    bot, course, fsm_storage, student_record_book, student_identity_store = (
+        load_bot_course_and_storage()
+    )
+    await run(bot, fsm_storage, student_record_book, student_identity_store, course)
 
 
 if __name__ == "__main__":  # pragma: no cover
