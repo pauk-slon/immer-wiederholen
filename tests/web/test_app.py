@@ -32,14 +32,8 @@ type WebAppFactory = Callable[[Course], Litestar]
 
 @pytest.fixture
 def web_app_factory(
-    # Depended on purely to flush their DBs before the test, same as
-    # elsewhere — student_record_book/web_session_store fixtures below are
-    # deliberately *not* the objects handed to the app itself: AsyncTestClient
-    # serves the app in its own event loop, and a Redis client whose
-    # connection pool was already touched by the outer test's loop (the
-    # fixtures' own flushdb()) can't be reused from a different one. Fresh
-    # instances pointed at the same URL make first contact from whichever
-    # loop actually serves the app.
+    # Depended on only to flush their DBs before the test — see CLAUDE.md's
+    # "Web frontend" section for why these aren't the objects handed to the app.
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
     student_identity_store: StudentIdentityStore,
@@ -64,9 +58,6 @@ def web_app_factory(
                     "session_store": WebSessionStore.from_url(
                         os.environ["WEB_SESSION_STORAGE_URL"]
                     ),
-                    # Fresh instance, not the student_identity_store fixture
-                    # itself — same cross-event-loop reasoning as the other
-                    # two stores above (see this fixture's own docstring).
                     "student_identity_store": RedisStudentIdentityStore.from_url(
                         os.environ["STUDENT_IDENTITY_STORAGE_URL"]
                     ),
