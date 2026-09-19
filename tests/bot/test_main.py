@@ -22,7 +22,6 @@ from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import ExerciseData, make_exercise_data
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
-from wiederholen.bot.l10n import LOCALES
 from wiederholen.school import Course, StudentRecordBook, Tutor
 
 
@@ -39,6 +38,22 @@ def fsm_storage_url() -> str:
 @pytest.fixture
 def student_record_storage_url() -> str:
     return "redis://localhost:6379/0"
+
+
+@pytest.fixture
+def bot_info_data() -> dict:
+    return {
+        "ru": {
+            "name": "Тестовый бот",
+            "description": "Тестовое описание",
+            "short_description": "Кратко",
+        },
+        "en": {
+            "name": "Test bot",
+            "description": "Test description",
+            "short_description": "Short",
+        },
+    }
 
 
 @pytest.fixture(autouse=True)
@@ -193,8 +208,15 @@ async def test_configures_student_record_book_from_its_own_env_var(
     assert student_record_book.redis.connection_pool.connection_kwargs == expected
 
 
-async def test_sets_name_for_all_languages(mock_main_io: MockMainIO) -> None:
-    with mock_main_io() as (mock_request, _mock_polling):
+async def test_sets_name_for_all_languages(
+    mock_main_io: MockMainIO,
+    tmp_yaml_file: TmpYamlFile,
+    bot_info_data: dict,
+) -> None:
+    with (
+        tmp_yaml_file({"info": bot_info_data}, filename="bot.yaml"),
+        mock_main_io() as (mock_request, _mock_polling),
+    ):
         await main()
 
     name_calls = {
@@ -202,11 +224,18 @@ async def test_sets_name_for_all_languages(mock_main_io: MockMainIO) -> None:
         for call in mock_request.call_args_list
         if isinstance(call.args[1], SetMyName)
     }
-    assert name_calls == {lc: locale.bot_name for lc, locale in LOCALES.items()}
+    assert name_calls == {lc: p["name"] for lc, p in bot_info_data.items()}
 
 
-async def test_sets_description_for_all_languages(mock_main_io: MockMainIO) -> None:
-    with mock_main_io() as (mock_request, _mock_polling):
+async def test_sets_description_for_all_languages(
+    mock_main_io: MockMainIO,
+    tmp_yaml_file: TmpYamlFile,
+    bot_info_data: dict,
+) -> None:
+    with (
+        tmp_yaml_file({"info": bot_info_data}, filename="bot.yaml"),
+        mock_main_io() as (mock_request, _mock_polling),
+    ):
         await main()
 
     description_calls = {
@@ -215,14 +244,19 @@ async def test_sets_description_for_all_languages(mock_main_io: MockMainIO) -> N
         if isinstance(call.args[1], SetMyDescription)
     }
     assert description_calls == {
-        lc: locale.bot_short_description for lc, locale in LOCALES.items()
+        lc: p["description"] for lc, p in bot_info_data.items()
     }
 
 
 async def test_sets_short_description_for_all_languages(
     mock_main_io: MockMainIO,
+    tmp_yaml_file: TmpYamlFile,
+    bot_info_data: dict,
 ) -> None:
-    with mock_main_io() as (mock_request, _mock_polling):
+    with (
+        tmp_yaml_file({"info": bot_info_data}, filename="bot.yaml"),
+        mock_main_io() as (mock_request, _mock_polling),
+    ):
         await main()
 
     short_description_calls = {
@@ -231,8 +265,20 @@ async def test_sets_short_description_for_all_languages(
         if isinstance(call.args[1], SetMyShortDescription)
     }
     assert short_description_calls == {
-        lc: locale.bot_short_description for lc, locale in LOCALES.items()
+        lc: p["short_description"] for lc, p in bot_info_data.items()
     }
+
+
+async def test_skips_name_and_description_when_bot_yaml_is_absent(
+    mock_main_io: MockMainIO,
+) -> None:
+    with mock_main_io() as (mock_request, _mock_polling):
+        await main()
+
+    assert not any(
+        isinstance(call.args[1], SetMyName | SetMyDescription | SetMyShortDescription)
+        for call in mock_request.call_args_list
+    )
 
 
 async def test_sets_commands_for_all_languages(mock_main_io: MockMainIO) -> None:

@@ -1,12 +1,15 @@
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
 from aiogram import Bot
 from aiogram.fsm.storage.redis import RedisStorage
 from anthropic import AsyncAnthropic
 
 from wiederholen.school import (
     Course,
+    Language,
     RedisStudentIdentityStore,
     RedisStudentRecordBook,
     StudentIdentityStore,
@@ -14,6 +17,13 @@ from wiederholen.school import (
 )
 
 from .feature_flags import parse_feature_flags
+
+
+@dataclass(frozen=True)
+class BotInfo:
+    name: str
+    description: str
+    short_description: str
 
 
 def load_student_record_book() -> StudentRecordBook:
@@ -55,6 +65,32 @@ def load_authoring_guide() -> str | None:
     # model has no access to anyway. Cut the guide off there, keeping only
     # the Exercises/Recall sections that precede it.
     return guide.split("\n## Deploying", 1)[0]
+
+
+def load_bot_info() -> dict[Language, BotInfo] | None:
+    # Optional, same reasoning as topics.yaml's absence (see wiederholen.
+    # school.curriculum): without it, main() just leaves whatever name/
+    # description Telegram already has on file for the bot, rather than
+    # failing to start. Product copy, not code-owned UI-string localization
+    # (Locale's own concern) — same "content belongs in the content repo"
+    # boundary as everything else under COURSE_PATH. Named after BotFather's
+    # own "Info" section (name/description/short description/avatar), not
+    # "profile" — bot.yaml nests this under its own `info:` key precisely so
+    # the file has room to grow with settings that aren't this.
+    path = Path(os.environ.get("COURSE_PATH", "data")) / "bot.yaml"
+    if not path.exists():
+        return None
+    with open(path) as f:
+        data = yaml.safe_load(f) or {}
+    info = data.get("info") or {}
+    return {
+        language: BotInfo(
+            name=entry["name"],
+            description=entry["description"],
+            short_description=entry["short_description"],
+        )
+        for language, entry in info.items()
+    }
 
 
 def load_bot_course_and_storage() -> tuple[
