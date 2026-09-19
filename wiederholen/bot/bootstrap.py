@@ -68,15 +68,8 @@ def load_authoring_guide() -> str | None:
 
 
 def load_bot_info() -> dict[Language, BotInfo] | None:
-    # Optional, same reasoning as topics.yaml's absence (see wiederholen.
-    # school.curriculum): without it, main() just leaves whatever name/
-    # description Telegram already has on file for the bot, rather than
-    # failing to start. Product copy, not code-owned UI-string localization
-    # (Locale's own concern) — same "content belongs in the content repo"
-    # boundary as everything else under COURSE_PATH. Named after BotFather's
-    # own "Info" section (name/description/short description/avatar), not
-    # "profile" — bot.yaml nests this under its own `info:` key precisely so
-    # the file has room to grow with settings that aren't this.
+    # Optional, same as topics.yaml: if bot.yaml's absent, main() just
+    # leaves whatever name/description Telegram already has on file.
     path = Path(os.environ.get("COURSE_PATH", "data")) / "bot.yaml"
     if not path.exists():
         return None
