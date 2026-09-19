@@ -43,7 +43,7 @@ def web_app_factory(
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
     student_identity_store: StudentIdentityStore,
-    bot_token: str,
+    telegram_bot_token: str,
 ) -> WebAppFactory:
     def factory(course: Course) -> Litestar:
         return Litestar(
@@ -70,7 +70,7 @@ def web_app_factory(
                     "student_identity_store": RedisStudentIdentityStore.from_url(
                         os.environ["STUDENT_IDENTITY_STORAGE_URL"]
                     ),
-                    "bot_token": bot_token,
+                    "bot_token": telegram_bot_token,
                     "cookie_domain": "testserver.local",
                     "allowed_origins": ["https://testserver.local"],
                 }
@@ -543,7 +543,9 @@ async def test_telegram_login_callback_sets_a_logged_in_cookie(
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         response = await client.get(
-            "/api/auth/telegram/callback", params=payload, follow_redirects=False
+            "/api/auth/telegram/callback",
+            params=payload,
+            follow_redirects=False,
         )
 
     assert response.status_code in (301, 302, 303, 307, 308)
@@ -696,12 +698,12 @@ async def test_create_app_builds_a_working_app(
     tmp_yaml_file: TmpYamlFile,
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
-    bot_token: str,
+    telegram_bot_token: str,
 ) -> None:
     exercise_data = make_exercise_data(word="warten")
     monkeypatch.setenv("WEB_ALLOWED_ORIGINS", "https://example.com")
     monkeypatch.setenv("WEB_COOKIE_DOMAIN", "example.com")
-    monkeypatch.setenv("BOT_TOKEN", bot_token)
+    monkeypatch.setenv("BOT_TOKEN", telegram_bot_token)
     with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         app = create_app()
@@ -722,11 +724,11 @@ async def test_widget_js_is_served_as_a_static_file(
     tmp_yaml_file: TmpYamlFile,
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
-    bot_token: str,
+    telegram_bot_token: str,
 ) -> None:
     monkeypatch.setenv("WEB_ALLOWED_ORIGINS", "https://example.com")
     monkeypatch.setenv("WEB_COOKIE_DOMAIN", "example.com")
-    monkeypatch.setenv("BOT_TOKEN", bot_token)
+    monkeypatch.setenv("BOT_TOKEN", telegram_bot_token)
     with tmp_yaml_file([], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         app = create_app()
@@ -743,11 +745,11 @@ async def test_standalone_app_is_served_at_the_root_path(
     tmp_yaml_file: TmpYamlFile,
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
-    bot_token: str,
+    telegram_bot_token: str,
 ) -> None:
     monkeypatch.setenv("WEB_ALLOWED_ORIGINS", "https://example.com")
     monkeypatch.setenv("WEB_COOKIE_DOMAIN", "example.com")
-    monkeypatch.setenv("BOT_TOKEN", bot_token)
+    monkeypatch.setenv("BOT_TOKEN", telegram_bot_token)
     with tmp_yaml_file([], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         app = create_app()

@@ -8,7 +8,7 @@ type CallbackQueryFactory = Callable[..., dict]
 
 
 @pytest.fixture
-def bot_token() -> str:
+def telegram_bot_token() -> str:
     return "1234567890:AAHHte3GRDo4KzHsY6U6xZTMSfI7xv3c_xY"
 
 

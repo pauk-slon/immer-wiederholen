@@ -58,8 +58,8 @@ def pytest_configure(config) -> None:
 
 
 @pytest.fixture
-def bot(bot_token: str) -> Bot:
-    return Bot(token=bot_token)
+def bot(telegram_bot_token: str) -> Bot:
+    return Bot(token=telegram_bot_token)
 
 
 @pytest.fixture

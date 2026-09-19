@@ -44,13 +44,13 @@ def student_record_storage_url() -> str:
 @pytest.fixture(autouse=True)
 def _env(
     monkeypatch,
-    bot_token: str,
+    telegram_bot_token: str,
     fsm_storage_url: str,
     student_record_storage_url: str,
     tmp_yaml_file: TmpYamlFile,
     exercise_data: ExerciseData,
 ) -> Generator[None]:
-    monkeypatch.setenv("BOT_TOKEN", bot_token)
+    monkeypatch.setenv("BOT_TOKEN", telegram_bot_token)
     monkeypatch.setenv("BOT_FSM_STORAGE_URL", fsm_storage_url)
     monkeypatch.setenv("STUDENT_RECORD_STORAGE_URL", student_record_storage_url)
     # All optional and unrelated to most tests here — pinned absent so a
@@ -105,7 +105,7 @@ def mock_main_io() -> MockMainIO:
 
 
 async def test_starts_polling_with_bot_and_dependencies(
-    bot_token: str,
+    telegram_bot_token: str,
     exercise_data: ExerciseData,
     mock_main_io: MockMainIO,
 ) -> None:
@@ -115,7 +115,7 @@ async def test_starts_polling_with_bot_and_dependencies(
     mock_polling.assert_called_once()
     args, kwargs = mock_polling.call_args
     assert isinstance(args[0], Bot)
-    assert args[0].token == bot_token
+    assert args[0].token == telegram_bot_token
     assert isinstance(kwargs["course"], Course)
     assert isinstance(kwargs["student_record_book"], StudentRecordBook)
     assert kwargs["feature_flags"] == {}

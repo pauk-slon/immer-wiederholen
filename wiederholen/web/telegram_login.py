@@ -6,6 +6,7 @@ again from a Mini App's own `initData`, which this module doesn't handle).
 
 import hashlib
 import hmac
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Final
 
@@ -19,13 +20,13 @@ class InvalidTelegramLoginError(ValueError):
 _MAX_AUTH_AGE: Final = timedelta(days=1)
 
 
-def _data_check_string(payload: dict[str, str]) -> str:
+def _build_data_check_string(payload: Mapping[str, str]) -> str:
     return "\n".join(
         f"{key}={payload[key]}" for key in sorted(payload) if key != "hash"
     )
 
 
-def validate_telegram_login(payload: dict[str, str], bot_token: str) -> int:
+def validate_telegram_login(payload: Mapping[str, str], bot_token: str) -> int:
     """Returns the Telegram user id a Login Widget callback payload
     (id, first_name, ..., auth_date, hash) vouches for, once its signature
     and freshness both check out. Raises InvalidTelegramLoginError otherwise.
@@ -34,7 +35,9 @@ def validate_telegram_login(payload: dict[str, str], bot_token: str) -> int:
         raise InvalidTelegramLoginError("missing hash")
     secret_key = hashlib.sha256(bot_token.encode()).digest()
     expected_hash = hmac.new(
-        secret_key, _data_check_string(payload).encode(), hashlib.sha256
+        secret_key,
+        _build_data_check_string(payload).encode(),
+        hashlib.sha256,
     ).hexdigest()
     if not hmac.compare_digest(expected_hash, payload["hash"]):
         raise InvalidTelegramLoginError("signature mismatch")

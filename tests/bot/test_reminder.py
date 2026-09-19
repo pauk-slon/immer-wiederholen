@@ -50,7 +50,7 @@ def _make_request_mock() -> AsyncMock:
 
 
 async def test_tick_sends_reminder_and_records_it(
-    bot_token: str,
+    telegram_bot_token: str,
     redis_storage: RedisStorage,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
@@ -58,7 +58,7 @@ async def test_tick_sends_reminder_and_records_it(
     read_student_record: ReadStudentRecord,
 ) -> None:
     exercise = make_exercise()
-    bot = Bot(token=bot_token)
+    bot = Bot(token=telegram_bot_token)
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", "1"
     )
@@ -87,14 +87,14 @@ async def test_tick_sends_reminder_and_records_it(
 
 
 async def test_tick_sends_reminder_with_a_next_exercise_button(
-    bot_token: str,
+    telegram_bot_token: str,
     redis_storage: RedisStorage,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
     seed_student_record: SeedStudentRecord,
 ) -> None:
     exercise = make_exercise()
-    bot = Bot(token=bot_token)
+    bot = Bot(token=telegram_bot_token)
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", "1"
     )
@@ -123,14 +123,14 @@ async def test_tick_sends_reminder_with_a_next_exercise_button(
 
 
 async def test_tick_clears_a_stale_button_before_reminding(
-    bot_token: str,
+    telegram_bot_token: str,
     redis_storage: RedisStorage,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
     seed_student_record: SeedStudentRecord,
 ) -> None:
     exercise = make_exercise()
-    bot = Bot(token=bot_token)
+    bot = Bot(token=telegram_bot_token)
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", "1"
     )
@@ -163,14 +163,14 @@ async def test_tick_clears_a_stale_button_before_reminding(
 
 
 async def test_tick_remembers_the_reminder_message_as_the_new_buttoned_message(
-    bot_token: str,
+    telegram_bot_token: str,
     redis_storage: RedisStorage,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
     seed_student_record: SeedStudentRecord,
 ) -> None:
     exercise = make_exercise()
-    bot = Bot(token=bot_token)
+    bot = Bot(token=telegram_bot_token)
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", "1"
     )
@@ -196,14 +196,14 @@ async def test_tick_remembers_the_reminder_message_as_the_new_buttoned_message(
 
 
 async def test_tick_skips_chat_with_nothing_due(
-    bot_token: str,
+    telegram_bot_token: str,
     redis_storage: RedisStorage,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
     seed_student_record: SeedStudentRecord,
 ) -> None:
     exercise = make_exercise(word="warten")
-    bot = Bot(token=bot_token)
+    bot = Bot(token=telegram_bot_token)
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", "1"
     )
@@ -238,7 +238,7 @@ async def test_tick_skips_chat_with_nothing_due(
 
 
 async def test_tick_does_not_crash_when_chat_blocked_the_bot(
-    bot_token: str,
+    telegram_bot_token: str,
     redis_storage: RedisStorage,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
@@ -246,7 +246,7 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
     read_student_record: ReadStudentRecord,
 ) -> None:
     exercise = make_exercise()
-    bot = Bot(token=bot_token)
+    bot = Bot(token=telegram_bot_token)
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", "1"
     )
@@ -275,14 +275,14 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
 
 
 async def test_tick_continues_after_one_chat_fails(
-    bot_token: str,
+    telegram_bot_token: str,
     redis_storage: RedisStorage,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
     seed_student_record: SeedStudentRecord,
 ) -> None:
     exercise = make_exercise()
-    bot = Bot(token=bot_token)
+    bot = Bot(token=telegram_bot_token)
     student_id_1 = await student_identity_store.resolve_or_create_student_id(
         "telegram", "1"
     )
@@ -317,12 +317,12 @@ async def test_tick_continues_after_one_chat_fails(
 
 
 async def test_run_ticks_then_sleeps_between_iterations(
-    bot_token: str,
+    telegram_bot_token: str,
     redis_storage: RedisStorage,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
 ) -> None:
-    bot = Bot(token=bot_token)
+    bot = Bot(token=telegram_bot_token)
     course = Course([make_exercise()])
     sleep_calls: list[float] = []
 
@@ -343,10 +343,10 @@ async def test_run_ticks_then_sleeps_between_iterations(
 
 
 async def test_main_calls_run_with_constructed_dependencies(
-    monkeypatch, bot_token: str, tmp_yaml_file: TmpYamlFile
+    monkeypatch, telegram_bot_token: str, tmp_yaml_file: TmpYamlFile
 ) -> None:
     exercise_data: ExerciseData = make_exercise_data(word="sprechen")
-    monkeypatch.setenv("BOT_TOKEN", bot_token)
+    monkeypatch.setenv("BOT_TOKEN", telegram_bot_token)
     monkeypatch.setenv("BOT_FSM_STORAGE_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("STUDENT_RECORD_STORAGE_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("STUDENT_IDENTITY_STORAGE_URL", "redis://localhost:6379/0")
@@ -366,7 +366,7 @@ async def test_main_calls_run_with_constructed_dependencies(
         course_arg,
     ) = args
     assert isinstance(bot_arg, Bot)
-    assert bot_arg.token == bot_token
+    assert bot_arg.token == telegram_bot_token
     assert isinstance(fsm_storage_arg, RedisStorage)
     assert isinstance(student_record_book_arg, StudentRecordBook)
     assert isinstance(student_identity_store_arg, StudentIdentityStore)
