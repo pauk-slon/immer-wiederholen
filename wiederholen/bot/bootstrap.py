@@ -5,13 +5,25 @@ from aiogram import Bot
 from aiogram.fsm.storage.redis import RedisStorage
 from anthropic import AsyncAnthropic
 
-from wiederholen.school import Course, RedisStudentRecordBook, StudentRecordBook
+from wiederholen.school import (
+    Course,
+    RedisStudentIdentityStore,
+    RedisStudentRecordBook,
+    StudentIdentityStore,
+    StudentRecordBook,
+)
 
 from .feature_flags import parse_feature_flags
 
 
 def load_student_record_book() -> StudentRecordBook:
     return RedisStudentRecordBook.from_url(os.environ["STUDENT_RECORD_STORAGE_URL"])
+
+
+def load_student_identity_store() -> StudentIdentityStore:
+    return RedisStudentIdentityStore.from_url(
+        os.environ["STUDENT_IDENTITY_STORAGE_URL"]
+    )
 
 
 def load_feature_flags() -> dict[str, frozenset[int]]:
@@ -46,15 +58,21 @@ def load_authoring_guide() -> str | None:
 
 
 def load_bot_course_and_storage() -> tuple[
-    Bot, Course, RedisStorage, StudentRecordBook
+    Bot, Course, RedisStorage, StudentRecordBook, StudentIdentityStore
 ]:
     # Shared by both wiederholen.bot.__main__.main() (polling bot) and
     # wiederholen.bot.reminder.main() (reminder worker) — both processes need
-    # all four: the reminder worker has no aiogram routers of its own, but
+    # all five: the reminder worker has no aiogram routers of its own, but
     # still does a point lookup into RedisStorage for a chat's language (see
     # wiederholen.bot.reminder), so it can't do without it either.
     token = os.environ["BOT_TOKEN"]
     course = Course.load(Path(os.environ.get("COURSE_PATH", "data")))
     bot = Bot(token=token)
     storage_url = os.environ["BOT_FSM_STORAGE_URL"]
-    return bot, course, RedisStorage.from_url(storage_url), load_student_record_book()
+    return (
+        bot,
+        course,
+        RedisStorage.from_url(storage_url),
+        load_student_record_book(),
+        load_student_identity_store(),
+    )

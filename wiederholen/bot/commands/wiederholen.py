@@ -29,7 +29,6 @@ from wiederholen.bot.pending_buttons import (
     forget_buttoned_message,
     remember_buttoned_message,
 )
-from wiederholen.bot.telegram_student_id import TelegramStudentID
 from wiederholen.school import (
     AIGenerationError,
     Course,
@@ -37,6 +36,7 @@ from wiederholen.school import (
     Language,
     Recall,
     RecallMode,
+    StudentIdentityStore,
     StudentRecordBook,
     Tutor,
     generate_shadow_exercise,
@@ -255,6 +255,7 @@ async def command_wiederholen(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
@@ -267,9 +268,10 @@ async def command_wiederholen(
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(message.chat.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(message.chat.id)
+    )
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         exercise = tutor.next_exercise()
         if exercise is None:
@@ -318,6 +320,7 @@ async def handle_answer(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
     ai_mode = state_data.get("ai_mode", False)
@@ -326,9 +329,10 @@ async def handle_answer(
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(message.chat.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(message.chat.id)
+    )
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         mark = tutor.check_answer(shown_exercise, message.text or "")
         result_line = (
@@ -375,6 +379,7 @@ async def handle_recall(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
     ai_mode = state_data.get("ai_mode", False)
@@ -391,9 +396,10 @@ async def handle_recall(
     # check_recall() is pure (never mutates student_record), unlike request_recall()
     # in _start_recall() above — open() detects that nothing changed and
     # skips the write on its own, no separate read-only path needed here.
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(message.chat.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(message.chat.id)
+    )
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         if tutor.check_recall(shown_recall, message.text or ""):
             sent = await message.answer(
@@ -480,15 +486,17 @@ async def handle_next_exercise(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(callback.from_user.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(callback.from_user.id)
+    )
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         await _respond_with_next_exercise(
             callback,
@@ -509,15 +517,17 @@ async def handle_study_more(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(callback.from_user.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(callback.from_user.id)
+    )
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         tutor.grant_new_word_budget()
         await _respond_with_next_exercise(
@@ -539,6 +549,7 @@ async def handle_recall_request(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -547,9 +558,10 @@ async def handle_recall_request(
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
-        async with student_record_book.check_out(
-            TelegramStudentID.encode(callback.from_user.id)
-        ) as student_record:
+        student_id = await student_identity_store.resolve_or_create_student_id(
+            "telegram", str(callback.from_user.id)
+        )
+        async with student_record_book.check_out(student_id) as student_record:
             await _start_recall(
                 state,
                 language,

@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     configure_tracing()
     instrument_redis()
-    bot, course, storage, student_record_book = load_bot_course_and_storage()
+    bot, course, storage, student_record_book, student_identity_store = (
+        load_bot_course_and_storage()
+    )
     feature_flags = load_feature_flags()
     anthropic_client = load_anthropic_client()
     authoring_guide = load_authoring_guide()
@@ -57,6 +59,7 @@ async def main() -> None:
         bot,
         course=course,
         student_record_book=student_record_book,
+        student_identity_store=student_identity_store,
         feature_flags=feature_flags,
         anthropic_client=anthropic_client,
         authoring_guide=authoring_guide,

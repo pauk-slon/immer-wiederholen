@@ -9,8 +9,7 @@ from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     remember_buttoned_message,
 )
-from wiederholen.bot.telegram_student_id import TelegramStudentID
-from wiederholen.school import Course, StudentRecordBook, Tutor
+from wiederholen.school import Course, StudentIdentityStore, StudentRecordBook, Tutor
 
 router = Router()
 
@@ -21,6 +20,7 @@ async def command_progress(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
 ) -> None:
     await clear_stale_buttons(message.bot, message.chat.id, state)
     data = await state.get_data()
@@ -28,7 +28,9 @@ async def command_progress(
     locale = LOCALES[language]
     # progress() is read-only (see wiederholen.school.tutoring.session) —
     # open() detects that nothing changed and skips the write on its own.
-    student_id = TelegramStudentID.encode(message.chat.id)
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(message.chat.id)
+    )
     async with student_record_book.check_out(student_id) as student_record:
         progress = Tutor(course, student_record).progress()
     sent = await message.answer(
