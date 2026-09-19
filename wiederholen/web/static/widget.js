@@ -528,6 +528,11 @@ class GermanExerciseWidget extends HTMLElement {
       "resize",
       this._onViewportResize
     );
+    // In case the widget disconnects before Telegram's own script has
+    // injected its iframe — otherwise the light-DOM host (see
+    // _renderLoginButton()) would leak, still pending, in document.body.
+    this._loginButtonObserver?.disconnect();
+    this._loginButtonHost?.remove();
   }
 
   _onViewportResize() {
@@ -1262,12 +1267,32 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   // createElement()/setAttribute(), not an HTML string — a <script> tag
-  // never executes when inserted via innerHTML.
+  // never executes when inserted via innerHTML. Telegram's own script
+  // locates itself via document.currentScript to replace itself with an
+  // iframe, and that's always null for a script executing inside a Shadow
+  // Root — confirmed directly against the deployed page, where the script
+  // loaded but silently rendered nothing. So it has to run in the light
+  // DOM instead; a MutationObserver on the light-DOM host that ran it
+  // catches the iframe once Telegram's script injects it, and moves that
+  // iframe into our own shadow tree — reparenting an already-rendered
+  // iframe like this doesn't reload it (also confirmed directly).
   _renderLoginButton() {
     if (!this._loginEnabled) return;
     const botUsername = this._telegramBotUsername;
     if (!botUsername) return;
     const container = this._shadow.querySelector("[data-login-container]");
+    const host = document.createElement("div");
+    host.style.display = "contents";
+    this._loginButtonHost = host;
+    this._loginButtonObserver = new MutationObserver(() => {
+      const iframe = host.querySelector("iframe");
+      if (!iframe) return;
+      this._loginButtonObserver.disconnect();
+      container.appendChild(iframe);
+      host.remove();
+    });
+    this._loginButtonObserver.observe(host, { childList: true });
+    document.body.appendChild(host);
     const script = document.createElement("script");
     script.src = "https://telegram.org/js/telegram-widget.js?22";
     script.async = true;
@@ -1278,7 +1303,7 @@ class GermanExerciseWidget extends HTMLElement {
       "data-auth-url",
       `${this._apiBase}/api/auth/telegram/callback?return_to=${encodeURIComponent(window.location.href)}`
     );
-    container.appendChild(script);
+    host.appendChild(script);
   }
 }
 
