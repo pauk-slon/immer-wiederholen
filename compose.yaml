@@ -44,9 +44,14 @@ services:
     command: python -m wiederholen.web
     environment:
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
+      STUDENT_IDENTITY_STORAGE_URL: redis://valkey:6379/1
       WEB_SESSION_STORAGE_URL: redis://valkey:6379/2
       WEB_ALLOWED_ORIGINS: ${WEB_ALLOWED_ORIGINS:-http://localhost:3000}
       WEB_COOKIE_DOMAIN: ${WEB_COOKIE_DOMAIN:-localhost}
+      # Needed to validate Telegram Login Widget callbacks (see
+      # wiederholen/web/telegram_login.py) — not to talk to the Bot API
+      # directly the way the bot/reminder services do.
+      BOT_TOKEN: ${BOT_TOKEN}
     volumes:
       - .:/app
     depends_on:
