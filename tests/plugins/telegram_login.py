@@ -2,8 +2,24 @@ import hashlib
 import hmac
 from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import TypedDict, Unpack
 
 import pytest
+
+
+class TelegramLoginOverrides(TypedDict, total=False):
+    """The fields of a Telegram Login Widget payload a test can plausibly
+    override before it gets signed — not `hash`, which the factory always
+    computes itself from the rest.
+    """
+
+    id: str
+    first_name: str
+    auth_date: str
+    last_name: str
+    username: str
+    photo_url: str
+
 
 type TelegramLoginPayloadFactory = Callable[..., dict[str, str]]
 
@@ -21,17 +37,21 @@ def telegram_login_payload_factory(
     what the "rejects a tampered field" tests exercise instead.
     """
 
-    def factory(**overrides: str) -> dict[str, str]:
+    def factory(**overrides: Unpack[TelegramLoginOverrides]) -> dict[str, str]:
         payload: dict[str, str] = {
-            "id": str(telegram_user_id),
-            "first_name": "Test",
-            "auth_date": str(int(datetime.now(UTC).timestamp())),
-            "hash": "",
+            "id": overrides.get("id", str(telegram_user_id)),
+            "first_name": overrides.get("first_name", "Test"),
+            "auth_date": overrides.get(
+                "auth_date", str(int(datetime.now(UTC).timestamp()))
+            ),
         }
-        payload.update(overrides)
-        data_check_string = "\n".join(
-            f"{key}={payload[key]}" for key in sorted(payload) if key != "hash"
-        )
+        if "last_name" in overrides:
+            payload["last_name"] = overrides["last_name"]
+        if "username" in overrides:
+            payload["username"] = overrides["username"]
+        if "photo_url" in overrides:
+            payload["photo_url"] = overrides["photo_url"]
+        data_check_string = "\n".join(f"{k}={payload[k]}" for k in sorted(payload))
         secret_key = hashlib.sha256(bot_token.encode()).digest()
         payload["hash"] = hmac.new(
             secret_key, data_check_string.encode(), hashlib.sha256
