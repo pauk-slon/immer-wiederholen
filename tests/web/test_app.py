@@ -8,7 +8,7 @@ from litestar.testing import AsyncTestClient
 
 from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import make_exercise, make_exercise_data
-from tests.plugins.telegram_login import make_telegram_login_payload
+from tests.plugins.telegram_login import TelegramLoginPayloadFactory
 from wiederholen.school import (
     Course,
     RedisStudentIdentityStore,
@@ -535,10 +535,11 @@ async def test_next_exercise_treats_a_foreign_cookie_as_a_new_visitor(
 
 
 async def test_telegram_login_callback_sets_a_logged_in_cookie(
-    web_app_factory: WebAppFactory, bot_token: str
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
 ) -> None:
     app = web_app_factory(Course([]))
-    payload = make_telegram_login_payload(bot_token, id="777")
+    payload = telegram_login_payload_factory()
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         response = await client.get(
@@ -554,13 +555,14 @@ async def test_telegram_login_callback_sets_a_logged_in_cookie(
 
 async def test_telegram_login_callback_resolves_the_same_id_the_bot_would(
     web_app_factory: WebAppFactory,
-    bot_token: str,
+    telegram_user_id: int,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
     student_identity_store: StudentIdentityStore,
 ) -> None:
     app = web_app_factory(Course([]))
-    payload = make_telegram_login_payload(bot_token, id="777")
+    payload = telegram_login_payload_factory()
     expected_id = await student_identity_store.resolve_or_create_student_id(
-        "telegram", "777"
+        "telegram", str(telegram_user_id)
     )
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
@@ -573,10 +575,11 @@ async def test_telegram_login_callback_resolves_the_same_id_the_bot_would(
 
 
 async def test_telegram_login_callback_rejects_a_bad_signature(
-    web_app_factory: WebAppFactory, bot_token: str
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
 ) -> None:
     app = web_app_factory(Course([]))
-    payload = make_telegram_login_payload(bot_token)
+    payload = telegram_login_payload_factory()
     payload["id"] = "tampered"
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
@@ -588,10 +591,11 @@ async def test_telegram_login_callback_rejects_a_bad_signature(
 
 
 async def test_telegram_login_callback_redirects_to_a_relative_return_to(
-    web_app_factory: WebAppFactory, bot_token: str
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
 ) -> None:
     app = web_app_factory(Course([]))
-    payload = {**make_telegram_login_payload(bot_token), "return_to": "/progress"}
+    payload = {**telegram_login_payload_factory(), "return_to": "/progress"}
 
     async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
         response = await client.get(
@@ -602,11 +606,12 @@ async def test_telegram_login_callback_redirects_to_a_relative_return_to(
 
 
 async def test_telegram_login_callback_redirects_to_an_allowed_absolute_origin(
-    web_app_factory: WebAppFactory, bot_token: str
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
 ) -> None:
     app = web_app_factory(Course([]))
     payload = {
-        **make_telegram_login_payload(bot_token),
+        **telegram_login_payload_factory(),
         "return_to": "https://testserver.local/landing",
     }
 
@@ -619,11 +624,12 @@ async def test_telegram_login_callback_redirects_to_an_allowed_absolute_origin(
 
 
 async def test_telegram_login_callback_ignores_a_disallowed_redirect_target(
-    web_app_factory: WebAppFactory, bot_token: str
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
 ) -> None:
     app = web_app_factory(Course([]))
     payload = {
-        **make_telegram_login_payload(bot_token),
+        **telegram_login_payload_factory(),
         "return_to": "https://evil.example.com/",
     }
 
@@ -636,14 +642,15 @@ async def test_telegram_login_callback_ignores_a_disallowed_redirect_target(
 
 
 async def test_telegram_login_callback_ignores_a_protocol_relative_redirect_target(
-    web_app_factory: WebAppFactory, bot_token: str
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
 ) -> None:
     # //evil.example.com/ is a real open-redirect vector — browsers resolve
     # it as an absolute URL on whatever scheme the current page uses, not a
     # same-origin path, even though it passes a naive startswith("/") check.
     app = web_app_factory(Course([]))
     payload = {
-        **make_telegram_login_payload(bot_token),
+        **telegram_login_payload_factory(),
         "return_to": "//evil.example.com/",
     }
 
@@ -657,13 +664,13 @@ async def test_telegram_login_callback_ignores_a_protocol_relative_redirect_targ
 
 async def test_next_exercise_after_login_uses_the_resolved_student_id(
     web_app_factory: WebAppFactory,
-    bot_token: str,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
     student_identity_store: StudentIdentityStore,
     student_record_book: StudentRecordBook,
 ) -> None:
     exercise = make_exercise(word="warten")
     app = web_app_factory(Course([exercise]))
-    payload = make_telegram_login_payload(bot_token, id="777")
+    payload = telegram_login_payload_factory(id="777")
     expected_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", "777"
     )

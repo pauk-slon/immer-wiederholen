@@ -2,21 +2,27 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from tests.plugins.telegram_login import make_telegram_login_payload
+from tests.plugins.telegram_login import TelegramLoginPayloadFactory
 from wiederholen.web.telegram_login import (
     InvalidTelegramLoginError,
     validate_telegram_login,
 )
 
 
-def test_validate_accepts_a_correctly_signed_payload(bot_token: str) -> None:
-    payload = make_telegram_login_payload(bot_token, id="777")
+def test_validate_accepts_a_correctly_signed_payload(
+    bot_token: str,
+    telegram_user_id: int,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+) -> None:
+    payload = telegram_login_payload_factory()
 
-    assert validate_telegram_login(payload, bot_token) == 777
+    assert validate_telegram_login(payload, bot_token) == telegram_user_id
 
 
-def test_validate_rejects_a_field_tampered_with_after_signing(bot_token: str) -> None:
-    payload = make_telegram_login_payload(bot_token, id="777")
+def test_validate_rejects_a_field_tampered_with_after_signing(
+    bot_token: str, telegram_login_payload_factory: TelegramLoginPayloadFactory
+) -> None:
+    payload = telegram_login_payload_factory()
     payload["id"] = "999"
 
     with pytest.raises(InvalidTelegramLoginError):
@@ -24,9 +30,9 @@ def test_validate_rejects_a_field_tampered_with_after_signing(bot_token: str) ->
 
 
 def test_validate_rejects_a_payload_signed_for_a_different_bot_token(
-    bot_token: str,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
 ) -> None:
-    payload = make_telegram_login_payload(bot_token)
+    payload = telegram_login_payload_factory()
 
     with pytest.raises(InvalidTelegramLoginError):
         validate_telegram_login(
@@ -34,31 +40,41 @@ def test_validate_rejects_a_payload_signed_for_a_different_bot_token(
         )
 
 
-def test_validate_rejects_a_missing_hash(bot_token: str) -> None:
-    payload = make_telegram_login_payload(bot_token)
+def test_validate_rejects_a_missing_hash(
+    bot_token: str, telegram_login_payload_factory: TelegramLoginPayloadFactory
+) -> None:
+    payload = telegram_login_payload_factory()
     del payload["hash"]
 
     with pytest.raises(InvalidTelegramLoginError):
         validate_telegram_login(payload, bot_token)
 
 
-def test_validate_rejects_a_stale_auth_date(bot_token: str) -> None:
+def test_validate_rejects_a_stale_auth_date(
+    bot_token: str, telegram_login_payload_factory: TelegramLoginPayloadFactory
+) -> None:
     stale = str(int((datetime.now(UTC) - timedelta(days=2)).timestamp()))
-    payload = make_telegram_login_payload(bot_token, auth_date=stale)
+    payload = telegram_login_payload_factory(auth_date=stale)
 
     with pytest.raises(InvalidTelegramLoginError):
         validate_telegram_login(payload, bot_token)
 
 
-def test_validate_accepts_an_auth_date_just_under_the_limit(bot_token: str) -> None:
+def test_validate_accepts_an_auth_date_just_under_the_limit(
+    bot_token: str,
+    telegram_user_id: int,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+) -> None:
     fresh_enough = str(int((datetime.now(UTC) - timedelta(hours=23)).timestamp()))
-    payload = make_telegram_login_payload(bot_token, auth_date=fresh_enough)
+    payload = telegram_login_payload_factory(auth_date=fresh_enough)
 
-    assert validate_telegram_login(payload, bot_token) == 12345
+    assert validate_telegram_login(payload, bot_token) == telegram_user_id
 
 
-def test_validate_rejects_a_non_numeric_id(bot_token: str) -> None:
-    payload = make_telegram_login_payload(bot_token, id="not-a-number")
+def test_validate_rejects_a_non_numeric_id(
+    bot_token: str, telegram_login_payload_factory: TelegramLoginPayloadFactory
+) -> None:
+    payload = telegram_login_payload_factory(id="not-a-number")
 
     with pytest.raises(InvalidTelegramLoginError):
         validate_telegram_login(payload, bot_token)
