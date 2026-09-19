@@ -7,7 +7,7 @@ from typing import TypedDict, Unpack
 import pytest
 
 
-class TelegramLoginOverrides(TypedDict, total=False):
+class TelegramLoginKwargs(TypedDict, total=False):
     """The fields of a Telegram Login Widget payload a test can plausibly
     override before it gets signed — not `hash`, which the factory always
     computes itself from the rest.
@@ -37,20 +37,20 @@ def telegram_login_payload_factory(
     what the "rejects a tampered field" tests exercise instead.
     """
 
-    def factory(**overrides: Unpack[TelegramLoginOverrides]) -> dict[str, str]:
+    def factory(**kwargs: Unpack[TelegramLoginKwargs]) -> dict[str, str]:
         payload: dict[str, str] = {
-            "id": overrides.get("id", str(telegram_user_id)),
-            "first_name": overrides.get("first_name", "Test"),
-            "auth_date": overrides.get(
+            "id": kwargs.get("id", str(telegram_user_id)),
+            "first_name": kwargs.get("first_name", "Test"),
+            "auth_date": kwargs.get(
                 "auth_date", str(int(datetime.now(UTC).timestamp()))
             ),
         }
-        if "last_name" in overrides:
-            payload["last_name"] = overrides["last_name"]
-        if "username" in overrides:
-            payload["username"] = overrides["username"]
-        if "photo_url" in overrides:
-            payload["photo_url"] = overrides["photo_url"]
+        if "last_name" in kwargs:
+            payload["last_name"] = kwargs["last_name"]
+        if "username" in kwargs:
+            payload["username"] = kwargs["username"]
+        if "photo_url" in kwargs:
+            payload["photo_url"] = kwargs["photo_url"]
         data_check_string = "\n".join(f"{k}={payload[k]}" for k in sorted(payload))
         secret_key = hashlib.sha256(bot_token.encode()).digest()
         payload["hash"] = hmac.new(
