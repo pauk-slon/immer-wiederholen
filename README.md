@@ -1,6 +1,6 @@
 # Immer wiederholen!
 
-Telegram bot for memorizing foreign words using spaced repetition.
+Telegram bot for practicing language grammar using spaced repetition.
 
 [![Telegram](https://img.shields.io/badge/Telegram-@ImmerWiederholenBot-2CA5E0?logo=telegram&logoColor=white)](https://t.me/ImmerWiederholenBot)
 
