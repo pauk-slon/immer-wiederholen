@@ -11,6 +11,7 @@ from .bootstrap import (
     load_anthropic_client,
     load_authoring_guide,
     load_bot_course_and_storage,
+    load_bot_info,
     load_feature_flags,
 )
 from .l10n import LOCALES
@@ -27,16 +28,20 @@ async def main() -> None:
     feature_flags = load_feature_flags()
     anthropic_client = load_anthropic_client()
     authoring_guide = load_authoring_guide()
+    bot_info_by_language = load_bot_info()
     dispatcher.fsm.storage = storage
     for language_code, locale in LOCALES.items():
         try:
-            await bot.set_my_name(locale.bot_name, language_code=language_code)
-            await bot.set_my_description(
-                locale.bot_short_description, language_code=language_code
-            )
-            await bot.set_my_short_description(
-                locale.bot_short_description, language_code=language_code
-            )
+            if bot_info_by_language and (
+                bot_info := bot_info_by_language.get(language_code)
+            ):
+                await bot.set_my_name(bot_info.name, language_code=language_code)
+                await bot.set_my_description(
+                    bot_info.description, language_code=language_code
+                )
+                await bot.set_my_short_description(
+                    bot_info.short_description, language_code=language_code
+                )
             await bot.set_my_commands(
                 [
                     BotCommand(command="start", description=locale.cmd_start),
