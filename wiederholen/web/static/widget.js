@@ -498,11 +498,7 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   connectedCallback() {
-    // The one persistent shell _render() never touches — <style> and the
-    // login button both need to survive every _render() call (a fresh
-    // exercise, an error, ...) rather than being torn down and rebuilt
-    // each time. Set up once, here, before anything else can call
-    // _render() and assume it already exists.
+    // Persistent shell _render() never touches — see its own comment.
     this._shadow.innerHTML = `<style>${STYLES}</style><div data-login-container></div>`;
     this._renderLoginButton();
     // Reuse whatever question was already showing before a plain page
@@ -603,11 +599,7 @@ class GermanExerciseWidget extends HTMLElement {
     return this.hasAttribute("recall");
   }
 
-  // Same off-by-default reasoning as _recallEnabled — see _renderLoginButton()
-  // for what this actually gates. telegram-bot names *which* bot's Login
-  // Widget to render (the component itself has no single bot baked in);
-  // with `login` set but no telegram-bot, _renderLoginButton() just no-ops
-  // rather than rendering a broken widget.
+  // Same off-by-default reasoning as _recallEnabled — see _renderLoginButton().
   get _loginEnabled() {
     return this.hasAttribute("login");
   }
@@ -1252,17 +1244,12 @@ class GermanExerciseWidget extends HTMLElement {
   // nothing-available states and its first successful _renderQuestion()
   // call, all of which mean a genuinely new exercise, where nothing from
   // any previous one is worth keeping around to swipe back to. Scoped to
-  // .deck specifically, not the whole shadow root — <style> and the login
-  // button (see _renderLoginButton()) live outside it precisely so they
-  // survive every one of these calls instead of being torn down and
-  // rebuilt (re-fetching Telegram's own widget script) on every single
-  // exercise.
+  // .deck, not the whole shadow root — <style>/the login button live
+  // outside it and must survive every call here.
   _render(cardHtml) {
     this._shadow.querySelector(".deck")?.remove();
-    // Anchored on the login container (an Element), not this._shadow
-    // itself (a ShadowRoot/DocumentFragment) — insertAdjacentHTML() isn't
-    // defined on the latter. connectedCallback() guarantees this container
-    // exists before _render() is ever first called.
+    // insertAdjacentHTML() isn't defined on this._shadow itself (a
+    // ShadowRoot, not an Element) — anchored on the login container instead.
     this._shadow
       .querySelector("[data-login-container]")
       .insertAdjacentHTML(
@@ -1274,18 +1261,8 @@ class GermanExerciseWidget extends HTMLElement {
     this._wireDeckNav();
   }
 
-  // Off by default, like _recallEnabled — a landing-page embed only shows
-  // this if it explicitly opts in via the bare `login` attribute *and*
-  // names which bot via `telegram-bot` (the Login Widget needs a bot
-  // username, and this component has no business hardcoding one). Renders
-  // once into the persistent login container (see connectedCallback()),
-  // never rebuilt by _render() — constructing the <script> tag via
-  // createElement()/setAttribute() rather than innerHTML is required for
-  // it to actually execute; browsers never run a <script> inserted as a
-  // literal HTML string. No client-side "am I already logged in" check —
-  // clicking it while already logged in just re-resolves the same
-  // student_id, which is harmless, so the button always shows when enabled
-  // rather than tracking login state just to hide it.
+  // createElement()/setAttribute(), not an HTML string — a <script> tag
+  // never executes when inserted via innerHTML.
   _renderLoginButton() {
     if (!this._loginEnabled) return;
     const botUsername = this._telegramBotUsername;
@@ -1296,9 +1273,7 @@ class GermanExerciseWidget extends HTMLElement {
     script.async = true;
     script.setAttribute("data-telegram-login", botUsername);
     script.setAttribute("data-size", "medium");
-    // return_to lets the callback send the visitor back to *this* page
-    // (a landing-page embed) rather than always to the API's own root —
-    // see telegram_login_callback()'s own _safe_redirect_target().
+    // return_to — see _safe_redirect_target() in app.py.
     script.setAttribute(
       "data-auth-url",
       `${this._apiBase}/api/auth/telegram/callback?return_to=${encodeURIComponent(window.location.href)}`

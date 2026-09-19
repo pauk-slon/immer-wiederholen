@@ -26,7 +26,6 @@ def load_web_course_and_storage() -> tuple[
 
 
 def load_bot_token() -> str:
-    # Required, no fallback, same as wiederholen.bot's own BOT_TOKEN — needed
-    # here to validate Telegram Login Widget callbacks (see telegram_login.py),
-    # not to talk to the Bot API directly the way wiederholen.bot does.
+    # Required, no fallback — used to validate Telegram Login Widget
+    # callbacks (telegram_login.py), not to call the Bot API.
     return os.environ["BOT_TOKEN"]

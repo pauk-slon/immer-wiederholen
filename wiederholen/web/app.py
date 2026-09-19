@@ -129,12 +129,7 @@ def _student_id_from_request(request: Request) -> tuple[StudentID, bool]:
     raw = request.cookies.get(_COOKIE_NAME)
     if raw is not None:
         if raw.startswith(_LOGGED_IN_PREFIX):
-            # Tagged by telegram_login_callback() below — the bare value
-            # underneath is a real StudentIdentityStore-resolved id, the
-            # same one wiederholen.bot resolves for this Telegram user.
-            # Stripped back off here so the rest of this module never deals
-            # with the cookie's own transport encoding, only the canonical
-            # StudentID.
+            # See telegram_login_callback() / CLAUDE.md's "Telegram login".
             return raw.removeprefix(_LOGGED_IN_PREFIX), False
         try:
             return WebStudentID.validate(raw), False
@@ -150,11 +145,6 @@ def _remember_student_id(
     cookie_domain: str,
     logged_in: bool = False,
 ) -> None:
-    # logged_in tags the cookie so _student_id_from_request() can tell a real
-    # StudentIdentityStore-resolved id apart from an anonymous WebStudentID
-    # token (already self-tagged via its own "web:" prefix) or, importantly,
-    # any other foreign/garbage cookie value — accepting an *untagged* value
-    # outright would trust literally anything a client happened to send.
     value = f"{_LOGGED_IN_PREFIX}{student_id}" if logged_in else student_id
     response.set_cookie(
         key=_COOKIE_NAME,
@@ -168,12 +158,8 @@ def _remember_student_id(
 
 
 def _safe_redirect_target(return_to: str, allowed_origins: list[str]) -> str:
-    # return_to is attacker-controllable (any visitor can craft this URL
-    # themselves) — a relative path stays on this same origin by
-    # construction; an absolute URL is only trusted if its origin is one
-    # WEB_ALLOWED_ORIGINS already vouches for (the same list CORS itself
-    # trusts), otherwise this would be an open redirect. "/" is always a
-    # safe, reasonable fallback (the standalone app's own root).
+    # return_to is attacker-controllable — open-redirect guard, see
+    # CLAUDE.md's "Telegram login".
     if return_to.startswith("/") and not return_to.startswith("//"):
         return return_to
     origin = f"{urlsplit(return_to).scheme}://{urlsplit(return_to).netloc}"
@@ -184,10 +170,8 @@ def _safe_redirect_target(return_to: str, allowed_origins: list[str]) -> str:
 async def telegram_login_callback(request: Request, state: State) -> Response:
     bot_token: str = state["bot_token"]
     student_identity_store: StudentIdentityStore = state["student_identity_store"]
-    # return_to is our own addition, not one of Telegram's own signed
-    # fields — popped off before validation, or its mere presence would
-    # change the data_check_string Telegram itself never signed over,
-    # failing every request that includes it.
+    # return_to is our own addition, not one of Telegram's signed fields —
+    # must be popped before validate_telegram_login() sees it.
     query = dict(request.query_params)
     return_to = query.pop("return_to", "/")
     try:
@@ -425,9 +409,8 @@ def create_app() -> Litestar:
                 "student_identity_store": student_identity_store,
                 "bot_token": bot_token,
                 "cookie_domain": os.environ["WEB_COOKIE_DOMAIN"],
-                # Shared with CORSConfig below — telegram_login_callback's own
-                # _safe_redirect_target() reuses the exact same trusted-origin
-                # list rather than a second, separately-maintained one.
+                # Also used by _safe_redirect_target() — same trusted-origin
+                # list as CORSConfig below.
                 "allowed_origins": allowed_origins,
             }
         ),
