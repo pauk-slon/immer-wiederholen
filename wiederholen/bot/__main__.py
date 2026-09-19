@@ -28,17 +28,19 @@ async def main() -> None:
     feature_flags = load_feature_flags()
     anthropic_client = load_anthropic_client()
     authoring_guide = load_authoring_guide()
-    bot_info = load_bot_info()
+    bot_info_by_language = load_bot_info()
     dispatcher.fsm.storage = storage
     for language_code, locale in LOCALES.items():
         try:
-            if bot_info and (info := bot_info.get(language_code)):
-                await bot.set_my_name(info.name, language_code=language_code)
+            if bot_info_by_language and (
+                bot_info := bot_info_by_language.get(language_code)
+            ):
+                await bot.set_my_name(bot_info.name, language_code=language_code)
                 await bot.set_my_description(
-                    info.description, language_code=language_code
+                    bot_info.description, language_code=language_code
                 )
                 await bot.set_my_short_description(
-                    info.short_description, language_code=language_code
+                    bot_info.short_description, language_code=language_code
                 )
             await bot.set_my_commands(
                 [
