@@ -8,7 +8,14 @@ from litestar.testing import AsyncTestClient
 
 from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import make_exercise, make_exercise_data
-from wiederholen.school import Course, RedisStudentRecordBook, StudentRecordBook
+from tests.plugins.telegram_login import TelegramLoginPayloadFactory
+from wiederholen.school import (
+    Course,
+    RedisStudentIdentityStore,
+    RedisStudentRecordBook,
+    StudentIdentityStore,
+    StudentRecordBook,
+)
 from wiederholen.web.app import (
     check_answer,
     check_recall,
@@ -16,6 +23,7 @@ from wiederholen.web.app import (
     create_app,
     next_exercise,
     request_recall,
+    telegram_login_callback,
 )
 from wiederholen.web.session import WebSessionStore
 
@@ -24,16 +32,12 @@ type WebAppFactory = Callable[[Course], Litestar]
 
 @pytest.fixture
 def web_app_factory(
-    # Depended on purely to flush their DBs before the test, same as
-    # elsewhere — student_record_book/web_session_store fixtures below are
-    # deliberately *not* the objects handed to the app itself: AsyncTestClient
-    # serves the app in its own event loop, and a Redis client whose
-    # connection pool was already touched by the outer test's loop (the
-    # fixtures' own flushdb()) can't be reused from a different one. Fresh
-    # instances pointed at the same URL make first contact from whichever
-    # loop actually serves the app.
+    # Depended on only to flush their DBs before the test — see CLAUDE.md's
+    # "Web frontend" section for why these aren't the objects handed to the app.
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
+    student_identity_store: StudentIdentityStore,
+    telegram_bot_token: str,
 ) -> WebAppFactory:
     def factory(course: Course) -> Litestar:
         return Litestar(
@@ -43,6 +47,7 @@ def web_app_factory(
                 request_recall,
                 check_recall,
                 client_error,
+                telegram_login_callback,
             ],
             state=State(
                 {
@@ -53,7 +58,12 @@ def web_app_factory(
                     "session_store": WebSessionStore.from_url(
                         os.environ["WEB_SESSION_STORAGE_URL"]
                     ),
+                    "student_identity_store": RedisStudentIdentityStore.from_url(
+                        os.environ["STUDENT_IDENTITY_STORAGE_URL"]
+                    ),
+                    "bot_token": telegram_bot_token,
                     "cookie_domain": "testserver.local",
+                    "allowed_origins": ["https://testserver.local"],
                 }
             ),
         )
@@ -515,15 +525,176 @@ async def test_next_exercise_treats_a_foreign_cookie_as_a_new_visitor(
     assert new_id != "telegram:999"
 
 
+async def test_telegram_login_callback_sets_a_logged_in_cookie(
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+) -> None:
+    app = web_app_factory(Course([]))
+    payload = telegram_login_payload_factory()
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.get(
+            "/api/auth/telegram/callback",
+            params=payload,
+            follow_redirects=False,
+        )
+
+    assert response.status_code in (301, 302, 303, 307, 308)
+    assert response.headers["location"] == "/"
+    cookie = response.cookies.get("wiederholen_student_id")
+    assert cookie is not None
+    assert cookie.startswith("student:")
+
+
+async def test_telegram_login_callback_resolves_the_same_id_the_bot_would(
+    web_app_factory: WebAppFactory,
+    telegram_user_id: int,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+    student_identity_store: StudentIdentityStore,
+) -> None:
+    app = web_app_factory(Course([]))
+    payload = telegram_login_payload_factory()
+    expected_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(telegram_user_id)
+    )
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.get(
+            "/api/auth/telegram/callback", params=payload, follow_redirects=False
+        )
+
+    cookie = response.cookies.get("wiederholen_student_id")
+    assert cookie == f"student:{expected_id}"
+
+
+async def test_telegram_login_callback_rejects_a_bad_signature(
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+) -> None:
+    app = web_app_factory(Course([]))
+    payload = telegram_login_payload_factory()
+    payload["id"] = "tampered"
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.get(
+            "/api/auth/telegram/callback", params=payload, follow_redirects=False
+        )
+
+    assert response.status_code == 400
+
+
+async def test_telegram_login_callback_redirects_to_a_relative_return_to(
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+) -> None:
+    app = web_app_factory(Course([]))
+    payload = {**telegram_login_payload_factory(), "return_to": "/progress"}
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.get(
+            "/api/auth/telegram/callback", params=payload, follow_redirects=False
+        )
+
+    assert response.headers["location"] == "/progress"
+
+
+async def test_telegram_login_callback_redirects_to_an_allowed_absolute_origin(
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+) -> None:
+    app = web_app_factory(Course([]))
+    payload = {
+        **telegram_login_payload_factory(),
+        "return_to": "https://testserver.local/landing",
+    }
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.get(
+            "/api/auth/telegram/callback", params=payload, follow_redirects=False
+        )
+
+    assert response.headers["location"] == "https://testserver.local/landing"
+
+
+async def test_telegram_login_callback_ignores_a_disallowed_redirect_target(
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+) -> None:
+    app = web_app_factory(Course([]))
+    payload = {
+        **telegram_login_payload_factory(),
+        "return_to": "https://evil.example.com/",
+    }
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.get(
+            "/api/auth/telegram/callback", params=payload, follow_redirects=False
+        )
+
+    assert response.headers["location"] == "/"
+
+
+async def test_telegram_login_callback_ignores_a_protocol_relative_redirect_target(
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+) -> None:
+    # //evil.example.com/ is a real open-redirect vector — browsers resolve
+    # it as an absolute URL on whatever scheme the current page uses, not a
+    # same-origin path, even though it passes a naive startswith("/") check.
+    app = web_app_factory(Course([]))
+    payload = {
+        **telegram_login_payload_factory(),
+        "return_to": "//evil.example.com/",
+    }
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.get(
+            "/api/auth/telegram/callback", params=payload, follow_redirects=False
+        )
+
+    assert response.headers["location"] == "/"
+
+
+async def test_next_exercise_after_login_uses_the_resolved_student_id(
+    web_app_factory: WebAppFactory,
+    telegram_login_payload_factory: TelegramLoginPayloadFactory,
+    student_identity_store: StudentIdentityStore,
+    student_record_book: StudentRecordBook,
+) -> None:
+    exercise = make_exercise(word="warten")
+    app = web_app_factory(Course([exercise]))
+    payload = telegram_login_payload_factory(id="777")
+    expected_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "777"
+    )
+    async with student_record_book.check_out(expected_id) as student_record:
+        student_record["marker"] = "already this student"
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.get(
+            "/api/auth/telegram/callback", params=payload, follow_redirects=False
+        )
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+
+    async with student_record_book.check_out(expected_id) as student_record:
+        # Untouched by our own marker check above, but next_exercise() only
+        # ever mutates via check_out() if something actually changes — the
+        # real assertion is that this checkout addresses the same record
+        # rather than a fresh, empty one.
+        assert student_record["marker"] == "already this student"
+
+
 async def test_create_app_builds_a_working_app(
     monkeypatch: pytest.MonkeyPatch,
     tmp_yaml_file: TmpYamlFile,
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
+    telegram_bot_token: str,
 ) -> None:
     exercise_data = make_exercise_data(word="warten")
     monkeypatch.setenv("WEB_ALLOWED_ORIGINS", "https://example.com")
     monkeypatch.setenv("WEB_COOKIE_DOMAIN", "example.com")
+    monkeypatch.setenv("BOT_TOKEN", telegram_bot_token)
     with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         app = create_app()
@@ -544,9 +715,11 @@ async def test_widget_js_is_served_as_a_static_file(
     tmp_yaml_file: TmpYamlFile,
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
+    telegram_bot_token: str,
 ) -> None:
     monkeypatch.setenv("WEB_ALLOWED_ORIGINS", "https://example.com")
     monkeypatch.setenv("WEB_COOKIE_DOMAIN", "example.com")
+    monkeypatch.setenv("BOT_TOKEN", telegram_bot_token)
     with tmp_yaml_file([], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         app = create_app()
@@ -563,9 +736,11 @@ async def test_standalone_app_is_served_at_the_root_path(
     tmp_yaml_file: TmpYamlFile,
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
+    telegram_bot_token: str,
 ) -> None:
     monkeypatch.setenv("WEB_ALLOWED_ORIGINS", "https://example.com")
     monkeypatch.setenv("WEB_COOKIE_DOMAIN", "example.com")
+    monkeypatch.setenv("BOT_TOKEN", telegram_bot_token)
     with tmp_yaml_file([], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         app = create_app()

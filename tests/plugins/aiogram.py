@@ -58,8 +58,8 @@ def pytest_configure(config) -> None:
 
 
 @pytest.fixture
-def bot(bot_token: str) -> Bot:
-    return Bot(token=bot_token)
+def bot(telegram_bot_token: str) -> Bot:
+    return Bot(token=telegram_bot_token)
 
 
 @pytest.fixture
@@ -122,10 +122,12 @@ def feed_message(
 
 
 @pytest.fixture
-def state(bot: Bot, dispatcher: Dispatcher, user_id: int, chat_id: int) -> FSMContext:
+def state(
+    bot: Bot, dispatcher: Dispatcher, telegram_user_id: int, chat_id: int
+) -> FSMContext:
     return FSMContext(
         storage=dispatcher.storage,
-        key=StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=user_id),
+        key=StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=telegram_user_id),
     )
 
 

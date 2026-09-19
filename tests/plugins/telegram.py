@@ -8,12 +8,12 @@ type CallbackQueryFactory = Callable[..., dict]
 
 
 @pytest.fixture
-def bot_token() -> str:
+def telegram_bot_token() -> str:
     return "1234567890:AAHHte3GRDo4KzHsY6U6xZTMSfI7xv3c_xY"
 
 
 @pytest.fixture
-def user_id() -> int:
+def telegram_user_id() -> int:
     return 1
 
 
@@ -23,13 +23,13 @@ def chat_id() -> int:
 
 
 @pytest.fixture
-def message_factory(user_id: int, chat_id: int) -> MessageFactory:
+def message_factory(telegram_user_id: int, chat_id: int) -> MessageFactory:
     def factory(text: str, *, reply_to_message_id: int | None = None):
         message: dict = {
             "message_id": 1,
             "date": datetime.datetime.now(tz=datetime.UTC),
             "chat": {"id": chat_id, "type": "private"},
-            "from": {"id": user_id, "is_bot": False, "first_name": "Test"},
+            "from": {"id": telegram_user_id, "is_bot": False, "first_name": "Test"},
             "text": text,
         }
         if reply_to_message_id is not None:
@@ -46,13 +46,13 @@ def message_factory(user_id: int, chat_id: int) -> MessageFactory:
 
 
 @pytest.fixture
-def callback_query_factory(user_id: int, chat_id: int) -> CallbackQueryFactory:
+def callback_query_factory(telegram_user_id: int, chat_id: int) -> CallbackQueryFactory:
     def factory(data: str | None) -> dict:
         return {
             "update_id": 2,
             "callback_query": {
                 "id": "test_callback_id",
-                "from": {"id": user_id, "is_bot": False, "first_name": "Test"},
+                "from": {"id": telegram_user_id, "is_bot": False, "first_name": "Test"},
                 "message": {
                     "message_id": 1,
                     "date": datetime.datetime.now(tz=datetime.UTC),

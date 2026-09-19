@@ -9,6 +9,10 @@
 // see _recallEnabled's own comment for why a landing-page embed shouldn't
 // just get it for free).
 //
+// A bare `login` attribute (plus `telegram-bot="BotUsername"`, naming which
+// bot) opts into a Telegram Login Widget button — see _renderLoginButton()'s
+// own comment. Off by default for the same reason as recall.
+//
 // `api-base` defaults to the origin this very script was loaded from
 // (captured once, below, while `document.currentScript` is still valid —
 // it stops being usable the moment this file finishes its first pass, long
@@ -62,6 +66,13 @@ const STYLES = `
       --gew-correct: #4ade80;
       --gew-wrong: #f87171;
     }
+  }
+  /* Empty (display: block, zero content) whenever _loginEnabled is off, so
+     it takes up no visible space at all — the margin only ever applies
+     once the Telegram Login Widget's own iframe actually renders inside
+     it. */
+  [data-login-container]:not(:empty) {
+    margin-bottom: 0.75rem;
   }
   /* The sized viewport: one exercise's steps (question, result, a recall
      question, a recall result, ...) are each their own separate .card (see
@@ -487,6 +498,9 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   connectedCallback() {
+    // Persistent shell _render() never touches — see its own comment.
+    this._shadow.innerHTML = `<style>${STYLES}</style><div data-login-container></div>`;
+    this._renderLoginButton();
     // Reuse whatever question was already showing before a plain page
     // reload, instead of always spending a fresh /api/exercise/next call —
     // the server's own session (WebSessionStore's shown_exercise) hasn't
@@ -583,6 +597,15 @@ class GermanExerciseWidget extends HTMLElement {
   // and forking would mean applying every future fix twice.
   get _recallEnabled() {
     return this.hasAttribute("recall");
+  }
+
+  // Same off-by-default reasoning as _recallEnabled — see _renderLoginButton().
+  get _loginEnabled() {
+    return this.hasAttribute("login");
+  }
+
+  get _telegramBotUsername() {
+    return this.getAttribute("telegram-bot") || "";
   }
 
   // Falls back to ru, not en, for an unrecognized lang attribute — matches
@@ -1216,18 +1239,46 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   // Builds a fresh deck from scratch, holding just this one card — the
-  // only entry point that wipes everything (contrast _addCard(), which
+  // only entry point that wipes the deck (contrast _addCard(), which
   // never does). Correct wherever it's used: _loadNext()'s loading/error/
   // nothing-available states and its first successful _renderQuestion()
   // call, all of which mean a genuinely new exercise, where nothing from
-  // any previous one is worth keeping around to swipe back to.
+  // any previous one is worth keeping around to swipe back to. Scoped to
+  // .deck, not the whole shadow root — <style>/the login button live
+  // outside it and must survive every call here.
   _render(cardHtml) {
-    this._shadow.innerHTML =
-      `<style>${STYLES}</style>` +
-      `<div class="deck"><div class="track">${cardHtml}</div>` +
-      `<button class="deck-nav prev" data-deck-prev hidden aria-label="Previous">‹</button>` +
-      `<button class="deck-nav next" data-deck-next hidden aria-label="Next">›</button></div>`;
+    this._shadow.querySelector(".deck")?.remove();
+    // insertAdjacentHTML() isn't defined on this._shadow itself (a
+    // ShadowRoot, not an Element) — anchored on the login container instead.
+    this._shadow
+      .querySelector("[data-login-container]")
+      .insertAdjacentHTML(
+        "afterend",
+        `<div class="deck"><div class="track">${cardHtml}</div>` +
+          `<button class="deck-nav prev" data-deck-prev hidden aria-label="Previous">‹</button>` +
+          `<button class="deck-nav next" data-deck-next hidden aria-label="Next">›</button></div>`
+      );
     this._wireDeckNav();
+  }
+
+  // createElement()/setAttribute(), not an HTML string — a <script> tag
+  // never executes when inserted via innerHTML.
+  _renderLoginButton() {
+    if (!this._loginEnabled) return;
+    const botUsername = this._telegramBotUsername;
+    if (!botUsername) return;
+    const container = this._shadow.querySelector("[data-login-container]");
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.async = true;
+    script.setAttribute("data-telegram-login", botUsername);
+    script.setAttribute("data-size", "medium");
+    // return_to — see _safe_redirect_target() in app.py.
+    script.setAttribute(
+      "data-auth-url",
+      `${this._apiBase}/api/auth/telegram/callback?return_to=${encodeURIComponent(window.location.href)}`
+    );
+    container.appendChild(script);
   }
 }
 

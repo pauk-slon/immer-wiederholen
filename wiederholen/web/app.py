@@ -4,13 +4,14 @@ import random
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
+from urllib.parse import urlsplit
 
-from litestar import Litestar, Request, post
+from litestar import Litestar, Request, get, post
 from litestar.config.cors import CORSConfig
 from litestar.datastructures import State
 from litestar.exceptions import HTTPException
 from litestar.plugins.opentelemetry import OpenTelemetryConfig, OpenTelemetryPlugin
-from litestar.response import Response
+from litestar.response import Redirect, Response
 from litestar.static_files import create_static_files_router
 from opentelemetry import trace
 
@@ -23,12 +24,17 @@ from wiederholen.school import (
     Exercise,
     Language,
     StudentID,
+    StudentIdentityStore,
     StudentRecordBook,
     Tutor,
     shuffle_word_bank,
 )
-from wiederholen.web.bootstrap import load_web_course_and_storage
+from wiederholen.web.bootstrap import load_bot_token, load_web_course_and_storage
 from wiederholen.web.session import WebSessionStore
+from wiederholen.web.telegram_login import (
+    InvalidTelegramLoginError,
+    validate_telegram_login,
+)
 from wiederholen.web.web_student_id import NotAWebStudentIdError, WebStudentID
 
 _COOKIE_NAME: Final = "wiederholen_student_id"
@@ -113,12 +119,18 @@ class CheckRecallResponse:
     answer: str
 
 
+_LOGGED_IN_PREFIX: Final = "student:"
+
+
 def _student_id_from_request(request: Request) -> tuple[StudentID, bool]:
     """Returns `(student_id, is_new)` — `is_new` tells the caller whether it
     still needs to set the cookie in its response.
     """
     raw = request.cookies.get(_COOKIE_NAME)
     if raw is not None:
+        if raw.startswith(_LOGGED_IN_PREFIX):
+            # See telegram_login_callback() / CLAUDE.md's "Telegram login".
+            return raw.removeprefix(_LOGGED_IN_PREFIX), False
         try:
             return WebStudentID.validate(raw), False
         except NotAWebStudentIdError:
@@ -127,17 +139,53 @@ def _student_id_from_request(request: Request) -> tuple[StudentID, bool]:
 
 
 def _remember_student_id(
-    response: Response, student_id: StudentID, *, cookie_domain: str
+    response: Response,
+    student_id: StudentID,
+    *,
+    cookie_domain: str,
+    logged_in: bool = False,
 ) -> None:
+    value = f"{_LOGGED_IN_PREFIX}{student_id}" if logged_in else student_id
     response.set_cookie(
         key=_COOKIE_NAME,
-        value=student_id,
+        value=value,
         domain=cookie_domain,
         max_age=_COOKIE_MAX_AGE_SECONDS,
         secure=True,
         httponly=True,
         samesite="lax",
     )
+
+
+def _safe_redirect_target(return_to: str, allowed_origins: list[str]) -> str:
+    # return_to is attacker-controllable — open-redirect guard, see
+    # CLAUDE.md's "Telegram login".
+    if return_to.startswith("/") and not return_to.startswith("//"):
+        return return_to
+    origin = f"{urlsplit(return_to).scheme}://{urlsplit(return_to).netloc}"
+    return return_to if origin in allowed_origins else "/"
+
+
+@get("/api/auth/telegram/callback")
+async def telegram_login_callback(request: Request, state: State) -> Response:
+    bot_token: str = state["bot_token"]
+    student_identity_store: StudentIdentityStore = state["student_identity_store"]
+    # return_to is our own addition, not one of Telegram's signed fields —
+    # must be popped before validate_telegram_login() sees it.
+    query = dict(request.query_params)
+    return_to = query.pop("return_to", "/")
+    try:
+        telegram_user_id = validate_telegram_login(query, bot_token)
+    except InvalidTelegramLoginError as e:
+        raise HTTPException(status_code=400, detail="invalid Telegram login") from e
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(telegram_user_id)
+    )
+    response = Redirect(_safe_redirect_target(return_to, state["allowed_origins"]))
+    _remember_student_id(
+        response, student_id, cookie_domain=state["cookie_domain"], logged_in=True
+    )
+    return response
 
 
 def _to_exercise_dto(
@@ -323,7 +371,10 @@ async def client_error(data: ClientErrorRequest) -> None:
 
 
 def create_app() -> Litestar:
-    course, student_record_book, session_store = load_web_course_and_storage()
+    course, student_record_book, session_store, student_identity_store = (
+        load_web_course_and_storage()
+    )
+    bot_token = load_bot_token()
     widget_router = create_static_files_router(
         path="/widget", directories=[_STATIC_DIR]
     )
@@ -338,6 +389,7 @@ def create_app() -> Litestar:
         html_mode=True,
         name="app",
     )
+    allowed_origins = os.environ["WEB_ALLOWED_ORIGINS"].split(",")
     return Litestar(
         route_handlers=[
             next_exercise,
@@ -345,6 +397,7 @@ def create_app() -> Litestar:
             request_recall,
             check_recall,
             client_error,
+            telegram_login_callback,
             widget_router,
             app_router,
         ],
@@ -353,11 +406,16 @@ def create_app() -> Litestar:
                 "course": course,
                 "student_record_book": student_record_book,
                 "session_store": session_store,
+                "student_identity_store": student_identity_store,
+                "bot_token": bot_token,
                 "cookie_domain": os.environ["WEB_COOKIE_DOMAIN"],
+                # Also used by _safe_redirect_target() — same trusted-origin
+                # list as CORSConfig below.
+                "allowed_origins": allowed_origins,
             }
         ),
         cors_config=CORSConfig(
-            allow_origins=os.environ["WEB_ALLOWED_ORIGINS"].split(","),
+            allow_origins=allowed_origins,
             allow_credentials=True,
         ),
         plugins=[OpenTelemetryPlugin(OpenTelemetryConfig())],
