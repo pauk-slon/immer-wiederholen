@@ -105,9 +105,35 @@ async def test_iter_identifiers_yields_every_linked_identifier_for_that_provider
     assert pairs == {("1", first), ("2", second)}
 
 
-# No test for iter_identifiers() staying scoped to one provider among several —
-# AuthProvider only has "telegram" today, so there's no second, valid provider
-# to cross-contaminate with, and constructing one would mean either an invalid
-# AuthProvider value or reaching past the public API into Redis directly for a
-# case that can't actually occur yet. Add that test once a second provider
-# (e.g. "email") exists for real.
+async def test_iter_identifiers_stays_scoped_to_one_provider_among_several(
+    student_identity_store: StudentIdentityStore,
+) -> None:
+    telegram_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "1"
+    )
+    await student_identity_store.link_identity(telegram_id, "browser", "1")
+
+    pairs = {pair async for pair in student_identity_store.iter_identifiers("telegram")}
+
+    assert pairs == {("1", telegram_id)}
+
+
+async def test_resolve_student_id_returns_none_for_an_unlinked_identifier(
+    student_identity_store: StudentIdentityStore,
+) -> None:
+    resolved = await student_identity_store.resolve_student_id("browser", "unknown")
+
+    assert resolved is None
+
+
+async def test_resolve_student_id_finds_a_linked_identifier_without_creating_one(
+    student_identity_store: StudentIdentityStore,
+) -> None:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "1"
+    )
+    await student_identity_store.link_identity(student_id, "browser", "token")
+
+    resolved = await student_identity_store.resolve_student_id("browser", "token")
+
+    assert resolved == student_id

@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
@@ -119,33 +120,36 @@ class CheckRecallResponse:
     answer: str
 
 
-_LOGGED_IN_PREFIX: Final = "student:"
+# A logged-in cookie carries an opaque per-browser token, never the real
+# student_id directly — see CLAUDE.md's "Telegram login" for why.
+_BROWSER_PREFIX: Final = "browser:"
 
 
-def _student_id_from_request(request: Request) -> tuple[StudentID, bool]:
+async def _student_id_from_request(
+    request: Request, student_identity_store: StudentIdentityStore
+) -> tuple[StudentID, bool]:
     """Returns `(student_id, is_new)` — `is_new` tells the caller whether it
     still needs to set the cookie in its response.
     """
     raw = request.cookies.get(_COOKIE_NAME)
     if raw is not None:
-        if raw.startswith(_LOGGED_IN_PREFIX):
-            # See telegram_login_callback() / CLAUDE.md's "Telegram login".
-            return raw.removeprefix(_LOGGED_IN_PREFIX), False
-        try:
-            return WebStudentID.validate(raw), False
-        except NotAWebStudentIdError:
-            pass
+        if raw.startswith(_BROWSER_PREFIX):
+            student_id = await student_identity_store.resolve_student_id(
+                "browser", raw.removeprefix(_BROWSER_PREFIX)
+            )
+            if student_id is not None:
+                return student_id, False
+            # Falls through to the same fresh-anonymous-id fallback the
+            # except branch below uses for a foreign web: cookie.
+        else:
+            try:
+                return WebStudentID.validate(raw), False
+            except NotAWebStudentIdError:
+                pass
     return WebStudentID.generate(), True
 
 
-def _remember_student_id(
-    response: Response,
-    student_id: StudentID,
-    *,
-    cookie_domain: str,
-    logged_in: bool = False,
-) -> None:
-    value = f"{_LOGGED_IN_PREFIX}{student_id}" if logged_in else student_id
+def _set_cookie(response: Response, value: str, cookie_domain: str) -> None:
     response.set_cookie(
         key=_COOKIE_NAME,
         value=value,
@@ -155,6 +159,26 @@ def _remember_student_id(
         httponly=True,
         samesite="lax",
     )
+
+
+def _remember_student_id(
+    response: Response, student_id: StudentID, *, cookie_domain: str
+) -> None:
+    _set_cookie(response, student_id, cookie_domain)
+
+
+async def _remember_browser_login(
+    response: Response,
+    student_id: StudentID,
+    student_identity_store: StudentIdentityStore,
+    *,
+    cookie_domain: str,
+) -> None:
+    # Always a fresh token, never one lifted back out of an incoming
+    # cookie — see CLAUDE.md's "Telegram login" for why.
+    token = secrets.token_urlsafe(32)
+    await student_identity_store.link_identity(student_id, "browser", token)
+    _set_cookie(response, f"{_BROWSER_PREFIX}{token}", cookie_domain)
 
 
 def _safe_redirect_target(return_to: str, allowed_origins: list[str]) -> str:
@@ -182,8 +206,11 @@ async def telegram_login_callback(request: Request, state: State) -> Response:
         "telegram", str(telegram_user_id)
     )
     response = Redirect(_safe_redirect_target(return_to, state["allowed_origins"]))
-    _remember_student_id(
-        response, student_id, cookie_domain=state["cookie_domain"], logged_in=True
+    await _remember_browser_login(
+        response,
+        student_id,
+        student_identity_store,
+        cookie_domain=state["cookie_domain"],
     )
     return response
 
@@ -214,7 +241,9 @@ async def next_exercise(
     course: Course = state["course"]
     student_record_book: StudentRecordBook = state["student_record_book"]
     session_store: WebSessionStore = state["session_store"]
-    student_id, is_new = _student_id_from_request(request)
+    student_id, is_new = await _student_id_from_request(
+        request, state["student_identity_store"]
+    )
 
     # An empty topics list means "no restriction" — the whole course — not
     # "restrict to nothing": Course.restricted_to([]) would otherwise filter
@@ -249,7 +278,9 @@ async def check_answer(
     # exact student_id, which only next_exercise() ever creates — so by the
     # time this call succeeds, the caller has necessarily already been
     # handed (and sent back) a real cookie from an earlier request.
-    student_id, _ = _student_id_from_request(request)
+    student_id, _ = await _student_id_from_request(
+        request, state["student_identity_store"]
+    )
 
     shown_exercise = await session_store.get_shown_exercise(student_id, data.topics)
     if shown_exercise is None:
@@ -278,7 +309,9 @@ async def request_recall(
     course: Course = state["course"]
     student_record_book: StudentRecordBook = state["student_record_book"]
     session_store: WebSessionStore = state["session_store"]
-    student_id, _ = _student_id_from_request(request)
+    student_id, _ = await _student_id_from_request(
+        request, state["student_identity_store"]
+    )
 
     shown_exercise = await session_store.get_shown_exercise(student_id, data.topics)
     if shown_exercise is None:
@@ -315,7 +348,9 @@ async def check_recall(
     course: Course = state["course"]
     student_record_book: StudentRecordBook = state["student_record_book"]
     session_store: WebSessionStore = state["session_store"]
-    student_id, _ = _student_id_from_request(request)
+    student_id, _ = await _student_id_from_request(
+        request, state["student_identity_store"]
+    )
 
     shown_recall = await session_store.get_shown_recall(student_id, data.topics)
     if shown_recall is None:

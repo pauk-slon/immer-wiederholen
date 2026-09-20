@@ -7,7 +7,7 @@ from redis.asyncio import Redis
 
 from wiederholen.school.student_record_book import StudentID
 
-type AuthProvider = Literal["telegram"]
+type AuthProvider = Literal["telegram", "browser"]
 
 
 class IdentityAlreadyLinkedError(ValueError):
@@ -41,6 +41,16 @@ class StudentIdentityStore(ABC):
         return await self._create_if_absent(
             provider, identifier, secrets.token_urlsafe(32)
         )
+
+    async def resolve_student_id(
+        self, provider: AuthProvider, identifier: str
+    ) -> StudentID | None:
+        """None on a miss, for a caller that needs to fall back to
+        something else (e.g. a fresh anonymous id) rather than treat an
+        unresolvable identifier as a legitimate first-time login (a wiped
+        store, a tampered cookie value).
+        """
+        return await self._get(provider, identifier)
 
     async def link_identity(
         self, student_id: StudentID, provider: AuthProvider, identifier: str

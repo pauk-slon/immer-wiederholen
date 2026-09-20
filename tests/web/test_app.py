@@ -525,6 +525,27 @@ async def test_next_exercise_treats_a_foreign_cookie_as_a_new_visitor(
     assert new_id != "telegram:999"
 
 
+async def test_next_exercise_treats_an_unlinked_browser_cookie_as_a_new_visitor(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(word="warten")
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(
+        app=app,
+        base_url="https://testserver.local",
+        cookies={"wiederholen_student_id": "browser:unknown-token"},
+    ) as client:
+        response = await client.post(
+            "/api/exercise/next", json={"topics": ["government"]}
+        )
+
+    assert response.status_code == 200
+    new_cookie = response.cookies.get("wiederholen_student_id")
+    assert new_cookie is not None
+    assert new_cookie != "browser:unknown-token"
+
+
 async def test_telegram_login_callback_sets_a_logged_in_cookie(
     web_app_factory: WebAppFactory,
     telegram_login_payload_factory: TelegramLoginPayloadFactory,
@@ -543,7 +564,7 @@ async def test_telegram_login_callback_sets_a_logged_in_cookie(
     assert response.headers["location"] == "/"
     cookie = response.cookies.get("wiederholen_student_id")
     assert cookie is not None
-    assert cookie.startswith("student:")
+    assert cookie.startswith("browser:")
 
 
 async def test_telegram_login_callback_resolves_the_same_id_the_bot_would(
@@ -564,7 +585,10 @@ async def test_telegram_login_callback_resolves_the_same_id_the_bot_would(
         )
 
     cookie = response.cookies.get("wiederholen_student_id")
-    assert cookie == f"student:{expected_id}"
+    assert cookie is not None
+    token = cookie.removeprefix("browser:")
+    resolved = await student_identity_store.resolve_student_id("browser", token)
+    assert resolved == expected_id
 
 
 async def test_telegram_login_callback_rejects_a_bad_signature(
