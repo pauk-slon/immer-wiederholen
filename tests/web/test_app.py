@@ -528,11 +528,6 @@ async def test_next_exercise_treats_a_foreign_cookie_as_a_new_visitor(
 async def test_next_exercise_treats_an_unlinked_browser_cookie_as_a_new_visitor(
     web_app_factory: WebAppFactory,
 ) -> None:
-    # A browser: cookie whose token was never actually linked (store wiped,
-    # value tampered with) must fall back to a fresh anonymous visitor, not
-    # be trusted or silently minted into a real student — same fallback
-    # test_next_exercise_treats_a_foreign_cookie_as_a_new_visitor already
-    # covers for a foreign non-web:-shaped cookie.
     exercise = make_exercise(word="warten")
     app = web_app_factory(Course([exercise]))
 

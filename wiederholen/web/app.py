@@ -139,9 +139,8 @@ async def _student_id_from_request(
             )
             if student_id is not None:
                 return student_id, False
-            # An unresolvable token (wiped store, tampered value) falls
-            # through to a fresh anonymous id below, same as a foreign/
-            # garbage web: cookie already does via NotAWebStudentIdError.
+            # Falls through to the same fresh-anonymous-id fallback the
+            # except branch below uses for a foreign web: cookie.
         else:
             try:
                 return WebStudentID.validate(raw), False
