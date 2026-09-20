@@ -45,11 +45,10 @@ class StudentIdentityStore(ABC):
     async def resolve_student_id(
         self, provider: AuthProvider, identifier: str
     ) -> StudentID | None:
-        """Like resolve_or_create_student_id(), but never mints a new
-        student_id on a miss — just None. For a caller that must fall back
-        to something else (e.g. a fresh anonymous id) rather than silently
-        spinning up a real account for an identifier that was never
-        actually linked (a wiped store, a tampered cookie value).
+        """None on a miss, for a caller that needs to fall back to
+        something else (e.g. a fresh anonymous id) rather than treat an
+        unresolvable identifier as a legitimate first-time login (a wiped
+        store, a tampered cookie value).
         """
         return await self._get(provider, identifier)
 
