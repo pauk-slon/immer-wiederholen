@@ -120,15 +120,8 @@ class CheckRecallResponse:
     answer: str
 
 
-# A logged-in cookie never carries the real student_id directly — only an
-# opaque per-browser token, resolved through the same StudentIdentityStore
-# the telegram provider uses (see telegram_login_callback()/CLAUDE.md's
-# "Telegram login"). This keeps the account (student_id) and the credential
-# that proves it (this one browser's token) apart, the same split
-# StudentIdentityStore itself already draws between provider/identifier and
-# StudentID — and, unlike stuffing student_id straight into the cookie, means
-# a compromised browser could one day be unlinked without touching the
-# account it belongs to.
+# A logged-in cookie carries an opaque per-browser token, never the real
+# student_id directly — see CLAUDE.md's "Telegram login" for why.
 _BROWSER_PREFIX: Final = "browser:"
 
 
@@ -182,11 +175,8 @@ async def _remember_browser_login(
     *,
     cookie_domain: str,
 ) -> None:
-    # A fresh token on every login, never a token lifted back out of an
-    # incoming cookie: this same browser may have logged in before as a
-    # different student (or not at all), and link_identity() would raise
-    # IdentityAlreadyLinkedError trying to repoint an already-linked token
-    # at a new student rather than silently reassigning it.
+    # Always a fresh token, never one lifted back out of an incoming
+    # cookie — see CLAUDE.md's "Telegram login" for why.
     token = secrets.token_urlsafe(32)
     await student_identity_store.link_identity(student_id, "browser", token)
     _set_cookie(response, f"{_BROWSER_PREFIX}{token}", cookie_domain)
