@@ -18,6 +18,7 @@ from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentReco
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
 from wiederholen.school import Course, StudentIdentityStore, StudentRecordBook
+from wiederholen.school.curriculum import TopicGroup
 
 
 def _stale_answer() -> str:
@@ -232,6 +233,48 @@ async def test_tick_skips_chat_with_nothing_due(
             student_record_book,
             student_identity_store,
             Course([exercise]),
+        )
+
+    assert mock_request.call_args_list == []
+
+
+async def test_tick_skips_chat_whose_material_is_only_in_unselected_groups(
+    telegram_bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    exercise = make_exercise(topic="partizip_ii")
+    course = Course(
+        [exercise],
+        topic_groups={
+            "verb_forms": TopicGroup(
+                title={"ru": "Формы глаголов", "en": "Verb forms"},
+                topics=frozenset({"partizip_ii"}),
+            ),
+            "cases": TopicGroup(
+                title={"ru": "Падежи", "en": "Cases"},
+                topics=frozenset({"verb_case"}),
+            ),
+        },
+    )
+    bot = Bot(token=telegram_bot_token)
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "1"
+    )
+    await seed_student_record(
+        student_id, {"last_exercise": {"answered_at": _stale_answer()}}
+    )
+    state = FSMContext(
+        storage=redis_storage, key=StorageKey(bot_id=bot.id, chat_id=1, user_id=1)
+    )
+    await state.update_data(topic_groups=["cases"])
+
+    mock_request = AsyncMock(return_value=True)
+    with patch.object(bot.session, "make_request", mock_request):
+        await tick(
+            bot, redis_storage, student_record_book, student_identity_store, course
         )
 
     assert mock_request.call_args_list == []

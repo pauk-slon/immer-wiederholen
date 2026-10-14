@@ -14,6 +14,7 @@ from wiederholen.tracing import configure_tracing, default_tracer, instrument_re
 from .bootstrap import load_bot_course_and_storage
 from .l10n import LOCALES, get_language
 from .pending_buttons import clear_stale_buttons, remember_buttoned_message
+from .topic_selection import restrict_to_selected_groups
 
 logger = logging.getLogger(__name__)
 
@@ -32,24 +33,28 @@ async def _remind_chat(
         "reminder.check_chat",
         attributes={"telegram.chat_id": chat_id, "reminder.sent": False},
     ) as span:
+        # language and the learner's /topics selection live in aiogram's own
+        # FSM data, not the student_record — this is the one point
+        # reminder.py still needs a real aiogram storage for (see
+        # "Persistence" in CLAUDE.md). The same FSMContext also backs
+        # clear_stale_buttons()/remember_buttoned_message() below —
+        # reminder.py has no incoming Message the way a command handler does,
+        # but a StorageKey built from bot_id/chat_id/user_id is exactly what
+        # FSMContext wraps either way, so the pending_buttons helpers work
+        # identically here.
+        state = FSMContext(
+            storage=fsm_storage,
+            key=StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=chat_id),
+        )
+        data = await state.get_data()
+        locale = LOCALES[get_language(data)]
+        # Only what /wiederholen would actually show counts — otherwise a
+        # learner who deselected a group would keep being nudged about it.
+        course = restrict_to_selected_groups(course, data)
         async with student_record_book.check_out(student_id) as student_record:
             tutor = Tutor(course, student_record)
             if not tutor.should_remind():
                 return
-            # language lives in aiogram's own FSM data, not the student_record —
-            # this is the one point reminder.py still needs a real aiogram
-            # storage for (see "Persistence" in CLAUDE.md). The same FSMContext
-            # also backs clear_stale_buttons()/remember_buttoned_message() below
-            # — reminder.py has no incoming Message the way a command handler
-            # does, but a StorageKey built from bot_id/chat_id/user_id is exactly
-            # what FSMContext wraps either way, so the pending_buttons helpers
-            # work identically here.
-            state = FSMContext(
-                storage=fsm_storage,
-                key=StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=chat_id),
-            )
-            data = await state.get_data()
-            locale = LOCALES[get_language(data)]
             try:
                 # Clears whatever button group is still attached to an earlier
                 # message (e.g. a "Следующее задание" prompt the learner never

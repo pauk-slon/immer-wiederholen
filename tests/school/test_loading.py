@@ -4,7 +4,7 @@ import pytest
 
 from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import make_exercise_data
-from wiederholen.school.curriculum import Course
+from wiederholen.school.curriculum import Course, TopicGroup
 
 
 class TestExerciseValidation:
@@ -76,6 +76,10 @@ class TestExerciseValidation:
         assert course.exercises[0].word_bank == ["sie", "wohnt", "in Hamburg"]
 
 
+def _grouped(topics: dict) -> dict:
+    return {"group": {"title": {"ru": "Группа", "en": "Group"}, "topics": topics}}
+
+
 class TestTopicsConfigLoading:
     def test_missing_file_returns_empty(
         self,
@@ -89,6 +93,7 @@ class TestTopicsConfigLoading:
         assert course.answer_chained_topics == {}
         assert course.topic_instructions == {}
         assert course.ai_generatable_topics == frozenset()
+        assert course.topic_groups == {}
 
     def test_loads_chains_and_gates(
         self,
@@ -99,16 +104,18 @@ class TestTopicsConfigLoading:
             "partizip_ii": {
                 "chains": ["preteritum"],
                 "gates": ["partizip_ii_meaning"],
-            }
+            },
+            "partizip_ii_meaning": None,
         }
         with (
             tmp_yaml_file([], filename="exercises.yaml"),
-            tmp_yaml_file(data, filename="topics.yaml"),
+            tmp_yaml_file(_grouped(data), filename="topics.yaml"),
         ):
             course = Course.load(tmp_path)
-        assert course.word_chained_topics == {
-            "partizip_ii": ["preteritum", "partizip_ii_meaning"]
-        }
+        assert course.word_chained_topics["partizip_ii"] == [
+            "preteritum",
+            "partizip_ii_meaning",
+        ]
         assert course.gated_topics == frozenset({"partizip_ii_meaning"})
 
     def test_loads_chains_by_answer(
@@ -123,13 +130,13 @@ class TestTopicsConfigLoading:
         }
         with (
             tmp_yaml_file([], filename="exercises.yaml"),
-            tmp_yaml_file(data, filename="topics.yaml"),
+            tmp_yaml_file(_grouped(data), filename="topics.yaml"),
         ):
             course = Course.load(tmp_path)
         assert course.answer_chained_topics == {
             "government": ["preposition_meaning", "preposition_case"],
         }
-        assert course.word_chained_topics == {"government": []}
+        assert course.word_chained_topics["government"] == []
         assert course.gated_topics == frozenset()
 
     def test_empty_file_returns_empty(
@@ -163,7 +170,7 @@ class TestTopicsConfigLoading:
         }
         with (
             tmp_yaml_file([], filename="exercises.yaml"),
-            tmp_yaml_file(data, filename="topics.yaml"),
+            tmp_yaml_file(_grouped(data), filename="topics.yaml"),
         ):
             course = Course.load(tmp_path)
         assert course.topic_instructions == {
@@ -181,7 +188,7 @@ class TestTopicsConfigLoading:
         data = {"partizip_ii": {"chains": ["preteritum"]}}
         with (
             tmp_yaml_file([], filename="exercises.yaml"),
-            tmp_yaml_file(data, filename="topics.yaml"),
+            tmp_yaml_file(_grouped(data), filename="topics.yaml"),
         ):
             course = Course.load(tmp_path)
         assert course.topic_instructions == {}
@@ -197,7 +204,7 @@ class TestTopicsConfigLoading:
         }
         with (
             tmp_yaml_file([], filename="exercises.yaml"),
-            tmp_yaml_file(data, filename="topics.yaml"),
+            tmp_yaml_file(_grouped(data), filename="topics.yaml"),
         ):
             course = Course.load(tmp_path)
         assert course.ai_generatable_topics == frozenset({"verb_preposition"})
@@ -210,10 +217,115 @@ class TestTopicsConfigLoading:
         data = {"verb_preposition": {"ai_generation": False}}
         with (
             tmp_yaml_file([], filename="exercises.yaml"),
-            tmp_yaml_file(data, filename="topics.yaml"),
+            tmp_yaml_file(_grouped(data), filename="topics.yaml"),
         ):
             course = Course.load(tmp_path)
         assert course.ai_generatable_topics == frozenset()
+
+    def test_loads_topic_groups(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        data = {
+            "verb_forms": {
+                "title": {"ru": "Формы глаголов", "en": "Verb forms"},
+                "topics": {
+                    "partizip_ii": {"gates": ["partizip_ii_meaning"]},
+                    "partizip_ii_meaning": None,
+                },
+            },
+            "cases": {
+                "title": {"ru": "Падежи", "en": "Cases"},
+                "topics": {"verb_case": None},
+            },
+        }
+        with (
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            course = Course.load(tmp_path)
+        assert list(course.topic_groups) == ["verb_forms", "cases"]
+        assert course.topic_groups["verb_forms"] == TopicGroup(
+            title={"ru": "Формы глаголов", "en": "Verb forms"},
+            topics=frozenset({"partizip_ii", "partizip_ii_meaning"}),
+        )
+        assert course.topic_groups["cases"].topics == frozenset({"verb_case"})
+        assert course.gated_topics == frozenset({"partizip_ii_meaning"})
+
+    def test_wrong_group_title_keys_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        data = {"group": {"title": {"de": "Gruppe"}, "topics": {"verb_case": None}}}
+        with (
+            pytest.raises(ValueError, match="title must have keys"),
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            Course.load(tmp_path)
+
+    def test_topic_in_two_groups_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        title = {"ru": "Группа", "en": "Group"}
+        data = {
+            "first": {"title": title, "topics": {"verb_case": None}},
+            "second": {"title": title, "topics": {"verb_case": None}},
+        }
+        with (
+            pytest.raises(ValueError, match="is in both 'first' and 'second'"),
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            Course.load(tmp_path)
+
+    def test_gated_topic_in_another_group_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        title = {"ru": "Группа", "en": "Group"}
+        data = {
+            "forms": {
+                "title": title,
+                "topics": {"partizip_ii": {"gates": ["partizip_ii_meaning"]}},
+            },
+            "meanings": {"title": title, "topics": {"partizip_ii_meaning": None}},
+        }
+        with (
+            pytest.raises(ValueError, match="must be in the same group"),
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            Course.load(tmp_path)
+
+    def test_chain_into_another_group_loads(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        title = {"ru": "Группа", "en": "Group"}
+        data = {
+            "governance": {
+                "title": title,
+                "topics": {
+                    "verb_preposition": {"chains_by_answer": ["preposition_case"]}
+                },
+            },
+            "prepositions": {"title": title, "topics": {"preposition_case": None}},
+        }
+        with (
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(data, filename="topics.yaml"),
+        ):
+            course = Course.load(tmp_path)
+        assert course.answer_chained_topics == {
+            "verb_preposition": ["preposition_case"]
+        }
 
 
 class TestRecallValidation:

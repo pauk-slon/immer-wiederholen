@@ -55,6 +55,12 @@ class Locale:
     cmd_language: str
     cmd_progress: str
     cmd_reset: str
+    cmd_topics: str
+    topics_prompt: str
+    topics_unavailable: str
+    btn_topics_done: str
+    topics_selected: str
+    topics_all_selected: str
     reset_confirm_prompt: str
     reset_confirm_button: str
     reset_cancel_button: str
@@ -84,6 +90,12 @@ RU: Final = Locale(
     cmd_language="Сменить язык",
     cmd_progress="Прогресс",
     cmd_reset="Сбросить прогресс",
+    cmd_topics="Выбрать темы",
+    topics_prompt="Выбери темы для заданий. Если ничего не выбрано — задания будут по всем темам.",
+    topics_unavailable="Выбор тем пока недоступен",
+    btn_topics_done="Готово",
+    topics_selected="✅ Темы: {topics}",
+    topics_all_selected="✅ Задания будут по всем темам",
     reset_confirm_prompt="Точно сбросить весь прогресс? Это действие нельзя отменить",
     reset_confirm_button="Да, сбросить",
     reset_cancel_button="Отмена",
@@ -124,6 +136,12 @@ EN: Final = Locale(
     cmd_language="Change language",
     cmd_progress="Progress",
     cmd_reset="Reset progress",
+    cmd_topics="Choose topics",
+    topics_prompt="Choose topics for your exercises. If none are selected, exercises cover all topics.",
+    topics_unavailable="Choosing topics isn't available yet",
+    btn_topics_done="Done",
+    topics_selected="✅ Topics: {topics}",
+    topics_all_selected="✅ Exercises will cover all topics",
     reset_confirm_prompt="Are you sure you want to reset all progress? This can't be undone",
     reset_confirm_button="Yes, reset",
     reset_cancel_button="Cancel",

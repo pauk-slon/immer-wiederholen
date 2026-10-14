@@ -29,6 +29,7 @@ from wiederholen.bot.pending_buttons import (
     forget_buttoned_message,
     remember_buttoned_message,
 )
+from wiederholen.bot.topic_selection import restrict_to_selected_groups
 from wiederholen.school import (
     AIGenerationError,
     Course,
@@ -53,6 +54,19 @@ STUDY_MORE: Final = "__study_more__"
 class UserState(StatesGroup):
     answering = State()
     recalling = State()
+
+
+# Chat-level settings living in FSM data alongside per-exercise conversation
+# state — they must outlive the state.clear() that ends each exercise, or
+# e.g. AI mode silently reverts to off after one answer.
+_CHAT_SETTINGS_KEYS: Final = ("language", "ai_mode", "topic_groups")
+
+
+async def _clear_keeping_chat_settings(state: FSMContext, state_data: dict) -> None:
+    await state.clear()
+    await state.update_data(
+        {key: state_data[key] for key in _CHAT_SETTINGS_KEYS if key in state_data}
+    )
 
 
 def _make_reply_keyboard(exercise: Exercise) -> ReplyKeyboardMarkup:
@@ -114,8 +128,6 @@ async def _start_recall(
     message: Message,
     locale: Locale,
     course: Course,
-    *,
-    ai_mode: bool,
 ) -> None:
     # student_record is mutated in place; whichever student_record_book.check_out() the
     # caller opened it under persists it on exit — this function itself
@@ -124,10 +136,8 @@ async def _start_recall(
     recall = tutor.request_recall(shown_exercise)
     await state.set_state(UserState.recalling)
     await state.update_data(
-        language=language,
         shown_exercise=shown_exercise_dict,
         shown_recall=recall.to_dict(),
-        ai_mode=ai_mode,
     )
     hint = recall.hint.get(language) if recall.hint else None
     recall_text = locale.recall_prompt.format(recall=recall.question)
@@ -271,6 +281,7 @@ async def command_wiederholen(
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(message.chat.id)
     )
+    course = restrict_to_selected_groups(course, data)
     async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         exercise = tutor.next_exercise()
@@ -323,8 +334,7 @@ async def handle_answer(
     student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
-    ai_mode = state_data.get("ai_mode", False)
-    await state.clear()
+    await _clear_keeping_chat_settings(state, state_data)
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
@@ -361,14 +371,9 @@ async def handle_answer(
                 message,
                 locale,
                 course,
-                ai_mode=ai_mode,
             )
         else:
-            await state.update_data(
-                language=language,
-                shown_exercise=state_data["shown_exercise"],
-                ai_mode=ai_mode,
-            )
+            await state.update_data(shown_exercise=state_data["shown_exercise"])
             if reply_markup is not None:
                 await remember_buttoned_message(state, sent_explanation)
 
@@ -382,15 +387,12 @@ async def handle_recall(
     student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
-    ai_mode = state_data.get("ai_mode", False)
-    await state.clear()
+    await _clear_keeping_chat_settings(state, state_data)
     language = get_language(state_data)
     shown_recall = Recall.from_dict(state_data["shown_recall"])
     await state.update_data(
-        language=language,
         shown_exercise=state_data["shown_exercise"],
         shown_recall=state_data["shown_recall"],
-        ai_mode=ai_mode,
     )
     locale = LOCALES[language]
     # check_recall() is pure (never mutates student_record), unlike request_recall()
@@ -496,6 +498,7 @@ async def handle_next_exercise(
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(callback.from_user.id)
     )
+    course = restrict_to_selected_groups(course, state_data)
     async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         await _respond_with_next_exercise(
@@ -527,6 +530,7 @@ async def handle_study_more(
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(callback.from_user.id)
     )
+    course = restrict_to_selected_groups(course, state_data)
     async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         tutor.grant_new_word_budget()
@@ -571,6 +575,5 @@ async def handle_recall_request(
                 callback.message,
                 locale,
                 course,
-                ai_mode=state_data.get("ai_mode", False),
             )
     await callback.answer()
