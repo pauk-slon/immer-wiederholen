@@ -12,6 +12,7 @@ from wiederholen.school import Course, StudentIdentityStore, StudentRecordBook, 
 from wiederholen.tracing import configure_tracing, default_tracer, instrument_redis
 
 from .bootstrap import load_bot_course_and_storage
+from .chat_membership import is_bot_blocked, mark_bot_blocked
 from .l10n import LOCALES, get_language
 from .pending_buttons import clear_stale_buttons, remember_buttoned_message
 from .reminder_settings import get_remind_after
@@ -32,7 +33,11 @@ async def _remind_chat(
 ) -> None:
     with default_tracer.start_as_current_span(
         "reminder.check_chat",
-        attributes={"telegram.chat_id": chat_id, "reminder.sent": False},
+        attributes={
+            "telegram.chat_id": chat_id,
+            "reminder.sent": False,
+            "reminder.bot_blocked": False,
+        },
     ) as span:
         # language, the /reminders interval and the learner's /topics
         # selection live in aiogram's own FSM data, not the student_record —
@@ -49,6 +54,11 @@ async def _remind_chat(
             key=StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=chat_id),
         )
         data = await state.get_data()
+        if is_bot_blocked(data):
+            # Already known from a my_chat_member update or an earlier 403 —
+            # no point asking Telegram again just to be refused.
+            span.set_attribute("reminder.bot_blocked", True)
+            return
         if (remind_after := get_remind_after(data)) is None:
             return
         locale = LOCALES[get_language(data)]
@@ -75,7 +85,12 @@ async def _remind_chat(
                     chat_id, locale.reminder_text, reply_markup=make_next_button(locale)
                 )
             except TelegramForbiddenError:
+                # Covers learners who blocked the bot before my_chat_member
+                # updates were handled (or a missed one): remembered so later
+                # sweeps skip them until an unblock update clears it.
                 logger.info("Chat %s blocked the bot, skipping", chat_id)
+                span.set_attribute("reminder.bot_blocked", True)
+                await mark_bot_blocked(state)
                 return
             span.set_attribute("reminder.sent", True)
             tutor.record_reminder_sent()

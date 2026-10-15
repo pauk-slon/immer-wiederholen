@@ -312,6 +312,38 @@ async def test_tick_skips_chat_that_turned_reminders_off(
     assert mock_request.call_args_list == []
 
 
+async def test_tick_skips_chat_known_to_have_blocked_the_bot(
+    telegram_bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    bot = Bot(token=telegram_bot_token)
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "1"
+    )
+    await seed_student_record(
+        student_id, {"last_exercise": {"answered_at": _stale_answer()}}
+    )
+    state = FSMContext(
+        storage=redis_storage, key=StorageKey(bot_id=bot.id, chat_id=1, user_id=1)
+    )
+    await state.update_data(bot_blocked=True)
+
+    mock_request = AsyncMock(return_value=True)
+    with patch.object(bot.session, "make_request", mock_request):
+        await tick(
+            bot,
+            redis_storage,
+            student_record_book,
+            student_identity_store,
+            Course([make_exercise()]),
+        )
+
+    assert mock_request.call_args_list == []
+
+
 async def test_tick_honors_a_shorter_chosen_interval(
     telegram_bot_token: str,
     redis_storage: RedisStorage,
@@ -385,6 +417,10 @@ async def test_tick_does_not_crash_when_chat_blocked_the_bot(
         )
 
     assert "last_reminded_at" not in await read_student_record(student_id)
+    state = FSMContext(
+        storage=redis_storage, key=StorageKey(bot_id=bot.id, chat_id=1, user_id=1)
+    )
+    assert (await state.get_data())["bot_blocked"] is True
 
 
 async def test_tick_continues_after_one_chat_fails(
