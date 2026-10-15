@@ -61,6 +61,12 @@ class Locale:
     btn_topics_done: str
     topics_selected: str
     topics_all_selected: str
+    cmd_reminders: str
+    reminders_prompt: str
+    btn_remind_after: str
+    btn_reminders_off: str
+    reminders_set: str
+    reminders_off: str
     reset_confirm_prompt: str
     reset_confirm_button: str
     reset_cancel_button: str
@@ -96,6 +102,12 @@ RU: Final = Locale(
     btn_topics_done="Готово",
     topics_selected="✅ Темы: {topics}",
     topics_all_selected="✅ Задания будут по всем темам",
+    cmd_reminders="Напоминания",
+    reminders_prompt="Через сколько после последнего занятия напомнить позаниматься?",
+    btn_remind_after="{hours} ч",
+    btn_reminders_off="Не напоминать",
+    reminders_set="🔔 Напомню через {hours} ч после последнего занятия",
+    reminders_off="🔕 Напоминания выключены",
     reset_confirm_prompt="Точно сбросить весь прогресс? Это действие нельзя отменить",
     reset_confirm_button="Да, сбросить",
     reset_cancel_button="Отмена",
@@ -142,6 +154,12 @@ EN: Final = Locale(
     btn_topics_done="Done",
     topics_selected="✅ Topics: {topics}",
     topics_all_selected="✅ Exercises will cover all topics",
+    cmd_reminders="Reminders",
+    reminders_prompt="How long after your last session should I remind you to practice?",
+    btn_remind_after="{hours} h",
+    btn_reminders_off="Don't remind me",
+    reminders_set="🔔 I'll remind you {hours} h after your last session",
+    reminders_off="🔕 Reminders are off",
     reset_confirm_prompt="Are you sure you want to reset all progress? This can't be undone",
     reset_confirm_button="Yes, reset",
     reset_cancel_button="Cancel",

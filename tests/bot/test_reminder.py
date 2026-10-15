@@ -280,6 +280,76 @@ async def test_tick_skips_chat_whose_material_is_only_in_unselected_groups(
     assert mock_request.call_args_list == []
 
 
+async def test_tick_skips_chat_that_turned_reminders_off(
+    telegram_bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    bot = Bot(token=telegram_bot_token)
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "1"
+    )
+    await seed_student_record(
+        student_id, {"last_exercise": {"answered_at": _stale_answer()}}
+    )
+    state = FSMContext(
+        storage=redis_storage, key=StorageKey(bot_id=bot.id, chat_id=1, user_id=1)
+    )
+    await state.update_data(remind_after_hours=0)
+
+    mock_request = AsyncMock(return_value=True)
+    with patch.object(bot.session, "make_request", mock_request):
+        await tick(
+            bot,
+            redis_storage,
+            student_record_book,
+            student_identity_store,
+            Course([make_exercise()]),
+        )
+
+    assert mock_request.call_args_list == []
+
+
+async def test_tick_honors_a_shorter_chosen_interval(
+    telegram_bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    bot = Bot(token=telegram_bot_token)
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "1"
+    )
+    answered_at = (datetime.now(UTC) - timedelta(hours=5)).isoformat()
+    await seed_student_record(
+        student_id, {"last_exercise": {"answered_at": answered_at}}
+    )
+    state = FSMContext(
+        storage=redis_storage, key=StorageKey(bot_id=bot.id, chat_id=1, user_id=1)
+    )
+    await state.update_data(remind_after_hours=4)
+
+    mock_request = _make_request_mock()
+    with patch.object(bot.session, "make_request", mock_request):
+        await tick(
+            bot,
+            redis_storage,
+            student_record_book,
+            student_identity_store,
+            Course([make_exercise()]),
+        )
+
+    sent = [
+        call.args[1]
+        for call in mock_request.call_args_list
+        if isinstance(call.args[1], SendMessage)
+    ]
+    assert len(sent) == 1
+
+
 async def test_tick_does_not_crash_when_chat_blocked_the_bot(
     telegram_bot_token: str,
     redis_storage: RedisStorage,
