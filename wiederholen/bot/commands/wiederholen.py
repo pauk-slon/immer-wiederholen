@@ -59,7 +59,12 @@ class UserState(StatesGroup):
 # Chat-level settings living in FSM data alongside per-exercise conversation
 # state — they must outlive the state.clear() that ends each exercise, or
 # e.g. AI mode silently reverts to off after one answer.
-_CHAT_SETTINGS_KEYS: Final = ("language", "ai_mode", "topic_groups")
+_CHAT_SETTINGS_KEYS: Final = (
+    "language",
+    "ai_mode",
+    "topic_groups",
+    "remind_after_hours",
+)
 
 
 async def _clear_keeping_chat_settings(state: FSMContext, state_data: dict) -> None:

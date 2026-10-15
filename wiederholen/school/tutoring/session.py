@@ -328,13 +328,13 @@ class Tutor:
             [word for word, interval in scored if interval == best_interval]
         )
 
-    def should_remind(self) -> bool:
+    def should_remind(self, remind_after: timedelta = REMIND_AFTER) -> bool:
         if not self._get_due_pairs() and not self._get_available_not_scheduled_pairs():
             return False
         if (last_exercise := self._student_record.get_last_exercise()) is None:
             return False
         last_answered_at = datetime.fromisoformat(last_exercise["answered_at"])
-        if datetime.now(UTC) - last_answered_at < self.REMIND_AFTER:
+        if datetime.now(UTC) - last_answered_at < remind_after:
             return False
         last_reminded_at = self._student_record.last_reminded_at
         return last_reminded_at is None or last_reminded_at < last_answered_at
