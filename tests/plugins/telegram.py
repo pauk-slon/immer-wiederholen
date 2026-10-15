@@ -5,6 +5,7 @@ import pytest
 
 type MessageFactory = Callable[..., dict]
 type CallbackQueryFactory = Callable[..., dict]
+type MyChatMemberFactory = Callable[..., dict]
 
 
 @pytest.fixture
@@ -62,6 +63,32 @@ def callback_query_factory(telegram_user_id: int, chat_id: int) -> CallbackQuery
                 },
                 "chat_instance": "test",
                 "data": data,
+            },
+        }
+
+    return factory
+
+
+@pytest.fixture
+def my_chat_member_factory(telegram_user_id: int, chat_id: int) -> MyChatMemberFactory:
+    # What Telegram sends when a learner blocks ("kicked") or unblocks
+    # ("member") the bot in a private chat.
+    def factory(old_status: str, new_status: str) -> dict:
+        bot_user = {"id": 123, "is_bot": True, "first_name": "Bot"}
+
+        def member(status: str) -> dict:
+            # A block is a "kicked" status with until_date=0 — i.e. forever.
+            extra = {"until_date": 0} if status == "kicked" else {}
+            return {"status": status, "user": bot_user, **extra}
+
+        return {
+            "update_id": 3,
+            "my_chat_member": {
+                "chat": {"id": chat_id, "type": "private"},
+                "from": {"id": telegram_user_id, "is_bot": False, "first_name": "Test"},
+                "date": datetime.datetime.now(tz=datetime.UTC),
+                "old_chat_member": member(old_status),
+                "new_chat_member": member(new_status),
             },
         }
 

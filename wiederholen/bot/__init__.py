@@ -2,6 +2,7 @@ from typing import Final
 
 from aiogram import Dispatcher
 
+from .chat_membership import router as chat_membership_router
 from .commands import (
     ai,
     language,
@@ -24,6 +25,7 @@ dispatcher: Final = Dispatcher(disable_fsm=True)
 dispatcher.update.outer_middleware(TracingMiddleware())
 dispatcher.update.outer_middleware(dispatcher.fsm)
 
+dispatcher.include_router(chat_membership_router)
 dispatcher.include_router(start.router)
 dispatcher.include_router(language.router)
 dispatcher.include_router(progress.router)
