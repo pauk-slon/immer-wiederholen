@@ -44,16 +44,8 @@ class Exercise:
     explanation: dict[Language, str]
     recalls: list[Recall] = field(default_factory=list)
     description: dict[Language, str] | None = None
-    # Only for word-order exercises (konjunktion_wortstellung/
-    # nebensatzkonjunktion_wortstellung): answer's own words, grouped into
-    # meaningful phrase chunks (e.g. "in Hamburg" stays one chunk, not two),
-    # in the *correct* order — not shuffled. Both frontends shuffle their own
-    # copy fresh at render time (see curriculum.shuffle_word_bank()) rather
-    # than reading a scramble baked in once at authoring time, which is what
-    # question's own hand-written parenthetical hint used to be before this
-    # field replaced it (see issue #191) — a single source of truth instead
-    # of a copy an author had to keep in sync by hand.
     word_bank: list[str] | None = None
+    grammar_classes: list[str] | None = None
 
     def __post_init__(self) -> None:
         if self.answer in self.distractors:
@@ -70,6 +62,8 @@ class Exercise:
             raise ValueError(
                 f"word_bank {self.word_bank} must join into answer '{self.answer}'"
             )
+        if self.grammar_classes is not None and len(self.grammar_classes) == 0:
+            raise ValueError("grammar_classes must not be empty if set")
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -117,7 +111,23 @@ def shuffle_word_bank(word_bank: Sequence[str]) -> list[str]:
     return shuffled
 
 
+@dataclass(frozen=True)
+class TopicGroup:
+    # A learner-facing bundle of topics, chosen as one unit (e.g. via the
+    # bot's /topics) — a topic and the topics it chains/gates into belong
+    # together, so a learner never picks a gated topic without its source.
+    title: dict[Language, str]
+    topics: frozenset[Topic]
+
+    def __post_init__(self) -> None:
+        if set(self.title.keys()) != LANGUAGES:
+            raise ValueError(
+                f"topic group title must have keys {LANGUAGES}, got {set(self.title.keys())}"
+            )
+
+
 class _TopicsConfig(TypedDict):
+    topic_groups: dict[str, TopicGroup]
     word_chained_topics: dict[str, list[str]]
     answer_chained_topics: dict[str, list[str]]
     gated_topics: frozenset[str]
@@ -129,6 +139,7 @@ class _TopicsConfig(TypedDict):
 @dataclass(frozen=True)
 class Course:
     exercises: Sequence[Exercise]
+    topic_groups: Mapping[str, TopicGroup] = field(default_factory=dict, kw_only=True)
     word_chained_topics: Mapping[str, Sequence[str]] = field(
         default_factory=dict,
         kw_only=True,
@@ -159,6 +170,7 @@ class Course:
     def _load_topics(path: Path) -> _TopicsConfig:
         if not path.exists():
             return _TopicsConfig(
+                topic_groups={},
                 word_chained_topics={},
                 answer_chained_topics={},
                 gated_topics=frozenset(),
@@ -168,26 +180,56 @@ class Course:
             )
         with open(path) as f:
             data = yaml.safe_load(f) or {}
+        topic_groups: dict[str, TopicGroup] = {}
+        group_by_topic: dict[Topic, str] = {}
         word_chained_topics: dict[str, list[str]] = {}
         gated_topics: set[str] = set()
+        gates_by_source: dict[str, list[str]] = {}
         answer_chained_topics: dict[str, list[str]] = {}
         topic_instructions: dict[str, dict[Language, str]] = {}
         ai_generatable_topics: set[str] = set()
         cue_generatable_topics: set[str] = set()
-        for source, relations in data.items():
-            chains = relations.get("chains", [])
-            gates = relations.get("gates", [])
-            word_chained_topics[source] = list(dict.fromkeys([*chains, *gates]))
-            gated_topics.update(gates)
-            if chains_by_answer := relations.get("chains_by_answer", []):
-                answer_chained_topics[source] = list(dict.fromkeys(chains_by_answer))
-            if instruction := relations.get("instruction"):
-                topic_instructions[source] = instruction
-            if relations.get("ai_generation"):
-                ai_generatable_topics.add(source)
-            if relations.get("cue_generation"):
-                cue_generatable_topics.add(source)
+        for group_id, group in data.items():
+            topics = group.get("topics") or {}
+            topic_groups[group_id] = TopicGroup(
+                title=group["title"], topics=frozenset(topics)
+            )
+            for source, relations in topics.items():
+                if source in group_by_topic:
+                    raise ValueError(
+                        f"topic '{source}' is in both '{group_by_topic[source]}' "
+                        f"and '{group_id}' groups"
+                    )
+                group_by_topic[source] = group_id
+                relations = relations or {}
+                chains = relations.get("chains", [])
+                gates = relations.get("gates", [])
+                word_chained_topics[source] = list(dict.fromkeys([*chains, *gates]))
+                gated_topics.update(gates)
+                gates_by_source[source] = gates
+                if chains_by_answer := relations.get("chains_by_answer", []):
+                    answer_chained_topics[source] = list(
+                        dict.fromkeys(chains_by_answer)
+                    )
+                if instruction := relations.get("instruction"):
+                    topic_instructions[source] = instruction
+                if relations.get("ai_generation"):
+                    ai_generatable_topics.add(source)
+                if relations.get("cue_generation"):
+                    cue_generatable_topics.add(source)
+        # A gated topic only ever unlocks via its source, so selecting its
+        # group without the source's would leave it locked forever — chains
+        # crossing groups are fine (an unselected dependent is just never
+        # expedited, see restricted_to()), gates aren't.
+        for source, gates in gates_by_source.items():
+            for gated in gates:
+                if group_by_topic.get(gated) != group_by_topic[source]:
+                    raise ValueError(
+                        f"gated topic '{gated}' must be in the same group as "
+                        f"its source '{source}' ('{group_by_topic[source]}')"
+                    )
         return _TopicsConfig(
+            topic_groups=topic_groups,
             word_chained_topics=word_chained_topics,
             answer_chained_topics=answer_chained_topics,
             gated_topics=frozenset(gated_topics),
@@ -209,9 +251,9 @@ class Course:
         # against either view, since schedule entries are keyed by
         # (word, topic), not by which Course object selected them.
         #
-        # word_chained_topics/answer_chained_topics/gated_topics/
-        # topic_instructions/ai_generatable_topics/cue_generatable_topics
-        # are deliberately left untouched rather than filtered down too: a
+        # topic_groups/word_chained_topics/answer_chained_topics/gated_topics/
+        # topic_instructions/ai_generatable_topics/cue_generatable_topics are
+        # deliberately left untouched rather than filtered down too: a
         # chain/gate pointing at
         # a topic excluded here just never finds an exercise to expedite
         # (Tutor._expedite_dependent() already treats "dependent topic has

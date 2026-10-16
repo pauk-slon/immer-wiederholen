@@ -2,7 +2,17 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from aiogram.types import CallbackQuery, Chat, Message, PollAnswer, Update, User
+from aiogram.types import (
+    CallbackQuery,
+    Chat,
+    ChatMemberBanned,
+    ChatMemberMember,
+    ChatMemberUpdated,
+    Message,
+    PollAnswer,
+    Update,
+    User,
+)
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Tracer
@@ -108,6 +118,37 @@ async def test_callback_query_span_omits_chat_id_when_message_is_inaccessible(
     attributes = _attributes(span)
     assert "telegram.chat_id" not in attributes
     assert attributes["telegram.callback_data"] == "__next__"
+
+
+async def test_my_chat_member_span_carries_chat_id_and_new_status(
+    middleware: TracingMiddleware,
+    exporter: InMemorySpanExporter,
+) -> None:
+    bot_user = User(id=123, is_bot=True, first_name="Bot")
+    event = Update(
+        update_id=1,
+        my_chat_member=ChatMemberUpdated(
+            chat=Chat(id=42, type="private"),
+            from_user=User(id=42, is_bot=False, first_name="Test"),
+            date=datetime.now(UTC),
+            old_chat_member=ChatMemberMember(user=bot_user),
+            new_chat_member=ChatMemberBanned(
+                user=bot_user, until_date=datetime.fromtimestamp(0, UTC)
+            ),
+        ),
+    )
+
+    async def handler(event, data):
+        return None
+
+    await middleware(handler, event, {})
+
+    span = exporter.get_finished_spans()[0]
+    assert span.name == "telegram.my_chat_member"
+    assert _attributes(span) == {
+        "telegram.chat_id": 42,
+        "telegram.chat_member.status": "kicked",
+    }
 
 
 async def test_other_update_types_get_a_generic_span(

@@ -23,7 +23,12 @@ def _env(monkeypatch, tmp_yaml_file: TmpYamlFile) -> Generator[None]:
 
 @pytest.fixture
 def course_path(tmp_yaml_file: TmpYamlFile, exercises: list[ExerciseData]):
-    topics_data = {"preposition_meaning": {"cue_generation": True}}
+    topics_data = {
+        "prepositions": {
+            "title": {"ru": "Предлоги", "en": "Prepositions"},
+            "topics": {"preposition_meaning": {"cue_generation": True}},
+        }
+    }
     with (
         tmp_yaml_file(exercises, filename="exercises.yaml") as exercises_path,
         tmp_yaml_file(topics_data, filename="topics.yaml"),
@@ -128,7 +133,12 @@ async def test_a_failed_generation_does_not_stop_the_run(
             description={"ru": "x", "en": "succeeds"},
         ),
     ]
-    topics_data = {"preposition_meaning": {"cue_generation": True}}
+    topics_data = {
+        "prepositions": {
+            "title": {"ru": "Предлоги", "en": "Prepositions"},
+            "topics": {"preposition_meaning": {"cue_generation": True}},
+        }
+    }
     with (
         tmp_yaml_file(exercises, filename="exercises.yaml") as path,
         tmp_yaml_file(topics_data, filename="topics.yaml"),

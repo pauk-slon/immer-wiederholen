@@ -13,8 +13,7 @@ from wiederholen.bot.commands.wiederholen import (
     UserState,
 )
 from wiederholen.bot.l10n import RU
-from wiederholen.bot.telegram_student_id import TelegramStudentID
-from wiederholen.school import Course, Exercise, Tutor
+from wiederholen.school import Course, Exercise, StudentID, Tutor
 
 
 class TestHandleAnswer:
@@ -191,7 +190,7 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
         seed_student_record: SeedStudentRecord,
-        chat_id: int,
+        student_id: StudentID,
     ) -> None:
         mit = Exercise(
             word="sprechen",
@@ -211,7 +210,7 @@ class TestNextExerciseButton:
         )
         await state.update_data(language="ru")
         await seed_student_record(
-            TelegramStudentID.encode(chat_id),
+            student_id,
             {"last_exercise": {"question": mit.question}},
         )
 
@@ -227,7 +226,7 @@ class TestNextExerciseButton:
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
         seed_student_record: SeedStudentRecord,
-        chat_id: int,
+        student_id: StudentID,
     ) -> None:
         exercise = make_exercise(word="warten")
         today = datetime.now(UTC).date()
@@ -245,9 +244,7 @@ class TestNextExerciseButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await seed_student_record(
-            TelegramStudentID.encode(chat_id), {"word_schedule": word_schedule}
-        )
+        await seed_student_record(student_id, {"word_schedule": word_schedule})
 
         requests = await feed_callback_query(
             NEXT_EXERCISE, course=Course([exercise, *capped_exercises])
@@ -271,7 +268,7 @@ class TestStudyMoreButton:
         state: FSMContext,
         feed_callback_query: FeedCallbackQuery,
         seed_student_record: SeedStudentRecord,
-        chat_id: int,
+        student_id: StudentID,
     ) -> None:
         exercise = make_exercise(word="warten")
         today = datetime.now(UTC).date()
@@ -289,9 +286,7 @@ class TestStudyMoreButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await seed_student_record(
-            TelegramStudentID.encode(chat_id), {"word_schedule": word_schedule}
-        )
+        await seed_student_record(student_id, {"word_schedule": word_schedule})
 
         requests = await feed_callback_query(
             STUDY_MORE,
@@ -310,7 +305,7 @@ class TestStudyMoreButton:
         feed_callback_query: FeedCallbackQuery,
         seed_student_record: SeedStudentRecord,
         read_student_record: ReadStudentRecord,
-        chat_id: int,
+        student_id: StudentID,
     ) -> None:
         exercise = make_exercise(word="warten")
         today = datetime.now(UTC).date()
@@ -328,16 +323,14 @@ class TestStudyMoreButton:
             for i in range(Tutor.NEW_WORDS_PER_DAY)
         }
         await state.update_data(language="ru")
-        await seed_student_record(
-            TelegramStudentID.encode(chat_id), {"word_schedule": word_schedule}
-        )
+        await seed_student_record(student_id, {"word_schedule": word_schedule})
 
         await feed_callback_query(
             STUDY_MORE,
             course=Course([exercise, *capped_exercises]),
         )
 
-        student_record = await read_student_record(TelegramStudentID.encode(chat_id))
+        student_record = await read_student_record(student_id)
         assert student_record["new_word_budget"] == {
             "date": today.isoformat(),
             "count": Tutor.NEW_WORD_BUDGET_GRANT,

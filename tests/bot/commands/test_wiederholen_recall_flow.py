@@ -9,8 +9,7 @@ from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.bot.telegram_student_id import TelegramStudentID
-from wiederholen.school import Course
+from wiederholen.school import Course, StudentID
 
 
 def _strip_tags(text: str) -> str:
@@ -192,7 +191,7 @@ async def test_clicking_retry_starts_recall_again(
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
     seed_student_record: SeedStudentRecord,
-    chat_id: int,
+    student_id: StudentID,
 ) -> None:
     exercise = make_exercise(
         recalls=[{"answer": ["Ich warte auf den Bus."]}],
@@ -204,7 +203,7 @@ async def test_clicking_retry_starts_recall_again(
         language="ru",
     )
     await seed_student_record(
-        TelegramStudentID.encode(chat_id),
+        student_id,
         {"last_exercise": {"is_recall_optional": False}},
     )
 
@@ -222,7 +221,7 @@ async def test_retry_avoids_repeating_last_recall_variant(
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
     seed_student_record: SeedStudentRecord,
-    chat_id: int,
+    student_id: StudentID,
 ) -> None:
     exercise = make_exercise(
         word="helfen",
@@ -241,7 +240,7 @@ async def test_retry_avoids_repeating_last_recall_variant(
         language="ru",
     )
     await seed_student_record(
-        TelegramStudentID.encode(chat_id),
+        student_id,
         {
             "last_exercise": {
                 "is_recall_optional": False,
@@ -263,7 +262,7 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
     feed_callback_query: FeedCallbackQuery,
     seed_student_record: SeedStudentRecord,
     read_student_record: ReadStudentRecord,
-    chat_id: int,
+    student_id: StudentID,
 ) -> None:
     exercise = make_exercise(recalls=True)
     today = datetime.now(UTC).date()
@@ -279,12 +278,12 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
     }
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
-    await seed_student_record(TelegramStudentID.encode(chat_id), student_record)
+    await seed_student_record(student_id, student_record)
 
     await feed_message(exercise.answer, course=Course([exercise]))
     await feed_callback_query(RECALL, course=Course([exercise]))
 
-    student_record = await read_student_record(TelegramStudentID.encode(chat_id))
+    student_record = await read_student_record(student_id)
     entry = student_record["word_schedule"]["warten"]["government"]
     assert entry["repetition_interval"] == 8
     assert entry["due_date"] == (today + timedelta(days=8)).isoformat()

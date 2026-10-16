@@ -13,6 +13,12 @@ from wiederholen.school.curriculum import (
     shuffle_word_bank,
 )
 from wiederholen.school.i18n import LANGUAGES, Language
+from wiederholen.school.student_identity_store import (
+    AuthProvider,
+    IdentityAlreadyLinkedError,
+    RedisStudentIdentityStore,
+    StudentIdentityStore,
+)
 from wiederholen.school.student_record_book import (
     RedisStudentRecordBook,
     StudentID,
@@ -23,18 +29,22 @@ from wiederholen.school.tutoring import Mark, Progress, RecallMode, StudentRecor
 __all__ = [
     "LANGUAGES",
     "AIGenerationError",
+    "AuthProvider",
     "CachedCueStore",
     "Course",
     "CueStore",
     "Exercise",
+    "IdentityAlreadyLinkedError",
     "Language",
     "Mark",
     "Progress",
     "R2CueStore",
     "Recall",
     "RecallMode",
+    "RedisStudentIdentityStore",
     "RedisStudentRecordBook",
     "StudentID",
+    "StudentIdentityStore",
     "StudentRecord",
     "StudentRecordBook",
     "Topic",

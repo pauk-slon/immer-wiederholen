@@ -30,7 +30,7 @@ from wiederholen.bot.pending_buttons import (
     forget_buttoned_message,
     remember_buttoned_message,
 )
-from wiederholen.bot.telegram_student_id import TelegramStudentID
+from wiederholen.bot.topic_selection import restrict_to_selected_groups
 from wiederholen.school import (
     AIGenerationError,
     Course,
@@ -39,6 +39,7 @@ from wiederholen.school import (
     Language,
     Recall,
     RecallMode,
+    StudentIdentityStore,
     StudentRecordBook,
     Tutor,
     generate_shadow_exercise,
@@ -64,6 +65,24 @@ _PHOTO_CAPTION_LIMIT: Final = 1024
 class UserState(StatesGroup):
     answering = State()
     recalling = State()
+
+
+# Chat-level settings living in FSM data alongside per-exercise conversation
+# state — they must outlive the state.clear() that ends each exercise, or
+# e.g. AI mode silently reverts to off after one answer.
+_CHAT_SETTINGS_KEYS: Final = (
+    "language",
+    "ai_mode",
+    "topic_groups",
+    "remind_after_hours",
+)
+
+
+async def _clear_keeping_chat_settings(state: FSMContext, state_data: dict) -> None:
+    await state.clear()
+    await state.update_data(
+        {key: state_data[key] for key in _CHAT_SETTINGS_KEYS if key in state_data}
+    )
 
 
 def _make_reply_keyboard(exercise: Exercise) -> ReplyKeyboardMarkup:
@@ -125,8 +144,6 @@ async def _start_recall(
     message: Message,
     locale: Locale,
     course: Course,
-    *,
-    ai_mode: bool,
 ) -> None:
     # student_record is mutated in place; whichever student_record_book.check_out() the
     # caller opened it under persists it on exit — this function itself
@@ -135,10 +152,8 @@ async def _start_recall(
     recall = tutor.request_recall(shown_exercise)
     await state.set_state(UserState.recalling)
     await state.update_data(
-        language=language,
         shown_exercise=shown_exercise_dict,
         shown_recall=recall.to_dict(),
-        ai_mode=ai_mode,
     )
     hint = recall.hint.get(language) if recall.hint else None
     recall_text = locale.recall_prompt.format(recall=recall.question)
@@ -154,20 +169,27 @@ def _format_question(
     course: Course,
     *,
     is_ai_generated: bool = False,
+    hint_word: str | None = None,
 ) -> str:
     prefix = "🤖 " if is_ai_generated else ""
-    text = f"{prefix}❓ {exercise.question}"
+    text = f"{prefix}❓ {html.escape(exercise.question)}"
     if exercise.word_bank:
         # Reconstructs exactly the shape question's own hand-written
         # parenthetical hint used to have (see issue #191) — just shuffled
         # fresh on every render instead of frozen once at authoring time,
         # same as the web widget's own tile UI shuffles its copy.
-        text += f" ({' / '.join(shuffle_word_bank(exercise.word_bank))})"
+        chunks = " / ".join(
+            html.escape(chunk) for chunk in shuffle_word_bank(exercise.word_bank)
+        )
+        text += f" ({chunks})"
     if exercise.description:
-        text += f"\n💭 {exercise.description[language]}"
+        text += f"\n💭 {html.escape(exercise.description[language])}"
     instruction = course.topic_instructions.get(exercise.topic, {}).get(language)
     if instruction:
-        text += f"\nℹ️ {instruction}"
+        text += f"\nℹ️ {html.escape(instruction)}"
+    if hint_word:
+        hint_text = LOCALES[language].grammar_class_hint.format(word=hint_word)
+        text += f"\n🔍 <tg-spoiler>{html.escape(hint_text)}</tg-spoiler>"
     return text
 
 
@@ -297,6 +319,7 @@ async def command_wiederholen(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
@@ -310,9 +333,11 @@ async def command_wiederholen(
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(message.chat.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(message.chat.id)
+    )
+    course = restrict_to_selected_groups(course, data)
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         exercise = tutor.next_exercise()
         if exercise is None:
@@ -344,10 +369,11 @@ async def command_wiederholen(
         if exercise is None:
             await message.answer(locale.ai_generation_failed)
             return
+        hint_word = tutor.get_hint(exercise)
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict())
         question_text = _format_question(
-            exercise, language, course, is_ai_generated=ai_mode
+            exercise, language, course, is_ai_generated=ai_mode, hint_word=hint_word
         )
         await _answer_with_optional_cue(
             message,
@@ -355,6 +381,7 @@ async def command_wiederholen(
             exercise,
             course,
             cue_store,
+            parse_mode="HTML",
             **_show_exercise_kwargs(exercise),
         )
 
@@ -365,17 +392,18 @@ async def handle_answer(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
-    ai_mode = state_data.get("ai_mode", False)
-    await state.clear()
+    await _clear_keeping_chat_settings(state, state_data)
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
     explanation = shown_exercise.explanation[language]
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(message.chat.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(message.chat.id)
+    )
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         mark = tutor.check_answer(shown_exercise, message.text or "")
         result_line = (
@@ -404,14 +432,9 @@ async def handle_answer(
                 message,
                 locale,
                 course,
-                ai_mode=ai_mode,
             )
         else:
-            await state.update_data(
-                language=language,
-                shown_exercise=state_data["shown_exercise"],
-                ai_mode=ai_mode,
-            )
+            await state.update_data(shown_exercise=state_data["shown_exercise"])
             if reply_markup is not None:
                 await remember_buttoned_message(state, sent_explanation)
 
@@ -422,25 +445,24 @@ async def handle_recall(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
-    ai_mode = state_data.get("ai_mode", False)
-    await state.clear()
+    await _clear_keeping_chat_settings(state, state_data)
     language = get_language(state_data)
     shown_recall = Recall.from_dict(state_data["shown_recall"])
     await state.update_data(
-        language=language,
         shown_exercise=state_data["shown_exercise"],
         shown_recall=state_data["shown_recall"],
-        ai_mode=ai_mode,
     )
     locale = LOCALES[language]
     # check_recall() is pure (never mutates student_record), unlike request_recall()
     # in _start_recall() above — open() detects that nothing changed and
     # skips the write on its own, no separate read-only path needed here.
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(message.chat.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(message.chat.id)
+    )
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         if tutor.check_recall(shown_recall, message.text or ""):
             sent = await message.answer(
@@ -507,13 +529,14 @@ async def _respond_with_next_exercise(
             await callback.message.answer(locale.ai_generation_failed)
         await callback.answer()
         return
+    hint_word = tutor.get_hint(exercise)
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
         question_text = _format_question(
-            exercise, language, course, is_ai_generated=ai_mode
+            exercise, language, course, is_ai_generated=ai_mode, hint_word=hint_word
         )
         await _answer_with_optional_cue(
             callback.message,
@@ -521,6 +544,7 @@ async def _respond_with_next_exercise(
             exercise,
             course,
             cue_store,
+            parse_mode="HTML",
             **_show_exercise_kwargs(exercise),
         )
     await callback.answer()
@@ -532,6 +556,7 @@ async def handle_next_exercise(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
@@ -539,9 +564,11 @@ async def handle_next_exercise(
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(callback.from_user.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(callback.from_user.id)
+    )
+    course = restrict_to_selected_groups(course, state_data)
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         await _respond_with_next_exercise(
             callback,
@@ -563,6 +590,7 @@ async def handle_study_more(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
@@ -570,9 +598,11 @@ async def handle_study_more(
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(callback.from_user.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(callback.from_user.id)
+    )
+    course = restrict_to_selected_groups(course, state_data)
+    async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
         tutor.grant_new_word_budget()
         await _respond_with_next_exercise(
@@ -595,6 +625,7 @@ async def handle_recall_request(
     state: FSMContext,
     course: Course,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -603,9 +634,10 @@ async def handle_recall_request(
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
-        async with student_record_book.check_out(
-            TelegramStudentID.encode(callback.from_user.id)
-        ) as student_record:
+        student_id = await student_identity_store.resolve_or_create_student_id(
+            "telegram", str(callback.from_user.id)
+        )
+        async with student_record_book.check_out(student_id) as student_record:
             await _start_recall(
                 state,
                 language,
@@ -615,6 +647,5 @@ async def handle_recall_request(
                 callback.message,
                 locale,
                 course,
-                ai_mode=state_data.get("ai_mode", False),
             )
     await callback.answer()

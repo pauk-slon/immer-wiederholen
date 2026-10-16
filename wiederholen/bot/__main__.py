@@ -11,6 +11,7 @@ from .bootstrap import (
     load_anthropic_client,
     load_authoring_guide,
     load_bot_course_and_storage,
+    load_bot_info,
     load_cue_store,
     load_feature_flags,
 )
@@ -22,21 +23,27 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     configure_tracing()
     instrument_redis()
-    bot, course, storage, student_record_book = load_bot_course_and_storage()
+    bot, course, storage, student_record_book, student_identity_store = (
+        load_bot_course_and_storage()
+    )
     feature_flags = load_feature_flags()
     anthropic_client = load_anthropic_client()
     authoring_guide = load_authoring_guide()
+    bot_info_by_language = load_bot_info()
     cue_store = load_cue_store()
     dispatcher.fsm.storage = storage
     for language_code, locale in LOCALES.items():
         try:
-            await bot.set_my_name(locale.bot_name, language_code=language_code)
-            await bot.set_my_description(
-                locale.bot_short_description, language_code=language_code
-            )
-            await bot.set_my_short_description(
-                locale.bot_short_description, language_code=language_code
-            )
+            if bot_info_by_language and (
+                bot_info := bot_info_by_language.get(language_code)
+            ):
+                await bot.set_my_name(bot_info.name, language_code=language_code)
+                await bot.set_my_description(
+                    bot_info.description, language_code=language_code
+                )
+                await bot.set_my_short_description(
+                    bot_info.short_description, language_code=language_code
+                )
             await bot.set_my_commands(
                 [
                     BotCommand(command="start", description=locale.cmd_start),
@@ -45,6 +52,8 @@ async def main() -> None:
                         description=locale.cmd_wiederholen,
                     ),
                     BotCommand(command="progress", description=locale.cmd_progress),
+                    BotCommand(command="topics", description=locale.cmd_topics),
+                    BotCommand(command="reminders", description=locale.cmd_reminders),
                     BotCommand(command="language", description=locale.cmd_language),
                     BotCommand(command="reset", description=locale.cmd_reset),
                 ],
@@ -59,6 +68,7 @@ async def main() -> None:
         bot,
         course=course,
         student_record_book=student_record_book,
+        student_identity_store=student_identity_store,
         feature_flags=feature_flags,
         anthropic_client=anthropic_client,
         authoring_guide=authoring_guide,

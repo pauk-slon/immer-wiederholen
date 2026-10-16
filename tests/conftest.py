@@ -9,8 +9,10 @@ import yaml
 pytest_plugins = [
     "tests.plugins.tracing",
     "tests.plugins.telegram",
+    "tests.plugins.telegram_login",
     "tests.plugins.aiogram",
     "tests.plugins.student_record_book",
+    "tests.plugins.student_identity_store",
     "tests.plugins.curriculum",
     "tests.plugins.web",
 ]
@@ -29,7 +31,7 @@ class TmpYamlFile(Protocol):
 def tmp_yaml_file(tmp_path: Path) -> TmpYamlFile:
     @contextmanager
     def factory(data: Any, *, filename: str = "data.yaml") -> Generator[Path]:
-        text = yaml.safe_dump(data)
+        text = yaml.safe_dump(data, sort_keys=False)
         yaml_file = tmp_path / filename
         yaml_file.write_text(text)
         yield yaml_file

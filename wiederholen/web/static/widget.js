@@ -9,6 +9,10 @@
 // see _recallEnabled's own comment for why a landing-page embed shouldn't
 // just get it for free).
 //
+// A bare `login` attribute (plus `telegram-bot="BotUsername"`, naming which
+// bot) opts into a Telegram Login Widget button — see _renderLoginButton()'s
+// own comment. Off by default for the same reason as recall.
+//
 // `api-base` defaults to the origin this very script was loaded from
 // (captured once, below, while `document.currentScript` is still valid —
 // it stops being usable the moment this file finishes its first pass, long
@@ -62,6 +66,13 @@ const STYLES = `
       --gew-correct: #4ade80;
       --gew-wrong: #f87171;
     }
+  }
+  /* Empty (display: block, zero content) whenever _loginEnabled is off, so
+     it takes up no visible space at all — the margin only ever applies
+     once the Telegram Login Widget's own iframe actually renders inside
+     it. */
+  [data-login-container]:not(:empty) {
+    margin-bottom: 0.75rem;
   }
   /* The sized viewport: one exercise's steps (question, result, a recall
      question, a recall result, ...) are each their own separate .card (see
@@ -487,6 +498,9 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   connectedCallback() {
+    // Persistent shell _render() never touches — see its own comment.
+    this._shadow.innerHTML = `<style>${STYLES}</style><div data-login-container></div>`;
+    this._renderLoginButton();
     // Reuse whatever question was already showing before a plain page
     // reload, instead of always spending a fresh /api/exercise/next call —
     // the server's own session (WebSessionStore's shown_exercise) hasn't
@@ -514,6 +528,11 @@ class GermanExerciseWidget extends HTMLElement {
       "resize",
       this._onViewportResize
     );
+    // In case the widget disconnects before Telegram's own script has
+    // injected its iframe — otherwise the light-DOM host (see
+    // _renderLoginButton()) would leak, still pending, in document.body.
+    this._loginButtonObserver?.disconnect();
+    this._loginButtonHost?.remove();
   }
 
   _onViewportResize() {
@@ -583,6 +602,15 @@ class GermanExerciseWidget extends HTMLElement {
   // and forking would mean applying every future fix twice.
   get _recallEnabled() {
     return this.hasAttribute("recall");
+  }
+
+  // Same off-by-default reasoning as _recallEnabled — see _renderLoginButton().
+  get _loginEnabled() {
+    return this.hasAttribute("login");
+  }
+
+  get _telegramBotUsername() {
+    return this.getAttribute("telegram-bot") || "";
   }
 
   // Falls back to ru, not en, for an unrecognized lang attribute — matches
@@ -1216,18 +1244,66 @@ class GermanExerciseWidget extends HTMLElement {
   }
 
   // Builds a fresh deck from scratch, holding just this one card — the
-  // only entry point that wipes everything (contrast _addCard(), which
+  // only entry point that wipes the deck (contrast _addCard(), which
   // never does). Correct wherever it's used: _loadNext()'s loading/error/
   // nothing-available states and its first successful _renderQuestion()
   // call, all of which mean a genuinely new exercise, where nothing from
-  // any previous one is worth keeping around to swipe back to.
+  // any previous one is worth keeping around to swipe back to. Scoped to
+  // .deck, not the whole shadow root — <style>/the login button live
+  // outside it and must survive every call here.
   _render(cardHtml) {
-    this._shadow.innerHTML =
-      `<style>${STYLES}</style>` +
-      `<div class="deck"><div class="track">${cardHtml}</div>` +
-      `<button class="deck-nav prev" data-deck-prev hidden aria-label="Previous">‹</button>` +
-      `<button class="deck-nav next" data-deck-next hidden aria-label="Next">›</button></div>`;
+    this._shadow.querySelector(".deck")?.remove();
+    // insertAdjacentHTML() isn't defined on this._shadow itself (a
+    // ShadowRoot, not an Element) — anchored on the login container instead.
+    this._shadow
+      .querySelector("[data-login-container]")
+      .insertAdjacentHTML(
+        "afterend",
+        `<div class="deck"><div class="track">${cardHtml}</div>` +
+          `<button class="deck-nav prev" data-deck-prev hidden aria-label="Previous">‹</button>` +
+          `<button class="deck-nav next" data-deck-next hidden aria-label="Next">›</button></div>`
+      );
     this._wireDeckNav();
+  }
+
+  // createElement()/setAttribute(), not an HTML string — a <script> tag
+  // never executes when inserted via innerHTML. Telegram's own script
+  // locates itself via document.currentScript to replace itself with an
+  // iframe, and that's always null for a script executing inside a Shadow
+  // Root — confirmed directly against the deployed page, where the script
+  // loaded but silently rendered nothing. So it has to run in the light
+  // DOM instead; a MutationObserver on the light-DOM host that ran it
+  // catches the iframe once Telegram's script injects it, and moves that
+  // iframe into our own shadow tree — reparenting an already-rendered
+  // iframe like this doesn't reload it (also confirmed directly).
+  _renderLoginButton() {
+    if (!this._loginEnabled) return;
+    const botUsername = this._telegramBotUsername;
+    if (!botUsername) return;
+    const container = this._shadow.querySelector("[data-login-container]");
+    const host = document.createElement("div");
+    host.style.display = "contents";
+    this._loginButtonHost = host;
+    this._loginButtonObserver = new MutationObserver(() => {
+      const iframe = host.querySelector("iframe");
+      if (!iframe) return;
+      this._loginButtonObserver.disconnect();
+      container.appendChild(iframe);
+      host.remove();
+    });
+    this._loginButtonObserver.observe(host, { childList: true });
+    document.body.appendChild(host);
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.async = true;
+    script.setAttribute("data-telegram-login", botUsername);
+    script.setAttribute("data-size", "medium");
+    // return_to — see _safe_redirect_target() in app.py.
+    script.setAttribute(
+      "data-auth-url",
+      `${this._apiBase}/api/auth/telegram/callback?return_to=${encodeURIComponent(window.location.href)}`
+    );
+    host.appendChild(script);
   }
 }
 

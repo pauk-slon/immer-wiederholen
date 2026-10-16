@@ -2,7 +2,17 @@ from typing import Final
 
 from aiogram import Dispatcher
 
-from .commands import ai, language, progress, reset, start, wiederholen
+from .chat_membership import router as chat_membership_router
+from .commands import (
+    ai,
+    language,
+    progress,
+    reminders,
+    reset,
+    start,
+    topics,
+    wiederholen,
+)
 from .tracing import TracingMiddleware
 
 dispatcher: Final = Dispatcher(disable_fsm=True)
@@ -15,11 +25,14 @@ dispatcher: Final = Dispatcher(disable_fsm=True)
 dispatcher.update.outer_middleware(TracingMiddleware())
 dispatcher.update.outer_middleware(dispatcher.fsm)
 
+dispatcher.include_router(chat_membership_router)
 dispatcher.include_router(start.router)
 dispatcher.include_router(language.router)
 dispatcher.include_router(progress.router)
 dispatcher.include_router(reset.router)
 dispatcher.include_router(ai.router)
+dispatcher.include_router(topics.router)
+dispatcher.include_router(reminders.router)
 dispatcher.include_router(wiederholen.router)
 
 __all__ = ["dispatcher"]

@@ -1,13 +1,13 @@
 """Encodes/validates the `StudentID` this web frontend addresses
-`StudentRecordBook` with — mirrors `wiederholen.bot.telegram_student_id.
-TelegramStudentID`, tagging every web-originated id with its own `web:`
-prefix so it can never collide with a Telegram (or any other frontend's) id
-sharing the same store.
-
-Unlike a Telegram `chat_id`, there's no pre-existing identity to encode: an
-anonymous visitor's id is a fresh, unguessable random token generated
-server-side on first visit and handed back as a cookie — see
-`wiederholen.web.app` for where that cookie is read/set.
+`StudentRecordBook` with. An anonymous visitor's id is a fresh,
+unguessable random token generated server-side on first visit and handed
+back as a cookie — see `wiederholen.web.app` for where that cookie is
+read/set. Tagged with its own `web:` prefix so it can never collide with a
+`StudentID` minted elsewhere for the same shared store — e.g. the bare,
+unprefixed tokens `wiederholen.school.student_identity_store.
+StudentIdentityStore.resolve_or_create_student_id()` mints for the bot's
+own Telegram-identified students, which by construction never contain a
+`:` (`secrets.token_urlsafe()`'s alphabet has none).
 """
 
 import secrets

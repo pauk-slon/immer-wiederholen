@@ -7,8 +7,7 @@ from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentReco
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.bot.telegram_student_id import TelegramStudentID
-from wiederholen.school import Course
+from wiederholen.school import Course, StudentID
 
 
 async def test_reset_command_asks_for_confirmation(feed_message: FeedMessage) -> None:
@@ -41,10 +40,10 @@ async def test_confirming_reset_clears_schedule_only(
     feed_callback_query: FeedCallbackQuery,
     seed_student_record: SeedStudentRecord,
     read_student_record: ReadStudentRecord,
-    chat_id: int,
+    student_id: StudentID,
 ) -> None:
     await seed_student_record(
-        TelegramStudentID.encode(chat_id),
+        student_id,
         {
             "word_schedule": {"warten": {"government": {}}},
             "last_exercise": {"is_recall_optional": False},
@@ -55,7 +54,7 @@ async def test_confirming_reset_clears_schedule_only(
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_done
-    student_record = await read_student_record(TelegramStudentID.encode(chat_id))
+    student_record = await read_student_record(student_id)
     assert student_record["word_schedule"] == {}
     assert student_record["last_exercise"]["is_recall_optional"] is False
 
@@ -65,12 +64,10 @@ async def test_confirming_reset_preserves_language(
     feed_callback_query: FeedCallbackQuery,
     seed_student_record: SeedStudentRecord,
     read_student_record: ReadStudentRecord,
-    chat_id: int,
+    student_id: StudentID,
 ) -> None:
     await state.update_data(language="en")
-    await seed_student_record(
-        TelegramStudentID.encode(chat_id), {"word_schedule": {"x": {"y": {}}}}
-    )
+    await seed_student_record(student_id, {"word_schedule": {"x": {"y": {}}}})
 
     requests = await feed_callback_query(RESET_CONFIRM, course=Course([]))
 
@@ -78,7 +75,7 @@ async def test_confirming_reset_preserves_language(
     assert requests[0].text == EN.reset_done
     data = await state.get_data()
     assert data["language"] == "en"
-    student_record = await read_student_record(TelegramStudentID.encode(chat_id))
+    student_record = await read_student_record(student_id)
     assert student_record["word_schedule"] == {}
 
 
@@ -87,18 +84,16 @@ async def test_cancelling_reset_keeps_student_record(
     feed_callback_query: FeedCallbackQuery,
     seed_student_record: SeedStudentRecord,
     read_student_record: ReadStudentRecord,
-    chat_id: int,
+    student_id: StudentID,
 ) -> None:
     student_record = {"word_schedule": {"warten": {"government": {}}}}
-    await seed_student_record(TelegramStudentID.encode(chat_id), student_record)
+    await seed_student_record(student_id, student_record)
 
     requests = await feed_callback_query(RESET_CANCEL, course=Course([]))
 
     assert len(requests) == 2
     assert requests[0].text == RU.reset_cancelled
-    assert (
-        await read_student_record(TelegramStudentID.encode(chat_id)) == student_record
-    )
+    assert await read_student_record(student_id) == student_record
 
 
 async def test_reset_command_clears_a_stale_button_left_from_wiederholen(

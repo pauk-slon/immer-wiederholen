@@ -55,19 +55,30 @@ class Locale:
     cmd_language: str
     cmd_progress: str
     cmd_reset: str
+    cmd_topics: str
+    topics_prompt: str
+    topics_unavailable: str
+    btn_topics_done: str
+    topics_selected: str
+    topics_all_selected: str
+    cmd_reminders: str
+    reminders_prompt: str
+    btn_remind_after: str
+    btn_reminders_off: str
+    reminders_set: str
+    reminders_off: str
     reset_confirm_prompt: str
     reset_confirm_button: str
     reset_cancel_button: str
     reset_done: str
     reset_cancelled: str
-    bot_name: str
-    bot_short_description: str
     reminder_text: str
     progress_text: str
     nothing_due_text: str
     ai_mode_on: str
     ai_mode_off: str
     ai_generation_failed: str
+    grammar_class_hint: str
 
 
 RU: Final = Locale(
@@ -85,13 +96,23 @@ RU: Final = Locale(
     cmd_language="Сменить язык",
     cmd_progress="Прогресс",
     cmd_reset="Сбросить прогресс",
+    cmd_topics="Выбрать темы",
+    topics_prompt="Выбери темы для заданий. Если ничего не выбрано — задания будут по всем темам.",
+    topics_unavailable="Выбор тем пока недоступен",
+    btn_topics_done="Готово",
+    topics_selected="✅ Темы: {topics}",
+    topics_all_selected="✅ Задания будут по всем темам",
+    cmd_reminders="Напоминания",
+    reminders_prompt="Через сколько после последнего занятия напомнить позаниматься?",
+    btn_remind_after="{hours} ч",
+    btn_reminders_off="Не напоминать",
+    reminders_set="🔔 Напомню через {hours} ч после последнего занятия",
+    reminders_off="🔕 Напоминания выключены",
     reset_confirm_prompt="Точно сбросить весь прогресс? Это действие нельзя отменить",
     reset_confirm_button="Да, сбросить",
     reset_cancel_button="Отмена",
     reset_done="✅ Прогресс сброшен",
     reset_cancelled="Отменено",
-    bot_name="Immer wiederholen!",
-    bot_short_description="Учи немецкие слова с интервальным повторением",
     reminder_text="🔔 Есть что повторить! Загляни и сделай /wiederholen!",
     progress_text=(
         "📊 Твой прогресс\n"
@@ -109,6 +130,7 @@ RU: Final = Locale(
     ai_mode_on="🤖 AI-режим включён",
     ai_mode_off="AI-режим выключен",
     ai_generation_failed="⚠️ Не получилось сгенерировать упражнение. Попробуй ещё раз или отключи /ai",
+    grammar_class_hint="Так же, как и у {word}",
 )
 
 EN: Final = Locale(
@@ -126,13 +148,23 @@ EN: Final = Locale(
     cmd_language="Change language",
     cmd_progress="Progress",
     cmd_reset="Reset progress",
+    cmd_topics="Choose topics",
+    topics_prompt="Choose topics for your exercises. If none are selected, exercises cover all topics.",
+    topics_unavailable="Choosing topics isn't available yet",
+    btn_topics_done="Done",
+    topics_selected="✅ Topics: {topics}",
+    topics_all_selected="✅ Exercises will cover all topics",
+    cmd_reminders="Reminders",
+    reminders_prompt="How long after your last session should I remind you to practice?",
+    btn_remind_after="{hours} h",
+    btn_reminders_off="Don't remind me",
+    reminders_set="🔔 I'll remind you {hours} h after your last session",
+    reminders_off="🔕 Reminders are off",
     reset_confirm_prompt="Are you sure you want to reset all progress? This can't be undone",
     reset_confirm_button="Yes, reset",
     reset_cancel_button="Cancel",
     reset_done="✅ Progress has been reset",
     reset_cancelled="Cancelled",
-    bot_name="Immer wiederholen!",
-    bot_short_description="Learn German vocabulary with spaced repetition",
     reminder_text="🔔 Something to review! Come back and do /wiederholen!",
     progress_text=(
         "📊 Your progress\n"
@@ -150,6 +182,7 @@ EN: Final = Locale(
     ai_mode_on="🤖 AI mode is on",
     ai_mode_off="AI mode is off",
     ai_generation_failed="⚠️ Couldn't generate the exercise. Try again, or turn off /ai",
+    grammar_class_hint="Same as for {word}",
 )
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}

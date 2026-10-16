@@ -2,7 +2,13 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import CallbackQuery, Message, TelegramObject, Update
+from aiogram.types import (
+    CallbackQuery,
+    ChatMemberUpdated,
+    Message,
+    TelegramObject,
+    Update,
+)
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
 
@@ -23,6 +29,11 @@ def _describe(update: Update) -> tuple[str, dict[str, Any]]:
         if event.data is not None:
             attributes["telegram.callback_data"] = event.data
         return "telegram.callback_query", attributes
+    if isinstance(event, ChatMemberUpdated):
+        return "telegram.my_chat_member", {
+            "telegram.chat_id": event.chat.id,
+            "telegram.chat_member.status": event.new_chat_member.status,
+        }
     return "telegram.update", {}
 
 

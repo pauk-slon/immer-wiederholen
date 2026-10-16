@@ -17,8 +17,7 @@ from wiederholen.bot.pending_buttons import (
     forget_buttoned_message,
     remember_buttoned_message,
 )
-from wiederholen.bot.telegram_student_id import TelegramStudentID
-from wiederholen.school import StudentRecord, StudentRecordBook
+from wiederholen.school import StudentIdentityStore, StudentRecord, StudentRecordBook
 
 router = Router()
 
@@ -58,13 +57,15 @@ async def handle_reset_confirm(
     callback: CallbackQuery,
     state: FSMContext,
     student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     locale = LOCALES[language]
-    async with student_record_book.check_out(
-        TelegramStudentID.encode(callback.from_user.id)
-    ) as student_record:
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", str(callback.from_user.id)
+    )
+    async with student_record_book.check_out(student_id) as student_record:
         StudentRecord.reset_progress(student_record)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(

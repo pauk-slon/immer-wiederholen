@@ -113,3 +113,17 @@ def test_should_remind_is_true_if_answered_again_since_last_reminder() -> None:
     }
 
     assert Tutor(Course([exercise]), student_record).should_remind() is True
+
+
+def test_should_remind_honors_a_shorter_remind_after() -> None:
+    exercise = make_exercise()
+    student_record = {
+        "last_exercise": {
+            "answered_at": (datetime.now(UTC) - timedelta(hours=5)).isoformat(),
+        },
+    }
+
+    tutor = Tutor(Course([exercise]), student_record)
+
+    assert tutor.should_remind(timedelta(hours=4)) is True
+    assert tutor.should_remind(timedelta(hours=8)) is False

@@ -40,14 +40,16 @@ def pytest_addoption(parser):
 def pytest_configure(config) -> None:
     if (db_override := config.getoption("--redis-db-override")) is None:
         return
-    # All three env vars point at the same physical Redis/Valkey in dev/prod
-    # today (see CLAUDE.md's Persistence section) — pin all of them to the
-    # same dedicated test DB, so RedisStorage/RedisStudentRecordBook/
-    # WebSessionStore can never touch a DB a real dev/prod bot might be
-    # using, regardless of what's set in the environment.
+    # All four env vars point at the same physical Redis/Valkey in dev/prod
+    # today (see CLAUDE.md's Persistence/Student identity sections) — pin
+    # all of them to the same dedicated test DB, so RedisStorage/
+    # RedisStudentRecordBook/RedisStudentIdentityStore/WebSessionStore can
+    # never touch a DB a real dev/prod bot might be using, regardless of
+    # what's set in the environment.
     for env_var in (
         "BOT_FSM_STORAGE_URL",
         "STUDENT_RECORD_STORAGE_URL",
+        "STUDENT_IDENTITY_STORAGE_URL",
         "WEB_SESSION_STORAGE_URL",
     ):
         os.environ[env_var] = urlunsplit(
@@ -56,8 +58,8 @@ def pytest_configure(config) -> None:
 
 
 @pytest.fixture
-def bot(bot_token: str) -> Bot:
-    return Bot(token=bot_token)
+def bot(telegram_bot_token: str) -> Bot:
+    return Bot(token=telegram_bot_token)
 
 
 @pytest.fixture
@@ -120,10 +122,12 @@ def feed_message(
 
 
 @pytest.fixture
-def state(bot: Bot, dispatcher: Dispatcher, user_id: int, chat_id: int) -> FSMContext:
+def state(
+    bot: Bot, dispatcher: Dispatcher, telegram_user_id: int, chat_id: int
+) -> FSMContext:
     return FSMContext(
         storage=dispatcher.storage,
-        key=StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=user_id),
+        key=StorageKey(bot_id=bot.id, chat_id=chat_id, user_id=telegram_user_id),
     )
 
 
