@@ -1,4 +1,10 @@
-from wiederholen.school.authoring import AIGenerationError, generate_shadow_exercise
+from wiederholen.school.authoring import (
+    AIGenerationError,
+    build_cue_prompt,
+    generate_exercise_cue,
+    generate_shadow_exercise,
+)
+from wiederholen.school.cue_store import CachedCueStore, CueStore, R2CueStore
 from wiederholen.school.curriculum import (
     Course,
     Exercise,
@@ -24,12 +30,15 @@ __all__ = [
     "LANGUAGES",
     "AIGenerationError",
     "AuthProvider",
+    "CachedCueStore",
     "Course",
+    "CueStore",
     "Exercise",
     "IdentityAlreadyLinkedError",
     "Language",
     "Mark",
     "Progress",
+    "R2CueStore",
     "Recall",
     "RecallMode",
     "RedisStudentIdentityStore",
@@ -40,6 +49,8 @@ __all__ = [
     "StudentRecordBook",
     "Topic",
     "Tutor",
+    "build_cue_prompt",
+    "generate_exercise_cue",
     "generate_shadow_exercise",
     "shuffle_word_bank",
 ]

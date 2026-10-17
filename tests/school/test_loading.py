@@ -93,6 +93,7 @@ class TestTopicsConfigLoading:
         assert course.answer_chained_topics == {}
         assert course.topic_instructions == {}
         assert course.ai_generatable_topics == frozenset()
+        assert course.cue_generatable_topics == frozenset()
         assert course.topic_groups == {}
 
     def test_loads_chains_and_gates(
@@ -154,6 +155,7 @@ class TestTopicsConfigLoading:
         assert course.answer_chained_topics == {}
         assert course.topic_instructions == {}
         assert course.ai_generatable_topics == frozenset()
+        assert course.cue_generatable_topics == frozenset()
 
     def test_loads_topic_instructions(
         self,
