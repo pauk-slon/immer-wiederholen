@@ -61,14 +61,14 @@ async def test_generate_exercise_cue_decodes_the_result_envelope() -> None:
     exercise = make_exercise(
         description={"ru": "x", "en": "A steam train in a tunnel."}
     )
-    encoded = base64.b64encode(b"fake-png-bytes").decode()
+    encoded = base64.b64encode(b"fake-jpeg-bytes").decode()
     client = _make_client(json_body={"result": {"image": encoded}, "success": True})
 
     image = await generate_exercise_cue(
         client, exercise, account_id="acc", api_token="token"
     )
 
-    assert image == b"fake-png-bytes"
+    assert image == b"fake-jpeg-bytes"
     client.post.assert_awaited_once()
     _, kwargs = client.post.call_args
     assert kwargs["headers"]["Authorization"] == "Bearer token"
@@ -77,14 +77,14 @@ async def test_generate_exercise_cue_decodes_the_result_envelope() -> None:
 
 async def test_generate_exercise_cue_decodes_the_bare_shape() -> None:
     exercise = make_exercise(description={"ru": "x", "en": "y"})
-    encoded = base64.b64encode(b"fake-png-bytes").decode()
+    encoded = base64.b64encode(b"fake-jpeg-bytes").decode()
     client = _make_client(json_body={"image": encoded})
 
     image = await generate_exercise_cue(
         client, exercise, account_id="acc", api_token="token"
     )
 
-    assert image == b"fake-png-bytes"
+    assert image == b"fake-jpeg-bytes"
 
 
 async def test_generate_exercise_cue_raises_on_unexpected_shape() -> None:

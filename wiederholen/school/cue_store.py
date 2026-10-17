@@ -84,7 +84,10 @@ class R2CueStore(CueStore):
                 Bucket=self._bucket,
                 Key=exercise.cue_key,
                 Body=image_bytes,
-                ContentType="image/png",
+                # What Flux 1 Schnell on Workers AI actually returns (checked
+                # against a real generated cue) — Telegram and browsers are
+                # handed this header as-is via the public URL.
+                ContentType="image/jpeg",
             )
 
 

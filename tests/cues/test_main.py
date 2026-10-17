@@ -63,7 +63,7 @@ async def test_generates_an_image_for_an_eligible_exercise_without_one(
         patch("wiederholen.cues.__main__.R2CueStore", return_value=store),
         patch(
             "wiederholen.cues.__main__.generate_exercise_cue",
-            AsyncMock(return_value=b"png-bytes"),
+            AsyncMock(return_value=b"jpeg-bytes"),
         ),
     ):
         await run()
@@ -71,7 +71,7 @@ async def test_generates_an_image_for_an_eligible_exercise_without_one(
     store.upload_cue.assert_awaited_once()
     exercise_arg, bytes_arg = store.upload_cue.call_args.args
     assert exercise_arg.word == "fahren"
-    assert bytes_arg == b"png-bytes"
+    assert bytes_arg == b"jpeg-bytes"
 
 
 async def test_skips_an_exercise_that_already_has_an_image(
@@ -79,7 +79,7 @@ async def test_skips_an_exercise_that_already_has_an_image(
 ) -> None:
     monkeypatch.setenv("COURSE_PATH", str(course_path))
     store = _mock_store(existing_url="https://images.example.com/already-there")
-    generate = AsyncMock(return_value=b"png-bytes")
+    generate = AsyncMock(return_value=b"jpeg-bytes")
     with (
         patch("wiederholen.cues.__main__.R2CueStore", return_value=store),
         patch("wiederholen.cues.__main__.generate_exercise_cue", generate),
@@ -145,7 +145,7 @@ async def test_a_failed_generation_does_not_stop_the_run(
     ):
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         store = _mock_store(existing_url=None)
-        generate = AsyncMock(side_effect=[httpx.HTTPError("boom"), b"png-bytes"])
+        generate = AsyncMock(side_effect=[httpx.HTTPError("boom"), b"jpeg-bytes"])
         with (
             patch("wiederholen.cues.__main__.R2CueStore", return_value=store),
             patch("wiederholen.cues.__main__.generate_exercise_cue", generate),

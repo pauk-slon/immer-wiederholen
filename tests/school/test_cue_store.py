@@ -181,5 +181,5 @@ async def test_r2_store_uploads_with_the_image_content_type() -> None:
         Bucket="images",
         Key=exercise.cue_key,
         Body=b"bytes",
-        ContentType="image/png",
+        ContentType="image/jpeg",
     )
