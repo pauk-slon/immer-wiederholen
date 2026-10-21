@@ -78,8 +78,9 @@ class Exercise:
     @property
     def cue_key(self) -> str:
         # A hash of `question`, not a stored field — this is the one place
-        # the derivation lives, so wiederholen.cues (the worker, which
-        # uploads under this key) and wiederholen.school.cue_store (which
+        # the derivation lives, so wiederholen.school.authoring.cues (the
+        # worker, which uploads under this key) and
+        # wiederholen.school.cue_store (which
         # looks it up at render time) can never disagree about what an
         # exercise's key is. Deliberately keyed by `question`, not e.g.
         # `word`+`topic`: several exercises in the same _meaning topic can
