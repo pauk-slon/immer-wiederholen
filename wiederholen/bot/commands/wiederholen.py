@@ -4,7 +4,7 @@ import difflib
 import html
 import logging
 import random
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from typing import Final
 
 from aiogram import Bot, F, Router
@@ -253,7 +253,7 @@ _TYPING_INTERVAL_SECONDS: Final = 4  # Telegram's own indicator lasts ~5s
 
 
 @contextlib.asynccontextmanager
-async def _show_typing_while(bot: Bot, chat_id: int) -> AsyncIterator[None]:
+async def _show_typing_while(bot: Bot, chat_id: int) -> AsyncGenerator[None]:
     # Telegram's "typing..." indicator auto-expires after ~5s (or once a
     # message is sent) — full shadow-exercise generation (question, answer,
     # distractors, explanation, recalls, all written fresh — see

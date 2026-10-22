@@ -1,7 +1,7 @@
 import copy
 import json
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Self
 
@@ -20,7 +20,7 @@ class StudentRecordBook(ABC):
         """Overwrite that student's record dict wholesale."""
 
     @asynccontextmanager
-    async def check_out(self, student_id: StudentID) -> AsyncIterator[dict]:
+    async def check_out(self, student_id: StudentID) -> AsyncGenerator[dict]:
         student_record = await self._get(student_id)
         before = copy.deepcopy(student_record)
         try:
