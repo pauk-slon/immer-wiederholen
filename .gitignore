@@ -220,3 +220,6 @@ __marimo__/
 data/
 .local
 compose.override.yaml
+
+# Empty mount point Docker creates for compose.override.yaml's authoring guide bind mount
+/authoring-guide.md
