@@ -6,7 +6,7 @@ import pytest
 
 from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import ExerciseData, make_exercise_data
-from wiederholen.cues.__main__ import main, run
+from wiederholen.school.authoring.cues.__main__ import main, run
 
 
 @pytest.fixture(autouse=True)
@@ -60,9 +60,11 @@ async def test_generates_an_image_for_an_eligible_exercise_without_one(
     monkeypatch.setenv("COURSE_PATH", str(course_path))
     store = _mock_store(existing_url=None)
     with (
-        patch("wiederholen.cues.__main__.R2CueStore", return_value=store),
         patch(
-            "wiederholen.cues.__main__.generate_exercise_cue",
+            "wiederholen.school.authoring.cues.__main__.R2CueStore", return_value=store
+        ),
+        patch(
+            "wiederholen.school.authoring.cues.__main__.generate_exercise_cue",
             AsyncMock(return_value=b"jpeg-bytes"),
         ),
     ):
@@ -81,8 +83,12 @@ async def test_skips_an_exercise_that_already_has_an_image(
     store = _mock_store(existing_url="https://images.example.com/already-there")
     generate = AsyncMock(return_value=b"jpeg-bytes")
     with (
-        patch("wiederholen.cues.__main__.R2CueStore", return_value=store),
-        patch("wiederholen.cues.__main__.generate_exercise_cue", generate),
+        patch(
+            "wiederholen.school.authoring.cues.__main__.R2CueStore", return_value=store
+        ),
+        patch(
+            "wiederholen.school.authoring.cues.__main__.generate_exercise_cue", generate
+        ),
     ):
         await run()
 
@@ -97,7 +103,9 @@ async def test_skips_an_exercise_whose_topic_is_not_eligible(
     with tmp_yaml_file([exercise], filename="exercises.yaml") as path:
         monkeypatch.setenv("COURSE_PATH", str(path.parent))
         store = _mock_store()
-        with patch("wiederholen.cues.__main__.R2CueStore", return_value=store):
+        with patch(
+            "wiederholen.school.authoring.cues.__main__.R2CueStore", return_value=store
+        ):
             await run()
 
     store.get_cue_url.assert_not_awaited()
@@ -107,9 +115,11 @@ async def test_skips_when_generation_returns_none(monkeypatch, course_path) -> N
     monkeypatch.setenv("COURSE_PATH", str(course_path))
     store = _mock_store(existing_url=None)
     with (
-        patch("wiederholen.cues.__main__.R2CueStore", return_value=store),
         patch(
-            "wiederholen.cues.__main__.generate_exercise_cue",
+            "wiederholen.school.authoring.cues.__main__.R2CueStore", return_value=store
+        ),
+        patch(
+            "wiederholen.school.authoring.cues.__main__.generate_exercise_cue",
             AsyncMock(return_value=None),
         ),
     ):
@@ -147,8 +157,14 @@ async def test_a_failed_generation_does_not_stop_the_run(
         store = _mock_store(existing_url=None)
         generate = AsyncMock(side_effect=[httpx.HTTPError("boom"), b"jpeg-bytes"])
         with (
-            patch("wiederholen.cues.__main__.R2CueStore", return_value=store),
-            patch("wiederholen.cues.__main__.generate_exercise_cue", generate),
+            patch(
+                "wiederholen.school.authoring.cues.__main__.R2CueStore",
+                return_value=store,
+            ),
+            patch(
+                "wiederholen.school.authoring.cues.__main__.generate_exercise_cue",
+                generate,
+            ),
         ):
             await run()
 
@@ -158,8 +174,10 @@ async def test_a_failed_generation_does_not_stop_the_run(
 def test_main_configures_logging_and_runs(monkeypatch) -> None:
     run_mock = AsyncMock()
     with (
-        patch("wiederholen.cues.__main__.run", run_mock),
-        patch("wiederholen.cues.__main__.logging.basicConfig") as basic_config,
+        patch("wiederholen.school.authoring.cues.__main__.run", run_mock),
+        patch(
+            "wiederholen.school.authoring.cues.__main__.logging.basicConfig"
+        ) as basic_config,
     ):
         main()
 

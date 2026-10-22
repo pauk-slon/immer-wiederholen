@@ -1,7 +1,8 @@
-"""Storage for the visual cues `wiederholen.cues` generates for
-`_meaning`-topic exercises (see CLAUDE.md's "AI-generated exercises") — a
-`CueStore` maps an `Exercise` (via its `cue_key`, see curriculum.py) to a
-public URL if one has been generated for it, and lets the worker upload one.
+"""Storage for the visual cues `wiederholen.school.authoring.cues`
+generates for `_meaning`-topic exercises (see CLAUDE.md's "AI-generated
+exercises") — a `CueStore` maps an `Exercise` (via its `cue_key`, see
+curriculum.py) to a public URL if one has been generated for it, and lets
+the worker upload one.
 Named "cue" rather than "image": the pedagogical point is dual coding — a
 relevant illustration acting as a retrieval cue for the sentence — not
 "an image" as a generic asset.
@@ -121,8 +122,8 @@ class CachedCueStore(CueStore):
     async def upload_cue(self, exercise: Exercise, image_bytes: bytes) -> None:
         # Never called on the bot's own CachedCueStore in practice (the
         # worker uploads through a bare store instead — see
-        # wiederholen.cues), but implemented for completeness rather than
-        # raising NotImplementedError: forwarding to the wrapped store and
+        # wiederholen.school.authoring.cues), but implemented for
+        # completeness rather than raising NotImplementedError: forwarding to the wrapped store and
         # invalidating this key's cache entry is the obviously-correct
         # behavior if it ever were called.
         await self._wrapped.upload_cue(exercise, image_bytes)

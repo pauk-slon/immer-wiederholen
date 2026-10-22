@@ -2,7 +2,7 @@
 topic has opted in via `Course.cue_generatable_topics` (see CLAUDE.md's
 "AI-generated exercises") but don't have one yet.
 
-Run on demand — `python -m wiederholen.cues` — whenever content changes,
+Run on demand — `python -m wiederholen.school.authoring.cues` — whenever content changes,
 not a standing service like `wiederholen.bot.reminder`: that one polls
 every 15 minutes because reminders are genuinely time-sensitive, but new
 exercises are added rarely, at content-authoring time, so there's nothing
@@ -13,6 +13,15 @@ line logged at the end (generated/already-had-one/no-description/failed
 counts) is what the person who just ran this actually reads afterward, to
 spot-check the result themselves rather than trusting the pipeline blindly
 (see CLAUDE.md).
+
+Lives here, as this package's `__main__`, rather than as a top-level
+sibling of `wiederholen.bot`/`wiederholen.web`: it isn't another frontend
+for the same learning logic, just a content-authoring tool. A package (not
+an `if __name__ == "__main__"` block in a single `cues.py`) because
+`wiederholen.school.authoring.__init__` imports this package's functions —
+`python -m` on a module its parent package already imported runs it as a
+second, separate copy (runpy's "found in sys.modules" RuntimeWarning),
+whereas `__init__` never imports `__main__`.
 """
 
 import asyncio
@@ -23,8 +32,9 @@ from pathlib import Path
 
 import httpx
 
-from wiederholen.school import Course, Exercise, R2CueStore
-from wiederholen.school.authoring import generate_exercise_cue
+from wiederholen.school.authoring.cues import generate_exercise_cue
+from wiederholen.school.cue_store import R2CueStore
+from wiederholen.school.curriculum import Course, Exercise
 
 logger = logging.getLogger(__name__)
 
