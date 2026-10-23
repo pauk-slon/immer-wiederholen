@@ -15,7 +15,7 @@ Each command lives in its own module under [`wiederholen/bot/commands/`](https:/
 | `/reminders` | `reminders` | how long after the last session to send a reminder, see [Reminders](#reminders) |
 | `/language` | `language` | switches between Russian and English |
 | `/reset` | `reset` | wipes the learner's schedule after a confirmation |
-| `/ai` | `ai` | switches the chat to questions rewritten by an LLM, for topics with `ai_generation`; only for chats with the `ai_exercises` [feature flag](#feature-flags). Details are in `CLAUDE.md` ("AI-generated exercises") until they move to `docs/` |
+| `/ai` | `ai` | switches the chat to questions rewritten by an LLM, for topics with `ai_generation`; only for chats with the `ai_exercises` [feature flag](#feature-flags). see [AI-generated content](authoring.md#shadow-exercises) |
 
 The bot's texts in both languages are in [`l10n.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/l10n.py).
 
