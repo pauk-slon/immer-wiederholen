@@ -21,6 +21,12 @@ Start the bot:
 docker compose up
 ```
 
+Locally the bot runs the small demo course from [`demo/`](demo): a handful of German exercises that use every field and topic setting the course format supports, with comments explaining them. To run your own course, point `COURSE_PATH` at a directory with the same files (e.g. `COURSE_PATH=data` in `.env`):
+
+- `exercises.yaml` — the exercises (required)
+- `topics.yaml` — topic groups and the relations between topics (optional)
+- `bot.yaml` — the bot's Telegram name and descriptions (optional)
+
 Tests:
 
 ```bash
