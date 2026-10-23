@@ -1,6 +1,6 @@
 # 0001. Record architecture decisions
 
-**Status:** Accepted, 2026-10-24 ([#244](https://github.com/pauk-slon/immer-wiederholen/issues/244))
+**Status:** Accepted, 2026-10-24 ([#260](https://github.com/pauk-slon/immer-wiederholen/pull/260), part of [#244](https://github.com/pauk-slon/immer-wiederholen/issues/244))
 
 ## Context
 
@@ -22,4 +22,4 @@ Decisions made before this one are recorded retroactively, each dated by and lin
 - Reference pages get shorter and describe only what is true now.
 - A decision's reasons can be found without digging through pull requests.
 - Writing an ADR is one more step when making a significant change.
-- Retroactive ADRs are only as good as the pull requests they're reconstructed from; where the reasons weren't written down, the ADR says so instead of inventing them.
+- Retroactive ADRs are only as good as the pull requests they're reconstructed from; where the reasons weren't written down, the ADR says so instead of inventing them, and an observation that wasn't discussed at the time is marked as such.

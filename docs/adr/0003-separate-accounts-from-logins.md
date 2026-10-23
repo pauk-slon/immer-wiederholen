@@ -15,7 +15,7 @@ Keep two concepts apart:
 - a **learner** is a `StudentID`, an opaque random id that addresses the record;
 - a **login** is a provider (`telegram`, `browser`) plus that provider's identifier, and is resolved to a learner by `StudentIdentityStore`.
 
-Every frontend resolves a login before touching a record. A logged-in browser holds a random `browser` token, linked to the learner, not the `StudentID` ([#219](https://github.com/pauk-slon/immer-wiederholen/pull/219)). Anonymous web visitors aren't logins and stay out of the store.
+In code, a learner is a `StudentID` and a login is a `(provider, identifier)` pair; earlier discussions call them *account* and *credential*. Every frontend resolves a login before touching a record. A logged-in browser holds a random `browser` token, linked to the learner, not the `StudentID` ([#219](https://github.com/pauk-slon/immer-wiederholen/pull/219)). Anonymous web visitors aren't logins and stay out of the store.
 
 ## Alternatives considered
 
@@ -28,5 +28,5 @@ Every frontend resolves a login before touching a record. A logged-in browser ho
 
 - A learner who uses the bot and then logs in on the web lands on the same record.
 - New ways to log in are a new provider, not a new id scheme.
-- Every request costs one more Redis lookup.
+- Every request costs one more Redis lookup (observed, not discussed in #208).
 - Switching schemes orphaned the records created under the old one; there were no real users to migrate yet.

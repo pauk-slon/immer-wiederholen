@@ -4,7 +4,7 @@
 
 ## Context
 
-Things worth observing happen inside `Tutor`: an answer is marked, a linked topic is scheduled, nothing is left to show. They should appear in the traces. `wiederholen.school.tutoring` deliberately has no infrastructure dependencies, so that `Tutor` can be tested without mocks.
+`check_answer()` and `next_exercise()` returned events that nothing but tracing used. The events themselves — an answer marked, a linked topic scheduled, nothing left to show — are worth seeing in traces. The constraint: `wiederholen.school.tutoring` deliberately has no infrastructure dependencies, so that `Tutor` can be tested without mocks.
 
 The first design ([#124](https://github.com/pauk-slon/immer-wiederholen/pull/124)) kept `tutoring` free of OpenTelemetry: `check_answer()` and `next_exercise()` returned their result together with a list of event dataclasses, and the bot turned each event into a span event at every call site (`record_tutoring_events()`). It turned out the bot was the only consumer of those lists, and it never looked at their content — for example, the "Study more" button depends only on `next_exercise()` returning `None`, not on the event's `reason`.
 
