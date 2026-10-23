@@ -43,7 +43,7 @@ async def _remind_chat(
         # selection live in aiogram's own FSM data, not the student_record —
         # this is the one point
         # reminder.py still needs a real aiogram storage for (see
-        # "Persistence" in CLAUDE.md). The same FSMContext also backs
+        # docs/storage.md). The same FSMContext also backs
         # clear_stale_buttons()/remember_buttoned_message() below —
         # reminder.py has no incoming Message the way a command handler does,
         # but a StorageKey built from bot_id/chat_id/user_id is exactly what
