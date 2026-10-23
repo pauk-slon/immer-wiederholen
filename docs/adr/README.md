@@ -34,3 +34,13 @@ Numbers follow the order of writing; the date is when the decision was made.
 | [0004](0004-links-only-schedule-unstarted-pairs.md) | Topic links only schedule pairs that haven't started | 2026-07-29 | Accepted |
 | [0005](0005-shadow-exercises-keep-the-answer.md) | Shadow exercises keep the answer | 2026-08-14 | Accepted |
 | [0006](0006-ai-generation-fails-visibly.md) | AI generation fails visibly, without a fallback | 2026-08-10 | Accepted |
+| [0007](0007-save-records-only-when-changed.md) | Save a student record only when it changes | 2026-08-23 | Accepted |
+| [0008](0008-student-record-separate-from-chat-state.md) | Keep the student record separate from chat state | 2026-08-23 | Accepted |
+| [0009](0009-one-environment-variable-per-store.md) | One environment variable per store | 2026-08-23 | Accepted |
+| [0010](0010-reminders-as-a-separate-process.md) | Reminders run as a separate process | 2026-07-19 | Accepted |
+| [0011](0011-remind-after-the-last-session.md) | Reminders count from the last session | 2026-10-15 | Accepted |
+| [0012](0012-gates-declared-explicitly.md) | Gates are declared explicitly | 2026-07-22 | Accepted |
+| [0013](0013-word-bank-as-data.md) | Word banks are data, not text in the question | 2026-08-26 | Accepted |
+| [0014](0014-cues-generated-ahead-keyed-by-question.md) | Illustrations are generated ahead of time and keyed by the question | 2026-10-17 | Accepted |
+| [0015](0015-web-component-not-iframe.md) | The web widget is a web component, not an iframe | 2026-08-23 | Accepted |
+| [0016](0016-web-sessions-keyed-by-topics.md) | Web sessions are keyed by learner and topics | 2026-08-26 | Accepted |
