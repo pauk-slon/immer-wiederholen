@@ -646,7 +646,7 @@ class GermanExerciseWidget extends HTMLElement {
 
   // Best-effort, fire-and-forget: POST /api/client-error turns into
   // queryable attributes on that request's own auto-instrumented span
-  // (see CLAUDE.md's "Web frontend"/"Tracing" — the same OTel/Honeycomb
+  // (see docs/web-frontend.md and docs/tracing.md — the same OTel/Honeycomb
   // pipeline the backend already uses, not a separate tool), so a real
   // failure shows up as more than a bare docker-logs access-log line a
   // human has to notice and manually reproduce. .catch(() => {}) here is
