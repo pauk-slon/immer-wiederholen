@@ -2,7 +2,7 @@
 aiogram's own FSM storage holds for the Telegram bot (`shown_exercise`,
 `shown_recall`), scoped to just what `wiederholen.web` itself needs.
 Deliberately not part of `StudentRecordBook`: this is session/UI state, not
-the learning record (see CLAUDE.md's Persistence section for why the
+the learning record (see docs/storage.md for why the
 Telegram bot keeps those two separate too).
 """
 

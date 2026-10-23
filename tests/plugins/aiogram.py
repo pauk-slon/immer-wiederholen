@@ -41,7 +41,7 @@ def pytest_configure(config) -> None:
     if (db_override := config.getoption("--redis-db-override")) is None:
         return
     # All four env vars point at the same physical Redis/Valkey in dev/prod
-    # today (see CLAUDE.md's Persistence/Student identity sections) — pin
+    # today (see docs/storage.md) — pin
     # all of them to the same dedicated test DB, so RedisStorage/
     # RedisStudentRecordBook/RedisStudentIdentityStore/WebSessionStore can
     # never touch a DB a real dev/prod bot might be using, regardless of
