@@ -27,6 +27,8 @@ Locally the bot runs the small demo course from [`demo/`](demo): a handful of Ge
 - `topics.yaml` — topic groups and the relations between topics (optional)
 - `bot.yaml` — the bot's Telegram name and descriptions (optional)
 
+The format is described in [docs/course-format.md](docs/course-format.md).
+
 Tests:
 
 ```bash
