@@ -7,9 +7,11 @@ The engine is two classes in [`tutoring/`](https://github.com/pauk-slon/immer-wi
 - **`Tutor`** (`session.py`) makes the decisions: `next_exercise()`, `check_answer()`, `request_recall()`, `check_recall()`, `should_remind()`, `progress()`, `get_hint()`. It's built per request as `Tutor(course, student_record)`.
 - **`StudentRecord`** (`student_record.py`) reads and writes the learner's record — a plain dict the frontend loaded from storage (see [Storage and identity](storage.md#student-records)). It knows nothing about the course.
 
-`SelectablePairs` (`selection.py`) holds the word and topic choice for `next_exercise()`.
+`SelectablePairs` (`selection.py`) holds the word and topic choice for `next_exercise()`. The conventions for editing these classes are in [Conventions](#conventions).
 
 ## The schedule
+
+**Days are UTC days.** "Today", "due today", the daily limit and `/progress` all switch over at midnight UTC — for a learner in UTC+9, at 9 in the morning.
 
 The schedule is kept per **pair** of word and topic: `singen` in `partizip_ii` and `singen` in `partizip_ii_meaning` are repeated independently. Several exercises of one pair share its entry.
 
@@ -57,6 +59,8 @@ When the pair is next due:
 - **after a first answer or a wrong one**: today. A new learner — or one right after `/reset` — would otherwise run out of material partway through the first day, since every correct first answer would push its pair to tomorrow.
 - **otherwise**: in `repetition_interval` days.
 
+Lateness doesn't matter: a pair answered correctly days after it was due doubles from its recorded interval as if it had been answered on time.
+
 The first answer lands on 0, not 1, so that the next correct answer is the one that reaches 1 — a pair is only ever doubled from an interval it was actually tested at. Doubling from a placeholder 1 sent pairs two days out after their first day and left the next day with nothing due.
 
 ## Picking the next exercise
@@ -82,11 +86,14 @@ A word is free once any of its topics has been answered. So if `warten` is being
 
 `SelectablePairs.select_word()` takes as many queued words as today's remaining limit allows, then fills the rest with a random sample of fresh words, and picks uniformly among the free words and those taken. Fresh words are sampled down to the limit *before* the pick: a course with hundreds of untouched words doesn't dilute the chance of a handful of due ones.
 
-`select_topic()` then prefers a **due** topic of the chosen word; only if none is due does it pick among the word's new topics. A due topic has a deadline, a new one doesn't.
+`select_topic()` then prefers a topic of the chosen word that's **due for review** (answered before and due today); only if there's none does it pick among the word's new topics — including linked topics scheduled for today but not answered yet. A review has a deadline, new material doesn't.
 
 ### The daily limit on new words
 
-At most 7 new **words** a day (`NEW_WORDS_PER_DAY`). Words, not pairs: starting `sprechen` in two topics on one day is one new word.
+At most 7 new **words** a day (`NEW_WORDS_PER_DAY`). In code, today's remaining limit is the `budget` passed to `select_word()`, a "Study more" grant is `NEW_WORD_BUDGET_GRANT`, and running out shows up as the `daily_cap_reached` event.
+
+**Reviews have no limit.** A learner back after a week away gets every overdue review at once; only new words are held back.
+ Words, not pairs: starting `sprechen` in two topics on one day is one new word.
 
 A word counts as new today if it has been introduced and every one of its introduced topics was introduced today. A word started days ago whose other topic gets its first answer today doesn't count. A word with only a queued entry and nothing answered doesn't count either.
 
@@ -130,7 +137,7 @@ A gated topic's pairs without an entry are excluded from "new and available", so
 
 `request_recall(exercise)` picks one of the exercise's recalls at random, avoiding the one shown last for it, and stores it in `last_exercise`. The next answer replaces `last_exercise`, so nothing needs resetting between exercises.
 
-Asking for an **optional** recall — after a correct answer — counts as less confidence: the first time it's asked for that answer, the pair's interval is halved (at least 1), and its due date moves to match. A required recall after a wrong answer changes nothing; the interval is already 0.
+Asking for an **optional** recall — after a correct answer — halves the pair's interval (at least 1) the first time it's asked for that answer, and its due date moves to match. A required recall after a wrong answer changes nothing; the interval is already 0.
 
 `check_recall()` only compares: recall answers don't touch the schedule and don't count as activity for reminders.
 
@@ -154,14 +161,27 @@ Asking for an **optional** recall — after a correct answer — counts as less 
 
 `StudentRecord.reset_progress(student_record)`, called by `/reset`, deletes the schedule and today's answer counts. Without the counts, `/progress` would still show today's answers right after a reset.
 
-## In the code
+It keeps the rest of the record: today's "Study more" grants, `last_exercise` and `last_reminded_at`. Because `last_exercise` survives, the reminder still measures inactivity from the last answer before the reset, so a learner can be reminded soon after resetting; see [#258](https://github.com/pauk-slon/immer-wiederholen/issues/258).
+
+## Example: a learner's first day
+
+On the [demo course](https://github.com/pauk-slon/immer-wiederholen/tree/main/demo), where `partizip_ii` chains to `perfekt_wortstellung` and gates `partizip_ii_meaning`:
+
+1. **Start.** Nothing is scheduled. The candidates are every new, ungated pair — `singen` and `trinken` in `partizip_ii` and `perfekt_wortstellung`, `warten` in `verb_preposition`, `auf` in `preposition_meaning`. `partizip_ii_meaning` is gated, so it isn't a candidate. All four words are fresh and fit the limit of 7. Say `singen` in `partizip_ii` is picked.
+2. **Wrong answer.** `singen`/`partizip_ii` gets interval 0, due today, introduced today. The exercise has recalls, so a recall is required. The links run: `singen`/`perfekt_wortstellung` and `singen`/`partizip_ii_meaning` get entries due today — the second one is now unlocked. `singen` counts as 1 new word.
+3. **Next exercise.** `singen` is excluded as the last word, so another word comes up, say `warten`. Answering it schedules `auf`/`preposition_meaning` for today through `chains_by_answer`.
+4. **`singen` again.** It's a free word now. Its `partizip_ii` is due for review, so that topic is preferred over its two newly scheduled ones. A correct answer doubles 0 to 1: due tomorrow.
+5. **Later today**, `singen`'s `perfekt_wortstellung` and `partizip_ii_meaning` come up as new topics of a free word, without spending the limit. Each gets interval 0 and is due again today after its first answer.
+6. **Tomorrow**, `singen`/`partizip_ii` is due for review, along with any of yesterday's pairs that ended the day due.
+
+## Conventions
 
 - **"Today" is resolved once**, in `Tutor.__init__`, in UTC, and passed to `StudentRecord`. Every date comparison uses it — one place to change if days should ever follow a learner's time zone. Times rather than dates — when an answer was given, the reminder's inactivity window — use the current time directly.
 - **`Tutor` never handles a raw schedule entry.** It reads `StudentRecord.get_repetition_interval(word, topic)` and writes `StudentRecord.schedule_pair(word, topic, *, repetition_interval, due_interval=None)`. `due_interval` is days from today and defaults to the interval; it's passed only for "due again today". `schedule_pair()` updates the two fields in place, so `introduced_at` set moments earlier survives.
 - **`record_mark()`** records an answer in one call: it replaces `last_exercise`, updates `today_answers`, stamps `introduced_at` on a new pair, and returns whether the pair was new and its previous interval. The previous interval is read before the entry is created, so it's `None` for a pair that had no entry and `0` for one that had an unanswered entry.
 - **`StudentRecord` doesn't know the course.** `Tutor` filters its results against the course's pairs, since a record can hold words and topics the course no longer has.
 - **Malformed entries are ignored**: entries are validated with pydantic, and anything that doesn't fit is treated as if it weren't there.
-- **`SelectablePairs`** splits the candidates into `due_introduced`, `due_not_introduced` and `not_scheduled`. `select_word()` and `select_topic()` get the few values they need from the record — introduced words, today's remaining limit, the last pair — as parameters, so the class itself never touches the record.
+- **`SelectablePairs` doesn't touch the record.** It splits the candidates into `due_introduced`, `due_not_introduced` and `not_scheduled`; `select_word()` and `select_topic()` get the few values they need — introduced words, today's remaining limit, the last pair — as parameters.
 
 ## Design notes
 
