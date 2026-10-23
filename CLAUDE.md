@@ -31,6 +31,7 @@ What's traced (span names and attributes per process, `Tutor`'s span events), ho
 - `TracingMiddleware` is registered on `dispatcher.update` *before* `dispatcher.fsm` (the dispatcher is built with `disable_fsm=True` for this); swapping them makes the FSM's Redis read an orphan root span.
 - Never record free text a learner typed — only commands and the bot's own callback-data constants.
 - `Tutor` reports events by calling `wiederholen.school.tutoring.events.emit()` with a frozen dataclass at the point they happen; they're not returned to callers. `tutoring` may use the OpenTelemetry *API* only, never the SDK.
+- New spans come from `wiederholen.tracing.default_tracer`, named `area.action`, with namespaced attributes (`telegram.*`, `reminder.*`, `client.error.*`); outgoing HTTP calls (Telegram, Anthropic, R2, Workers AI) aren't instrumented.
 - `configure_tracing()`/`instrument_redis()` are called only from the three `main()`s, never at import time. Tests must not use the global provider: use the `tracer`/`exporter` fixtures from `tests/plugins/tracing.py`.
 
 ## Reminders
