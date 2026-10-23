@@ -57,7 +57,13 @@ Shadow exercises (the `/ai` mode, `wiederholen.school.authoring.shadow_exercises
 
 ## Web frontend
 
-`wiederholen.web` (Litestar) — the embeddable widget, the standalone app, session storage, Telegram login, and `widget.js`'s deck/card UI — is documented in full in `docs/web-frontend.md`. Read it before touching anything under `wiederholen/web/`.
+`wiederholen.web` (Litestar) — the embeddable widget, the standalone app, session storage, Telegram login, and `widget.js`'s deck/card UI — is documented in full in `docs/web-frontend.md`. Read it before touching anything under `wiederholen/web/`. The rules that matter most:
+
+- Responses never carry an exercise's or recall's answer; `/check` and `/recall/check` look it up in `WebSessionStore`.
+- `WebSessionStore` is keyed by student *and* topics, so every endpoint sends `topics`, even those that don't restrict the course with it.
+- `check_answer()` isn't idempotent: when the widget adds a card, the previous card's controls are removed, never just disabled visually.
+- A failed answer isn't retried with the same request (a 409 from an expired session would repeat); recovery is loading a new exercise.
+- Embed and app are one component that differs only by attributes; don't fork it.
 
 ## Telegram login
 
