@@ -1,6 +1,6 @@
 # Architecture
 
-A map of the code: the packages, the rules between them, the processes they run as, and where each piece of state lives. Subsystems have their own pages: [Repetition schedule](repetition-schedule.md), [Storage and identity](storage.md), [Tracing](tracing.md), [Telegram bot](bot.md), [AI-generated content](authoring.md) and [Web frontend](web-frontend.md); the rest are still described in [`CLAUDE.md`](https://github.com/pauk-slon/immer-wiederholen/blob/main/CLAUDE.md) — detailed notes written for AI agents, being moved here (see [#244](https://github.com/pauk-slon/immer-wiederholen/issues/244)).
+A map of the code: the packages, the rules between them, the processes they run as, and where each piece of state lives. Subsystems have their own pages: [Repetition schedule](repetition-schedule.md), [Storage and identity](storage.md), [Tracing](tracing.md), [Telegram bot](bot.md), [AI-generated content](authoring.md) and [Web frontend](web-frontend.md). [`CLAUDE.md`](https://github.com/pauk-slon/immer-wiederholen/blob/main/CLAUDE.md) holds short rules for AI agents that point to these pages.
 
 This page says *learner*; in code, a learner is a *student* (`StudentID`, `StudentRecord`).
 

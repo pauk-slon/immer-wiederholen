@@ -32,8 +32,8 @@ type WebAppFactory = Callable[[Course], Litestar]
 
 @pytest.fixture
 def web_app_factory(
-    # Depended on only to flush their DBs before the test — see CLAUDE.md's
-    # "Web frontend" section for why these aren't the objects handed to the app.
+    # Depended on only to flush their DBs before the test — see
+    # docs/web-frontend.md for why these aren't the objects handed to the app.
     student_record_book: StudentRecordBook,
     web_session_store: WebSessionStore,
     student_identity_store: StudentIdentityStore,
