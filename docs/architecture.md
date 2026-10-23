@@ -1,6 +1,8 @@
 # Architecture
 
-A map of the code: the packages, the rules between them, the processes they run as, and where each piece of state lives. Subsystems have their own pages: [Repetition schedule](repetition-schedule.md) and [Web frontend](web-frontend.md); the rest are still described in [`CLAUDE.md`](https://github.com/pauk-slon/immer-wiederholen/blob/main/CLAUDE.md) until they move here (see [#244](https://github.com/pauk-slon/immer-wiederholen/issues/244)).
+A map of the code: the packages, the rules between them, the processes they run as, and where each piece of state lives. Subsystems have their own pages: [Repetition schedule](repetition-schedule.md) and [Web frontend](web-frontend.md); the rest are still described in [`CLAUDE.md`](https://github.com/pauk-slon/immer-wiederholen/blob/main/CLAUDE.md) — detailed notes written for AI agents, being moved here (see [#244](https://github.com/pauk-slon/immer-wiederholen/issues/244)).
+
+This page says *learner*; in code, a learner is a *student* (`StudentID`, `StudentRecord`).
 
 ## Packages
 
@@ -36,6 +38,7 @@ flowchart TD
 
 | Module | What it holds |
 |---|---|
+| [`__init__`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/__init__.py) | the aiogram `dispatcher`: middlewares and routers, in an order that matters — the tracing middleware comes first, so its span also covers loading the chat state |
 | [`commands/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/bot/commands) | one module per command: `/start`, `/wiederholen` (exercises, answers, recalls), `/progress`, `/topics`, `/reminders`, `/language`, `/reset`, `/ai` |
 | [`__main__`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/__main__.py), [`bootstrap`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/bootstrap.py) | startup: reading the configuration, building the stores, setting the bot's Telegram profile, polling |
 | [`reminder`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder.py), [`reminder_settings`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder_settings.py) | the reminder process and each chat's reminder interval |
@@ -53,7 +56,7 @@ A [Litestar](https://litestar.dev/) app with a JSON API and two static frontends
 ## Rules
 
 - **`school` doesn't know about frontends.** Nothing in it imports `bot` or `web`, deals with chat ids or HTTP, or reads environment variables — frontends pass everything in. The one exception is the cue generator's `__main__`, a command-line entry point nothing imports.
-- **`tutoring` does no I/O.** `Tutor` works on a plain `dict` handed to it and never touches Redis, the network or the environment, so its tests need no mocks. The only outside dependency it has is the OpenTelemetry API, which does nothing unless tracing is configured.
+- **`tutoring` does no I/O.** `Tutor` works on a plain `dict` handed to it and never touches Redis, the network or the environment, so its tests need no mocks. Besides the standard library, it uses only pydantic (to validate records) and the OpenTelemetry API (which does nothing unless tracing is configured).
 - **Frontends don't depend on each other.** Code both need goes into `school` (or, for tracing, into `wiederholen.tracing`).
 - **AI calls live in `authoring`.** It's a sibling of `tutoring`, not part of it, so the scheduling engine never gains a network dependency.
 
@@ -73,13 +76,14 @@ flowchart LR
     web --> records
     web --> identities
     web --> sessions[(web sessions)]
-    bot -.-> r2[(R2: illustrations)]
+    bot -. lookups .-> r2[(R2: illustrations)]
+    tg -. fetches images .-> r2
     generator[cue generator] -.-> r2
     generator -.-> ai((Workers AI))
     bot -.-> claude((Anthropic))
 ```
 
-Dashed lines are optional integrations. How to run and configure each process is in [Configuration](configuration.md).
+Dashed lines are optional integrations. The bot only checks whether an illustration exists and sends Telegram its public URL; Telegram fetches the image itself. How to run and configure each process is in [Configuration](configuration.md).
 
 | State | Store | Shared by |
 |---|---|---|
@@ -99,12 +103,13 @@ What happens when a learner answers an exercise in Telegram:
 3. It checks out the learner's record from `StudentRecordBook` and builds a `Tutor` on it.
 4. `Tutor.check_answer()` marks the answer, reschedules the pair and schedules linked topics, recording what happened as span events.
 5. The handler replies with the explanation and the next step (a recall or a "next" button).
-6. When the check-out block ends, the record is saved — but only if it changed.
+6. It clears the chat's conversation state but keeps the chat's settings (language, `/ai` mode, selected topics) — a bare clear would reset them after every exercise.
+7. When the check-out block ends, the record is saved — but only if it changed.
 
-The web app follows the same steps with an HTTP request instead of a Telegram update and a browser cookie instead of a chat id.
+The web app follows the same path with three differences: an HTTP request instead of a Telegram update, traced by Litestar's OpenTelemetry plugin; a browser cookie instead of a chat id; and `WebSessionStore` instead of aiogram's FSM storage for the exercise being shown.
 
 ## Design notes
 
 - **Account and credential are separate.** A learner (`StudentID`) isn't the same as a way of proving who they are (a Telegram chat, a browser login). That's what lets one learner use both the bot and the web app, and later add other logins.
 - **Records are saved only when they change.** `StudentRecordBook.check_out()` compares the record after the handler with a copy taken before, so read-only handlers don't write, and a change made before an error still gets saved.
-- **Reminders are a separate process**, not a background task in the bot, so tests that start the bot repeatedly don't leave tasks running.
+- **Reminders are a separate process.** They run on a timer, independent of incoming updates, so they don't belong in the bot's update handling. A background task inside the bot would also keep running across the tests that start the bot repeatedly.
