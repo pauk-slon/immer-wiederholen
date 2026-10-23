@@ -1,3 +1,5 @@
+# Format reference: docs/course-format.md
+#
 # Topic groups, in the order /topics shows them. Every topic in
 # exercises.yaml belongs to exactly one group.
 #

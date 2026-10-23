@@ -1,3 +1,5 @@
+# Format reference: docs/course-format.md
+#
 # A tiny demo course: just enough exercises to try out every field an
 # exercise can have. The schedule is keyed by (word, topic), so each word
 # appears in several linked topics — see the diagram in topics.yaml.
