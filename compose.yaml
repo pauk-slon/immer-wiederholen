@@ -7,6 +7,7 @@ services:
     restart: unless-stopped
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
+      COURSE_PATH: ${COURSE_PATH:-demo}
       BOT_FSM_STORAGE_URL: redis://valkey:6379/3
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
       STUDENT_IDENTITY_STORAGE_URL: redis://valkey:6379/1
@@ -27,6 +28,7 @@ services:
     command: python -m wiederholen.bot.reminder
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
+      COURSE_PATH: ${COURSE_PATH:-demo}
       BOT_FSM_STORAGE_URL: redis://valkey:6379/3
       STUDENT_RECORD_STORAGE_URL: redis://valkey:6379/0
       STUDENT_IDENTITY_STORAGE_URL: redis://valkey:6379/1
@@ -49,6 +51,7 @@ services:
       WEB_ALLOWED_ORIGINS: ${WEB_ALLOWED_ORIGINS:-http://localhost:3000}
       WEB_COOKIE_DOMAIN: ${WEB_COOKIE_DOMAIN:-localhost}
       BOT_TOKEN: ${BOT_TOKEN}
+      COURSE_PATH: ${COURSE_PATH:-demo}
     volumes:
       - .:/app
     depends_on:

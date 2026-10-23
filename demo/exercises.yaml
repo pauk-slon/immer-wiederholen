@@ -1,0 +1,115 @@
+# A tiny demo course: just enough exercises to try out every field an
+# exercise can have. The schedule is keyed by (word, topic), so each word
+# appears in several linked topics — see the diagram in topics.yaml.
+
+# Typed input (no distractors), several recalls (one shown at random after a
+# correct answer), one of them with a hint. grammar_classes: singen and
+# trinken share the i-a-u Ablaut pattern, so once one of them is learned, the
+# other's question gets a "Same as for …" hint.
+- word: singen
+  topic: partizip_ii
+  question: singen
+  answer: gesungen
+  distractors: []
+  grammar_classes: [i-a-u]
+  explanation:
+    ru: "singen — петь; Partizip II: gesungen (haben)"
+    en: "singen — to sing; Partizip II: gesungen (haben)"
+  recalls:
+    - question: Wir haben ein Lied ___.
+      answer: [Wir haben ein Lied gesungen.]
+    - question: Der Chor hat laut ___.
+      answer: [Der Chor hat laut gesungen.]
+      hint:
+        ru: der Chor — хор
+        en: der Chor — choir
+
+- word: trinken
+  topic: partizip_ii
+  question: trinken
+  answer: getrunken
+  distractors: []
+  grammar_classes: [i-a-u]
+  explanation:
+    ru: "trinken — пить; Partizip II: getrunken (haben)"
+    en: "trinken — to drink; Partizip II: getrunken (haben)"
+  recalls:
+    - question: Er hat einen Kaffee ___.
+      answer: [Er hat einen Kaffee getrunken.]
+
+# description: a translation of the sentence, shown with the question so the
+# learner knows which word is meant. Topics with cue_generation in
+# topics.yaml get an illustration generated from description.en.
+- word: singen
+  topic: partizip_ii_meaning
+  question: Auf der Hochzeit hat die ganze Familie bis Mitternacht ___.
+  answer: gesungen
+  distractors: []
+  description:
+    ru: На свадьбе вся семья пела до полуночи.
+    en: At the wedding, the whole family sang until midnight.
+  explanation:
+    ru: "singen — петь; Partizip II: gesungen (haben)"
+    en: "singen — to sing; Partizip II: gesungen (haben)"
+
+- word: trinken
+  topic: partizip_ii_meaning
+  question: Nach dem langen Lauf hat sie eine ganze Flasche Wasser ___.
+  answer: getrunken
+  distractors: []
+  description:
+    ru: После долгой пробежки она выпила целую бутылку воды.
+    en: After the long run, she drank a whole bottle of water.
+  explanation:
+    ru: "trinken — пить; Partizip II: getrunken (haben)"
+    en: "trinken — to drink; Partizip II: getrunken (haben)"
+
+# word_bank: the answer split into chunks in the correct order; the bot shows
+# them shuffled, and the web widget as tiles to arrange. Must join with spaces
+# into answer.
+- word: singen
+  topic: perfekt_wortstellung
+  question: Gestern ___.
+  answer: haben wir im Chor gesungen
+  word_bank: [haben, wir, im Chor, gesungen]
+  distractors: []
+  explanation:
+    ru: "После Gestern спрягаемый глагол (haben) стоит вторым, подлежащее — за ним, а Partizip II — в конце."
+    en: "After Gestern the finite verb (haben) comes second, the subject follows it, and the Partizip II goes last."
+
+- word: trinken
+  topic: perfekt_wortstellung
+  question: Am Morgen ___.
+  answer: hat er nur einen Tee getrunken
+  word_bank: [hat, er, nur, einen Tee, getrunken]
+  distractors: []
+  explanation:
+    ru: "После Am Morgen спрягаемый глагол (hat) стоит вторым, подлежащее — за ним, а Partizip II — в конце."
+    en: "After Am Morgen the finite verb (hat) comes second, the subject follows it, and the Partizip II goes last."
+
+# Multiple choice: the answer is shown together with the distractors.
+- word: warten
+  topic: verb_preposition
+  question: Wir warten schon zehn Minuten ___ den Zug.
+  answer: auf
+  distractors: [für, an, um]
+  explanation:
+    ru: warten auf + Akkusativ — ждать кого-то/что-то
+    en: warten auf + Accusative — to wait for someone/something
+  recalls:
+    - question: Wir warten ___ (der Zug).
+      answer: [Wir warten auf den Zug.]
+
+# word is auf here, not warten: verb_preposition chains to this topic by its
+# answer (chains_by_answer in topics.yaml).
+- word: auf
+  topic: preposition_meaning
+  question: Die Katze schläft ___ dem Sofa.
+  answer: auf
+  distractors: []
+  description:
+    ru: Кошка спит на диване.
+    en: The cat is sleeping on the sofa.
+  explanation:
+    ru: auf + Dativ — на (где? на поверхности)
+    en: auf + Dative — on (where? on a surface)

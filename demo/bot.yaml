@@ -1,0 +1,11 @@
+# Optional: on startup the bot sets its Telegram name and descriptions from
+# here, per language. Without this file it keeps whatever Telegram has.
+info:
+  ru:
+    name: Immer wiederholen! (демо)
+    description: Демо-курс немецкой грамматики с интервальным повторением
+    short_description: Демо-курс немецкой грамматики с интервальным повторением
+  en:
+    name: Immer wiederholen! (demo)
+    description: A demo German grammar course with spaced repetition
+    short_description: A demo German grammar course with spaced repetition
