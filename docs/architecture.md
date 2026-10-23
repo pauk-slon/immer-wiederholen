@@ -1,6 +1,6 @@
 # Architecture
 
-A map of the code: the packages, the rules between them, the processes they run as, and where each piece of state lives. Subsystems have their own pages: [Repetition schedule](repetition-schedule.md), [Storage and identity](storage.md), [Tracing](tracing.md), [Telegram bot](bot.md), [AI-generated content](authoring.md) and [Web frontend](web-frontend.md). [`CLAUDE.md`](https://github.com/pauk-slon/immer-wiederholen/blob/main/CLAUDE.md) holds short rules for AI agents that point to these pages.
+A map of the code: the packages, the rules between them, the processes they run as, and where each piece of state lives. Subsystems have their own pages: [Repetition schedule](repetition-schedule.md), [Storage and identity](storage.md), [Tracing](tracing.md), [Telegram bot](bot.md), [AI-generated content](authoring.md) and [Web frontend](web-frontend.md). [`CLAUDE.md`](https://github.com/pauk-slon/immer-wiederholen/blob/main/CLAUDE.md) holds short rules for AI agents that point to these pages. Why significant decisions were made is recorded in [Architecture decision records](adr/README.md).
 
 This page says *learner*; in code, a learner is a *student* (`StudentID`, `StudentRecord`).
 
