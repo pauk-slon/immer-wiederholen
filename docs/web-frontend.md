@@ -5,7 +5,7 @@
 - **The widget**, `<german-exercise-widget>`, is embedded on landing pages: a page about a grammar topic embeds a widget limited to that topic.
 - **The standalone app** at `/` is the same widget as a full page, drawing from the whole course.
 
-Learners who log in with Telegram share their progress with the bot (see [Telegram login](#telegram-login)). Some bot features aren't on the web yet: AI-generated questions, illustrations and hints from grammar classes.
+Learners who log in with Telegram share their progress with the bot (see [Telegram login](#telegram-login)). Some bot features aren't on the web yet: topic selection, reminders, AI-generated questions, illustrations and hints from grammar classes.
 
 ## API
 
@@ -16,9 +16,30 @@ All exercise endpoints take a JSON body and identify the learner by the session 
 | `POST /api/exercise/next` | `topics`, `language` | the next exercise, or `null` if nothing is left today |
 | `POST /api/exercise/check` | `answer`, `topics`, `language` | `correct`, `answer`, `explanation`, `recall` (`none`, `optional`, `required`) |
 | `POST /api/exercise/recall` | `topics`, `language` | a recall: `question`, `hint` |
-| `POST /api/exercise/recall/check` | `answer`, `topics` | `correct`, `answer` |
+| `POST /api/exercise/recall/check` | `answer`, `topics` — no `language`: the expected sentence is German | `correct`, `answer` |
 | `POST /api/client-error` | `step`, `status` | nothing (204) — see [Error reports](#error-reports) |
 | `GET /api/auth/telegram/callback` | Telegram's query parameters | a redirect — see [Telegram login](#telegram-login) |
+
+For example:
+
+```http
+POST /api/exercise/next
+Content-Type: application/json
+
+{"topics": ["verb_preposition"], "language": "en"}
+```
+
+```json
+{
+  "word": "warten",
+  "topic": "verb_preposition",
+  "question": "Wir warten schon zehn Minuten ___ den Zug.",
+  "choices": ["an", "auf", "um", "für"],
+  "description": null,
+  "instruction": null,
+  "word_bank": null
+}
+```
 
 The endpoints map onto `Tutor` one to one: `next_exercise()`, `check_answer()`, `request_recall()`, `check_recall()`. They behave like the bot, side effects included — requesting an optional recall shortens the pair's next interval, a repeated recall avoids the previous one (see [Repetition schedule](repetition-schedule.md)).
 
@@ -50,11 +71,9 @@ It's one JSON value per **learner and set of topics**, `web_session:{student_id}
 
 The topics are part of the key because the cookie is shared by every page on the domain. With one slot per learner, opening a second landing page between loading a question on the first and answering it would replace the shown exercise — and a correct answer on the first page would be checked against the second page's exercise and marked wrong. This happened, and `test_check_answer_is_scoped_to_its_own_topics` reproduces it. That's why every endpoint sends `topics`, even those that don't use it to pick an exercise. Two pages with the same topics share a slot, which is harmless. The language isn't part of the key: it only changes which translation of the same exercise is returned.
 
-## The widget
+## Embedding the widget
 
 [`static/widget.js`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/web/static/widget.js) is a plain-JavaScript web component — no build step, no dependencies — served at `/widget/widget.js`.
-
-### Embedding
 
 ```html
 <script src="https://app.example.com/widget/widget.js"></script>
@@ -73,6 +92,8 @@ The widget renders into a shadow root, so the page's CSS can't affect it and its
 
 `api-base` defaults to the script's own origin, read from `document.currentScript` once when the script runs — it isn't available later, when the element connects.
 
+The real embeds are the landing pages in the content repo (`immer-wiederholen-de`), served from GitHub Pages. They load the widget through a small `widget-loader.js` that picks the local or production API, since the pages themselves don't know which environment they run against. The standalone app needs no loader: it's served by the web app itself.
+
 The page can adjust the widget through CSS custom properties, which pass into the shadow root:
 
 | Property | Default | Meaning |
@@ -80,6 +101,8 @@ The page can adjust the widget through CSS custom properties, which pass into th
 | `--gew-max-width` | `28rem` | the widget's maximum width |
 | `--gew-height` | `16rem` | the fixed height of every card |
 | `--gew-fg`, `--gew-muted`, `--gew-bg`, `--gew-border`, `--gew-choice-bg`, `--gew-primary`, `--gew-correct`, `--gew-wrong` | light and dark palettes | colors |
+
+## How the widget works
 
 ### Texts and colors
 
@@ -113,18 +136,18 @@ A recall card says what to do ("Reconstruct the phrase"), shows the recall quest
 
 The widget doesn't underline the differences in a wrong recall the way the bot does; it shows the expected sentence.
 
-If a request fails, the current card shows an error and "Next" instead of its buttons; nothing already shown is wiped. A failed answer isn't retried with the same request: the usual cause is a 409 from an expired session, which would fail again. Loading a new exercise recovers.
+If loading a new exercise fails, the widget shows an error card with "Try again". If a request inside an exercise fails — an answer, a recall — the current card shows an error and "Next" instead of its buttons, and nothing already shown is wiped. A failed answer isn't retried with the same request: the usual cause is a 409 from an expired session, which would fail again. Loading a new exercise recovers.
 
 ### Layout
 
-Every card has the same fixed height, `--gew-height`, so answering or paging never resizes the widget and shifts the page around it. The default leaves room for a long sentence wrapped on a phone.
+Every card has the same fixed height, `--gew-height`, so answering or paging never resizes the widget and shifts the page around it. The default, 16rem, leaves room for a long sentence wrapped on a phone; 14rem cut such a sentence off.
 
 Inside a card:
 
-- **`.body`** holds the content and scrolls on its own if it's too long; the buttons (`.toolbar`) stay below it, always visible. A short fade at the bottom of `.body` hints that there's more to scroll.
-- **`.centered-pair`** groups the two pieces of text that belong together and centers them as one: the question and its description, the verdict and its explanation, a recall question and its hint. The instruction, when there is one, sits above it.
+- **The content area** (`.body`) scrolls on its own if it's too long; the buttons below it (`.toolbar`) stay visible. A short fade at the bottom hints that there's more to scroll.
+- **Two pieces of text that belong together** (`.centered-pair`) are centered as one group: the question and its description, the verdict and its explanation, a recall question and its hint. The instruction, when there is one, sits above it.
 - **Options** are a two-column grid, so buttons in a row have equal widths and columns line up — almost every exercise has four options.
-- **Buttons** are in a two-column `.actions` grid too; a single button spans both columns. The last button is the primary, blue one.
+- **Buttons** are in a two-column grid too (`.actions`); a single button spans both columns. The last button is the primary, blue one.
 - **Loading, error and "nothing left" messages** are centered on their card.
 - **Word-order exercises** have their own layout: the question, the description, then the shuffled chunks as tiles. Tapping a tile moves it to the answer row; tapping it there moves it back. When no tiles are left, the answer is submitted — there's no submit button — and the tiles are disabled so it can't be sent twice.
 
@@ -169,10 +192,10 @@ This is the only reason the web app needs `BOT_TOKEN`: to check signatures, not 
 
 ### The cookie
 
-The web app has one cookie, `wiederholen_student_id` (a year, `Secure`, `HttpOnly`, `SameSite=Lax`, on `WEB_COOKIE_DOMAIN`). It holds one of two things:
+The session cookie (see [The session cookie](#the-session-cookie)) holds one of two things:
 
 - **`browser:<token>`** after a Telegram login. The token is resolved with `StudentIdentityStore.resolve_student_id("browser", token)`. If it doesn't resolve — the store was wiped, or the value was tampered with — the visitor is treated as new and anonymous, never as a newly created learner.
-- **an anonymous id**, `web:<random token>`, minted on a visitor's first request (`WebStudentID`). Anything that is neither is ignored, and the visitor gets a fresh anonymous id.
+- **an anonymous id**, `web:<random token>`, otherwise. Anything that is neither is ignored, and the visitor gets a fresh anonymous id.
 
 The cookie never holds the `StudentID` itself, only a login that resolves to it. A leaked cookie doesn't reveal the learner's permanent id. There's no logout yet — only clearing the cookie — but adding one would only mean deleting that one `browser` login.
 
@@ -200,6 +223,19 @@ The widget doesn't know whether the browser is logged in: the button keeps showi
 ### Testing the login
 
 `telegram_login_payload_factory` in [`tests/plugins/telegram_login.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/tests/plugins/telegram_login.py) builds a callback payload signed with the test bot token, so tests can call the callback with a valid login and then tamper with single fields.
+
+## Running locally
+
+`docker compose up` starts the `web` service, but `compose.yaml` doesn't publish its port. To open the app on your machine, publish it in a gitignored `compose.override.yaml`:
+
+```yaml
+services:
+  web:
+    ports:
+      - "8000:8000"
+```
+
+Then open `http://localhost:8000/`. To try an embed on a page of your own, add the page's origin to `WEB_ALLOWED_ORIGINS`. Whether the session cookie works on plain `http://localhost` with the default settings hasn't been checked yet; see [#256](https://github.com/pauk-slon/immer-wiederholen/issues/256).
 
 ## Testing
 
