@@ -52,7 +52,7 @@ Closing the connection is specific to the Redis implementations, not part of the
 
 Everything else about a Telegram chat lives in aiogram's FSM storage, a plain [`RedisStorage`](https://docs.aiogram.dev/en/latest/dispatcher/finite_state_machine/storages.html) used as aiogram ships it:
 
-- **chat settings**: `language`, `ai_mode`, `topic_groups`, `remind_after_hours`, and the `bot_blocked` flag, set when the learner blocks the bot (see "Blocked chats" in [`CLAUDE.md`](https://github.com/pauk-slon/immer-wiederholen/blob/main/CLAUDE.md));
+- **chat settings**: `language`, `ai_mode`, `topic_groups`, `remind_after_hours`, and the `bot_blocked` flag, set when the learner blocks the bot (see [Blocked chats](bot.md#blocked-chats));
 - **the conversation in progress**: the FSM state (`answering`, `recalling`), the exercise and recall being answered (`shown_exercise`, `shown_recall`), and the message whose inline buttons are still live (`last_buttoned_message_id`).
 
 When an exercise ends, the conversation state is cleared but the settings are kept: they're listed in `_CHAT_SETTINGS_KEYS` in `commands/wiederholen.py`, and a new chat-level setting must be added there, or it's lost after every exercise.
