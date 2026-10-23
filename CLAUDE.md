@@ -12,7 +12,13 @@ The package map, the dependency rules between `wiederholen.school`, `wiederholen
 
 ## Repetition schedule
 
-Spaced-repetition scheduling — `Tutor`/`StudentRecord`, `SelectablePairs` word/topic selection, repeat-avoidance, the daily new-word cap, chains/gates in `topics.yaml`, and `/progress`'s six numbers — is documented in full in `docs/repetition-schedule.md`. Read it before touching `wiederholen.school.tutoring.session`/`selection`/`student_record` or `wiederholen.school.curriculum.Course`'s chain/gate loading.
+Spaced-repetition scheduling — `Tutor`/`StudentRecord`, `SelectablePairs` word/topic selection, repeat-avoidance, the daily new-word cap, chains/gates in `topics.yaml`, and `/progress`'s six numbers — is documented in full in `docs/repetition-schedule.md`. Read it before touching `wiederholen.school.tutoring.session`/`selection`/`student_record` or `wiederholen.school.curriculum.Course`'s chain/gate loading. The rules that matter most:
+
+- The schedule is per `(word, topic)` pair; the daily new-word limit is per *word*.
+- A first or wrong answer sets the interval to 0 and makes the pair due again today; don't make it 1.
+- `_expedite_dependent()` only creates entries for pairs that have none — never move an existing entry (mutual chains would loop).
+- `Tutor` never touches a raw schedule entry: read with `get_repetition_interval()`, write with `schedule_pair()`. `StudentRecord` stays course-agnostic.
+- `is_new` and the previous interval come from `record_mark()`'s return value, never a separate lookup after it.
 
 ## Persistence and student identity
 
