@@ -8,16 +8,7 @@ Every environment variable, the processes, and the optional integrations (Anthro
 
 ## Key modules
 
-Three top-level packages: `wiederholen.school` — everything about learning, transport-agnostic, shared by every frontend — and two delivery mechanisms that depend on `school` but never the other way around: `wiederholen.bot` (Telegram, aiogram) and `wiederholen.web` (a widget embeddable on a landing page, see `docs/web-frontend.md`).
-
-- `wiederholen.school.curriculum` — `Exercise`/`Recall`/`Topic`, `Course` — the loaded exercises + `word_chained_topics`/`answer_chained_topics` (see below). The content model: what's being taught, not how it's scheduled or authored. Both `tutoring` and `authoring` depend on it as equal siblings, neither depends on the other through it.
-- `wiederholen.school.tutoring` — the repetition-scheduling engine specifically (not the whole learning domain — that's `school`): `student_record` (`StudentRecord` — per-user persisted schedule state), `session` (`Mark`/`Progress`, `Tutor` — date-based repetition scheduling for one user's student_record, constructed as `Tutor(course, student_record)`; also owns the reminder decision, see "Reminders" below), `selection` (`SelectablePairs` — `next_exercise()`'s word/topic selection engine, factored out because its logic is entirely pairs-derived and needs no `Tutor`/`StudentRecord` state of its own), `events` (`RecallMode`, `ExerciseAnswered`/`TopicUnlocked`/`NoExerciseAvailable`/`TutoringEvent` — see "Tutoring events" below). The package's `__init__.py` re-exports all of these, so callers just do `from wiederholen.school.tutoring import ...`. Imports nothing beyond the standard library, `wiederholen.school.curriculum`, and its own sibling modules — no infra, no network — which is what keeps `Tutor`/`StudentRecord` testable without mocking anything external.
-- `wiederholen.school.i18n` — supported languages (`Language` type, `LANGUAGES` set)
-- `wiederholen.school.student_record_book` — `StudentRecordBook`/`RedisStudentRecordBook` (see "Persistence" below); transport-agnostic storage, a sibling of `tutoring`/`authoring`, not a dependency of either
-- `wiederholen.school.authoring` — AI-generated content, the one package in the codebase that calls out to generative AI: `shadow_exercises` (AI-generated "shadow" exercises via Anthropic, see "AI-generated exercises" below) and `cues` (illustrations via Cloudflare Workers AI, see "Visual cues for exercises" below), two independent modules neither of which imports the other; deliberately a sibling of `tutoring`, not inside it, for the reason above; it depends on `wiederholen.school.curriculum` directly, not on `tutoring`, since all it actually needs is the content model
-- `wiederholen.school.__init__` aggregates the public API of all of the above, mirroring `tutoring`'s own `__init__.py` one level up — `wiederholen.bot` imports everything it needs school-side with `from wiederholen.school import ...`
-- `wiederholen.bot` — Telegram bot implementation (aiogram); each command lives in its own module under `wiederholen.bot.commands`. Every handler resolves the `StudentID` it addresses `StudentRecordBook` with via `wiederholen.school.student_identity_store.StudentIdentityStore` (see "Student identity" below), rather than deriving it directly from the chat itself.
-- `wiederholen.web` — the embeddable-widget backend (Litestar); see `docs/web-frontend.md`.
+The package map, the dependency rules between `wiederholen.school`, `wiederholen.bot`, `wiederholen.web` and `wiederholen.tracing`, the processes, and where each piece of state lives are in `docs/architecture.md` — read it before adding a module or making one package import another. The rules that matter most: `school` never imports a frontend or reads env vars (the cue generator's `__main__` excepted); `tutoring` does no I/O; `bot` and `web` never import each other. Every `wiederholen.bot` handler resolves the `StudentID` it addresses `StudentRecordBook` with via `StudentIdentityStore` (see "Student identity" below), never from the chat directly.
 
 ## Repetition schedule
 
@@ -204,14 +195,4 @@ The standalone app (`index.html`) is the one place actually setting `login`+`tel
 
 Testing `wiederholen.web` needs `litestar.testing.AsyncTestClient`, not the sync `TestClient`: the sync client serves the ASGI app through an `anyio` portal running in its own thread with its own event loop, and a Redis client whose connection pool already made contact from the outer test's loop can't be reused from a different one (`RuntimeError: ... attached to a different loop`). `tests/web/test_app.py`'s `web_app_factory` fixture depends on the `student_record_book`/`web_session_store`/`student_identity_store` fixtures purely to get their DBs flushed before the test, but deliberately builds *fresh* `RedisStudentRecordBook`/`WebSessionStore`/`RedisStudentIdentityStore` instances pointed at the same URLs for the app's own state, so the app's first real Redis command happens from whichever loop actually serves it, not the outer test's. `AsyncTestClient` also needs `base_url="https://..."` (not the default `http://`): a `Secure` cookie is never attached to a plain-`http` request by httpx's cookie jar, which would otherwise make every cookie silently vanish between requests in a test — same as a real browser would refuse to send it back over plain HTTP.
 
-All commands run inside the Docker container:
-
-```bash
-docker compose run --rm bot <command>
-```
-
-Examples:
-- `docker compose run --rm bot ruff check . --fix`
-- `docker compose run --rm bot ty check .`
-- `docker compose run --rm bot uv add <package>`
-- `docker compose run --rm bot pytest`
+All commands run inside the Docker container — `docker compose run --rm bot <command>` (`pytest`, `ruff format .`, `ruff check . --fix`, `ty check .`, `uv add <package>`). Testing and pull request conventions are in `CONTRIBUTING.md`.

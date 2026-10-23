@@ -29,6 +29,8 @@ Locally the bot runs the small demo course from [`demo/`](demo): a handful of Ge
 
 The format is described in [docs/course-format.md](docs/course-format.md); environment variables and optional integrations in [docs/configuration.md](docs/configuration.md).
 
+To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/architecture.md](docs/architecture.md).
+
 Tests:
 
 ```bash
