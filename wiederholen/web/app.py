@@ -121,7 +121,7 @@ class CheckRecallResponse:
 
 
 # A logged-in cookie carries an opaque per-browser token, never the real
-# student_id directly — see CLAUDE.md's "Telegram login" for why.
+# student_id directly — see docs/web-frontend.md's "Telegram login" for why.
 _BROWSER_PREFIX: Final = "browser:"
 
 
@@ -175,7 +175,7 @@ async def _remember_browser_login(
     cookie_domain: str,
 ) -> None:
     # Always a fresh token, never one lifted back out of an incoming
-    # cookie — see CLAUDE.md's "Telegram login" for why.
+    # cookie — see docs/web-frontend.md's "Telegram login" for why.
     token = secrets.token_urlsafe(32)
     await student_identity_store.link_identity(student_id, "browser", token)
     _set_cookie(response, f"{_BROWSER_PREFIX}{token}", cookie_domain)
@@ -183,7 +183,7 @@ async def _remember_browser_login(
 
 def _safe_redirect_target(return_to: str, allowed_origins: list[str]) -> str:
     # return_to is attacker-controllable — open-redirect guard, see
-    # CLAUDE.md's "Telegram login".
+    # docs/web-frontend.md's "Telegram login".
     if return_to.startswith("/") and not return_to.startswith("//"):
         return return_to
     origin = f"{urlsplit(return_to).scheme}://{urlsplit(return_to).netloc}"

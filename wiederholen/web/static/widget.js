@@ -2,7 +2,7 @@
 //
 // A Web Component, no build step, no dependencies. Renders into a Shadow
 // DOM so a landing page's own CSS can never leak in (or be leaked onto) —
-// see CLAUDE.md's "Web frontend" section for the reasoning behind this and
+// see docs/web-frontend.md for the reasoning behind this and
 // the API it talks to.
 //
 // A bare `recall` attribute opts into the recall step (off by default —
@@ -78,7 +78,7 @@ const STYLES = `
      question, a recall result, ...) are each their own separate .card (see
      below), laid out side by side in .track and clipped to one card's
      width here. Swiping/scrolling .track, or the .deck-nav arrows, moves
-     between them — see CLAUDE.md's "Web frontend" section for why cards
+     between them — see docs/web-frontend.md for why cards
      are separate and swipeable rather than one card growing with appended
      content (the design this replaced). */
   .deck {
@@ -215,7 +215,7 @@ const STYLES = `
        toolbar after it. flexbox's gap only inserts space *between* items
        that actually exist, so a topic with no instruction (or no
        description — both are independently optional per exercise, see
-       CLAUDE.md) never leaves a phantom empty gap where it would've been:
+       docs/course-format.md) never leaves a phantom empty gap where it would've been:
        there's simply one fewer boundary to space. An earlier version tried
        to get this same top-fixed/center/bottom-pinned shape from
        margin: auto (see .question's git history) — mathematically correct,
@@ -238,7 +238,7 @@ const STYLES = `
        text it's fading — harmless for most content, which (like .centered-pair
        below) has centering slack around it and never touches the fade
        zone at all, but the standalone app's taller --gew-height card
-       (see CLAUDE.md's "Web frontend") could still turn it into most of
+       (see docs/web-frontend.md) could still turn it into most of
        a line reading visibly faded on whichever content ends up flush
        against .body's bottom edge — e.g. a genuinely long instruction
        pushing .centered-pair down far enough to fill the rest of .body
@@ -264,7 +264,7 @@ const STYLES = `
      own question/hint, since it's every bit as much "a question, plus an
      optional note under it" as the original — now that recall gets its
      own dedicated card with its own claimed vertical space (see
-     CLAUDE.md's "Web frontend"), there's no reason for it to need a
+     docs/web-frontend.md), there's no reason for it to need a
      special case of its own, unlike an earlier version of this design.
      flex: 1 is the *only* growable item in .body's column
      (instruction, when present, stays sized to its own content), so
@@ -1154,8 +1154,8 @@ class GermanExerciseWidget extends HTMLElement {
 
   // Adds a new card as a new step in the deck — unlike _render(), nothing
   // already shown is touched, which is the whole point: a learner can
-  // still swipe/arrow-click back to an earlier step (see CLAUDE.md's "Web
-  // frontend" section for why cards are separate and swipeable rather
+  // still swipe/arrow-click back to an earlier step (see docs/web-frontend.md
+  // for why cards are separate and swipeable rather
   // than one card growing with appended content). _startRecall()/
   // _submitRecallAnswer() call _dropRecallCards() (below) right before
   // this to trim that history down to just the explanation card first —
