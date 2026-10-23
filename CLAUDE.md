@@ -32,6 +32,7 @@ Spaced-repetition scheduling — `Tutor`/`StudentRecord`, `SelectablePairs` word
 - Every bot handler gets its `student_id` from `student_identity_store.resolve_or_create_student_id("telegram", str(chat_id))` (callback handlers: `str(callback.from_user.id)`, the same value in a private chat).
 - The student record holds only learning state; chat settings and conversation state stay in FSM data. A new chat-level setting belongs in `_CHAT_SETTINGS_KEYS`.
 - `Tutor` never touches a store — it gets a plain `dict`.
+- `check_out()` isn't atomic across concurrent updates for the same student: last write wins (#249). Don't rely on two handlers for one student seeing each other's changes.
 
 ## Tracing
 
