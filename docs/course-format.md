@@ -155,7 +155,7 @@ Chains may cross groups; gates may not. How links interact with the rest of the 
 
 ### AI-generated questions and illustrations
 
-**Bot only.** Both settings are opt-in per topic and do nothing unless the deployment is set up for them, see [Configuration](configuration.md#optional-integrations).
+**Bot only.** Both settings are opt-in per topic and do nothing unless the deployment is set up for them, see [Configuration](configuration.md#optional-integrations). How they work is in [AI-generated content](authoring.md).
 
 - **`ai_generation`**: in `/ai` mode, an LLM writes a new question for the same word and answer: `question`, `distractors`, `explanation`, `recalls` and `description` are generated, while `word`, `topic` and `answer` stay as authored. Enable it only for topics where the answer doesn't depend on the exact wording: not for bare-verb questions like `partizip_ii`, not for `word_bank` exercises (a new sentence wouldn't match the chunks), not where the subject decides the answer (`du brichst` vs `er bricht`).
 - **`cue_generation`**: questions are shown with a **cue** — an illustration of the sentence that helps recall it. Each cue is generated from the exercise's `description.en`, so exercises without a `description` get none. Cues are generated ahead of time and stored by the hash of `question`, so editing a question's text needs a re-run of the generator to give it a picture again. Suits sentence topics with a concrete scene; pointless for pure grammar forms.

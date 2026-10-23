@@ -1,6 +1,5 @@
-"""Visual cues for `_meaning`-topic exercises (see CLAUDE.md's
-"AI-generated exercises" and issue discussion): given an `Exercise` whose
-topic has opted in via `Course.cue_generatable_topics`, generate an
+"""Visual cues for `_meaning`-topic exercises (see docs/authoring.md):
+given an `Exercise` whose topic has opted in via `Course.cue_generatable_topics`, generate an
 illustration of its sentence via Cloudflare Workers AI (`@cf/black-forest-
 labs/flux-1-schnell`, free at this project's scale) — a relevant image
 acting as a retrieval cue for the sentence (dual coding), not "an image" as
@@ -38,7 +37,7 @@ def build_cue_prompt(exercise: Exercise) -> str | None:
     # None (no description) means nothing to build a prompt from — matches
     # Course.cue_generatable_topics being a topic-level opt-in independent
     # of whether a given exercise within it happens to carry one; today the
-    # two coincide for every eligible topic (see CLAUDE.md), but this
+    # two coincide for every eligible topic (see docs/authoring.md), but this
     # function doesn't assume that stays true.
     if exercise.description is None:
         return None

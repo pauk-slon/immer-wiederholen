@@ -1,6 +1,6 @@
 """One-shot worker: generates and uploads visual cues for exercises whose
-topic has opted in via `Course.cue_generatable_topics` (see CLAUDE.md's
-"AI-generated exercises") but don't have one yet.
+topic has opted in via `Course.cue_generatable_topics` (see
+docs/authoring.md) but don't have one yet.
 
 Run on demand — `python -m wiederholen.school.authoring.cues` — whenever content changes,
 not a standing service like `wiederholen.bot.reminder`: that one polls
@@ -12,7 +12,7 @@ No automated approval gate on what gets uploaded — the one combined summary
 line logged at the end (generated/already-had-one/no-description/failed
 counts) is what the person who just ran this actually reads afterward, to
 spot-check the result themselves rather than trusting the pipeline blindly
-(see CLAUDE.md).
+(see docs/authoring.md).
 
 Lives here, as this package's `__main__`, rather than as a top-level
 sibling of `wiederholen.bot`/`wiederholen.web`: it isn't another frontend

@@ -85,7 +85,7 @@ class Exercise:
         # exercise's key is. Deliberately keyed by `question`, not e.g.
         # `word`+`topic`: several exercises in the same _meaning topic can
         # share a word while each describing a distinct, separately-
-        # illustrated sentence (see CLAUDE.md's "AI-generated exercises").
+        # illustrated sentence (see docs/authoring.md).
         # A consequence worth accepting rather than working around: editing
         # `question` later (as the word_bank migration did) changes this
         # hash, silently orphaning whatever cue was generated for the old

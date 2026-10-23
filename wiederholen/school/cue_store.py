@@ -1,7 +1,7 @@
 """Storage for the visual cues `wiederholen.school.authoring.cues`
-generates for `_meaning`-topic exercises (see CLAUDE.md's "AI-generated
-exercises") — a `CueStore` maps an `Exercise` (via its `cue_key`, see
-curriculum.py) to a public URL if one has been generated for it, and lets
+generates for `_meaning`-topic exercises (see docs/authoring.md) — a
+`CueStore` maps an `Exercise` (via its `cue_key`, see curriculum.py) to a
+public URL if one has been generated for it, and lets
 the worker upload one.
 Named "cue" rather than "image": the pedagogical point is dual coding — a
 relevant illustration acting as a retrieval cue for the sentence — not
@@ -105,7 +105,7 @@ class CachedCueStore(CueStore):
         # same as a real URL: a newly-uploaded cue can take up to _TTL to
         # actually appear for a question already rendered before the
         # upload, a deliberate tradeoff for never hitting R2 on every
-        # render (see CLAUDE.md).
+        # render (see docs/authoring.md).
         self._cache: dict[str, tuple[str | None, datetime]] = {}
 
     async def get_cue_url(self, exercise: Exercise) -> str | None:
