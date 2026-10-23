@@ -1,7 +1,6 @@
-# A tiny demo course: one or two exercises per topic, just enough to try out
-# every field an exercise can have. The schedule is keyed by (word, topic), so
-# the same word appears in several topics — e.g. singen as a Partizip II form,
-# a Präteritum form and a gap in a sentence.
+# A tiny demo course: just enough exercises to try out every field an
+# exercise can have. The schedule is keyed by (word, topic), so each word
+# appears in several linked topics — see the diagram in topics.yaml.
 
 # Typed input (no distractors), several recalls (one shown at random after a
 # correct answer), one of them with a hint. grammar_classes: singen and
@@ -38,32 +37,6 @@
     - question: Er hat einen Kaffee ___.
       answer: [Er hat einen Kaffee getrunken.]
 
-- word: singen
-  topic: praeteritum
-  question: singen
-  answer: sang
-  distractors: []
-  grammar_classes: [i-a-u]
-  explanation:
-    ru: "singen — петь; Präteritum: sang"
-    en: "singen — to sing; Präteritum: sang"
-  recalls:
-    - question: Sie ___ ein Lied.
-      answer: [Sie sang ein Lied.]
-
-- word: trinken
-  topic: praeteritum
-  question: trinken
-  answer: trank
-  distractors: []
-  grammar_classes: [i-a-u]
-  explanation:
-    ru: "trinken — пить; Präteritum: trank"
-    en: "trinken — to drink; Präteritum: trank"
-  recalls:
-    - question: Ich ___ ein Glas Wasser.
-      answer: [Ich trank ein Glas Wasser.]
-
 # description: a translation of the sentence, shown with the question so the
 # learner knows which word is meant. Topics with cue_generation in
 # topics.yaml get an illustration generated from description.en.
@@ -79,6 +52,41 @@
     ru: "singen — петь; Partizip II: gesungen (haben)"
     en: "singen — to sing; Partizip II: gesungen (haben)"
 
+- word: trinken
+  topic: partizip_ii_meaning
+  question: Nach dem langen Lauf hat sie eine ganze Flasche Wasser ___.
+  answer: getrunken
+  distractors: []
+  description:
+    ru: После долгой пробежки она выпила целую бутылку воды.
+    en: After the long run, she drank a whole bottle of water.
+  explanation:
+    ru: "trinken — пить; Partizip II: getrunken (haben)"
+    en: "trinken — to drink; Partizip II: getrunken (haben)"
+
+# word_bank: the answer split into chunks in the correct order; the bot shows
+# them shuffled, and the web widget as tiles to arrange. Must join with spaces
+# into answer.
+- word: singen
+  topic: perfekt_wortstellung
+  question: Gestern ___.
+  answer: haben wir im Chor gesungen
+  word_bank: [haben, wir, im Chor, gesungen]
+  distractors: []
+  explanation:
+    ru: "После Gestern спрягаемый глагол (haben) стоит вторым, подлежащее — за ним, а Partizip II — в конце."
+    en: "After Gestern the finite verb (haben) comes second, the subject follows it, and the Partizip II goes last."
+
+- word: trinken
+  topic: perfekt_wortstellung
+  question: Am Morgen ___.
+  answer: hat er nur einen Tee getrunken
+  word_bank: [hat, er, nur, einen Tee, getrunken]
+  distractors: []
+  explanation:
+    ru: "После Am Morgen спрягаемый глагол (hat) стоит вторым, подлежащее — за ним, а Partizip II — в конце."
+    en: "After Am Morgen the finite verb (hat) comes second, the subject follows it, and the Partizip II goes last."
+
 # Multiple choice: the answer is shown together with the distractors.
 - word: warten
   topic: verb_preposition
@@ -92,8 +100,8 @@
     - question: Wir warten ___ (der Zug).
       answer: [Wir warten auf den Zug.]
 
-# word is auf here: verb_preposition chains to this topic by its answer
-# (chains_by_answer in topics.yaml), not by its word.
+# word is auf here, not warten: verb_preposition chains to this topic by its
+# answer (chains_by_answer in topics.yaml).
 - word: auf
   topic: preposition_meaning
   question: Die Katze schläft ___ dem Sofa.
@@ -105,25 +113,3 @@
   explanation:
     ru: auf + Dativ — на (где? на поверхности)
     en: auf + Dative — on (where? on a surface)
-
-- word: weil
-  topic: nebensatzkonjunktion_meaning
-  question: Er trägt eine warme Jacke, ___ es draußen kalt ist.
-  answer: weil
-  distractors: [obwohl, damit, ob]
-  explanation:
-    ru: "weil (потому что) — причина: вторая часть объясняет первую."
-    en: "weil (because) — a reason: the second part explains the first."
-
-# word_bank: the answer split into chunks in the correct order; the bot shows
-# them shuffled, and the web widget as tiles to arrange. Must join with spaces
-# into answer.
-- word: weil
-  topic: nebensatzkonjunktion_wortstellung
-  question: Ich gehe früh ins Bett, weil ___.
-  answer: ich morgen früh aufstehen muss
-  word_bank: [ich, morgen früh, aufstehen, muss]
-  distractors: []
-  explanation:
-    ru: "weil — подчинительный союз: спрягаемый глагол уходит в конец придаточного предложения."
-    en: "weil is a subordinating conjunction: the finite verb moves to the end of the clause."
