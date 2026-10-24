@@ -12,7 +12,7 @@ The repository has a Docker Compose setup ([`compose.yaml`](compose.yaml)) for l
    BOT_TOKEN=123456:ABC...
    ```
 
-   Don't use a production bot's token. Only one process can poll a bot at a time. Also, the bot rewrites its Telegram profile on start (see [Configuration](docs/configuration.md#what-the-bot-changes-in-its-telegram-profile)).
+   Don't use a production bot's token. Only one process can poll a bot at a time, so a local run would interrupt the production bot. The bot also rewrites its Telegram profile on start, so a local run would change the production profile (see [Configuration](docs/configuration.md#what-the-bot-changes-in-its-telegram-profile)).
 
 2. Start the services with the demo course:
 
@@ -38,11 +38,11 @@ CI runs `ruff check`, `ty check` and `pytest` on every pull request, and builds 
 
 ## Tests
 
-- **Tests use a real Valkey server** (Redis-compatible), the one from `compose.yaml`, not a fake. `docker compose run` starts it automatically. All stores use database 15 during the test run (the `--redis-db-override` option in `pyproject.toml`), so the tests don't touch your local data. Each test starts with an empty database 15.
-- **Coverage is 100%.** We keep it at 100% by agreement, because CI doesn't fail on lower coverage. CI only posts a coverage report on the pull request. `pytest` prints the missing lines.
+- **Tests use the real Valkey server from `compose.yaml`** (Redis-compatible), not a fake, so they check real Redis behavior. `docker compose run` starts it automatically. All stores use database 15 during the test run (the `--redis-db-override` option in `pyproject.toml`), so the tests don't touch your local data. Each test starts with an empty database 15.
+- **Keep coverage at 100%.** CI doesn't enforce it and only posts a coverage report on the pull request. `pytest` prints the lines that the tests don't cover.
 - **Create mock objects with `spec=`**, so a test fails when the mocked interface changes. A mock for a single replaced function can be a plain `AsyncMock(return_value=...)`.
 - **Use relative dates.** Fixtures use `date.today()` plus a `timedelta`, so the tests need no library that freezes time.
-- **Shared fixtures are in [`tests/plugins/`](tests/plugins).**
+- **Put shared fixtures in [`tests/plugins/`](tests/plugins).**
 
 To run part of the suite, pass pytest's usual arguments:
 
@@ -64,7 +64,7 @@ To preview the site at `http://localhost:8001/` while you edit, run the command 
 docker compose run --rm -p 8001:8000 bot zensical serve -a 0.0.0.0:8000
 ```
 
-With `--strict`, the build fails on a link to a missing page or heading. The check on pull requests uses the same flag. When you add a page, add an entry for it to `nav` in [`zensical.toml`](zensical.toml). ADRs are not in `nav`. A new ADR needs only a line in the [ADR index](docs/adr/README.md). The site contains only `docs/`. So a link from `docs/` to anything outside it, such as code, `demo/` or `CONTRIBUTING.md`, must be a GitHub URL.
+With `--strict`, the build fails on a link to a missing page or heading. The check on pull requests uses the same flag. When you add a page, add an entry for it to `nav` in [`zensical.toml`](zensical.toml). ADRs are not in `nav`. A new ADR needs only a line in the [ADR index](docs/adr/README.md). The site contains only `docs/`, so a link from `docs/` to anything outside it, such as code, `demo/` or `CONTRIBUTING.md`, must be a GitHub URL.
 
 ### Writing style
 
@@ -84,11 +84,11 @@ The strict STE dictionary doesn't apply. Code identifiers and terms such as span
 ## Pull requests
 
 - Fork the repository and work on a branch. Then open a pull request. `main` changes only through pull requests.
-- Write titles and descriptions in English. Pull requests are squash-merged, and the title becomes the commit message on `main`. So write the title as a commit message. The messages of the commits inside the pull request don't matter.
+- Write titles and descriptions in English. Write the title as a commit message, because the squash merge makes it the commit message on `main`. The messages of the commits inside the pull request don't matter.
 - If a change affects the course format, configuration or architecture, update the matching page in [`docs/`](docs) in the same pull request.
 - If a design decision has real alternatives and would be costly to reverse, write an [architecture decision record](docs/adr/README.md) for it in the same pull request.
 - If you change the course format, also update [`demo/`](demo). A test checks that the demo course uses every field and setting.
-- Dependabot updates `uv.lock` weekly. If your pull request conflicts there, take the version from `main` and re-run `uv lock` (or your `uv add`) rather than merging the file by hand.
+- Dependabot updates `uv.lock` weekly. If your pull request conflicts there, take the version from `main` and re-run `uv lock` (or your `uv add`) rather than merging the file by hand. A lock file merged by hand often doesn't match `pyproject.toml`.
 
 ## Issues and security
 
