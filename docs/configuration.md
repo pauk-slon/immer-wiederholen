@@ -120,7 +120,7 @@ The bot, the reminder and the web app can send OpenTelemetry traces: one span pe
 | `OTEL_SERVICE_NAME` | `bot`, `reminder` or `web`. Set a different one per process: without it, all of them report as `unknown_service` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment=prod` |
 
-Only the OTLP/HTTP exporter is installed; `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` won't work. What gets traced is described in [Tracing](tracing.md).
+Only the OTLP/HTTP exporter is installed; `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` won't work. What gets traced is described in [Observability](tracing.md).
 
 ## Decisions
 

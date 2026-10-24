@@ -23,6 +23,6 @@ Start with [CONTRIBUTING.md](https://github.com/pauk-slon/immer-wiederholen/blob
 - [Telegram bot](bot.md)
 - [Web frontend](web-frontend.md)
 - [AI-generated content](authoring.md)
-- [Tracing](tracing.md)
+- [Observability](tracing.md)
 
 Why things are the way they are is in the [Architecture decision records](adr/README.md).

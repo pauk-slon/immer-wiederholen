@@ -165,7 +165,7 @@ When the keyboard opens for the answer field, the browser scrolls just the field
 
 ### Error reports
 
-When a request fails, the widget posts the step (`_loadNext`, `_submitAnswer`, `_startRecall` or `_submitRecallAnswer`) and the HTTP status, if there was a response, to `POST /api/client-error`. The server logs a warning and records them as attributes of that request's span (see [Tracing](tracing.md#what-gets-traced)), so browser-side failures show up next to the server's traces instead of in a separate tool. Reporting is fire-and-forget: a failed report never causes an error of its own.
+When a request fails, the widget posts the step (`_loadNext`, `_submitAnswer`, `_startRecall` or `_submitRecallAnswer`) and the HTTP status, if there was a response, to `POST /api/client-error`. The server logs a warning and records them as attributes of that request's span (see [Observability](tracing.md#what-gets-traced)), so browser-side failures show up next to the server's traces instead of in a separate tool. Reporting is fire-and-forget: a failed report never causes an error of its own.
 
 This exists because a real failure — a 409 on `/check` — once showed up only as an access-log line and took a manual browser reproduction to understand. Reports go into the existing traces rather than a separate error tracker: one place to look for a problem that spans the browser and the server.
 
@@ -245,7 +245,7 @@ For the same reason, `web_app_factory` in `tests/web/test_app.py` builds fresh s
 
 The client needs `base_url="https://..."`. The session cookie is `Secure`, and httpx — like a browser — doesn't send a `Secure` cookie over plain HTTP, so with the default `http://` every cookie would silently disappear between requests.
 
-Requests are traced by Litestar's `OpenTelemetryPlugin` (see [Tracing](tracing.md)).
+Requests are traced by Litestar's `OpenTelemetryPlugin` (see [Observability](tracing.md)).
 
 ## Decisions
 
