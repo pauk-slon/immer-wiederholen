@@ -31,6 +31,7 @@ Numbers follow the order of writing; the date is when the decision was made.
 | ADR | Decision | Date | Status |
 |---|---|---|---|
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | 2026-10-24 | Accepted |
+| [0018](0018-docs-site-built-with-zensical.md) | The docs site is built with Zensical | 2026-10-24 | Accepted |
 
 ### Repetition engine and course format
 

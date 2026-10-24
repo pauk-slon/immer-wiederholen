@@ -32,7 +32,7 @@ docker compose run --rm bot ty check .
 docker compose run --rm bot uv add <package>
 ```
 
-CI runs `ruff check`, `ty check` and `pytest` on every pull request; all three must pass. CI doesn't check formatting, so run `ruff format .` before committing.
+CI runs `ruff check`, `ty check` and `pytest` on every pull request, and builds the docs site (see [Documentation](#documentation)); all must pass. CI doesn't check formatting, so run `ruff format .` before committing.
 
 `docker compose run` starts Valkey for the tests by itself. To run part of the suite, pass pytest's usual arguments:
 
@@ -47,6 +47,17 @@ docker compose run --rm bot pytest tests/school/test_curriculum.py -k word_bank
 - **Mock objects are created with `spec=`**, so a test fails when the mocked interface changes. A single replaced function can be a plain `AsyncMock(return_value=...)`.
 - **Dates are relative.** Fixtures use `date.today()` plus a `timedelta` rather than freezing time.
 - Shared fixtures live in [`tests/plugins/`](tests/plugins).
+
+## Documentation
+
+The pages in [`docs/`](docs) are plain Markdown that reads on GitHub and is also built into a site with [Zensical](https://zensical.org/) (see [ADR 0018](docs/adr/0018-docs-site-built-with-zensical.md)). To build it, or to preview it at `http://localhost:8001/` while editing:
+
+```bash
+docker compose run --rm bot uv run --group docs zensical build --strict
+docker compose run --rm -p 8001:8000 bot uv run --group docs zensical serve -a 0.0.0.0:8000
+```
+
+`--strict` fails on a link to a missing page or heading, as the check on pull requests does. A new page needs an entry in `nav` in [`zensical.toml`](zensical.toml); a new ADR only needs a line in the [ADR index](docs/adr/README.md). Links from `docs/` to anything outside it — code, `demo/`, `CONTRIBUTING.md` — are GitHub URLs, since the site contains only `docs/`.
 
 ## Pull requests
 
