@@ -22,7 +22,7 @@ A German grammar course runs on this project. You can try it in Telegram or on t
 
 ## Quickstart
 
-To run the project locally, install Docker and create a Telegram bot for development with [@BotFather](https://t.me/BotFather). Don't use a production bot's token. [CONTRIBUTING.md](CONTRIBUTING.md#setup) explains why. Put the token in `.env`:
+To run the project locally, install Docker and create a Telegram bot for development with [@BotFather](https://t.me/BotFather). Don't use a production bot's token. Only one process can poll a bot at a time, and the bot rewrites its Telegram profile on start, so a local run would disturb the production bot. Put the token in `.env`:
 
 ```
 BOT_TOKEN=123456:ABC...
