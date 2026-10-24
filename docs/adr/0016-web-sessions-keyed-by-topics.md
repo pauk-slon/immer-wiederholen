@@ -4,9 +4,9 @@
 
 ## Context
 
-The web app stores which exercise it showed a learner, so that it can check the answer. The exercise sent to the browser has no answer in it. The key of this state was the learner alone. All pages on the domain share the session cookie, and each page embeds a widget with its own topics. The widget's own cache for page reloads is separate for each page.
+The web app stores which exercise it showed a learner, so that it can check the answer. The exercise sent to the browser has no answer in it. This state used only the learner as its key. All pages on the domain share the session cookie, and each page embeds a widget with its own topics. The widget's own cache for page reloads is separate for each page.
 
-A learner reported that a correct answer was marked wrong, and that the answer of another page was shown as correct. The learner had loaded a question on one landing page and opened a second landing page before the answer. The second page had replaced the shown exercise.
+A learner reported that a correct answer was marked wrong, and that the answer of another page was shown as correct. The learner had loaded a question on one landing page and opened a second landing page before they answered it. The second page had replaced the shown exercise.
 
 ## Decision
 

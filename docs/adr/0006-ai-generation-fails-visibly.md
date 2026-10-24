@@ -4,7 +4,7 @@
 
 ## Context
 
-The generation of a shadow exercise in `/ai` mode can fail. The Anthropic API call can fail, the response can lack the expected tool call, the input can be malformed, or the result can fail validation (see [AI-generated content](../authoring.md#failures)). The mode is a testing tool. A feature flag enables it for one test chat, to find out whether AI-personalized exercises are worth building.
+The generation of a shadow exercise in `/ai` mode can fail. The Anthropic API call can fail, the response can lack the expected tool call, the input can be malformed, or the result can fail validation (see [AI-generated content](../authoring.md#failures)). The mode is a testing tool. A feature flag enables it for one test chat. The goal is to find out whether AI-personalized exercises are worth building.
 
 ## Decision
 
