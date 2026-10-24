@@ -41,7 +41,7 @@ Content-Type: application/json
 }
 ```
 
-Each endpoint calls one method of `Tutor`. These are `next_exercise()`, `check_answer()`, `request_recall()` and `check_recall()`. The endpoints behave like the bot, with the same side effects. For example, a request for an optional recall shortens the next interval of the pair, and a repeated recall avoids the previous one (see [Repetition schedule](repetition-schedule.md)).
+Each exercise endpoint calls one method of `Tutor`. These are `next_exercise()`, `check_answer()`, `request_recall()` and `check_recall()`. The endpoints behave like the bot, with the same side effects. For example, a request for an optional recall shortens the next interval of the pair, and a repeated recall avoids the previous one (see [Repetition schedule](repetition-schedule.md)).
 
 **`topics`** limits the exercise to those topics through `Course.restricted_to()`. The limit applies to one request, and the server doesn't store it, so the progress of a learner includes every page where they practiced. An empty list means the whole course. This is how the standalone app works without a list of all topics. The other three exercise endpoints don't restrict anything by `topics`. They use it only to find the right session (see below).
 
@@ -59,7 +59,7 @@ The server doesn't send a recall's answer either. `/recall/check` returns the ex
 
 ### The session cookie
 
-One cookie identifies the learner, `wiederholen_student_id`. It is valid for a year and is `Secure`, `HttpOnly` and `SameSite=Lax`, on the domain in `WEB_COOKIE_DOMAIN`. A first-time visitor gets an anonymous id, `web:<random token>` (`WebStudentID`), which the server sets on its first response. The server chooses the id and makes it impossible to guess, so a visitor can't use the record of another learner by choosing a value. After a Telegram login, the cookie holds a login token instead (see [The cookie](#the-cookie) under Telegram login).
+One cookie identifies the learner, `wiederholen_student_id`. It is valid for a year and is `Secure`, `HttpOnly` and `SameSite=Lax`, on the domain in `WEB_COOKIE_DOMAIN`. A first-time visitor gets an anonymous id, `web:<random token>` (`WebStudentID`), which the server sets on its first response. The server generates a random id, so a visitor can't pick a value that addresses another learner's record. After a Telegram login, the cookie holds a login token instead (see [The cookie](#the-cookie) under Telegram login).
 
 Set `WEB_COOKIE_DOMAIN` to the parent domain of both the landing pages and the API, such as `example.com` for `www.example.com` and `app.example.com`. Requests between subdomains count as same-site, so with `SameSite=Lax` the requests of the widget carry the cookie. This avoids `SameSite=None` and its restrictions on third-party cookies. The widget sends every request with `credentials: "include"`, and `WEB_ALLOWED_ORIGINS` lists the pages that can make such requests (CORS).
 
@@ -69,7 +69,7 @@ Set `WEB_COOKIE_DOMAIN` to the parent domain of both the landing pages and the A
 
 The store has one JSON value per **learner and set of topics**, under `web_session:{student_id}:{topics sorted and joined}`. The value expires after an hour. A new exercise replaces the value and removes any recall of the previous exercise.
 
-The topics are part of the key, because all pages on the domain share the cookie. Suppose there was one value per learner. A learner loads a question on one landing page, opens a second landing page and then answers on the first. The second page would replace the shown exercise. Then the server would check a correct answer on the first page against the exercise of the second page and mark it wrong. `test_check_answer_is_scoped_to_its_own_topics` reproduces this case. For this reason, every endpoint sends `topics`, also the endpoints that don't use it to pick an exercise. Two pages with the same topics share a value, and this does no harm. The language isn't part of the key, because it only changes which translation of the same exercise the server returns (see [ADR 0016](adr/0016-web-sessions-keyed-by-topics.md)).
+The topics are part of the key, because all pages on the domain share the cookie. Suppose there was one value per learner. A learner loads a question on one landing page, opens a second landing page and then answers on the first. The second page would replace the shown exercise. Then the server would check a correct answer on the first page against the exercise of the second page and mark it wrong. `test_check_answer_is_scoped_to_its_own_topics` reproduces this case. For this reason, every endpoint sends `topics`, even the endpoints that don't use it to pick an exercise. Two pages with the same topics share a value, and this does no harm. The language isn't part of the key, because it only changes which translation of the same exercise the server returns (see [ADR 0016](adr/0016-web-sessions-keyed-by-topics.md)).
 
 ## Embedding the widget
 
@@ -106,9 +106,9 @@ The page can change the widget through CSS custom properties, which pass into th
 
 ### Texts and colors
 
-The API returns the exercise in the requested language. The widget's own texts, such as buttons, "Correct!" and error messages, are in `STRINGS` in `widget.js`. Like `lang`, they use Russian when a language is missing.
+The API returns the exercise in the requested language. The widget's own texts, such as buttons, "Correct!" and error messages, are in `STRINGS` in `widget.js`. If the language is unknown, they use Russian, as `lang` does.
 
-The widget defines all its colors and changes them for `prefers-color-scheme: dark`. It can't read the theme of the host page through the shadow boundary. Cards, buttons and inputs get an explicit background, and controls get `color: inherit`. With transparent backgrounds, dark text appeared on the dark background of a dark page.
+The widget defines all its colors and changes them for `prefers-color-scheme: dark`. It can't read the theme of the host page through the shadow boundary. Cards, buttons and inputs get an explicit background, and controls get `color: inherit`. Without them, dark text would appear on the dark background of a dark page.
 
 ### A deck of cards
 
@@ -128,19 +128,19 @@ When the widget adds a card, it removes the buttons of the previous card. This i
 
 After an answer, the result card shows the verdict and the explanation. Its buttons depend on `recall`, which is always `none` without the `recall` attribute:
 
-- **`none`.** "Next".
-- **`optional`** (right answer). "Drill" and "Next".
-- **`required`** (wrong answer). Only "Drill". The recall starts with a button, not at once, so the learner has time to read the explanation that the recall builds on.
+- **`none`.** The card shows "Next".
+- **`optional`** (right answer). The card shows "Drill" and "Next".
+- **`required`** (wrong answer). The card shows only "Drill". The recall starts with a button, not at once, so the learner has time to read the explanation that the recall builds on.
 
 A recall card tells the learner what to do ("Reconstruct the phrase"). It shows the recall question and the hint and takes a typed answer. After a wrong attempt, it shows "Try again" and "Next". "Try again" gets a recall again, usually a different one.
 
 The widget doesn't underline the differences in a wrong recall like the bot. It shows the expected sentence.
 
-If a new exercise fails to load, the widget shows an error card with "Try again". If a request inside an exercise fails, such as an answer or a recall, the current card shows an error and "Next" in place of its buttons. The widget doesn't remove what it already showed. It doesn't send a failed answer again with the same request. The usual cause is a 409 from an expired session, and the same request would fail again. A new exercise fixes the state.
+If a new exercise fails to load, the widget shows an error card with "Try again". If a request inside an exercise fails, such as an answer or a recall, the current card shows an error and "Next" in place of its buttons. The widget doesn't remove what it already showed. It doesn't send a failed answer again with the same request. The usual cause is a 409 from an expired session, and the same request would fail again. The learner continues with a new exercise.
 
 ### Layout
 
-Every card has the same fixed height, `--gew-height`, so the widget never changes size when the learner answers or moves between cards, and the page around it doesn't move. The default of 16rem leaves room for a long sentence on a phone. With 14rem, such a sentence was cut.
+Every card has the same fixed height, `--gew-height`, so the widget never changes size when the learner answers or moves between cards, and the page around it doesn't move. The default of 16rem leaves room for a long sentence on a phone. A height of 14rem cuts such a sentence.
 
 A card has these parts:
 
@@ -157,7 +157,7 @@ The widget stores the shown exercise in `sessionStorage`, with topics and langua
 
 ### Focus and the mobile keyboard
 
-The field for a typed answer and the "Next" button get focus when they appear, so Enter works without a click. Keyboard events wouldn't reach the shadow root while `<body>` has focus. The focus uses `preventScroll`, so a widget lower on a page doesn't scroll the page to itself.
+The field for a typed answer and the "Next" button get focus when they appear, so Enter works without a click, because keyboard events don't reach the shadow root while `<body>` has focus. The focus uses `preventScroll`, so a widget lower on a page doesn't scroll the page to itself.
 
 When the page first loads, the input doesn't get focus. On a phone, focus would open the keyboard before the learner did anything. The input gets focus only after a tap ("Next", "Try again", "Drill").
 
@@ -184,7 +184,7 @@ A learner who practices with the Telegram bot can log in to the web app with the
 ### How it works
 
 1. The widget shows Telegram's login button (see [The button](#the-button)). After the learner confirms in Telegram, the browser goes to `GET /api/auth/telegram/callback`. The request has the learner's Telegram id, name, `username` and `photo_url` if they have them, `auth_date`, and a `hash` that signs all of these.
-2. [`validate_telegram_login()`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/web/telegram_login.py) checks the signature. `hash` must equal the HMAC-SHA256 of the other fields, sorted and joined as `key=value` lines, with the SHA-256 of `BOT_TOKEN` as the key. The function also rejects an `auth_date` older than a day, so nobody can replay an old callback URL from the browser history. Every failure gives a 400, such as a bad signature, a login that is too old, or a missing or malformed `id` or `auth_date`.
+2. [`validate_telegram_login()`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/web/telegram_login.py) checks the signature. `hash` must equal the HMAC-SHA256 of the other fields, sorted and joined as `key=value` lines, with the SHA-256 of `BOT_TOKEN` as the key. The function also rejects an `auth_date` older than a day, so nobody can replay an old callback URL from the browser history. The callback returns a 400 for every failure, such as a bad signature, a login that is too old, or a missing or malformed `id` or `auth_date`.
 3. `StudentIdentityStore.resolve_or_create_student_id("telegram", ...)` resolves the Telegram id. The bot does exactly the same for a chat, so both frontends get the same learner (see [Storage and identity](storage.md#student-identity)).
 4. The callback creates a new **browser token** (`secrets.token_urlsafe(32)`) and links it to that learner as a `"browser"` login. It stores `browser:<token>` in the session cookie and redirects back.
 
@@ -194,14 +194,14 @@ This is the only reason why the web app needs `BOT_TOKEN`. The web app uses the 
 
 The session cookie (see [The session cookie](#the-session-cookie)) holds one of two values:
 
-- **`browser:<token>`** after a Telegram login. `StudentIdentityStore.resolve_student_id("browser", token)` resolves the token. If the token doesn't resolve, the visitor is treated as a new anonymous visitor, never as a newly created learner. This happens when the store was deleted or someone changed the value.
+- **`browser:<token>`** after a Telegram login. `StudentIdentityStore.resolve_student_id("browser", token)` resolves the token. The token doesn't resolve if the store was deleted or someone changed the value. Then the visitor gets a new anonymous id. The server never creates a learner for such a token.
 - **An anonymous id**, `web:<random token>`, in all other cases. The server ignores a value of any other form, and the visitor gets a new anonymous id.
 
-The cookie never holds the `StudentID` itself, only a login that resolves to it, so a leaked cookie doesn't show the learner's permanent id. There's no logout yet. The only way out is to clear the cookie. A logout would only need to delete that one `browser` login.
+The cookie never holds the `StudentID` itself, only a login that resolves to it, so a leaked cookie doesn't show the learner's permanent id. There's no logout yet. To log out, clear the cookie. A logout would only need to delete that one `browser` login.
 
 Each login creates a new token and doesn't reuse the token that the browser already has. On a shared browser, the old token can belong to a different learner, and `link_identity()` refuses to move a login from one learner to another.
 
-**Anonymous progress doesn't carry over.** After the login, the browser continues as the Telegram learner. What the browser practiced before the login stays with the old anonymous id.
+**Anonymous progress isn't moved to the Telegram learner.** After the login, the browser continues as the Telegram learner. What the browser practiced before the login stays with the old anonymous id.
 
 ### Redirecting back
 
