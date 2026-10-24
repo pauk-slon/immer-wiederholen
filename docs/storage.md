@@ -46,7 +46,7 @@ The comparison runs in a `finally` block, so a change made before an error — `
 
 `RedisStudentRecordBook` keeps one JSON value per learner under `student_record:{student_id}`. An empty record is stored as no key at all, so a learner with nothing recorded doesn't show up when iterating.
 
-Closing the connection is specific to the Redis implementations, not part of the abstract stores: `RedisStudentRecordBook` and `RedisStudentIdentityStore` are async context managers (`async with RedisStudentRecordBook.from_url(url) as book:`), and there's no public `close()`. Only the tests scope a store this way; the bot and the reminder never close theirs and let the process exit release the connection. Scoping a store with `async with`, the protocol Python readers expect from anything holding a resource, leaves no close call to forget.
+Closing the connection is specific to the Redis implementations, not part of the abstract stores: `RedisStudentRecordBook` and `RedisStudentIdentityStore` are async context managers (`async with RedisStudentRecordBook.from_url(url) as book:`), and there's no public `close()` to forget: a store's lifetime is scoped with `async with`, the protocol Python readers expect from anything holding a resource. Only the tests scope a store this way; the bot and the reminder never close theirs and let the process exit release the connection.
 
 `Tutor` never touches `StudentRecordBook`: it receives a plain `dict` from whichever frontend calls it. That's what keeps `tutoring` free of I/O.
 
@@ -65,7 +65,7 @@ None of this is part of the student record — so `/reset`, which wipes the reco
 
 ## Student identity
 
-A learner can be reached in more than one way — a Telegram chat, a logged-in browser — and each must lead to the same `StudentID`. [`StudentIdentityStore`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_identity_store.py) maps a login to it. Why a resolution step exists instead of deriving the id from the chat, and why there's no separate account id: [ADR 0003](adr/0003-separate-accounts-from-logins.md).
+A learner can be reached in more than one way — a Telegram chat, a logged-in browser — and each must lead to the same `StudentID`. [`StudentIdentityStore`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_identity_store.py) maps a login to it. The id isn't derived from the chat, and there's no separate account id (see [ADR 0003](adr/0003-separate-accounts-from-logins.md)).
 
 It keeps two concepts apart:
 

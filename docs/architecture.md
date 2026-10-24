@@ -110,9 +110,11 @@ The web app follows the same path with three differences: an HTTP request instea
 
 ## Decisions
 
-The full list is in the [ADR index](adr/README.md). The ones that shape this page:
+The full list is in the [ADR index](adr/README.md). Among them:
 
+- [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md): the repetition engine reports events on the current span.
 - [ADR 0003](adr/0003-separate-accounts-from-logins.md): learners are separate from the ways they log in.
 - [ADR 0007](adr/0007-save-records-only-when-changed.md): a student record is saved only when it changes.
 - [ADR 0008](adr/0008-student-record-separate-from-chat-state.md): the student record is kept apart from chat state.
+- [ADR 0009](adr/0009-one-environment-variable-per-store.md): one environment variable per store.
 - [ADR 0010](adr/0010-reminders-as-a-separate-process.md): reminders run as a separate process.

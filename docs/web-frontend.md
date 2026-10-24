@@ -69,7 +69,7 @@ The learner is identified by one cookie, `wiederholen_student_id`: a year long, 
 
 It's one JSON value per **learner and set of topics**, `web_session:{student_id}:{topics sorted and joined}`, expiring after an hour. Showing a new exercise replaces the value, dropping any recall from the previous one.
 
-The topics are part of the key because the cookie is shared by every page on the domain. With one slot per learner, opening a second landing page between loading a question on the first and answering it would replace the shown exercise — and a correct answer on the first page would be checked against the second page's exercise and marked wrong. This happened, and `test_check_answer_is_scoped_to_its_own_topics` reproduces it. That's why every endpoint sends `topics`, even those that don't use it to pick an exercise. Two pages with the same topics share a slot, which is harmless. The language isn't part of the key: it only changes which translation of the same exercise is returned. ([ADR 0016](adr/0016-web-sessions-keyed-by-topics.md).)
+The topics are part of the key because the cookie is shared by every page on the domain. With one slot per learner, opening a second landing page between loading a question on the first and answering it would replace the shown exercise — and a correct answer on the first page would be checked against the second page's exercise and marked wrong. This happened, and `test_check_answer_is_scoped_to_its_own_topics` reproduces it. That's why every endpoint sends `topics`, even those that don't use it to pick an exercise. Two pages with the same topics share a slot, which is harmless. The language isn't part of the key: it only changes which translation of the same exercise is returned (see [ADR 0016](adr/0016-web-sessions-keyed-by-topics.md)).
 
 ## Embedding the widget
 
@@ -88,7 +88,7 @@ The topics are part of the key because the cookie is shared by every page on the
 | `recall` | turn on recalls (off by default) |
 | `login`, `telegram-bot` | show the Telegram login button for that bot, see [The button](#the-button) |
 
-The widget renders into a shadow root, so the page's CSS can't affect it and its CSS can't leak out. That's the reason for a web component rather than an iframe: the same isolation, without fixed sizes and `postMessage` resizing. ([ADR 0015](adr/0015-web-component-not-iframe.md).)
+The widget renders into a shadow root, so the page's CSS can't affect it and its CSS can't leak out. That's the reason for a web component rather than an iframe: the same isolation, without fixed sizes and `postMessage` resizing (see [ADR 0015](adr/0015-web-component-not-iframe.md)).
 
 `api-base` defaults to the script's own origin, read from `document.currentScript` once when the script runs — it isn't available later, when the element connects.
 
@@ -171,7 +171,7 @@ This exists because a real failure — a 409 on `/check` — once showed up only
 
 ## The standalone app
 
-[`static/app/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/web/static/app) is served at `/`. It's the same `<german-exercise-widget>`, as the page's main content and without `topics`, so it practices the whole course. It turns on `recall` and the Telegram login — the app is meant to grow toward what the bot offers, while an embedded widget stays a light sample. Both pages are one component, differing only in attributes and two size properties, so every fix applies to both. Recalls are opt-in because an embedded widget is meant as a quick taste of practicing, while the app is meant to grow toward what the bot offers.
+[`static/app/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/web/static/app) is served at `/`. It's the same `<german-exercise-widget>`, as the page's main content and without `topics`, so it practices the whole course. It turns on `recall` and the Telegram login — the app is meant to grow toward what the bot offers, while an embedded widget stays a light sample. Both pages are one component, differing only in attributes and two size properties, so every fix applies to both.
 
 It loads `widget.js` from `/widget/widget.js` on the same origin. The page sets `--gew-max-width: 36rem` and `--gew-height: 26rem` for a bigger card, since practicing is the page's whole purpose.
 

@@ -35,7 +35,7 @@ All are required by the processes marked. In addition, every process reads `COUR
 
 ### Redis
 
-The four `*_STORAGE_URL` variables are Redis URLs, e.g. `redis://valkey:6379/0`; Valkey works as well as Redis. Every store prefixes its keys, so they can share one database, but we recommend a database per store, as in `compose.yaml` — then each can be inspected, cleared or moved on its own: Why each store has its own variable: [ADR 0009](adr/0009-one-environment-variable-per-store.md).
+The four `*_STORAGE_URL` variables are Redis URLs, e.g. `redis://valkey:6379/0`; Valkey works as well as Redis. Every store prefixes its keys, so they can share one database, but we recommend a database per store, as in `compose.yaml` — then each can be inspected, cleared or moved on its own:
 
 | Variable | Database |
 |---|---|
@@ -43,6 +43,8 @@ The four `*_STORAGE_URL` variables are Redis URLs, e.g. `redis://valkey:6379/0`;
 | `STUDENT_IDENTITY_STORAGE_URL` | 1 |
 | `WEB_SESSION_STORAGE_URL` | 2 |
 | `BOT_FSM_STORAGE_URL` | 3 |
+
+Each store has its own variable so any of them can move to another server on its own (see [ADR 0009](adr/0009-one-environment-variable-per-store.md)).
 
 Make the Redis data persistent (a volume, as in `compose.yaml`): it holds all learners' progress.
 
@@ -109,7 +111,7 @@ The bot remembers each lookup for 12 hours, including "no illustration yet", so 
 
 ### Tracing
 
-The bot, the reminder and the web app can send OpenTelemetry traces: one span per Telegram update, web request and reminder check, plus every Redis call. The cue generator doesn't. Tracing is off unless an endpoint is set. It's configured with the [standard OpenTelemetry variables](https://opentelemetry.io/docs/languages/sdk-configuration/), for example:
+The bot, the reminder and the web app can send OpenTelemetry traces: one span per Telegram update, web request and reminder check, plus every Redis call. The cue generator doesn't. Tracing is off unless an endpoint is set: without one, the exporter would default to `localhost:4318` and keep retrying a collector that isn't there, filling the logs. It's configured with the [standard OpenTelemetry variables](https://opentelemetry.io/docs/languages/sdk-configuration/), for example:
 
 | Variable | Example |
 |---|---|
@@ -118,7 +120,7 @@ The bot, the reminder and the web app can send OpenTelemetry traces: one span pe
 | `OTEL_SERVICE_NAME` | `bot`, `reminder` or `web`. Set a different one per process: without it, all of them report as `unknown_service` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment=prod` |
 
-Only the OTLP/HTTP exporter is installed; `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` won't work. What gets traced is described in [Tracing](tracing.md). Tracing stays off without an explicit endpoint because the exporter would otherwise default to `localhost:4318` and keep retrying a collector that isn't there, filling the logs.
+Only the OTLP/HTTP exporter is installed; `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` won't work. What gets traced is described in [Tracing](tracing.md).
 
 ## Decisions
 

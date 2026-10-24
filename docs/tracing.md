@@ -65,7 +65,7 @@ Without these, every Redis call would be a root span of its own.
 
 ### Repetition engine: emit()
 
-[`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the three events as frozen dataclasses, and `emit(event)` adds one to `trace.get_current_span()`, named after the dataclass. Before that, `_to_otel_attributes()` turns the dataclass into span attributes: enum values are replaced by their `.value`, and `None` fields are left out, since neither is a valid attribute value. Why events go onto the span rather than being returned, and why they're dataclasses rather than dict literals: [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md).
+[`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the three events as frozen dataclasses, and `emit(event)` adds one to `trace.get_current_span()`, named after the dataclass. Before that, `_to_otel_attributes()` turns the dataclass into span attributes: enum values are replaced by their `.value`, and `None` fields are left out, since neither is a valid attribute value. Events go onto the span rather than being returned, and are dataclasses rather than dict literals (see [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md)).
 
 This makes `tutoring` depend on the OpenTelemetry API — but only the API, which is a safe no-op without a configured provider. `Tutor`'s tests don't need any tracing setup.
 
