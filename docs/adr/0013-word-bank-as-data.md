@@ -23,4 +23,3 @@ Word-order exercises showed their scrambled words as text written into `question
 - One source of truth, checked on every load.
 - Checking an answer needed no change: the arranged pieces, joined, are the answer.
 - The content had to be migrated: 54 exercises, done with a one-off script in the content repo.
-- Changing `question` changed those exercises' illustration keys (see [0014](0014-cues-generated-ahead-keyed-by-question.md)).

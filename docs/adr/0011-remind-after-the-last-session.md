@@ -4,7 +4,7 @@
 
 ## Context
 
-Since [#62](https://github.com/pauk-slon/immer-wiederholen/pull/62), a learner got one reminder after 24 hours without answering, if something was due, at a fixed interval for everyone. [#229](https://github.com/pauk-slon/immer-wiederholen/pull/229) made the interval a learner's choice; its description doesn't say what prompted it.
+Since [#62](https://github.com/pauk-slon/immer-wiederholen/pull/62), a learner got one reminder after 24 hours without answering, if something was due, after a fixed 24 hours for everyone. [#229](https://github.com/pauk-slon/immer-wiederholen/pull/229) made the interval a learner's choice; its description doesn't say what prompted it.
 
 ## Decision
 

@@ -18,4 +18,4 @@ None are recorded in [#169](https://github.com/pauk-slon/immer-wiederholen/pull/
 
 - The web app could reuse the same records when it was added the same day ([#176](https://github.com/pauk-slon/immer-wiederholen/pull/176)), with its own session store for the shown exercise.
 - `/reset` wipes the record and leaves chat settings alone.
-- Each new piece of per-chat state needs a decision about which store it belongs to; the question is whether another frontend would need it.
+- Each new piece of per-chat state needs a decision about which store it belongs to (later written down as a rule in [Architecture](../architecture.md#processes-and-state): would another frontend need it?).

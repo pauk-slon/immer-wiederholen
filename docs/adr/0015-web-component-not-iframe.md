@@ -18,4 +18,4 @@ The widget is embedded on landing pages served from another site. Its styles mus
 
 - The page can size and theme the widget through CSS custom properties, which pass into the shadow root.
 - The widget runs on the page's origin, so its requests to the API are cross-origin: they need CORS (`WEB_ALLOWED_ORIGINS`) and a cookie domain shared with the page.
-- Third-party embeds that rely on injected scripts don't work inside a shadow root out of the box — Telegram's login button needed a workaround ([#210](https://github.com/pauk-slon/immer-wiederholen/pull/210)).
+- Telegram's login button, a script that inserts an iframe, couldn't simply be placed in the shadow root: the widget runs the script in the page and moves the iframe into its shadow root ([#210](https://github.com/pauk-slon/immer-wiederholen/pull/210)).
