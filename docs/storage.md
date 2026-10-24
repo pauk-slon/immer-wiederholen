@@ -10,7 +10,7 @@ A **student record** holds the learner's repetition schedule and progress. It is
 
 [`StudentRecordBook`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_record_book.py) stores records by `StudentID`. It has two public members:
 
-- **`check_out(student_id)`.** An async context manager. It loads the record, gives it to the caller to change in place, and saves it when the block ends.
+- **`check_out(student_id)`** is an async context manager. It loads the record, gives it to the caller to change in place, and saves it when the block ends.
 - **Iteration.** `async for student_id in student_record_book` yields the id of each learner with a stored record. Like the iteration of a `dict`, it yields only keys. To read a record, use `check_out()`. Today only the tests use iteration. The reminder finds learners through their Telegram logins instead (see [Student identity](#student-identity)).
 
 Every handler that uses a record opens exactly one `check_out()` per request. It does all its work inside the block, including the replies:
@@ -34,7 +34,7 @@ Right after it loads the record, `check_out()` makes a deep copy of it. When the
 
 - A handler that always changes the record, such as one that records an answer, always saves.
 - A handler that only reads, such as `/progress`, never writes.
-- A handler that changes the record on one branch only saves only on that branch. An example is the reminder, which records a reminder only after Telegram accepted it.
+- A handler that changes the record on only one branch saves only on that branch. The reminder is an example. It records a reminder only after Telegram accepted it.
 
 The comparison runs in a `finally` block, so a change made before an error is still saved. For example, if `check_answer()` succeeded and then the reply failed, the answer isn't lost.
 
@@ -46,20 +46,20 @@ The comparison runs in a `finally` block, so a change made before an error is st
 
 `RedisStudentRecordBook` stores one JSON value per learner under `student_record:{student_id}`. An empty record has no key at all, so iteration doesn't show a learner with nothing recorded.
 
-Only the Redis implementations close a connection. The abstract stores have no such step. `RedisStudentRecordBook` and `RedisStudentIdentityStore` are async context managers (`async with RedisStudentRecordBook.from_url(url) as book:`). They have no public `close()` that a caller could forget. `async with` limits the lifetime of a store, because Python readers expect this protocol from an object that holds a resource. Only the tests use stores this way. The bot and the reminder never close their stores, and the connection closes when the process exits.
+The abstract stores have no close step. Only the Redis implementations hold a connection, and they close it as async context managers (`async with RedisStudentRecordBook.from_url(url) as book:`). They have no public `close()` that a caller could forget, because `async with` is the protocol that Python developers expect from an object that holds a resource. Only the tests use stores this way. The bot and the reminder never close their stores, and the connection closes when the process exits.
 
 `Tutor` never uses `StudentRecordBook`. It gets a plain `dict` from the frontend that calls it, and this keeps `tutoring` free of I/O.
 
 ## Chat state
 
-The other state of a Telegram chat is in aiogram's FSM storage. This is a plain [`RedisStorage`](https://docs.aiogram.dev/en/latest/dispatcher/finite_state_machine/storages.html), used as aiogram ships it. It has two kinds of data:
+The rest of a Telegram chat's state is in aiogram's FSM storage. This is a plain [`RedisStorage`](https://docs.aiogram.dev/en/latest/dispatcher/finite_state_machine/storages.html), used without changes. It has two kinds of data:
 
 - **Chat settings.** These are `language`, `ai_mode`, `topic_groups` and `remind_after_hours`, and the `bot_blocked` flag that the bot sets when the learner blocks it (see [Blocked chats](bot.md#blocked-chats)).
 - **The current conversation.** This is the FSM state (`answering`, `recalling`), the exercise and recall that the learner is answering (`shown_exercise`, `shown_recall`), and the message with active inline buttons (`last_buttoned_message_id`).
 
 When an exercise ends, the bot clears the conversation but keeps the settings. `_CHAT_SETTINGS_KEYS` in `commands/wiederholen.py` lists the settings. Add a new chat-level setting to it, or the setting is lost after every exercise.
 
-None of this data is part of the student record, because it is about one Telegram chat and not about what the learner knows. For this reason `/reset`, which deletes the record, doesn't change it. The web app has its own store for the same purpose (`WebSessionStore`, see [Web frontend](web-frontend.md)).
+None of this data is part of the student record, because it is about one Telegram chat and not about what the learner knows. For this reason `/reset`, which deletes the record, doesn't change the chat state. The web app has its own store for the same purpose (`WebSessionStore`, see [Web frontend](web-frontend.md)).
 
 `wiederholen.bot` creates its `dispatcher` with aiogram's default in-memory storage, so an import of the package, for example in tests, needs no Redis. At startup, `bootstrap.load_bot_course_and_storage()` builds the real stores. It returns the bot, the course, the `RedisStorage`, the `StudentRecordBook` and the `StudentIdentityStore`. The bot and the reminder both call it. The reminder has no routers, but it still reads the FSM data of each chat for its language and settings.
 
@@ -70,12 +70,12 @@ A learner can use the project in more than one way, for example in a Telegram ch
 The store keeps two concepts apart:
 
 - An **account** is the learner and what they have learned. It is a `StudentID`, an opaque random string (`secrets.token_urlsafe(32)`). `StudentRecordBook` uses it as the key.
-- A **login** is one way to prove that you are that learner. It is a `provider` (`"telegram"` or `"browser"`) with that provider's own `identifier`. The identifier is a Telegram chat id, or a browser token that the web app makes when someone logs in with Telegram.
+- A **login** is one way to prove that you are that learner. It is a `provider` (`"telegram"` or `"browser"`) with that provider's own `identifier`. The identifier is a Telegram chat id, or a browser token that the web app creates when someone logs in with Telegram.
 
 | Method | What it does |
 |---|---|
 | `resolve_or_create_student_id(provider, identifier)` | returns the learner for this login. For an unknown login, it creates a new learner and links the login to it. The bot calls it for every update, and the web app calls it after a Telegram login. This is how both frontends get the same learner |
-| `resolve_student_id(provider, identifier)` | the same lookup, but it returns `None` for an unknown login. It is for callers that then use something else, such as a request with an old browser cookie |
+| `resolve_student_id(provider, identifier)` | the same lookup, but it returns `None` for an unknown login. Callers use it when an unknown login has a fallback. For example, a request with an old browser cookie gets a new anonymous id |
 | `link_identity(student_id, provider, identifier)` | links a login to an existing learner. It raises `IdentityAlreadyLinkedError` if the login already belongs to a different learner. A second link to the same learner does nothing |
 | `iter_identifiers(provider)` | yields each `(identifier, student_id)` for one provider. The reminder uses it to find all Telegram chats |
 
@@ -83,7 +83,7 @@ The store keeps two concepts apart:
 
 Anonymous web visitors aren't in this store. They have no login, and if every visitor counted as a learner, the size of the store would mean nothing. Their ids are random tokens in a cookie (`WebStudentID`, see [Web frontend](web-frontend.md)).
 
-The parameter is called `identifier`, not `id`, because `id` would shadow the builtin. Other names were too long or came from other protocols.
+The parameter is called `identifier`, not `id`, because `id` would shadow the builtin.
 
 ## Testing
 
