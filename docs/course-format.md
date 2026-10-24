@@ -1,6 +1,6 @@
 # Course format
 
-A course is a directory of YAML files. The bot and the web app load it once at startup from the directory in the `COURSE_PATH` environment variable (default: `data`):
+A course is a directory of YAML files. The bot and the web app load it once at startup from the directory in the `COURSE_PATH` environment variable, which defaults to `data`.
 
 | File | Required | What it holds |
 |---|---|---|
@@ -8,9 +8,9 @@ A course is a directory of YAML files. The bot and the web app load it once at s
 | `topics.yaml` | no | topic groups, links between topics, per-topic settings |
 | `bot.yaml` | no | the bot's Telegram name and descriptions |
 
-[`demo/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/demo) is a small working course that uses every field and setting below; local `docker compose up` runs it by default.
+[`demo/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/demo) is a small working course that uses every field and setting below. Local `docker compose up` runs it by default.
 
-Some features work only in the Telegram bot, not in the web widget; they are marked **bot only**.
+Some features work only in the Telegram bot, not in the web widget. They are marked **bot only**.
 
 ## Texts in two languages
 
@@ -29,9 +29,9 @@ Every exercise drills one **word** in one **topic**:
 - `word` is the vocabulary item, e.g. the verb `singen`.
 - `topic` is the grammar aspect, e.g. `partizip_ii` (give the Partizip II form) or `partizip_ii_meaning` (fill it into a sentence).
 
-Topics are free-form names; the code attaches no meaning to them, so a new topic needs only data, not a code change.
+Topics are free-form names. The code attaches no meaning to them, so a new topic needs only data, not a code change.
 
-The repetition schedule is kept per **pair** of word and topic: `singen` in `partizip_ii` and `singen` in `partizip_ii_meaning` are learned and repeated independently. The links in `topics.yaml` connect such pairs, see [Linking topics](#linking-topics).
+The repetition schedule is kept per **pair** of word and topic. So `singen` in `partizip_ii` and `singen` in `partizip_ii_meaning` are learned and repeated independently. The links in `topics.yaml` connect such pairs, as described in [Linking topics](#linking-topics).
 
 Several exercises may belong to the same pair. Each time the pair is due, one of them is picked at random, avoiding the one shown last.
 
@@ -59,11 +59,11 @@ A list of exercises:
 | `topic` | yes | the grammar aspect being drilled |
 | `question` | yes | the text shown to the learner, e.g. a sentence with a `___` gap or a bare verb to conjugate |
 | `answer` | yes | the correct answer |
-| `distractors` | yes, may be `[]` | wrong options. Non-empty: the learner picks from `distractors` plus `answer`, shuffled. Empty: the learner types the answer |
+| `distractors` | yes, may be `[]` | wrong options. If there are any, the learner picks from `distractors` plus `answer`, shuffled. If the list is empty, the learner types the answer |
 | `explanation` | yes | `{ru, en}`, shown after answering, right or wrong |
 | `recalls` | no | follow-up sentences to write out in full, see [Recalls](#recalls) |
-| `description` | no | `{ru, en}`, shown with the question — usually a translation of the sentence, so it's clear which word is meant. Required for an illustration, see [`cue_generation`](#ai-generated-questions-and-illustrations) |
-| `word_bank` | no | for word-order exercises: `answer` split into chunks, in the correct order. The bot shows them shuffled after the question, the web widget as tiles to arrange. A chunk can be several words (`im Chor`) |
+| `description` | no | `{ru, en}`, shown with the question. Usually it's a translation of the sentence, so it's clear which word is meant. An illustration needs it, see [`cue_generation`](#ai-generated-questions-and-illustrations) |
+| `word_bank` | no | `answer` split into chunks, in the correct order, for word-order exercises. The bot shows them shuffled after the question, and the web widget shows them as tiles to arrange. A chunk can be several words (`im Chor`) |
 | `grammar_classes` | no | **bot only.** Labels for words that behave alike in this topic, e.g. the Ablaut pattern `i-a-u` shared by `singen` and `trinken` in `partizip_ii`. See [Hints from grammar classes](#hints-from-grammar-classes) |
 
 The answer is checked ignoring case and surrounding spaces.
@@ -78,29 +78,29 @@ A recall asks the learner to write out a whole sentence using the word they just
 | `answer` | yes | a list of accepted sentences |
 | `hint` | no | `ru`, `en` or both, shown under the prompt, e.g. a translation of a rare word |
 
-After a wrong answer, a recall is required before moving on. After a correct one, it's optional: the bot offers a "Drill" button ("Закрепить" in Russian). Each time, one of the exercise's recalls is picked at random; if the learner gets a recall wrong and asks for another, it's a different one where possible.
+After a wrong answer, a recall is required before moving on. After a correct one, it's optional, and the bot offers a "Drill" button ("Закрепить" in Russian). Each time, one of the exercise's recalls is picked at random. If the learner gets a recall wrong and asks for another, it's a different one where possible.
 
 A recall answer is accepted ignoring case, extra spaces and a final `.`, `,`, `!` or `?`.
 
 ### Hints from grammar classes
 
-**Bot only.** Once the learner has reliably learned another word with a shared grammar class in the same topic, the question gets a tap-to-reveal hint naming that word: "Same as for singen" ("Так же, как и у singen" in Russian).
+**Bot only.** Once the learner has reliably learned another word with a shared grammar class in the same topic, the question gets a tap-to-reveal hint naming that word, such as "Same as for singen" ("Так же, как и у singen" in Russian).
 
-Only the word is shown, not its answer: for a class like `an+Akk` (verbs taking `an` with the accusative), the other word's answer would be this one's answer too. An exercise can carry several classes, e.g. a narrow and a broad one.
+Only the word is shown, not its answer. For a class like `an+Akk` (verbs taking `an` with the accusative), the other word's answer would be this one's answer too. An exercise can carry several classes, e.g. a narrow and a broad one.
 
 ### Validation
 
 A course fails to load if:
 
-- `answer` is one of `distractors`;
-- `explanation` or `description` doesn't have exactly the `ru` and `en` keys;
-- `word_bank` joined with spaces isn't `answer`;
-- `grammar_classes` is an empty list (leave the field out instead);
-- a recall's `answer` is empty, or its `hint` has keys other than `ru` and `en`.
+- `answer` is one of `distractors`
+- `explanation` or `description` doesn't have exactly the `ru` and `en` keys
+- `word_bank` joined with spaces isn't `answer`
+- `grammar_classes` is an empty list (leave the field out instead)
+- a recall's `answer` is empty, or its `hint` has keys other than `ru` and `en`
 
 ## topics.yaml
 
-Topics are organized into groups, which learners pick from with `/topics` (no selection means all groups). Groups appear in file order:
+Topics are organized into groups, which learners pick from with `/topics`. No selection means all groups. Groups appear in file order.
 
 ```yaml
 verbs:                      # group id
@@ -145,24 +145,24 @@ flowchart LR
 
 The same links apply to `trinken` and every other word with exercises in these topics.
 
-A link **schedules** a pair for today: it puts the pair into today's queue of new material. It does this only if the learner hasn't started that pair yet, and only if the course has an exercise for it — no `preposition_meaning` exercise for `auf`, no effect. Answering the source triggers it whether the answer was right or wrong.
+A link **schedules** a pair for today, which puts the pair into today's queue of new material. It does this only if the learner hasn't started that pair yet, and only if the course has an exercise for it. Without a `preposition_meaning` exercise for `auf`, the link has no effect. Answering the source triggers it whether the answer was right or wrong.
 
-- **`chains`**: answering `partizip_ii` for `singen` schedules `perfekt_wortstellung` for `singen`. Without the link it would come up anyway, just later, among other new material. Two topics may chain to each other.
-- **`gates`**: `partizip_ii_meaning` for `singen` isn't shown at all until `partizip_ii` for `singen` has been answered; then it is scheduled like a chain. Use it when one topic only makes sense after another — a sentence using the form only after the form itself. A gated topic must be in the same group as the topic gating it, or selecting just its group would leave it locked forever. Two topics must not gate each other: neither would ever unlock. Gates are declared separately from chains rather than derived from them (see [ADR 0012](adr/0012-gates-declared-explicitly.md)).
-- **`chains_by_answer`**: answering `verb_preposition` for `warten` (answer `auf`) schedules `preposition_meaning` for **`auf`**. Use it when the next topic is about the answer, not the word.
+- **`chains`**. Answering `partizip_ii` for `singen` schedules `perfekt_wortstellung` for `singen`. Without the link it would come up anyway, just later, among other new material. Two topics may chain to each other.
+- **`gates`**. `partizip_ii_meaning` for `singen` isn't shown at all until `partizip_ii` for `singen` has been answered. After that, it is scheduled like a chain. Use it when one topic only makes sense after another, such as a sentence using the form only after the form itself. A gated topic must be in the same group as the topic gating it, or selecting just its group would leave it locked forever. Two topics must not gate each other, or neither would ever unlock. Gates are declared separately from chains rather than derived from them (see [ADR 0012](adr/0012-gates-declared-explicitly.md)).
+- **`chains_by_answer`**. Answering `verb_preposition` for `warten` (answer `auf`) schedules `preposition_meaning` for **`auf`**. Use it when the next topic is about the answer, not the word.
 
-Chains may cross groups; gates may not. How links interact with the rest of the schedule (daily limit on new words, due reviews) is described in [Repetition schedule](repetition-schedule.md).
+Chains may cross groups, but gates may not. How links interact with the rest of the schedule (daily limit on new words, due reviews) is described in [Repetition schedule](repetition-schedule.md).
 
 ### AI-generated questions and illustrations
 
 **Bot only.** Both settings are opt-in per topic and do nothing unless the deployment is set up for them, see [Configuration](configuration.md#optional-integrations). How they work is in [AI-generated content](authoring.md).
 
-- **`ai_generation`**: in `/ai` mode, an LLM writes a new question for the same word and answer: `question`, `distractors`, `explanation`, `recalls` and `description` are generated, while `word`, `topic` and `answer` stay as authored. Enable it only for topics where the answer doesn't depend on the exact wording: not for bare-verb questions like `partizip_ii`, not for `word_bank` exercises (a new sentence wouldn't match the chunks), not where the subject decides the answer (`du brichst` vs `er bricht`).
-- **`cue_generation`**: questions are shown with a **cue** — an illustration of the sentence that helps recall it. Each cue is generated from the exercise's `description.en`, so exercises without a `description` get none. Cues are generated ahead of time and stored by the hash of `question`, so editing a question's text needs a re-run of the generator to give it a picture again. Suits sentence topics with a concrete scene; pointless for pure grammar forms. It's a separate switch, not implied by `description`, since a description may exist only to disambiguate a sentence (see [ADR 0014](adr/0014-cues-generated-ahead.md)).
+- **`ai_generation`**. In `/ai` mode, an LLM writes a new question for the same word and answer. It generates `question`, `distractors`, `explanation`, `recalls` and `description`, while `word`, `topic` and `answer` stay as authored. Enable it only for topics where the answer doesn't depend on the exact wording. That rules out bare-verb questions like `partizip_ii`, `word_bank` exercises (a new sentence wouldn't match the chunks), and topics where the subject decides the answer (`du brichst` vs `er bricht`).
+- **`cue_generation`**. Questions are shown with a **cue**, an illustration of the sentence that helps recall it. Each cue is generated from the exercise's `description.en`, so exercises without a `description` get none. Cues are generated ahead of time and stored by the hash of `question`, so editing a question's text needs a re-run of the generator to give it a picture again. It suits sentence topics with a concrete scene and is pointless for pure grammar forms. It's a separate switch, not implied by `description`, since a description may exist only to disambiguate a sentence (see [ADR 0014](adr/0014-cues-generated-ahead.md)).
 
 ## bot.yaml
 
-**Bot only.** The bot's Telegram profile, per language:
+**Bot only.** The bot's Telegram profile, per language.
 
 ```yaml
 info:
@@ -176,11 +176,11 @@ info:
     short_description: German grammar on repeat
 ```
 
-The bot applies it to its Telegram profile on every start. Only the `ru` and `en` entries are used; any other language key is ignored. Without the file, the profile stays as it is.
+The bot applies it to its Telegram profile on every start. Only the `ru` and `en` entries are used, and any other language key is ignored. Without the file, the profile stays as it is.
 
 ## Decisions
 
-- [ADR 0012](adr/0012-gates-declared-explicitly.md): gates are declared explicitly.
-- [ADR 0013](adr/0013-word-bank-as-data.md): word banks are data, not text in the question.
-- [ADR 0014](adr/0014-cues-generated-ahead.md): illustrations are generated ahead of time.
-- [ADR 0017](adr/0017-cues-keyed-by-question-hash.md): illustrations are keyed by the question's hash.
+- [Gates are declared explicitly](adr/0012-gates-declared-explicitly.md) (ADR 0012)
+- [Word banks are data, not text in the question](adr/0013-word-bank-as-data.md) (ADR 0013)
+- [Illustrations are generated ahead of time](adr/0014-cues-generated-ahead.md) (ADR 0014)
+- [Illustrations are keyed by the question's hash](adr/0017-cues-keyed-by-question-hash.md) (ADR 0017)
