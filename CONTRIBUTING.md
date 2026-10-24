@@ -12,7 +12,7 @@ The repository has a Docker Compose setup ([`compose.yaml`](compose.yaml)) for l
    BOT_TOKEN=123456:ABC...
    ```
 
-   Don't use a production bot's token. Only one process can poll a bot at a time, so a local run would interrupt the production bot. The bot also rewrites its Telegram profile on start, so a local run would change the production profile (see [Configuration](docs/configuration.md#what-the-bot-changes-in-its-telegram-profile)).
+   Don't use a production bot's token. Only one process can poll a bot at a time, so a local run would conflict with the production bot. The bot also rewrites its Telegram profile on start, so a local run would change the production profile (see [Configuration](docs/configuration.md#what-the-bot-changes-in-its-telegram-profile)).
 
 2. Start the services with the demo course:
 
@@ -79,7 +79,7 @@ The README, this file and the pages in `docs/` use simplified technical English,
 - Name the things you mean. Avoid vague words such as everything.
 - Give the reason for a rule, not only the rule.
 
-The strict STE dictionary doesn't apply. Code identifiers and terms such as span or middleware stay as they are. Accepted ADRs are never rewritten, so older ones may not follow this style.
+The strict STE dictionary doesn't apply. Code identifiers and terms such as span or middleware stay as they are.
 
 ## Pull requests
 
