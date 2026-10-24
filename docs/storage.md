@@ -26,6 +26,8 @@ async with student_record_book.check_out(student_id) as student_record:
     await message.answer(...)
 ```
 
+It's called `check_out`, not `open`: `book.open(id)` would read as opening the book itself, while a library checkout borrows one item and returns it, which is what the block does.
+
 ### Saved only when changed
 
 `check_out()` takes a deep copy of the record right after loading it and, when the block ends, saves only if the record differs from that copy. This one rule covers every caller:
@@ -44,7 +46,7 @@ The comparison runs in a `finally` block, so a change made before an error — `
 
 `RedisStudentRecordBook` keeps one JSON value per learner under `student_record:{student_id}`. An empty record is stored as no key at all, so a learner with nothing recorded doesn't show up when iterating.
 
-Closing the connection is specific to the Redis implementations, not part of the abstract stores: `RedisStudentRecordBook` and `RedisStudentIdentityStore` are async context managers (`async with RedisStudentRecordBook.from_url(url) as book:`), and there's no public `close()`. Only the tests scope a store this way; the bot and the reminder never close theirs and let the process exit release the connection.
+Closing the connection is specific to the Redis implementations, not part of the abstract stores: `RedisStudentRecordBook` and `RedisStudentIdentityStore` are async context managers (`async with RedisStudentRecordBook.from_url(url) as book:`), and there's no public `close()`. Only the tests scope a store this way; the bot and the reminder never close theirs and let the process exit release the connection. Scoping a store with `async with`, the protocol Python readers expect from anything holding a resource, leaves no close call to forget.
 
 `Tutor` never touches `StudentRecordBook`: it receives a plain `dict` from whichever frontend calls it. That's what keeps `tutoring` free of I/O.
 
@@ -63,7 +65,7 @@ None of this is part of the student record — so `/reset`, which wipes the reco
 
 ## Student identity
 
-A learner can be reached in more than one way — a Telegram chat, a logged-in browser — and each must lead to the same `StudentID`. [`StudentIdentityStore`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_identity_store.py) maps a login to it.
+A learner can be reached in more than one way — a Telegram chat, a logged-in browser — and each must lead to the same `StudentID`. [`StudentIdentityStore`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_identity_store.py) maps a login to it. Why a resolution step exists instead of deriving the id from the chat, and why there's no separate account id: [ADR 0003](adr/0003-separate-accounts-from-logins.md).
 
 It keeps two concepts apart:
 
@@ -81,6 +83,8 @@ It keeps two concepts apart:
 
 Anonymous web visitors aren't in this store at all: they have no login, and counting every visitor as a learner would make the store's size meaningless. Their ids are random tokens kept in a cookie instead (`WebStudentID`, see [Web frontend](web-frontend.md)).
 
+On naming: `identifier`, not `id` (shadows the builtin), `subject` (borrows OpenID Connect vocabulary for a protocol this isn't) or `provider_user_id` (long, once the store gives the context). The store was called `CredentialStore` until it became clear it holds no credential — only the result of one having been checked.
+
 ## Testing
 
 Tests run against a real Redis (Valkey), not an in-memory fake: it's fast enough at this suite's size and catches behavior a fake wouldn't.
@@ -91,11 +95,9 @@ Tests run against a real Redis (Valkey), not an in-memory fake: it's fast enough
 - **Shared infrastructure is registered once.** The `student_record_book` fixture registers itself as permanent aiogram workflow data (`dispatcher["student_record_book"] = ...`), as `main()` does at startup, so tests don't pass it to every `feed_message()` call. The course differs between tests and is passed per call.
 - **Function-scoped fixtures.** pytest-asyncio gives every test its own event loop, and a Redis connection can't outlive the loop it was created in.
 
-## Design notes
+## Decisions
 
-- **`check_out`, not `open`.** `book.open(id)` reads as opening the book itself. Like a library checkout, `check_out` means borrowing one item and returning it, which is what the block does.
-- **No public `close()`.** A store's lifetime is scoped with `async with`, the protocol Python readers already expect from anything holding a resource, so there's no close call to forget.
-- **Student state and chat state are separate stores.** The student record and identity stores belong to `school` and are shared by every frontend; chat and session state belong to one frontend each. Why each store also has its own URL is in [Configuration](configuration.md#design-notes).
-- **No separate account id type.** `StudentID` already is the account; an `AccountID` would be a second name for the same value.
-- **Why a resolution step at all.** The bot used to derive a learner's id from the chat id directly. That tied "who is this learner" to "which Telegram chat is this" and left no way for a second login to reach the same learner.
-- **Naming.** `identifier`, not `id` (shadows the builtin), `subject` (borrows OpenID Connect vocabulary for a protocol this isn't) or `provider_user_id` (long, once the store gives the context). The store was called `CredentialStore` until it became clear it holds no credential — only the result of one having been checked.
+- [ADR 0003](adr/0003-separate-accounts-from-logins.md): learners are separate from the ways they log in.
+- [ADR 0007](adr/0007-save-records-only-when-changed.md): a student record is saved only when it changes.
+- [ADR 0008](adr/0008-student-record-separate-from-chat-state.md): the student record is kept apart from chat state.
+- [ADR 0009](adr/0009-one-environment-variable-per-store.md): one environment variable per store.

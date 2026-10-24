@@ -69,7 +69,7 @@ The learner is identified by one cookie, `wiederholen_student_id`: a year long, 
 
 It's one JSON value per **learner and set of topics**, `web_session:{student_id}:{topics sorted and joined}`, expiring after an hour. Showing a new exercise replaces the value, dropping any recall from the previous one.
 
-The topics are part of the key because the cookie is shared by every page on the domain. With one slot per learner, opening a second landing page between loading a question on the first and answering it would replace the shown exercise — and a correct answer on the first page would be checked against the second page's exercise and marked wrong. This happened, and `test_check_answer_is_scoped_to_its_own_topics` reproduces it. That's why every endpoint sends `topics`, even those that don't use it to pick an exercise. Two pages with the same topics share a slot, which is harmless. The language isn't part of the key: it only changes which translation of the same exercise is returned.
+The topics are part of the key because the cookie is shared by every page on the domain. With one slot per learner, opening a second landing page between loading a question on the first and answering it would replace the shown exercise — and a correct answer on the first page would be checked against the second page's exercise and marked wrong. This happened, and `test_check_answer_is_scoped_to_its_own_topics` reproduces it. That's why every endpoint sends `topics`, even those that don't use it to pick an exercise. Two pages with the same topics share a slot, which is harmless. The language isn't part of the key: it only changes which translation of the same exercise is returned. ([ADR 0016](adr/0016-web-sessions-keyed-by-topics.md).)
 
 ## Embedding the widget
 
@@ -88,7 +88,7 @@ The topics are part of the key because the cookie is shared by every page on the
 | `recall` | turn on recalls (off by default) |
 | `login`, `telegram-bot` | show the Telegram login button for that bot, see [The button](#the-button) |
 
-The widget renders into a shadow root, so the page's CSS can't affect it and its CSS can't leak out. That's the reason for a web component rather than an iframe: the same isolation, without fixed sizes and `postMessage` resizing.
+The widget renders into a shadow root, so the page's CSS can't affect it and its CSS can't leak out. That's the reason for a web component rather than an iframe: the same isolation, without fixed sizes and `postMessage` resizing. ([ADR 0015](adr/0015-web-component-not-iframe.md).)
 
 `api-base` defaults to the script's own origin, read from `document.currentScript` once when the script runs — it isn't available later, when the element connects.
 
@@ -112,7 +112,7 @@ The widget defines all its colors itself and switches them for `prefers-color-sc
 
 ### A deck of cards
 
-Each step of an exercise is a separate card — the question, the result, a recall, a recall's result — in a horizontally scrolling row (`.track` inside `.deck`). CSS scroll snapping lands every swipe on a card; two arrow buttons page between cards and hide at the ends, or entirely when there's only one card.
+Each step of an exercise is a separate card — the question, the result, a recall, a recall's result — in a horizontally scrolling row (`.track` inside `.deck`). CSS scroll snapping lands every swipe on a card; two arrow buttons page between cards and hide at the ends, or entirely when there's only one card. The arrows' hiding needs an explicit `.deck-nav[hidden] { display: none; }`: their own `display: flex` otherwise overrides the `hidden` attribute.
 
 This replaced recall steps appended into one card, which read like a chat transcript in a box. With cards, the explanation is still one swipe away while the learner works on a recall — what the bot's scrolling chat gives for free.
 
@@ -144,9 +144,9 @@ Every card has the same fixed height, `--gew-height`, so answering or paging nev
 
 Inside a card:
 
-- **The content area** (`.body`) scrolls on its own if it's too long; the buttons below it (`.toolbar`) stay visible. A short fade at the bottom hints that there's more to scroll.
+- **The content area** (`.body`) scrolls on its own if it's too long; the buttons below it (`.toolbar`) stay visible. A short fade at the bottom hints that there's more to scroll. The fade is a fixed `0.35rem`: a percentage of the height made whole lines look faded on the app's taller card.
 - **Two pieces of text that belong together** (`.centered-pair`) are centered as one group: the question and its description, the verdict and its explanation, a recall question and its hint. The instruction, when there is one, sits above it.
-- **Options** are a two-column grid, so buttons in a row have equal widths and columns line up — almost every exercise has four options.
+- **Options** are a two-column grid, so buttons in a row have equal widths and columns line up — almost every exercise has four options. A fixed two columns rather than `auto-fit`, which sometimes made three and left the fourth option alone on a row.
 - **Buttons** are in a two-column grid too (`.actions`); a single button spans both columns. The last button is the primary, blue one.
 - **Loading, error and "nothing left" messages** are centered on their card.
 - **Word-order exercises** have their own layout: the question, the description, then the shuffled chunks as tiles. Tapping a tile moves it to the answer row; tapping it there moves it back. When no tiles are left, the answer is submitted — there's no submit button — and the tiles are disabled so it can't be sent twice.
@@ -167,11 +167,11 @@ When the keyboard opens for the answer field, the browser scrolls just the field
 
 When a request fails, the widget posts the step (`_loadNext`, `_submitAnswer`, `_startRecall` or `_submitRecallAnswer`) and the HTTP status, if there was a response, to `POST /api/client-error`. The server logs a warning and records them as attributes of that request's span (see [Tracing](tracing.md#what-gets-traced)), so browser-side failures show up next to the server's traces instead of in a separate tool. Reporting is fire-and-forget: a failed report never causes an error of its own.
 
-This exists because a real failure — a 409 on `/check` — once showed up only as an access-log line and took a manual browser reproduction to understand.
+This exists because a real failure — a 409 on `/check` — once showed up only as an access-log line and took a manual browser reproduction to understand. Reports go into the existing traces rather than a separate error tracker: one place to look for a problem that spans the browser and the server.
 
 ## The standalone app
 
-[`static/app/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/web/static/app) is served at `/`. It's the same `<german-exercise-widget>`, as the page's main content and without `topics`, so it practices the whole course. It turns on `recall` and the Telegram login — the app is meant to grow toward what the bot offers, while an embedded widget stays a light sample.
+[`static/app/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/web/static/app) is served at `/`. It's the same `<german-exercise-widget>`, as the page's main content and without `topics`, so it practices the whole course. It turns on `recall` and the Telegram login — the app is meant to grow toward what the bot offers, while an embedded widget stays a light sample. Both pages are one component, differing only in attributes and two size properties, so every fix applies to both. Recalls are opt-in because an embedded widget is meant as a quick taste of practicing, while the app is meant to grow toward what the bot offers.
 
 It loads `widget.js` from `/widget/widget.js` on the same origin. The page sets `--gew-max-width: 36rem` and `--gew-height: 26rem` for a bigger card, since practicing is the page's whole purpose.
 
@@ -247,17 +247,8 @@ The client needs `base_url="https://..."`. The session cookie is `Secure`, and h
 
 Requests are traced by Litestar's `OpenTelemetryPlugin` (see [Tracing](tracing.md)).
 
-## Design notes
+## Decisions
 
-- **A web component, not an iframe.** The shadow root isolates styles in both directions without an iframe's fixed size and resize messaging.
-- **One component for both pages.** The embed and the app differ only in attributes (`recall`, `login`) and two size properties, so every fix applies to both; a forked app version would need each fix twice.
-- **Recalls are opt-in.** An embedded widget is a quick taste of practicing; the full bot-like flow is for the app.
-- **The server picks the anonymous id.** A client-chosen id could be set to someone else's.
-- **Client errors go into the existing traces**, not a separate error tracker: one place to look for a problem that spans the browser and the server.
-- **Lessons from real reports**, kept so they aren't undone:
-  - a required recall waits for a tap — starting it right away flashed the explanation past before it could be read;
-  - the question card is dropped once answered — swiping back showed dead controls;
-  - every card has a fixed height — a growing card pushed the page around on every step;
-  - the fade at the bottom of `.body` is a fixed `0.35rem` — a percentage made whole lines look faded on the app's taller card;
-  - options are a fixed two-column grid — `auto-fit` sometimes made three columns and left the fourth option alone on a row;
-  - `.deck-nav[hidden] { display: none; }` is explicit — the arrows' own `display: flex` otherwise overrides the `hidden` attribute.
+- [ADR 0003](adr/0003-separate-accounts-from-logins.md): learners are separate from the ways they log in.
+- [ADR 0015](adr/0015-web-component-not-iframe.md): the widget is a web component, not an iframe.
+- [ADR 0016](adr/0016-web-sessions-keyed-by-topics.md): web sessions are keyed by learner and topics.

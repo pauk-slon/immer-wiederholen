@@ -9,7 +9,7 @@
 
 Which topics get them is set per topic in `topics.yaml` (see [Course format](course-format.md#ai-generated-questions-and-illustrations)); the environment variables and the Cloudflare setup are in [Configuration](configuration.md#optional-integrations).
 
-`authoring` is a sibling of `tutoring`, not part of it: it depends only on the course model (`wiederholen.school.curriculum`), so the scheduling engine never gains a network dependency.
+`authoring` is a sibling of `tutoring`, not part of it: it depends only on the course model (`wiederholen.school.curriculum`), so the scheduling engine never gains a network dependency. The two parts share nothing else: different providers, different credentials, and neither imports the other.
 
 ## Shadow exercises
 
@@ -23,7 +23,7 @@ The `/ai` command is a toggle for chats with the `ai_exercises` feature flag (se
 |---|---|
 | `word`, `topic`, `answer`, `word_bank`, `grammar_classes` | `question`, `distractors`, `explanation`, `recalls`, and `description` if the original has one |
 
-Keeping `word`, `topic` and `answer` means the shadow tests exactly what the scheduler chose. The model isn't allowed to pick a different answer, even one that would be correct for its own sentence: that would quietly change what's being practiced. Scheduling is keyed on those three fields, so a shadow is scheduled like the original. Two generated fields do matter to `check_answer()`, though: the shadow's `recalls` decide whether a recall follows, and its `question` is what's stored as the last exercise shown.
+Keeping `word`, `topic` and `answer` means the shadow tests exactly what the scheduler chose. The model isn't allowed to pick a different answer, even one that would be correct for its own sentence: that would quietly change what's being practiced. Scheduling is keyed on those three fields, so a shadow is scheduled like the original. Two generated fields do matter to `check_answer()`, though: the shadow's `recalls` decide whether a recall follows, and its `question` is what's stored as the last exercise shown. How this came about: [ADR 0005](adr/0005-shadow-exercises-keep-the-answer.md).
 
 `description` must be regenerated together with the question: it translates the sentence, so keeping the old one would describe a sentence that's no longer there. This was a real bug — a new question about apples from the garden, shown with a description about a table made of wood.
 
@@ -40,7 +40,7 @@ The model answers by calling a tool, `submit_shadow_exercise`, whose input schem
 
 ### Failures
 
-`AIGenerationError` covers everything that can go wrong: the API call fails, the model doesn't call the tool, the tool input is malformed, or the result fails validation. There's deliberately no fallback to the authored exercise: `/ai` is a testing tool, and a silent fallback would hide a broken integration behind questions that look normal. The learner sees an error message, with no button attached; `/wiederholen` tries again, `/ai` turns the mode off.
+`AIGenerationError` covers everything that can go wrong: the API call fails, the model doesn't call the tool, the tool input is malformed, or the result fails validation. There's deliberately no fallback to the authored exercise: `/ai` is a testing tool, and a silent fallback would hide a broken integration behind questions that look normal. The learner sees an error message, with no button attached; `/wiederholen` tries again, `/ai` turns the mode off. ([ADR 0006](adr/0006-ai-generation-fails-visibly.md).)
 
 ### In the bot
 
@@ -67,7 +67,7 @@ A **cue** is an illustration of an exercise's sentence, shown with the question 
 - `build_cue_prompt(exercise)` returns `description.en` plus a fixed style suffix — `", simple clear illustration, single scene, no text or letters in the image"` — or `None` if there's no description. The suffix keeps the set visually consistent and asks for no text in the image: image models often garble letters, and the picture shouldn't show wrong German.
 - `generate_exercise_cue(client, exercise, *, account_id, api_token)` sends the prompt to Cloudflare Workers AI (`@cf/black-forest-labs/flux-1-schnell`) and returns the image bytes (JPEG), raising `httpx.HTTPError` on failure. The response wraps the base64 image either as `{"result": {"image": ...}}` or as bare `{"image": ...}`, and both are accepted.
 
-[`cues/__main__.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/authoring/cues/__main__.py) is the generator, run on demand after content changes (`python -m wiederholen.school.authoring.cues`). For each exercise of a topic with `cue_generation`, it checks whether a cue exists — a cheap `HEAD` request — and if not, generates and uploads one. At the end it logs one summary line: generated, already had one, no description, failed. There's no review step before upload: that summary is what the person who ran it reads to spot-check the result.
+[`cues/__main__.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/authoring/cues/__main__.py) is the generator, run on demand after content changes (`python -m wiederholen.school.authoring.cues`). For each exercise of a topic with `cue_generation`, it checks whether a cue exists — a cheap `HEAD` request — and if not, generates and uploads one. At the end it logs one summary line: generated, already had one, no description, failed. There's no review step before upload: that summary is what the person who ran it reads to spot-check the result. It's a one-off command rather than a service because exercises change rarely, at authoring time. It lives next to the code it drives rather than beside `bot` and `web`, since it's an authoring tool, not a frontend; and it's a package's `__main__` rather than a `cues.py` with `if __name__ == "__main__"` because `authoring/__init__.py` imports `cues`, and `python -m` on an already-imported module runs it a second time (runpy's "found in sys.modules" warning). It's the one module under `wiederholen.school` that reads environment variables, which is fine since nothing imports it.
 
 ### Keys
 
@@ -81,7 +81,7 @@ Editing a question's text changes its key, so its cue is orphaned: it's never sh
 
 - **`CueStore`** declares `get_cue_url(exercise)` and `upload_cue(exercise, image_bytes)`.
 - **`R2CueStore`** implements it on Cloudflare R2 with `aioboto3`, an async S3 client: `head_object` to check, `put_object` to upload (as `image/jpeg`). A cue's URL is `R2_PUBLIC_URL_BASE` plus the key (see [Configuration](configuration.md#illustrations)).
-- **`CachedCueStore`** wraps it in the bot with an in-process cache for 12 hours, so rendering a question doesn't hit R2 every time. "No cue yet" is cached too, so a new cue can take up to 12 hours to appear; a restart clears the cache.
+- **`CachedCueStore`** wraps it in the bot with an in-process cache for 12 hours, so rendering a question doesn't hit R2 every time. "No cue yet" is cached too, so a new cue can take up to 12 hours to appear; a restart clears the cache. The cache is in-process because the bot runs as one process, and losing it on restart costs only a few `HEAD` requests.
 
 In the bot, `bootstrap.load_cue_store()` builds the cached store, or returns `None` when R2 isn't configured. `_answer_with_optional_cue()` sends a question as a photo with the text as caption when the topic has cues, one exists, and the text fits Telegram's 1024-character caption limit — otherwise as plain text. A failed lookup is logged and falls back to text, so storage problems never block practice.
 
@@ -92,11 +92,9 @@ In the bot, `bootstrap.load_cue_store()` builds the cached store, or returns `No
 - **Storage**: `tests/school/test_cue_store.py` covers `R2CueStore` and the cache.
 - **In the bot**: handler tests pass a mocked `anthropic_client` or `cue_store` to `feed_message(...)`, the same way they pass the course.
 
-## Design notes
+## Decisions
 
-- **One package for generative AI.** Both parts call an external AI service and depend only on the course model, so they live together, away from `tutoring`. They share nothing else: different providers, different credentials, and neither imports the other.
-- **Shadow exercises keep the answer.** Letting the model write everything around a fixed answer makes the result correct by construction for `answer`; only `distractors` and `recalls` still depend on the model getting the grammar right.
-- **No fallback on failure.** For a testing tool, a visible error is more useful than a question that looks fine.
-- **The generator is a one-off command, not a service.** Exercises change at authoring time, rarely; nothing about cues is time-sensitive the way reminders are.
-- **The generator lives next to the code it drives**, as `cues/__main__.py`, not as a top-level package beside `bot` and `web`: it's an authoring tool, not another frontend. It's a package's `__main__` rather than a `cues.py` with `if __name__ == "__main__"` because `authoring/__init__.py` imports `cues`, and running an already-imported module with `python -m` executes it a second time (runpy's "found in sys.modules" warning). It's also the one place under `wiederholen.school` that reads environment variables, which is fine since nothing imports it.
-- **The cue cache is in-process.** The bot runs as one process, and losing the cache on restart costs only a few `HEAD` requests.
+- [ADR 0005](adr/0005-shadow-exercises-keep-the-answer.md): shadow exercises keep the answer.
+- [ADR 0006](adr/0006-ai-generation-fails-visibly.md): AI generation fails visibly, without a fallback.
+- [ADR 0014](adr/0014-cues-generated-ahead.md): illustrations are generated ahead of time.
+- [ADR 0017](adr/0017-cues-keyed-by-question-hash.md): illustrations are keyed by the question's hash.

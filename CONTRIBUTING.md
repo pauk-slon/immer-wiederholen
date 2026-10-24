@@ -52,7 +52,7 @@ docker compose run --rm bot pytest tests/school/test_curriculum.py -k word_bank
 
 - Fork the repository, work on a branch, and open a pull request; `main` changes only through pull requests.
 - Write titles and descriptions in English.
-- If a change affects the course format, configuration or architecture, update the matching page in [`docs/`](docs) in the same pull request. A course format change also needs [`demo/`](demo) updated: a test checks that it uses every field and setting.
+- If a change affects the course format, configuration or architecture, update the matching page in [`docs/`](docs) in the same pull request. A significant design decision — one with real alternatives that would be costly to reverse — also gets an [architecture decision record](docs/adr/README.md) in the same pull request. A course format change also needs [`demo/`](demo) updated: a test checks that it uses every field and setting.
 - Expect weekly Dependabot pull requests for Python packages and GitHub Actions.
 
 ## Issues and security

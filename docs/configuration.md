@@ -35,7 +35,7 @@ All are required by the processes marked. In addition, every process reads `COUR
 
 ### Redis
 
-The four `*_STORAGE_URL` variables are Redis URLs, e.g. `redis://valkey:6379/0`; Valkey works as well as Redis. Every store prefixes its keys, so they can share one database, but we recommend a database per store, as in `compose.yaml` — then each can be inspected, cleared or moved on its own:
+The four `*_STORAGE_URL` variables are Redis URLs, e.g. `redis://valkey:6379/0`; Valkey works as well as Redis. Every store prefixes its keys, so they can share one database, but we recommend a database per store, as in `compose.yaml` — then each can be inspected, cleared or moved on its own: Why each store has its own variable: [ADR 0009](adr/0009-one-environment-variable-per-store.md).
 
 | Variable | Database |
 |---|---|
@@ -60,6 +60,8 @@ On every start, the bot overwrites parts of its own profile in Telegram. The cha
 So give the project its own bot rather than reusing one made for something else. To keep the name and descriptions you set in BotFather, leave `bot.yaml` out of the course.
 
 ## Optional integrations
+
+Each integration is switched on by its variables, with no separate flag: without them the feature is simply off, and the bot starts normally.
 
 ### AI-generated questions
 
@@ -116,10 +118,8 @@ The bot, the reminder and the web app can send OpenTelemetry traces: one span pe
 | `OTEL_SERVICE_NAME` | `bot`, `reminder` or `web`. Set a different one per process: without it, all of them report as `unknown_service` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment=prod` |
 
-Only the OTLP/HTTP exporter is installed; `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` won't work. What gets traced is described in [Tracing](tracing.md).
+Only the OTLP/HTTP exporter is installed; `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` won't work. What gets traced is described in [Tracing](tracing.md). Tracing stays off without an explicit endpoint because the exporter would otherwise default to `localhost:4318` and keep retrying a collector that isn't there, filling the logs.
 
-## Design notes
+## Decisions
 
-- **One variable per store.** The stores share one Redis today, but each has its own URL so any of them can move to a separate server without touching the others. The student stores are shared by every frontend; each session store belongs to one frontend.
-- **Optional integrations turn on by their variables.** No separate on/off switch: a missing `ANTHROPIC_API_KEY` or `R2_ACCOUNT_ID` simply means the feature is off, and the bot starts normally.
-- **Tracing needs an explicit endpoint.** Without one, the OpenTelemetry exporter would default to `localhost:4318` and keep retrying a collector that isn't there, filling the logs.
+- [ADR 0009](adr/0009-one-environment-variable-per-store.md): one environment variable per store.
