@@ -56,7 +56,7 @@ So a pair answered correctly every time goes `0 → 1 → 2 → 4 → 8 → …`
 
 When the pair is next due:
 
-- **after a first answer or a wrong one**: today. A new learner — or one right after `/reset` — would otherwise run out of material partway through the first day, since every correct first answer would push its pair to tomorrow.
+- **after a first answer or a wrong one**: today. A new learner — or one right after `/reset` — would otherwise run out of material partway through the first day, since every correct first answer would push its pair to tomorrow. (A fallback that showed early reviews when nothing was due was tried twice for this and dropped both times as overcomplicated.)
 - **otherwise**: in `repetition_interval` days.
 
 Lateness doesn't matter: a pair answered correctly days after it was due doubles from its recorded interval as if it had been answered on time.
@@ -84,7 +84,7 @@ Their words fall into three tiers:
 
 A word is free once any of its topics has been answered. So if `warten` is being learned in one topic, its untouched other topics come up without spending the new-word limit, and so does a topic just unlocked by a link.
 
-`SelectablePairs.select_word()` takes as many queued words as today's remaining limit allows, then fills the rest with a random sample of fresh words, and picks uniformly among the free words and those taken. Fresh words are sampled down to the limit *before* the pick: a course with hundreds of untouched words doesn't dilute the chance of a handful of due ones.
+`SelectablePairs.select_word()` takes as many queued words as today's remaining limit allows, then fills the rest with a random sample of fresh words, and picks uniformly among the free words and those taken. Fresh words are sampled down to the limit *before* the pick: a course with hundreds of untouched words doesn't dilute the chance of a handful of due ones. This replaced a fixed weight between reviews and new material (`REVIEW_WEIGHT`), which a large pool of untouched words could swamp.
 
 `select_topic()` then prefers a topic of the chosen word that's **due for review** (answered before and due today); only if there's none does it pick among the word's new topics — including linked topics scheduled for today but not answered yet. A review has a deadline, new material doesn't.
 
@@ -95,7 +95,7 @@ At most 7 new **words** a day (`NEW_WORDS_PER_DAY`). In code, today's remaining 
 **Reviews have no limit.** A learner back after a week away gets every overdue review at once; only new words are held back.
  Words, not pairs: starting `sprechen` in two topics on one day is one new word.
 
-A word counts as new today if it has been introduced and every one of its introduced topics was introduced today. A word started days ago whose other topic gets its first answer today doesn't count. A word with only a queued entry and nothing answered doesn't count either.
+A word counts as new today if it has been introduced and every one of its introduced topics was introduced today. A word started days ago whose other topic gets its first answer today doesn't count. A word with only a queued entry and nothing answered doesn't count either: the check requires at least one introduced topic, since "all its introduced dates are today" is trivially true of a word with none — a bug once let queued words count as started.
 
 When the limit is what's left between the learner and more material, the bot's "Study more" button calls `Tutor.grant_new_word_budget()`, which adds 3 words to today's limit (`NEW_WORD_BUDGET_GRANT`). Grants stack: it's an opt-in for someone who explicitly wants more. A tap when the limit isn't reached does nothing — Telegram keeps old buttons tappable, and a tap on yesterday's button shouldn't raise today's limit. `/reset` leaves today's grants alone; they expire the next day anyway.
 
@@ -123,9 +123,9 @@ Either way the bot says the day is done and offers "Study more".
 - for each topic in `chains` and `gates` of the answered topic, the pair *(same word, that topic)*;
 - for each topic in `chains_by_answer`, the pair *(the exercise's answer, that topic)*.
 
-`_expedite_dependent()` gives such a pair an entry due today, with interval 0 — but only if the pair has no entry yet and the course has an exercise for it. A pair that already has an entry keeps it: once a linked topic has its own schedule, a link doesn't override it. Each scheduled pair is reported as a `TopicUnlocked` event.
+`_expedite_dependent()` gives such a pair an entry due today, with interval 0 — but only if the pair has no entry yet and the course has an exercise for it. A pair that already has an entry keeps it: once a linked topic has its own schedule, a link doesn't override it — otherwise topics linked to each other reset each other's due dates forever ([ADR 0004](adr/0004-links-only-schedule-unstarted-pairs.md)). Each scheduled pair is reported as a `TopicUnlocked` event.
 
-A gated topic's pairs without an entry are excluded from "new and available", so they can't be picked until a link gives them one. After that they're due like any other pair. Locked pairs don't affect `/progress`: they have no entry to count.
+A gated topic's pairs without an entry are excluded from "new and available" (why gates are declared separately from chains: [ADR 0012](adr/0012-gates-declared-explicitly.md)), so they can't be picked until a link gives them one. After that they're due like any other pair. Locked pairs don't affect `/progress`: they have no entry to count.
 
 `Course` merges `chains` and `gates` into `word_chained_topics` and keeps `chains_by_answer` as `answer_chained_topics`. An answer-chained topic can still be gated, through a `gates` entry under another topic: gating looks only at the topic, not at how its pair was scheduled.
 
@@ -155,7 +155,7 @@ Asking for an **optional** recall — after a correct answer — halves the pair
 
 `learning` and `mastered` count words, not pairs: a learner thinks "I'm learning `sprechen`", not about its topics separately. A word is mastered only when all its topics are — knowing a verb's Partizip II well doesn't make the verb mastered while its preposition is barely started.
 
-`remaining_today` counts only what's genuinely due, not new material: how many new pairs a day brings can't be known in advance, since one new word can lead to more pairs through links.
+`remaining_today` counts only what's genuinely due, not new material: how many new pairs a day brings can't be known in advance, since one new word can lead to more pairs through links. There's no total either: a count of every untouched pair once showed a learner with about 40 words in progress "290 exercises".
 
 ## Resetting
 
@@ -178,16 +178,13 @@ On the [demo course](https://github.com/pauk-slon/immer-wiederholen/tree/main/de
 
 - **"Today" is resolved once**, in `Tutor.__init__`, in UTC, and passed to `StudentRecord`. Every date comparison uses it — one place to change if days should ever follow a learner's time zone. Times rather than dates — when an answer was given, the reminder's inactivity window — use the current time directly.
 - **`Tutor` never handles a raw schedule entry.** It reads `StudentRecord.get_repetition_interval(word, topic)` and writes `StudentRecord.schedule_pair(word, topic, *, repetition_interval, due_interval=None)`. `due_interval` is days from today and defaults to the interval; it's passed only for "due again today". `schedule_pair()` updates the two fields in place, so `introduced_at` set moments earlier survives.
-- **`record_mark()`** records an answer in one call: it replaces `last_exercise`, updates `today_answers`, stamps `introduced_at` on a new pair, and returns whether the pair was new and its previous interval. The previous interval is read before the entry is created, so it's `None` for a pair that had no entry and `0` for one that had an unanswered entry.
+- **`record_mark()`** records an answer in one call: it replaces `last_exercise`, updates `today_answers`, stamps `introduced_at` on a new pair, and returns whether the pair was new and its previous interval. The previous interval is read before the entry is created, so it's `None` for a pair that had no entry and `0` for one that had an unanswered entry. `check_answer()` takes `is_new` from this return value rather than checking afterwards, when the answer is already recorded.
 - **`StudentRecord` doesn't know the course.** `Tutor` filters its results against the course's pairs, since a record can hold words and topics the course no longer has.
 - **Malformed entries are ignored**: entries are validated with pydantic, and anything that doesn't fit is treated as if it weren't there.
 - **`SelectablePairs` doesn't touch the record.** It splits the candidates into `due_introduced`, `due_not_introduced` and `not_scheduled`; `select_word()` and `select_topic()` get the few values they need — introduced words, today's remaining limit, the last pair — as parameters.
 
-## Design notes
+## Decisions
 
-- **No fixed ratio of reviews to new material.** An earlier `REVIEW_WEIGHT` mixed them by a fixed weight, which a large pool of untouched words could swamp. Sampling new words down to the daily limit before the pick replaced it.
-- **No borrowing from tomorrow.** A fallback that showed early reviews when nothing was due was tried twice and dropped both times as overcomplicated. Making first answers due again the same day solved the first-day shortage more simply.
-- **Links don't move existing entries.** An earlier version pulled a linked topic's due date to today on every answer. For topics that chain to each other (`partizip_ii` ⇄ `praeteritum`), each answer reset the other's due date, and learners got stuck answering the same pair of topics for one word.
-- **`is_new` comes from `record_mark()`.** It already checks whether `introduced_at` is set, at the only moment it's safe to ask — just before it sets it. A separate check afterwards would see the answer already recorded.
-- **A new-word counter can't be vacuously true.** "All of the word's introduced dates are today" holds for a word with no introduced topics at all, so the check requires at least one; a bug let queued words count as started.
-- **`/progress` has no total.** A count of every untouched pair in the course once showed a learner with about 40 words in progress "290 exercises" — not a number anyone can act on.
+- [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md): the engine reports events on the current span instead of returning them.
+- [ADR 0004](adr/0004-links-only-schedule-unstarted-pairs.md): topic links only schedule pairs that haven't started.
+- [ADR 0012](adr/0012-gates-declared-explicitly.md): gates are declared explicitly.
