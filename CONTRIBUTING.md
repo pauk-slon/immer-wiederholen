@@ -10,7 +10,7 @@ For local development, the repository comes with a Docker Compose setup ([`compo
    BOT_TOKEN=123456:ABC...
    ```
 
-2. Start the environment with the demo course:
+2. Start everything with the demo course:
 
    ```bash
    docker compose up
