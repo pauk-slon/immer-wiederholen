@@ -1,6 +1,9 @@
 # Contributing
 
-For how the code is organized, see [Architecture](docs/architecture.md). The full documentation is at [docs.immer-wiederholen.com](https://docs.immer-wiederholen.com/).
+Before you start, it helps to read:
+
+- [Architecture](docs/architecture.md), for how the code is organized
+- [the documentation site](https://docs.immer-wiederholen.com/), for everything else
 
 ## Setup
 
