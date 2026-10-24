@@ -6,7 +6,7 @@ The course format (`exercises.yaml`, `topics.yaml`, `bot.yaml`, every exercise f
 
 Every environment variable, the processes, and the optional integrations (Anthropic, R2/Workers AI, OpenTelemetry, feature flags) are documented for operators in `docs/configuration.md` — update it along with any new or renamed env var.
 
-Why significant decisions were made is in `docs/adr/` (index: `docs/adr/README.md`) — check it before reversing a design choice. A new decision with real alternatives gets its own ADR in the same pull request; ADRs are never rewritten, only superseded.
+Why significant decisions were made is in `docs/adr/` (index: `docs/adr/README.md`) — check it before reversing a design choice. A new decision with real alternatives gets its own ADR in the same pull request; an accepted ADR's decision and reasons are never rewritten, only superseded (editorial fixes are fine).
 
 `docs/` is also built into a site with Zensical (`zensical.toml`, see the Documentation section of `CONTRIBUTING.md`): a new page needs a `nav` entry there, links leaving `docs/` must be GitHub URLs, and `zensical build --strict` must pass.
 

@@ -79,7 +79,7 @@ The README, this file and the pages in `docs/` use simplified technical English,
 - Name the things you mean. Avoid vague words such as everything.
 - Give the reason for a rule, not only the rule.
 
-The strict STE dictionary doesn't apply. Code identifiers and terms such as span or middleware stay as they are. Accepted ADRs are never rewritten, so older ones may not follow this style.
+The strict STE dictionary doesn't apply. Code identifiers and terms such as span or middleware stay as they are. ADRs follow this style too. In an accepted ADR, you can change the wording, but not the decision or its reasons.
 
 ## Pull requests
 

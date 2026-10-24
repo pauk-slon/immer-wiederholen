@@ -18,7 +18,7 @@ Each file is named `NNNN-short-title.md`. The numbers follow the order of writin
 - **Alternatives considered.** The other options and the reasons why they weren't chosen.
 - **Consequences.** The results of the decision, good and bad.
 
-Nobody rewrites an accepted ADR, because it records the reasons at the time of the decision. When a decision changes, write a new ADR and mark the old one `Superseded by NNNN`.
+The decision and the reasons in an accepted ADR never change, because the ADR records them as they were at the time of the decision. Editorial fixes are allowed, such as clearer wording, typos and broken links. When a decision changes, write a new ADR and mark the old one `Superseded by NNNN`.
 
 The decisions from before the project had ADRs are recorded afterwards. Their ADRs are based on the pull requests and issues of that time and have their dates.
 
