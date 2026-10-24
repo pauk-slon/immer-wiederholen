@@ -1,9 +1,6 @@
 # Contributing
 
-Before you start, it helps to read:
-
-- [Architecture](docs/architecture.md), for how the code is organized
-- [the documentation site](https://docs.immer-wiederholen.com/), for everything else
+Before you start, read [Architecture](https://docs.immer-wiederholen.com/architecture/) on the [documentation site](https://docs.immer-wiederholen.com/).
 
 ## Setup
 
