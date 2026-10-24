@@ -10,7 +10,7 @@ Add the ADR for a new decision in the same pull request that makes the decision.
 
 ## Format
 
-Each file is named `NNNN-short-title.md`. The numbers follow the order of writing. Each ADR has these sections:
+Each file is named `NNNN-short-title.md`. The numbers follow the order of writing. Each ADR has a status line and four sections:
 
 - **Status.** `Accepted` after the pull request that makes the decision is merged, or `Superseded by NNNN`. The status has the date and a link to that pull request.
 - **Context.** The situation and the problem.
@@ -18,13 +18,13 @@ Each file is named `NNNN-short-title.md`. The numbers follow the order of writin
 - **Alternatives considered.** The other options and the reasons why they weren't chosen.
 - **Consequences.** The results of the decision, good and bad.
 
-Nobody rewrites an accepted ADR, because it records the reasons at the time of the decision. When a decision changes, write a new ADR and mark the old one `Superseded by NNNN`.
+Don't rewrite an accepted ADR, because it records the reasons at the time of the decision. When a decision changes, write a new ADR and mark the old one `Superseded by NNNN`.
 
-The decisions from before the project had ADRs are recorded afterwards. Their ADRs are based on the pull requests and issues of that time and have their dates.
+The decisions from before the project had ADRs are recorded afterwards. Each such ADR is based on the pull requests and issues of that time and has the date of the decision.
 
 ## Index
 
-The numbers follow the order of writing. The date is the day of the decision.
+The date is the day of the decision.
 
 ### Process
 
