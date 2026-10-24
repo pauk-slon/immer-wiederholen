@@ -1,6 +1,6 @@
 # Observability
 
-The bot, the reminder and the web app are observed through OpenTelemetry traces. This page describes what they record, what they don't, and how to add more. There are no metrics. Warnings and errors are logged with Python's `logging` and end up in the container's output.
+The bot, the reminder and the web app record OpenTelemetry traces. This page describes what they record, what they don't, and how to add more. There are no metrics. Logs go to the container's output through Python's `logging`.
 
 Tracing is off unless an OTLP endpoint is set. How to turn it on is covered in [Configuration](configuration.md#tracing).
 
@@ -10,11 +10,11 @@ Every unit of work gets one root span. Everything it does, such as Redis calls a
 
 | Span | Process | Attributes |
 |---|---|---|
-| `telegram.message` | bot | `telegram.chat_id`. If the text starts with `/`, also `telegram.command`, the first word, such as `/wiederholen` |
+| `telegram.message` | bot | `telegram.chat_id`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/` |
 | `telegram.callback_query` | bot | `telegram.callback_data`. Also `telegram.chat_id`, unless the button belongs to an old message Telegram no longer returns |
 | `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
-| `telegram.update` | bot | none. Used for any other kind of update |
-| `reminder.tick` | reminder | none. One sweep over all chats |
+| `telegram.update` | bot | none (any other kind of update) |
+| `reminder.tick` | reminder | none (one sweep over all chats) |
 | `reminder.check_chat` | reminder | `telegram.chat_id`, `reminder.sent` (the reminder went out), `reminder.bot_blocked` (the chat was skipped because the learner had blocked the bot, or Telegram refused the message for that reason). Nested in `reminder.tick` |
 | an HTTP server span per request | web | the usual HTTP attributes, from Litestar's OpenTelemetry plugin. For `POST /api/client-error`, also `client.error.step` and `client.error.status` |
 | a span per Redis command | all three | from `opentelemetry-instrumentation-redis` |
@@ -23,7 +23,7 @@ The web widget reports its own failures to `POST /api/client-error`. It sends th
 
 Text typed by learners is never recorded. A message span carries only the command. Callback data is always a value the bot generated itself. It is a button id, sometimes with a topic group id or a reminder interval appended (`__topic_group__:verbs`, `__remind_after__:8`).
 
-An exception raised inside a span is recorded on it automatically. In the reminder, a failing chat is recorded on its `reminder.check_chat` span. Then the sweep catches the error, logs it and moves on to the next chat.
+An exception raised inside a span is recorded on it automatically. In the reminder, an error in one chat is recorded on that chat's `reminder.check_chat` span. The sweep then logs it and moves on to the next chat.
 
 ### Events from the repetition engine
 
@@ -33,9 +33,9 @@ An exception raised inside a span is recorded on it automatically. In the remind
 |---|---|---|
 | `ExerciseAnswered` | every `check_answer()` | `word`, `topic`, `is_correct`, `is_new`, `recall_mode` (`none`, `optional`, `required`), `prev_repetition_interval` (absent on a pair's first answer), `next_repetition_interval` |
 | `TopicUnlocked` | a linked topic is scheduled for a word (see [Course format](course-format.md#linking-topics)) | `source_topic`, `dependent_topic`, `via` (`chain` or `gate`) |
-| `NoExerciseAvailable` | `next_exercise()` finds nothing to show | `reason`. It is `daily_cap_reached` when only new words are left and today's limit is used up, and `nothing_available` otherwise |
+| `NoExerciseAvailable` | `next_exercise()` finds nothing to show | `reason` (`daily_cap_reached` when only new words are left and today's limit is used up, otherwise `nothing_available`) |
 
-Recalls produce no events. `request_recall()` and `check_recall()` don't emit anything.
+`request_recall()` and `check_recall()` emit no events.
 
 ### What isn't traced
 
@@ -65,11 +65,11 @@ The `main()` of the bot, the reminder and the web app call `configure_tracing()`
 
 Without these, every Redis call would be a root span of its own.
 
-### Repetition engine: emit()
+### How `Tutor` emits events
 
 [`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the three events as frozen dataclasses. `emit(event)` adds one to `trace.get_current_span()`, named after the dataclass. Before that, `_to_otel_attributes()` turns the dataclass into span attributes. Enum values are replaced by their `.value`, and `None` fields are left out, since neither is a valid attribute value. Events go onto the span rather than being returned, and they are dataclasses rather than dict literals (see [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md)).
 
-This makes `tutoring` depend on the OpenTelemetry API. It depends only on the API, which is a safe no-op without a configured provider, so `Tutor`'s tests don't need any tracing setup.
+So `tutoring` depends on the OpenTelemetry API, but not on the SDK. The API is a safe no-op without a configured provider, so `Tutor`'s tests don't need any tracing setup.
 
 The events are internal to `tutoring`. Only `RecallMode` is exported, since the bot needs it for its recall flow.
 
@@ -84,13 +84,13 @@ The events are internal to `tutoring`. Only `RecallMode` is exported, since the 
 
 ## Testing
 
-- **Nothing is exported from tests.** `tests/plugins/tracing.py::pytest_configure` sets `OTEL_SDK_DISABLED=true` for the whole session. `docker compose run --rm bot pytest` shares the `bot` service's configuration. Without this setting, a test run with real exporter settings would send spans to the real backend.
+- **Nothing is exported from tests.** `tests/plugins/tracing.py::pytest_configure` sets `OTEL_SDK_DISABLED=true` for the whole session. Tests run in the `bot` service (`docker compose run --rm bot pytest`) and inherit its environment. If that environment points at a real backend, a test run would otherwise send spans there.
 - **Span content is checked against an in-memory exporter.** The shared `tracer` and `exporter` fixtures build a recording `TracerProvider` with an `InMemorySpanExporter` and re-enable the SDK just for that provider. `tests/bot/test_tracing.py` uses them for `TracingMiddleware`. `tests/school/tutoring/test_tutoring_events.py` uses them for the events. It runs `check_answer()` or `next_exercise()` inside `tracer.start_as_current_span(...)` and reads `span.events`.
 - **The global provider is never used in tests.** `trace.set_tracer_provider()` works only once per process, and later calls are silently ignored, so tests construct their providers directly. `configure_tracing()` and `instrument_redis()` themselves are tested in `tests/test_tracing.py`.
 
 ## Local setup
 
-To send traces from a local run, put the `OTEL_*` variables in a gitignored `compose.override.yaml` next to `compose.yaml` (see [Contributing](https://github.com/pauk-slon/immer-wiederholen/blob/main/CONTRIBUTING.md)). Compose merges `environment` per service, so each of `bot`, `reminder` and `web` needs its own block, with its own `OTEL_SERVICE_NAME`.
+To send traces from a local run, put the `OTEL_*` variables in a gitignored `compose.override.yaml` next to `compose.yaml` (see [Contributing](https://github.com/pauk-slon/immer-wiederholen/blob/main/CONTRIBUTING.md#setup)). Compose merges `environment` per service, so each of `bot`, `reminder` and `web` needs its own block, with its own `OTEL_SERVICE_NAME`.
 
 A stray `=` in a key, like `OTEL_RESOURCE_ATTRIBUTES=: ...`, isn't an error in Compose. The `=` silently ends up in the value. For `OTEL_RESOURCE_ATTRIBUTES` that shows up as an `invalid key` warning from OpenTelemetry. `docker compose config` shows what the variables actually resolve to.
 
