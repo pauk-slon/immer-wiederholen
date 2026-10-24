@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
-      - run: uv sync --frozen --only-group docs
+      - run: uv sync --frozen
       # --strict fails the build on a link to a missing page or anchor.
       - run: uv run --no-sync zensical build --strict --clean
       - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

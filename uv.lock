@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 
 [[package]]
@@ -1824,8 +1824,6 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "ty" },
-]
-docs = [
     { name = "zensical" },
 ]
 
@@ -1853,8 +1851,8 @@ dev = [
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "ruff", specifier = ">=0.16.2" },
     { name = "ty", specifier = ">=0.0.72" },
+    { name = "zensical", specifier = ">=0.0.72" },
 ]
-docs = [{ name = "zensical", specifier = ">=0.0.72" }]
 
 [[package]]
 name = "wrapt"

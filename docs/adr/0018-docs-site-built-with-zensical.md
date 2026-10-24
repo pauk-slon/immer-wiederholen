@@ -19,6 +19,6 @@ Other generators (Sphinx, Docusaurus) weren't evaluated: the choice was between 
 
 ## Consequences
 
-- Zensical is still before 1.0; an upgrade can break the build. It's pinned in `uv.lock` (the `docs` dependency group), so an upgrade lands in a pull request, where the strict build shows it.
+- Zensical is still before 1.0; an upgrade can break the build. It's pinned in `uv.lock` (the `dev` dependency group), so an upgrade lands in a pull request, where the strict build shows it.
 - Every page under `docs/` needs a `nav` entry in `zensical.toml`, except individual ADRs, which are reached from their index.
 - Links that leave `docs/` (`CONTRIBUTING.md`, `demo/`, code) must be GitHub URLs: the site sees only `docs/`.

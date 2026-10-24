@@ -33,11 +33,6 @@ addopts = [
 [tool.coverage.report]
 exclude_also = ["if TYPE_CHECKING:"]
 
-[tool.uv]
-# The dev image gets docs too, so `zensical` is there without a re-sync;
-# the build and prod stages skip both with --no-default-groups.
-default-groups = ["dev", "docs"]
-
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
@@ -45,7 +40,5 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.16.2",
     "ty>=0.0.72",
-]
-docs = [
     "zensical>=0.0.72",
 ]
