@@ -1,19 +1,19 @@
 # Storage and identity
 
-Where per-learner state is kept, how handlers read and write it, and how a login is resolved to a learner. The overview of all stores is in [Architecture](architecture.md#processes-and-state); their environment variables are in [Configuration](configuration.md#redis).
+This page describes where the state of each learner is stored, how handlers read and write it, and how a login leads to a learner. [Architecture](architecture.md#processes-and-state) gives an overview of all stores. [Configuration](configuration.md#redis) lists their environment variables.
 
-In code, a learner is a *student*: `StudentID`, `StudentRecord`, `StudentRecordBook`.
+In the code, a learner is a *student* (`StudentID`, `StudentRecord`, `StudentRecordBook`).
 
 ## Student records
 
-A **student record** is the learner's repetition schedule and progress: a plain JSON-compatible `dict` that `Tutor` reads and changes (see [Repetition schedule](repetition-schedule.md)). It's the one piece of per-learner state every frontend shares, so a learner who practices in Telegram and then logs in on the web continues where they left off.
+A **student record** holds the learner's repetition schedule and progress. It is a plain JSON-compatible `dict` that `Tutor` reads and changes (see [Repetition schedule](repetition-schedule.md)). The record is the one piece of learner state that all frontends share, so a learner who practices in Telegram and then logs in on the web continues from the same point.
 
 [`StudentRecordBook`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_record_book.py) stores records by `StudentID`. It has two public members:
 
-- **`check_out(student_id)`**, an async context manager that loads the record, hands it out for changing in place, and saves it when the block ends.
-- **Iteration** — `async for student_id in student_record_book` yields the id of every learner with a stored record. Like iterating a `dict`, it yields keys only; read a record with `check_out()`. Nothing outside the tests uses it today: the reminder finds learners through their Telegram logins instead (see [Student identity](#student-identity)).
+- **`check_out(student_id)`.** An async context manager. It loads the record, gives it to the caller to change in place, and saves it when the block ends.
+- **Iteration.** `async for student_id in student_record_book` yields the id of each learner with a stored record. Like the iteration of a `dict`, it yields only keys. To read a record, use `check_out()`. Today only the tests use iteration. The reminder finds learners through their Telegram logins instead (see [Student identity](#student-identity)).
 
-Every handler that touches a record opens exactly one `check_out()` per request and does its work — including sending replies — inside the block:
+Every handler that uses a record opens exactly one `check_out()` per request. It does all its work inside the block, including the replies:
 
 ```python
 student_id = await student_identity_store.resolve_or_create_student_id(
@@ -26,78 +26,78 @@ async with student_record_book.check_out(student_id) as student_record:
     await message.answer(...)
 ```
 
-It's called `check_out`, not `open`: `book.open(id)` would read as opening the book itself, while a library checkout borrows one item and returns it, which is what the block does.
+The method is called `check_out`, not `open`. `book.open(id)` would read as if it opens the book itself. A library checkout borrows one item and returns it, and the block does the same with a record.
 
 ### Saved only when changed
 
-`check_out()` takes a deep copy of the record right after loading it and, when the block ends, saves only if the record differs from that copy. This one rule covers every caller:
+Right after it loads the record, `check_out()` makes a deep copy of it. When the block ends, `check_out()` saves the record only if it differs from that copy. This one rule works for every caller:
 
-- a handler that always changes the record (recording an answer) always saves;
-- a handler that only reads (`/progress`) never writes;
-- a handler that changes it on one branch only (the reminder, which records a reminder only after it was sent) saves only then.
+- A handler that always changes the record, such as one that records an answer, always saves.
+- A handler that only reads, such as `/progress`, never writes.
+- A handler that changes the record on one branch only saves only on that branch. An example is the reminder, which records a reminder only after Telegram accepted it.
 
-The comparison runs in a `finally` block, so a change made before an error — `check_answer()` succeeded, then sending the reply failed — is still saved rather than lost.
+The comparison runs in a `finally` block, so a change made before an error is still saved. For example, if `check_answer()` succeeded and then the reply failed, the answer isn't lost.
 
 ### Concurrent requests: last write wins
 
-`check_out()` doesn't lock anything. aiogram handles updates concurrently by default (`handle_as_tasks=True`), so two updates from one learner arriving at once — say, two quick taps — both load the same version of the record, and whichever saves last overwrites the other's changes. There's no protection against this today; see [#249](https://github.com/pauk-slon/immer-wiederholen/issues/249).
+`check_out()` doesn't lock anything. aiogram handles updates concurrently by default (`handle_as_tasks=True`). If two updates from one learner arrive at the same time, for example after two quick taps, both load the same version of the record. The update that saves last overwrites the changes of the other. Today nothing protects against this (see [#249](https://github.com/pauk-slon/immer-wiederholen/issues/249)).
 
 ### Redis implementation
 
-`RedisStudentRecordBook` keeps one JSON value per learner under `student_record:{student_id}`. An empty record is stored as no key at all, so a learner with nothing recorded doesn't show up when iterating.
+`RedisStudentRecordBook` stores one JSON value per learner under `student_record:{student_id}`. An empty record has no key at all, so iteration doesn't show a learner with nothing recorded.
 
-Closing the connection is specific to the Redis implementations, not part of the abstract stores: `RedisStudentRecordBook` and `RedisStudentIdentityStore` are async context managers (`async with RedisStudentRecordBook.from_url(url) as book:`), and there's no public `close()` to forget: a store's lifetime is scoped with `async with`, the protocol Python readers expect from anything holding a resource. Only the tests scope a store this way; the bot and the reminder never close theirs and let the process exit release the connection.
+Only the Redis implementations close a connection. The abstract stores have no such step. `RedisStudentRecordBook` and `RedisStudentIdentityStore` are async context managers (`async with RedisStudentRecordBook.from_url(url) as book:`). They have no public `close()` that a caller could forget. `async with` limits the lifetime of a store, because Python readers expect this protocol from an object that holds a resource. Only the tests use stores this way. The bot and the reminder never close their stores, and the connection closes when the process exits.
 
-`Tutor` never touches `StudentRecordBook`: it receives a plain `dict` from whichever frontend calls it. That's what keeps `tutoring` free of I/O.
+`Tutor` never uses `StudentRecordBook`. It gets a plain `dict` from the frontend that calls it, and this keeps `tutoring` free of I/O.
 
 ## Chat state
 
-Everything else about a Telegram chat lives in aiogram's FSM storage, a plain [`RedisStorage`](https://docs.aiogram.dev/en/latest/dispatcher/finite_state_machine/storages.html) used as aiogram ships it:
+The other state of a Telegram chat is in aiogram's FSM storage. This is a plain [`RedisStorage`](https://docs.aiogram.dev/en/latest/dispatcher/finite_state_machine/storages.html), used as aiogram ships it. It has two kinds of data:
 
-- **chat settings**: `language`, `ai_mode`, `topic_groups`, `remind_after_hours`, and the `bot_blocked` flag, set when the learner blocks the bot (see [Blocked chats](bot.md#blocked-chats));
-- **the conversation in progress**: the FSM state (`answering`, `recalling`), the exercise and recall being answered (`shown_exercise`, `shown_recall`), and the message whose inline buttons are still live (`last_buttoned_message_id`).
+- **Chat settings.** These are `language`, `ai_mode`, `topic_groups` and `remind_after_hours`, and the `bot_blocked` flag that the bot sets when the learner blocks it (see [Blocked chats](bot.md#blocked-chats)).
+- **The current conversation.** This is the FSM state (`answering`, `recalling`), the exercise and recall that the learner is answering (`shown_exercise`, `shown_recall`), and the message with active inline buttons (`last_buttoned_message_id`).
 
-When an exercise ends, the conversation state is cleared but the settings are kept: they're listed in `_CHAT_SETTINGS_KEYS` in `commands/wiederholen.py`, and a new chat-level setting must be added there, or it's lost after every exercise.
+When an exercise ends, the bot clears the conversation but keeps the settings. `_CHAT_SETTINGS_KEYS` in `commands/wiederholen.py` lists the settings. Add a new chat-level setting to it, or the setting is lost after every exercise.
 
-None of this is part of the student record — so `/reset`, which wipes the record, leaves it alone — because it's about one Telegram chat, not about what the learner knows. The web app has its own equivalent (`WebSessionStore`, see [Web frontend](web-frontend.md)).
+None of this data is part of the student record, because it is about one Telegram chat and not about what the learner knows. For this reason `/reset`, which deletes the record, doesn't change it. The web app has its own store for the same purpose (`WebSessionStore`, see [Web frontend](web-frontend.md)).
 
-`wiederholen.bot` creates its `dispatcher` with aiogram's default in-memory storage, so importing the package — e.g. in tests — needs no Redis. The real stores are built at startup by `bootstrap.load_bot_course_and_storage()`, which returns the bot, the course, the `RedisStorage`, the `StudentRecordBook` and the `StudentIdentityStore`. Both the bot and the reminder call it: the reminder has no routers, but still reads each chat's FSM data for its language and settings.
+`wiederholen.bot` creates its `dispatcher` with aiogram's default in-memory storage, so an import of the package, for example in tests, needs no Redis. At startup, `bootstrap.load_bot_course_and_storage()` builds the real stores. It returns the bot, the course, the `RedisStorage`, the `StudentRecordBook` and the `StudentIdentityStore`. The bot and the reminder both call it. The reminder has no routers, but it still reads the FSM data of each chat for its language and settings.
 
 ## Student identity
 
-A learner can be reached in more than one way — a Telegram chat, a logged-in browser — and each must lead to the same `StudentID`. [`StudentIdentityStore`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_identity_store.py) maps a login to it. The id isn't derived from the chat, and there's no separate account id (see [ADR 0003](adr/0003-separate-accounts-from-logins.md)).
+A learner can use the project in more than one way, for example in a Telegram chat or in a logged-in browser. Each way must lead to the same `StudentID`. [`StudentIdentityStore`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_identity_store.py) maps a login to it. The id isn't derived from the chat, and there's no separate account id (see [ADR 0003](adr/0003-separate-accounts-from-logins.md)).
 
-It keeps two concepts apart:
+The store keeps two concepts apart:
 
-- an **account** — the learner and everything they've learned — is a `StudentID`, an opaque random string (`secrets.token_urlsafe(32)`) that `StudentRecordBook` is addressed by;
-- a **login** is one way of proving you're that learner: a `provider` (`"telegram"` or `"browser"`) plus that provider's own `identifier` — a Telegram chat id, or a browser token minted when someone logs in with Telegram on the web.
+- An **account** is the learner and what they have learned. It is a `StudentID`, an opaque random string (`secrets.token_urlsafe(32)`). `StudentRecordBook` uses it as the key.
+- A **login** is one way to prove that you are that learner. It is a `provider` (`"telegram"` or `"browser"`) with that provider's own `identifier`. The identifier is a Telegram chat id, or a browser token that the web app makes when someone logs in with Telegram.
 
 | Method | What it does |
 |---|---|
-| `resolve_or_create_student_id(provider, identifier)` | the learner for this login; for an unknown login, creates a new learner and links it. The bot calls it for every update, the web app after a Telegram login — which is how both end up at the same learner |
-| `resolve_student_id(provider, identifier)` | the same lookup, but `None` for an unknown login — for callers where that means "fall back to something else", like a stale browser cookie |
-| `link_identity(student_id, provider, identifier)` | attaches a login to an existing learner. Raises `IdentityAlreadyLinkedError` if the login already belongs to a different learner; linking it to the same one again is a no-op |
-| `iter_identifiers(provider)` | every `(identifier, student_id)` linked for one provider — the reminder uses it to find all Telegram chats |
+| `resolve_or_create_student_id(provider, identifier)` | returns the learner for this login. For an unknown login, it creates a new learner and links the login to it. The bot calls it for every update, and the web app calls it after a Telegram login. This is how both frontends get the same learner |
+| `resolve_student_id(provider, identifier)` | the same lookup, but it returns `None` for an unknown login. It is for callers that then use something else, such as a request with an old browser cookie |
+| `link_identity(student_id, provider, identifier)` | links a login to an existing learner. It raises `IdentityAlreadyLinkedError` if the login already belongs to a different learner. A second link to the same learner does nothing |
+| `iter_identifiers(provider)` | yields each `(identifier, student_id)` for one provider. The reminder uses it to find all Telegram chats |
 
-`RedisStudentIdentityStore` stores one key per login, `identity:{provider}:{identifier}`, holding the `StudentID`. It writes with `SET … NX`, so two first-time requests for the same new login racing each other end up with one learner, not two.
+`RedisStudentIdentityStore` stores one key per login, `identity:{provider}:{identifier}`, with the `StudentID` as the value. It writes with `SET … NX`. If two first requests for the same new login arrive at the same time, the result is one learner, not two.
 
-Anonymous web visitors aren't in this store at all: they have no login, and counting every visitor as a learner would make the store's size meaningless. Their ids are random tokens kept in a cookie instead (`WebStudentID`, see [Web frontend](web-frontend.md)).
+Anonymous web visitors aren't in this store. They have no login, and if every visitor counted as a learner, the size of the store would mean nothing. Their ids are random tokens in a cookie (`WebStudentID`, see [Web frontend](web-frontend.md)).
 
-On naming: `identifier`, not `id` (shadows the builtin), `subject` (borrows OpenID Connect vocabulary for a protocol this isn't) or `provider_user_id` (long, once the store gives the context). The store was called `CredentialStore` until it became clear it holds no credential — only the result of one having been checked.
+The parameter is called `identifier`, not `id`, because `id` would shadow the builtin. Other names were too long or came from other protocols.
 
 ## Testing
 
-Tests run against a real Redis (Valkey), not an in-memory fake: it's fast enough at this suite's size and catches behavior a fake wouldn't.
+Tests use a real Redis (Valkey), not an in-memory fake. Valkey is fast enough for a test suite of this size, and it catches behavior that a fake would miss.
 
-- **A dedicated database.** `tests/plugins/aiogram.py::pytest_configure` points all four store URLs at one database, 15 by default (the `--redis-db-override` option set in `pyproject.toml`), before any test runs. `docker compose run --rm bot pytest` shares the `bot` service's configuration, and the fixtures flush their database before every test — so without this, a test run would wipe the local bot's data.
-- **CI keeps the stores apart.** CI passes `--redis-db-override=""` and gives each store its own database on its throwaway Valkey, so a test that reads from the wrong store fails there instead of passing because everything shares one database.
-- **Each fixture clears its own database.** Every store fixture (`redis_storage` for FSM, `student_record_book`, `student_identity_store`, `web_session_store`) flushes its own database before every test rather than assuming they share one.
-- **Shared infrastructure is registered once.** The `student_record_book` fixture registers itself as permanent aiogram workflow data (`dispatcher["student_record_book"] = ...`), as `main()` does at startup, so tests don't pass it to every `feed_message()` call. The course differs between tests and is passed per call.
-- **Function-scoped fixtures.** pytest-asyncio gives every test its own event loop, and a Redis connection can't outlive the loop it was created in.
+- **A dedicated database.** Before any test runs, `tests/plugins/aiogram.py::pytest_configure` sets all four store URLs to one database. By default this is database 15, from the `--redis-db-override` option in `pyproject.toml`. `docker compose run --rm bot pytest` uses the configuration of the `bot` service, and the fixtures flush their database before every test. Without this option, a test run would delete the data of the local bot.
+- **Separate stores in CI.** CI passes `--redis-db-override=""` and gives each store its own database on a temporary Valkey. A test that reads from the wrong store then fails in CI. With one shared database, it would pass.
+- **Each fixture clears its own database.** Every store fixture (`redis_storage` for FSM, `student_record_book`, `student_identity_store`, `web_session_store`) flushes its own database before every test. It doesn't assume that the stores share one database.
+- **Shared objects are registered once.** The `student_record_book` fixture registers itself as permanent aiogram workflow data (`dispatcher["student_record_book"] = ...`), as `main()` does at startup, so tests don't pass it to every `feed_message()` call. The course differs between tests, so tests pass it with each call.
+- **Function-scoped fixtures.** pytest-asyncio gives every test its own event loop, and a Redis connection can't outlive the loop that created it.
 
 ## Decisions
 
-- [ADR 0003](adr/0003-separate-accounts-from-logins.md): learners are separate from the ways they log in.
-- [ADR 0007](adr/0007-save-records-only-when-changed.md): a student record is saved only when it changes.
-- [ADR 0008](adr/0008-student-record-separate-from-chat-state.md): the student record is kept apart from chat state.
-- [ADR 0009](adr/0009-one-environment-variable-per-store.md): one environment variable per store.
+- [Separate learners from the ways they log in](adr/0003-separate-accounts-from-logins.md) (ADR 0003)
+- [Save a student record only when it changes](adr/0007-save-records-only-when-changed.md) (ADR 0007)
+- [Keep the student record separate from chat state](adr/0008-student-record-separate-from-chat-state.md) (ADR 0008)
+- [One environment variable per store](adr/0009-one-environment-variable-per-store.md) (ADR 0009)
