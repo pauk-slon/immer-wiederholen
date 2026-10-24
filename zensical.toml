@@ -33,6 +33,9 @@ nav = [
 
 [project.theme]
 language = "en"
+# System fonts, no Google Fonts: embedding them sends visitors' IPs to
+# Google, which German courts have held to breach the GDPR.
+font = false
 features = [
   "content.action.edit",
   "content.code.copy",
