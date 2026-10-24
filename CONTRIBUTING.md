@@ -4,7 +4,7 @@ Before you start, read [Architecture](https://docs.immer-wiederholen.com/archite
 
 ## Setup
 
-For local development, the repository comes with a Docker Compose setup ([`compose.yaml`](compose.yaml)) that runs the bot, the reminder, the web app and Valkey.
+The repository has a Docker Compose setup ([`compose.yaml`](compose.yaml)) for local development. It runs the bot, the reminder, the web app and Valkey.
 
 1. Create a separate bot for development with [@BotFather](https://t.me/BotFather) and put its token in `.env`:
 
@@ -12,7 +12,7 @@ For local development, the repository comes with a Docker Compose setup ([`compo
    BOT_TOKEN=123456:ABC...
    ```
 
-   A production bot's token won't do: only one process can poll a bot at a time, and the bot rewrites its Telegram profile on start (see [Configuration](docs/configuration.md#what-the-bot-changes-in-its-telegram-profile)).
+   Don't use a production bot's token. Only one process can poll a bot at a time, so a local run would interrupt the production bot. The bot also rewrites its Telegram profile on start, so a local run would change the production profile (see [Configuration](docs/configuration.md#what-the-bot-changes-in-its-telegram-profile)).
 
 2. Start the services with the demo course:
 
@@ -20,7 +20,7 @@ For local development, the repository comes with a Docker Compose setup ([`compo
    docker compose up
    ```
 
-To use another course, put it in `data/` and set `COURSE_PATH=data` in `.env`. The directory is gitignored, and the repository is mounted into the containers, so they see it.
+To use another course, put it in `data/` and set `COURSE_PATH=data` in `.env`. Git ignores `data/`. Compose mounts the repository into the containers, so the services can read the course.
 
 ## Running commands
 
@@ -34,15 +34,15 @@ docker compose run --rm bot ty check .
 docker compose run --rm bot uv add <package>
 ```
 
-CI runs `ruff check`, `ty check` and `pytest` on every pull request, and builds the docs site (see [Documentation](#documentation)). All of these must pass. CI doesn't check formatting, so run `ruff format .` before committing.
+CI runs `ruff check`, `ty check` and `pytest` on every pull request, and builds the docs site (see [Documentation](#documentation)). All of these must pass. CI doesn't check formatting, so run `ruff format .` before you commit.
 
 ## Tests
 
-- **Tests run against a real Valkey server** (Redis-compatible), the one from `compose.yaml`, not a fake. `docker compose run` starts it by itself. To keep them away from your local data, all stores are pointed at database 15 for the test run (the `--redis-db-override` option in `pyproject.toml`), which is cleared before each test.
-- **Coverage is 100%**, and we keep it there by agreement: CI doesn't fail on lower coverage, it only posts a report on the pull request. `pytest` prints the missing lines.
-- **Mock objects are created with `spec=`**, so a test fails when the mocked interface changes. A single replaced function can be a plain `AsyncMock(return_value=...)`.
-- **Dates are relative.** Fixtures use `date.today()` plus a `timedelta` rather than freezing time.
-- Shared fixtures live in [`tests/plugins/`](tests/plugins).
+- **Tests use the real Valkey server from `compose.yaml`** (Redis-compatible), not a fake, so they check real Redis behavior. `docker compose run` starts it automatically. All stores use database 15 during the test run (the `--redis-db-override` option in `pyproject.toml`), so the tests don't touch your local data. Each test starts with an empty database 15.
+- **Keep coverage at 100%.** CI doesn't enforce it and only posts a coverage report on the pull request. `pytest` prints the lines that the tests don't cover.
+- **Create mock objects with `spec=`**, so a test fails when the mocked interface changes. A mock for a single replaced function can be a plain `AsyncMock(return_value=...)`.
+- **Use relative dates.** Fixtures use `date.today()` plus a `timedelta`, so the tests need no library that freezes time.
+- **Put shared fixtures in [`tests/plugins/`](tests/plugins).**
 
 To run part of the suite, pass pytest's usual arguments:
 
@@ -64,7 +64,7 @@ To preview the site at `http://localhost:8001/` while you edit, run the command 
 docker compose run --rm -p 8001:8000 bot zensical serve -a 0.0.0.0:8000
 ```
 
-With `--strict`, the build fails on a link to a missing page or heading. The check on pull requests uses the same flag. When you add a page, add an entry for it to `nav` in [`zensical.toml`](zensical.toml). ADRs are not in `nav`. A new ADR needs only a line in the [ADR index](docs/adr/README.md). The site contains only `docs/`. So a link from `docs/` to anything outside it, such as code, `demo/` or `CONTRIBUTING.md`, must be a GitHub URL.
+With `--strict`, the build fails on a link to a missing page or heading. The check on pull requests uses the same flag. When you add a page, add an entry for it to `nav` in [`zensical.toml`](zensical.toml). ADRs are not in `nav`. A new ADR needs only a line in the [ADR index](docs/adr/README.md). The site contains only `docs/`, so a link from `docs/` to anything outside it, such as code, `demo/` or `CONTRIBUTING.md`, must be a GitHub URL.
 
 ### Writing style
 
@@ -83,12 +83,12 @@ The strict STE dictionary doesn't apply. Code identifiers and terms such as span
 
 ## Pull requests
 
-- Fork the repository, work on a branch, and open a pull request. `main` changes only through pull requests.
-- Write titles and descriptions in English. Pull requests are squash-merged, and the title becomes the commit message on `main`, so write it as one. The messages of the commits inside don't matter.
+- Fork the repository and work on a branch. Then open a pull request. `main` changes only through pull requests.
+- Write titles and descriptions in English. Write the title as a commit message, because the squash merge makes it the commit message on `main`. The messages of the commits inside the pull request don't matter.
 - If a change affects the course format, configuration or architecture, update the matching page in [`docs/`](docs) in the same pull request.
-- A significant design decision, one with real alternatives that would be costly to reverse, gets an [architecture decision record](docs/adr/README.md) in the same pull request.
-- A course format change also needs [`demo/`](demo) updated: a test checks that it uses every field and setting.
-- Dependabot updates `uv.lock` weekly. If your pull request conflicts there, take the version from `main` and re-run `uv lock` (or your `uv add`) rather than merging the file by hand.
+- If a design decision has real alternatives and would be costly to reverse, write an [architecture decision record](docs/adr/README.md) for it in the same pull request.
+- If you change the course format, also update [`demo/`](demo). A test checks that the demo course uses every field and setting.
+- Dependabot updates `uv.lock` weekly. If your pull request conflicts there, take the version from `main` and re-run `uv lock` (or your `uv add`) rather than merging the file by hand. A lock file merged by hand often doesn't match `pyproject.toml`.
 
 ## Issues and security
 
