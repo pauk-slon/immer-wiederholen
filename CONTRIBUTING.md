@@ -2,7 +2,7 @@
 
 ## Setup
 
-You need Docker. Everything else — Python, dependencies, Redis — runs in containers.
+The project provides a Docker Compose configuration ([`compose.yaml`](compose.yaml)) for a local environment: the bot, the reminder, the web app and Valkey, each in its own container.
 
 1. Create a bot for development with [@BotFather](https://t.me/BotFather) and put its token in `.env`:
 
@@ -10,7 +10,7 @@ You need Docker. Everything else — Python, dependencies, Redis — runs in con
    BOT_TOKEN=123456:ABC...
    ```
 
-2. Start the bot, the reminder, the web app and Valkey with the demo course:
+2. Start the environment with the demo course:
 
    ```bash
    docker compose up
