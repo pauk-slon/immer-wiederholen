@@ -1,8 +1,8 @@
 # AI-generated content
 
-[`wiederholen.school.authoring`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/authoring) is the one package that calls generative AI. Both of its parts work only in the bot, and the web widget uses neither. The two parts are independent:
+[`wiederholen.school.authoring`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/authoring) is the one package that calls generative AI. Both of its parts work only in the bot. The two parts are independent:
 
-- **Shadow exercises** are exercises that an LLM rewrites for the `/ai` mode. They are generated when the bot shows them.
+- **Shadow exercises** are exercises that Claude writes for the `/ai` mode. They are generated when the bot shows them.
 - **Cues** are illustrations for sentence exercises. They are generated ahead of time.
 
 `topics.yaml` sets which topics get them (see [Course format](course-format.md#ai-generated-questions-and-illustrations)). [Configuration](configuration.md#optional-integrations) lists the environment variables and the Cloudflare setup.
@@ -11,7 +11,7 @@
 
 ## Shadow exercises
 
-The `/ai` command enables or disables AI mode for chats with the `ai_exercises` feature flag (see [Telegram bot](bot.md#feature-flags)). In AI mode, the bot replaces each exercise that the scheduler picks with a **shadow**. A shadow is a new exercise for the same word and answer, written by Claude.
+The `/ai` command enables or disables AI mode for chats with the `ai_exercises` feature flag (see [Telegram bot](bot.md#feature-flags)). In AI mode, the bot replaces each exercise that `Tutor` picks with a **shadow**. A shadow is a new exercise for the same word and answer, written by the model.
 
 ### What's generated and what's kept
 
@@ -21,7 +21,7 @@ The `/ai` command enables or disables AI mode for chats with the `ai_exercises` 
 |---|---|
 | `word`, `topic`, `answer`, `word_bank`, `grammar_classes` | `question`, `distractors`, `explanation`, `recalls`, and `description` if the original has one |
 
-Because the shadow keeps `word`, `topic` and `answer`, it tests exactly what the scheduler chose. The model can't pick a different answer, even one that would be correct for its own sentence. A different answer would silently change what the learner practices (see [ADR 0005](adr/0005-shadow-exercises-keep-the-answer.md)). The schedule uses these three fields as its key, so a shadow is scheduled like the original. But two generated fields do matter to `check_answer()`. The shadow's `recalls` decide whether a recall follows, and its `question` is stored as the last exercise shown.
+Because the shadow keeps `word`, `topic` and `answer`, it tests exactly what `Tutor` chose. The model can't pick a different answer, even one that would be correct for its own sentence. A different answer would silently change what the learner practices (see [ADR 0005](adr/0005-shadow-exercises-keep-the-answer.md)). The schedule uses `word` and `topic` as its key, and `chains_by_answer` uses `answer`, so a shadow is scheduled like the original. But two generated fields do matter to `check_answer()`. The shadow's `recalls` decide whether a recall follows, and its `question` is stored as the last exercise shown.
 
 The model must generate `description` together with the question. The description translates the sentence, so the old description would describe a sentence that no longer exists.
 
@@ -67,7 +67,7 @@ A **cue** is an illustration of an exercise's sentence. The bot shows it with th
 
 [`cues/__main__.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/authoring/cues/__main__.py) is the generator. You run it after content changes (`python -m wiederholen.school.authoring.cues`). For each exercise of a topic with `cue_generation`, it checks with a cheap `HEAD` request whether a cue exists. If not, it generates a cue and uploads it. At the end it logs one summary line with four counts: generated, already had one, no description, failed. There's no review step before the upload. The person who runs the generator reads the summary and checks samples of the result.
 
-The generator is a one-off command, not a service, because exercises change rarely and only when someone edits the course. It is next to the code that it uses, not next to `bot` and `web`, because it is an authoring tool and not a frontend. It is the `__main__` of a package, not a `cues.py` with `if __name__ == "__main__"`. The reason is that `authoring/__init__.py` imports `cues`, and `python -m` on a module that is already imported runs it a second time (runpy's "found in sys.modules" warning). It is the one module under `wiederholen.school` that reads environment variables. This is acceptable, because no module imports it.
+The generator is a one-off command, not a service, because exercises change rarely, at authoring time. It is next to the code that it uses, not next to `bot` and `web`, because it is an authoring tool and not a frontend. It is the `__main__` of a package, not a `cues.py` with `if __name__ == "__main__"`. The reason is that `authoring/__init__.py` imports `cues`, and `python -m` on a module that is already imported runs it a second time (runpy's "found in sys.modules" warning). It is the one module under `wiederholen.school` that reads environment variables. This is acceptable, because no module imports it.
 
 ### Keys
 
@@ -80,10 +80,16 @@ If you edit the text of a question, its key changes, and its old cue is no longe
 [`wiederholen.school.cue_store`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/cue_store.py) has three classes:
 
 - **`CueStore`** declares `get_cue_url(exercise)` and `upload_cue(exercise, image_bytes)`.
-- **`R2CueStore`** implements `CueStore` on Cloudflare R2 with `aioboto3`, an async S3 client. It uses `head_object` to check for a cue and `put_object` to upload one (as `image/jpeg`). The URL of a cue is `R2_PUBLIC_URL_BASE` with the key after it (see [Configuration](configuration.md#illustrations)).
+- **`R2CueStore`** implements `CueStore` on Cloudflare R2 with `aioboto3`, an async S3 client. It uses `head_object` to check for a cue and `put_object` to upload one (as `image/jpeg`). The URL of a cue is `R2_PUBLIC_URL_BASE` followed by the key (see [Configuration](configuration.md#illustrations)).
 - **`CachedCueStore`** wraps `R2CueStore` in the bot with an in-process cache for 12 hours, so the bot doesn't call R2 every time it shows a question. The cache also stores "no cue yet", so a new cue can take up to 12 hours to appear. A restart clears the cache. The cache is in-process because the bot runs as one process, and the loss of the cache on restart costs only a few `HEAD` requests.
 
-In the bot, `bootstrap.load_cue_store()` builds the cached store. It returns `None` if R2 isn't configured. `_answer_with_optional_cue()` sends a question as a photo with the text as its caption if three conditions are true. The topic has cues, a cue exists for the question, and the text fits Telegram's caption limit of 1024 characters. Otherwise it sends plain text. If the lookup fails, the bot logs the error and sends text, so storage problems never stop practice.
+In the bot, `bootstrap.load_cue_store()` builds the cached store. It returns `None` if R2 isn't configured. `_answer_with_optional_cue()` sends a question as a photo with the text as its caption if all of these are true:
+
+- the topic has cues
+- a cue exists for the question
+- the text fits Telegram's caption limit of 1024 characters
+
+Otherwise it sends plain text. If the lookup fails, the bot logs the error and sends text, so storage problems never stop practice.
 
 ## Testing
 
