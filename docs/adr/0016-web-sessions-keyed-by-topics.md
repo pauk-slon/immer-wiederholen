@@ -4,20 +4,20 @@
 
 ## Context
 
-The web app remembers which exercise it showed a learner, so it can check the answer: the exercise sent to the browser has no answer in it. That state was keyed by the learner alone. The session cookie is shared by every page on the domain, and each page embeds a widget with its own topics; the widget's own reload cache is per page.
+The web app stores which exercise it showed a learner, so that it can check the answer. The exercise sent to the browser has no answer in it. The key of this state was the learner alone. All pages on the domain share the session cookie, and each page embeds a widget with its own topics. The widget's own cache for page reloads is separate for each page.
 
-A learner reported a correct answer marked wrong, with another page's answer shown as correct. Opening a second landing page between loading a question on the first and answering it had replaced the shown exercise.
+A learner reported that a correct answer was marked wrong, and that the answer of another page was shown as correct. The learner had loaded a question on one landing page and opened a second landing page before the answer. The second page had replaced the shown exercise.
 
 ## Decision
 
-`WebSessionStore` keys its state by learner **and** the sorted set of topics, matching the widget's per-page cache. Every exercise endpoint sends `topics`, even those that don't use them to pick an exercise.
+`WebSessionStore` keys its state by learner **and** the sorted set of topics, in the same way as the widget's cache for each page. Every exercise endpoint sends `topics`, even the endpoints that don't use them to pick an exercise.
 
 ## Alternatives considered
 
-None are recorded in [#193](https://github.com/pauk-slon/immer-wiederholen/pull/193), which was a fix for the reported bug.
+[#193](https://github.com/pauk-slon/immer-wiederholen/pull/193) records no alternatives. It was a fix for the reported bug.
 
 ## Consequences
 
-- Widgets on different pages no longer interfere.
-- Two pages with the same topics share a session, which is harmless: they're the same widget.
-- The language isn't part of the key; it only changes which translation of the same exercise is returned.
+- Widgets on different pages no longer affect each other.
+- Two pages with the same topics share a session. This does no harm, because they are the same widget.
+- The language isn't part of the key, because it only changes which translation of the same exercise the server returns.
