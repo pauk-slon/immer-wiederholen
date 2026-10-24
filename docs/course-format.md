@@ -31,9 +31,9 @@ Each exercise practices one **word** in one **topic**:
 
 Topics are free-form names. The code attaches no meaning to them, so a new topic needs only data, not a code change.
 
-The project schedules repetitions for each **pair** of word and topic separately. For example, the learner learns and repeats `singen` in `partizip_ii` independently of `singen` in `partizip_ii_meaning`. The links in `topics.yaml` connect such pairs (see [Linking topics](#linking-topics)).
+The project schedules repetitions for each **pair** of word and topic separately. For example, `singen` in `partizip_ii` and `singen` in `partizip_ii_meaning` have separate schedules. The links in `topics.yaml` connect such pairs (see [Linking topics](#linking-topics)).
 
-Several exercises can belong to the same pair. Each time the pair is due, the bot picks one of them at random. It avoids the exercise that the learner saw last.
+Several exercises can belong to the same pair. Each time the pair is due, the bot and the web widget pick one of them at random. They avoid the exercise that the learner saw last.
 
 ## exercises.yaml
 
@@ -78,15 +78,17 @@ A recall asks the learner to type a whole sentence with the word they just answe
 | `answer` | yes | a list of accepted sentences |
 | `hint` | no | `ru`, `en` or both, shown under the prompt, such as a translation of a rare word |
 
-After a wrong answer, the learner must complete a recall before the next exercise. After a correct answer, the recall is optional, and the bot shows a "Drill" button ("Закрепить" in Russian). Each time, the bot picks one of the exercise's recalls at random. If the learner answers a recall wrong and asks for another one, the bot picks a different recall when it can.
+After a wrong answer, the learner must complete a recall before the next exercise. After a correct answer, the recall is optional, and the learner sees a "Drill" button ("Закрепить" in Russian). Each time, one of the exercise's recalls is picked at random. If the learner answers a recall wrong and asks for another one, a different recall is picked when possible.
 
 The recall check ignores case, extra spaces and a final `.`, `,`, `!` or `?`.
 
 ### Hints from grammar classes
 
-**Bot only.** Once the learner has reliably learned another word with a shared grammar class in the same topic, the question gets a hint that names that word and opens on a tap, such as "Same as for singen" ("Так же, как и у singen" in Russian).
+**Bot only.** A hint appears when the learner has learned another word with the same grammar class in the same topic. The hint names that word, such as "Same as for singen" ("Так же, как и у singen" in Russian). The learner taps the hint to open it.
 
-The hint shows only the word, not its answer. For a class like `an+Akk` (verbs with `an` and the accusative), the other word's answer would also be the answer to this question. An exercise can have several classes, such as a narrow class and a broad class.
+The hint shows only the word, not its answer, because the answers can match. For example, in a class like `an+Akk` (verbs with `an` and the accusative), the other word's answer is often the answer to this question too.
+
+An exercise can have several classes, such as a narrow class and a broad class.
 
 ### Validation
 
@@ -125,8 +127,8 @@ Each topic can have these settings, all optional:
 
 | Setting | Meaning |
 |---|---|
-| `chains` | topics to schedule for today, for the same word, once this one is answered |
-| `gates` | topics to keep hidden for a word until this one is answered for it |
+| `chains` | topics to schedule for today, for the same word, after the learner answers this topic |
+| `gates` | topics to keep hidden for a word until the learner answers this topic for that word |
 | `chains_by_answer` | like `chains`, but for the word that is this exercise's answer |
 | `instruction` | `{ru, en}`, shown under every question of this topic, such as "Enter the missing word" |
 | `ai_generation` | **bot only.** `true` lets the `/ai` mode rewrite this topic's exercises with an LLM (see below) |
@@ -148,17 +150,19 @@ The same links apply to `trinken` and every other word with exercises in these t
 A link **schedules** a pair for today. This puts the pair into today's queue of new material. The link does this only if the learner hasn't started that pair yet, and only if the course has an exercise for it. For example, without a `preposition_meaning` exercise for `auf`, the link has no effect. The link works after any answer to the source pair, right or wrong.
 
 - **`chains`**. Answering `partizip_ii` for `singen` schedules `perfekt_wortstellung` for `singen`. Without the link, the pair would still appear, but later, among other new material. Two topics may chain to each other.
-- **`gates`**. The bot doesn't show `partizip_ii_meaning` for `singen` until the learner answers `partizip_ii` for `singen`. After that, the gate schedules the pair like a chain. Use a gate when one topic makes sense only after another. For example, a sentence with a Partizip II form makes sense only after the learner has practiced the form itself. A gated topic must be in the same group as the topic that gates it. Otherwise a learner who chooses only its group could never unlock it. Two topics must not gate each other, because then neither of them would ever unlock. You declare gates separately from chains, and the project doesn't derive them from chains (see [ADR 0012](adr/0012-gates-declared-explicitly.md)).
+- **`gates`**. The bot doesn't show `partizip_ii_meaning` for `singen` until the learner answers `partizip_ii` for `singen`. After that, the gate schedules the pair like a chain. Use a gate when one topic makes sense only after another. For example, a sentence with a Partizip II form makes sense only after the learner has practiced the form itself. Gates are not derived from chains (see [ADR 0012](adr/0012-gates-declared-explicitly.md)).
 - **`chains_by_answer`**. Answering `verb_preposition` for `warten` (answer `auf`) schedules `preposition_meaning` for **`auf`**. Use it when the next topic is about the answer, not the word.
 
-Chains can cross groups, but gates can't. [Repetition schedule](repetition-schedule.md) describes how links interact with the rest of the schedule, such as the daily limit on new words and due reviews.
+Chains can cross groups, but gates can't. A gated topic must be in the same group as the topic that gates it. Otherwise a learner who chooses only its group could never unlock it. Two topics must not gate each other, because then neither of them would ever unlock.
+
+[Repetition schedule](repetition-schedule.md) describes how links interact with the rest of the schedule, such as the daily limit on new words and due reviews.
 
 ### AI-generated questions and illustrations
 
 **Bot only.** You enable both settings for each topic separately. They have no effect until the deployment is configured for them (see [Configuration](configuration.md#optional-integrations)). [AI-generated content](authoring.md) describes how they work.
 
 - **`ai_generation`**. In `/ai` mode, an LLM writes a new exercise for the same word and answer. The LLM generates `question`, `distractors`, `explanation`, `recalls` and `description`. The fields `word`, `topic` and `answer` keep their authored values. Enable the setting only for topics where the answer doesn't depend on the exact wording. This excludes bare-verb questions like `partizip_ii`, `word_bank` exercises (a new sentence wouldn't match the chunks), and topics where the subject decides the answer (`du brichst` and `er bricht`).
-- **`cue_generation`**. The bot shows each question of the topic with an illustration of the sentence (a **cue** in the code). The illustration helps the learner remember the sentence. The generator makes each illustration from the exercise's `description.en`, so an exercise without a `description` gets no illustration. The generator runs ahead of time and stores each illustration by the hash of `question`. If you edit the text of a question, run the generator again to get an illustration for it. Illustrations suit sentence topics with a concrete scene. They don't help with pure grammar forms. `cue_generation` is a separate setting, because a `description` can exist only to make a sentence unambiguous (see [ADR 0014](adr/0014-cues-generated-ahead.md)).
+- **`cue_generation`**. The bot shows each question of the topic with an illustration of the sentence (a **cue** in the code). The illustration helps the learner remember the sentence. The generator makes each illustration from the exercise's `description.en`, so an exercise without a `description` gets no illustration. The generator runs ahead of time and stores each illustration by the hash of `question`. If you edit the text of a question, run the generator again to get an illustration for it. Illustrations suit sentence topics with a concrete scene. They don't help with pure grammar forms. A `description` alone doesn't turn illustrations on, because some descriptions exist only to make a sentence unambiguous (see [ADR 0014](adr/0014-cues-generated-ahead.md)).
 
 ## bot.yaml
 
