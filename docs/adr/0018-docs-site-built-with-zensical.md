@@ -1,6 +1,6 @@
 # 0018. The docs site is built with Zensical
 
-**Status:** Accepted, 2026-10-24 ([#PR](https://github.com/pauk-slon/immer-wiederholen/pull/PR))
+**Status:** Accepted, 2026-10-24 ([#265](https://github.com/pauk-slon/immer-wiederholen/pull/265))
 
 ## Context
 
