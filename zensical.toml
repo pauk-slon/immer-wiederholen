@@ -3,7 +3,7 @@
 [project]
 site_name = "Immer wiederholen!"
 site_description = "A Telegram bot and an embeddable web widget for practicing grammar with spaced repetition"
-site_url = "https://pauk-slon.github.io/immer-wiederholen/"
+site_url = "https://docs.immer-wiederholen.com/"
 repo_url = "https://github.com/pauk-slon/immer-wiederholen"
 repo_name = "pauk-slon/immer-wiederholen"
 edit_uri = "edit/main/docs/"
