@@ -12,7 +12,7 @@ The repository has a Docker Compose setup ([`compose.yaml`](compose.yaml)) for l
    BOT_TOKEN=123456:ABC...
    ```
 
-   Don't use a production bot's token. Only one process can poll a bot at a time, so a local run would interrupt the production bot. The bot also rewrites its Telegram profile on start, so a local run would change the production profile (see [Configuration](docs/configuration.md#what-the-bot-changes-in-its-telegram-profile)).
+   Don't use a production bot's token. Only one process can poll a bot at a time, so a local run would conflict with the production bot. The bot also rewrites its Telegram profile on start, so a local run would change the production profile (see [Configuration](docs/configuration.md#what-the-bot-changes-in-its-telegram-profile)).
 
 2. Start the services with the demo course:
 
