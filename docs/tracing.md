@@ -45,7 +45,7 @@ Recalls produce no events: `request_recall()` and `check_recall()` don't emit an
 
 [`wiederholen.tracing`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/tracing.py) holds the setup shared by all three processes:
 
-- **`configure_tracing()`** installs a `TracerProvider` exporting over OTLP/HTTP — or does nothing if neither `OTEL_EXPORTER_OTLP_ENDPOINT` nor `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set. The resource gets no attributes from code: the service name and the rest come from `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`.
+- **`configure_tracing()`** installs a `TracerProvider` exporting over OTLP/HTTP — or does nothing if neither `OTEL_EXPORTER_OTLP_ENDPOINT` nor `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set. The resource gets no attributes from code: the service name and the rest come from `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`. A hardcoded fallback service name was tried and dropped: it hid a process missing its `OTEL_*` variables under another process's name, while without one it shows up as `unknown_service`.
 - **`instrument_redis()`** patches the Redis client globally, so every store's commands are traced without changes at the call sites. Calling it again only logs a warning.
 - **`default_tracer`** is obtained at import time. Until a provider is installed it produces no-op spans, and it starts recording once `configure_tracing()` installs one.
 
@@ -65,7 +65,7 @@ Without these, every Redis call would be a root span of its own.
 
 ### Repetition engine: emit()
 
-[`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the three events as frozen dataclasses, and `emit(event)` adds one to `trace.get_current_span()`, named after the dataclass. Before that, `_to_otel_attributes()` turns the dataclass into span attributes: enum values are replaced by their `.value`, and `None` fields are left out, since neither is a valid attribute value.
+[`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the three events as frozen dataclasses, and `emit(event)` adds one to `trace.get_current_span()`, named after the dataclass. Before that, `_to_otel_attributes()` turns the dataclass into span attributes: enum values are replaced by their `.value`, and `None` fields are left out, since neither is a valid attribute value. Events go onto the span rather than being returned, and are dataclasses rather than dict literals (see [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md)).
 
 This makes `tutoring` depend on the OpenTelemetry API — but only the API, which is a safe no-op without a configured provider. `Tutor`'s tests don't need any tracing setup.
 
@@ -92,9 +92,6 @@ To send traces from a local run, put the `OTEL_*` variables in a gitignored `com
 
 A stray `=` in a key, like `OTEL_RESOURCE_ATTRIBUTES=: ...`, isn't an error in Compose: the `=` silently ends up in the value. For `OTEL_RESOURCE_ATTRIBUTES` that shows up as an `invalid key` warning from OpenTelemetry. `docker compose config` shows what the variables actually resolve to.
 
-## Design notes
+## Decisions
 
-- **Events go straight onto the current span.** An earlier design had `check_answer()` and `next_exercise()` return lists of events, which the bot then turned into span events at every call site. Tracing was the only consumer of those lists, so passing them through return values was ceremony; now `Tutor` reports them where they happen.
-- **Events are dataclasses, not dict literals.** What counts as an event and what it contains is domain knowledge — e.g. `ExerciseAnswered.is_new` and `next_repetition_interval` mirror values `check_answer()` computes anyway — so each event's shape is declared once, next to the code that fires it.
-- **No service name in code.** A hardcoded fallback was tried and dropped: it hid a real misconfiguration, a process without `OTEL_*` variables reporting under another process's name. Without a fallback, such a process shows up as `unknown_service`.
-- **No endpoint, no provider.** Without an endpoint, the exporter would default to `localhost:4318` and keep retrying a collector that isn't there, filling the logs.
+- [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md): the repetition engine reports events on the current span.

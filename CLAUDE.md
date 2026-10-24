@@ -6,6 +6,8 @@ The course format (`exercises.yaml`, `topics.yaml`, `bot.yaml`, every exercise f
 
 Every environment variable, the processes, and the optional integrations (Anthropic, R2/Workers AI, OpenTelemetry, feature flags) are documented for operators in `docs/configuration.md` — update it along with any new or renamed env var.
 
+Why significant decisions were made is in `docs/adr/` (index: `docs/adr/README.md`) — check it before reversing a design choice. A new decision with real alternatives gets its own ADR in the same pull request; ADRs are never rewritten, only superseded.
+
 ## Key modules
 
 The package map, the dependency rules between `wiederholen.school`, `wiederholen.bot`, `wiederholen.web` and `wiederholen.tracing`, the processes, and where each piece of state lives are in `docs/architecture.md` — read it before adding a module or making one package import another. The rules that matter most: `school` never imports a frontend or reads env vars (the cue generator's `__main__` excepted); `tutoring` does no I/O; `bot` and `web` never import each other. Every `wiederholen.bot` handler resolves the `StudentID` it addresses `StudentRecordBook` with via `StudentIdentityStore` (see `docs/storage.md`), never from the chat directly.

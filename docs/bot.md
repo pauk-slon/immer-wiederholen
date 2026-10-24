@@ -54,7 +54,7 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 | reminder interval | `remind_after_hours` | `/reminders` | the reminder, see [The /reminders setting](#the-reminders-setting) |
 | AI mode | `ai_mode` | `/ai` | choosing whether to rewrite a question |
 
-All four are listed in `_CHAT_SETTINGS_KEYS` in `commands/wiederholen.py`, which keeps them when an exercise ends and the rest of the chat's state is cleared. **A new chat-level setting must be added there**, or it's lost after every exercise. `/reset` doesn't touch settings; see [Storage and identity](storage.md#chat-state).
+All four are listed in `_CHAT_SETTINGS_KEYS` in `commands/wiederholen.py`, which keeps them when an exercise ends and the rest of the chat's state is cleared. **A new chat-level setting must be added there**, or it's lost after every exercise. The tuple replaced restoring `ai_mode` by hand after each exercise, which was missed at one of four call sites and made AI mode silently switch off after a single exercise. `/reset` doesn't touch settings; see [Storage and identity](storage.md#chat-state).
 
 ### Topic selection
 
@@ -71,7 +71,7 @@ The daily limit on new words counts all topics, selected or not.
 
 ## Reminders
 
-A separate process, [`python -m wiederholen.bot.reminder`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder.py), messages learners who have gone quiet while they have something to practice. Every 15 minutes it runs `tick()`: for each Telegram chat linked in `StudentIdentityStore` (`iter_identifiers("telegram")`), `_remind_chat()` decides and maybe sends.
+A separate process, [`python -m wiederholen.bot.reminder`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder.py), messages learners who have gone quiet while they have something to practice. Every 15 minutes it runs `tick()`: for each Telegram chat linked in `StudentIdentityStore` (`iter_identifiers("telegram")`), `_remind_chat()` decides and maybe sends. It's a separate process rather than a task inside the bot (see [ADR 0010](adr/0010-reminders-as-a-separate-process.md)).
 
 For one chat, in order:
 
@@ -88,7 +88,7 @@ An error in one chat is logged and the sweep moves on.
 `Tutor.should_remind(remind_after)` decides, so the rule lives with the rest of the schedule. It's true only when all of these hold:
 
 - **the learner has answered at least once**: someone who pressed `/start` and never answered is never reminded;
-- **there's something to practice**: a review is due, or new material is available. The daily limit on new words is ignored here — a learner at the limit with overdue reviews should still be reminded;
+- **there's something to practice**: a review is due, or new material is available. The daily limit on new words is ignored here — a learner at the limit with overdue reviews should still be reminded (an earlier version checked only for new material and missed them);
 - **the learner has gone quiet**: the last answer to a main exercise was at least `remind_after` ago. Recall answers and other interactions don't count;
 - **no reminder since then**: at most one reminder per period of inactivity, never a repeated nag.
 
@@ -96,7 +96,7 @@ An error in one chat is logged and the sweep moves on.
 
 ### The /reminders setting
 
-`/reminders` offers 4, 8, 12 or 24 hours after the last answer (24 by default), or off, as one button each; a tap saves and confirms. The choice is stored as `remind_after_hours`, with `0` meaning off — distinct from "never chosen", which means the default. A stored value that's no longer offered falls back to the default ([`reminder_settings.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder_settings.py)).
+`/reminders` offers 4, 8, 12 or 24 hours after the last answer (24 by default), or off, as one button each; a tap saves and confirms. The choice is stored as `remind_after_hours`, with `0` meaning off — distinct from "never chosen", which means the default. A stored value that's no longer offered falls back to the default ([`reminder_settings.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder_settings.py)). Unlike `/topics`, there's no "Done" step: one choice, one tap. The interval counts from the last answer rather than following a schedule (see [ADR 0011](adr/0011-remind-after-the-last-session.md)).
 
 It's an interval since the last session, not "every N hours" or "N times a day": still one reminder per period of inactivity, so nothing piles up overnight, while an active learner may get several a day, one after each session. There's no time zone handling; muting at night is left to the phone.
 
@@ -148,10 +148,7 @@ Handler tests run updates through the real dispatcher against a real Redis — F
 
 The reminder's tests call `tick()` directly, with no incoming update, so [`tests/bot/test_reminder.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/tests/bot/test_reminder.py) mocks Telegram the same way on its own.
 
-## Design notes
+## Decisions
 
-- **Reminders are a separate process** — why is in [Architecture](architecture.md#design-notes).
-- **`Tutor` owns the reminder decision**, as part of the schedule it already keeps; the bot only supplies the interval and does the sending.
-- **`should_remind()` checks due reviews and new material separately.** Checking only for new material once missed learners at the new-word limit who had overdue reviews.
-- **Chat settings are listed in one place.** `_CHAT_SETTINGS_KEYS` replaced restoring `ai_mode` by hand after each exercise, which was missed at one of four call sites and made AI mode silently switch off after a single exercise.
-- **No "Done" step in `/reminders`**, unlike `/topics`: one choice, one tap.
+- [ADR 0010](adr/0010-reminders-as-a-separate-process.md): reminders run as a separate process.
+- [ADR 0011](adr/0011-remind-after-the-last-session.md): reminders count from the last session.

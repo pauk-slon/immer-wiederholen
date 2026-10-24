@@ -148,7 +148,7 @@ The same links apply to `trinken` and every other word with exercises in these t
 A link **schedules** a pair for today: it puts the pair into today's queue of new material. It does this only if the learner hasn't started that pair yet, and only if the course has an exercise for it — no `preposition_meaning` exercise for `auf`, no effect. Answering the source triggers it whether the answer was right or wrong.
 
 - **`chains`**: answering `partizip_ii` for `singen` schedules `perfekt_wortstellung` for `singen`. Without the link it would come up anyway, just later, among other new material. Two topics may chain to each other.
-- **`gates`**: `partizip_ii_meaning` for `singen` isn't shown at all until `partizip_ii` for `singen` has been answered; then it is scheduled like a chain. Use it when one topic only makes sense after another — a sentence using the form only after the form itself. A gated topic must be in the same group as the topic gating it, or selecting just its group would leave it locked forever. Two topics must not gate each other: neither would ever unlock.
+- **`gates`**: `partizip_ii_meaning` for `singen` isn't shown at all until `partizip_ii` for `singen` has been answered; then it is scheduled like a chain. Use it when one topic only makes sense after another — a sentence using the form only after the form itself. A gated topic must be in the same group as the topic gating it, or selecting just its group would leave it locked forever. Two topics must not gate each other: neither would ever unlock. Gates are declared separately from chains rather than derived from them (see [ADR 0012](adr/0012-gates-declared-explicitly.md)).
 - **`chains_by_answer`**: answering `verb_preposition` for `warten` (answer `auf`) schedules `preposition_meaning` for **`auf`**. Use it when the next topic is about the answer, not the word.
 
 Chains may cross groups; gates may not. How links interact with the rest of the schedule (daily limit on new words, due reviews) is described in [Repetition schedule](repetition-schedule.md).
@@ -158,7 +158,7 @@ Chains may cross groups; gates may not. How links interact with the rest of the 
 **Bot only.** Both settings are opt-in per topic and do nothing unless the deployment is set up for them, see [Configuration](configuration.md#optional-integrations). How they work is in [AI-generated content](authoring.md).
 
 - **`ai_generation`**: in `/ai` mode, an LLM writes a new question for the same word and answer: `question`, `distractors`, `explanation`, `recalls` and `description` are generated, while `word`, `topic` and `answer` stay as authored. Enable it only for topics where the answer doesn't depend on the exact wording: not for bare-verb questions like `partizip_ii`, not for `word_bank` exercises (a new sentence wouldn't match the chunks), not where the subject decides the answer (`du brichst` vs `er bricht`).
-- **`cue_generation`**: questions are shown with a **cue** — an illustration of the sentence that helps recall it. Each cue is generated from the exercise's `description.en`, so exercises without a `description` get none. Cues are generated ahead of time and stored by the hash of `question`, so editing a question's text needs a re-run of the generator to give it a picture again. Suits sentence topics with a concrete scene; pointless for pure grammar forms.
+- **`cue_generation`**: questions are shown with a **cue** — an illustration of the sentence that helps recall it. Each cue is generated from the exercise's `description.en`, so exercises without a `description` get none. Cues are generated ahead of time and stored by the hash of `question`, so editing a question's text needs a re-run of the generator to give it a picture again. Suits sentence topics with a concrete scene; pointless for pure grammar forms. It's a separate switch, not implied by `description`, since a description may exist only to disambiguate a sentence (see [ADR 0014](adr/0014-cues-generated-ahead.md)).
 
 ## bot.yaml
 
@@ -178,8 +178,9 @@ info:
 
 The bot applies it to its Telegram profile on every start. Only the `ru` and `en` entries are used; any other language key is ignored. Without the file, the profile stays as it is.
 
-## Design notes
+## Decisions
 
-- **`cue_generation` is a separate switch, not implied by `description`.** A description may exist just to disambiguate a sentence; adding one shouldn't turn illustrations on for a whole topic.
-- **`gates` aren't derived from `chains`.** An earlier design gated every chained topic. That deadlocked topics that chain to each other (`partizip_ii` ⇄ `praeteritum`): each waited for the other to unlock. Now chains only schedule, and gating is declared explicitly.
-- **`word_bank` replaced a hand-written hint in `question`.** Word-order questions used to carry the shuffled words as text, e.g. `(in Hamburg / wohnt / sie)`, kept in sync with `answer` by hand and not validated. Now the chunks are data, checked against `answer` at load time, and each frontend renders them its own way.
+- [ADR 0012](adr/0012-gates-declared-explicitly.md): gates are declared explicitly.
+- [ADR 0013](adr/0013-word-bank-as-data.md): word banks are data, not text in the question.
+- [ADR 0014](adr/0014-cues-generated-ahead.md): illustrations are generated ahead of time.
+- [ADR 0017](adr/0017-cues-keyed-by-question-hash.md): illustrations are keyed by the question's hash.

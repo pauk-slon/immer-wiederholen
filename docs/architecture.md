@@ -108,8 +108,13 @@ What happens when a learner answers an exercise in Telegram:
 
 The web app follows the same path with three differences: an HTTP request instead of a Telegram update, traced by Litestar's OpenTelemetry plugin; a browser cookie instead of a chat id; and `WebSessionStore` instead of aiogram's FSM storage for the exercise being shown.
 
-## Design notes
+## Decisions
 
-- **Account and credential are separate.** A learner (`StudentID`) isn't the same as a way of proving who they are (a Telegram chat, a browser login). That's what lets one learner use both the bot and the web app, and later add other logins.
-- **Records are saved only when they change.** `StudentRecordBook.check_out()` compares the record after the handler with a copy taken before, so read-only handlers don't write, and a change made before an error still gets saved.
-- **Reminders are a separate process.** They run on a timer, independent of incoming updates, so they don't belong in the bot's update handling. A background task inside the bot would also keep running across the tests that start the bot repeatedly.
+The full list is in the [ADR index](adr/README.md). Among them:
+
+- [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md): the repetition engine reports events on the current span.
+- [ADR 0003](adr/0003-separate-accounts-from-logins.md): learners are separate from the ways they log in.
+- [ADR 0007](adr/0007-save-records-only-when-changed.md): a student record is saved only when it changes.
+- [ADR 0008](adr/0008-student-record-separate-from-chat-state.md): the student record is kept apart from chat state.
+- [ADR 0009](adr/0009-one-environment-variable-per-store.md): one environment variable per store.
+- [ADR 0010](adr/0010-reminders-as-a-separate-process.md): reminders run as a separate process.
