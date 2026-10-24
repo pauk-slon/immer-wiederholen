@@ -82,11 +82,11 @@ The words of the candidates fall into three tiers:
 | **queued** | not introduced, but with an entry from a link | counted, taken first |
 | **fresh** | without any entry | counted, fill the rest |
 
-A word is free after the learner answers any of its topics. For example, if the learner is learning `warten` in one topic, the untouched other topics of `warten` appear without using the new-word limit. A topic that a link just unlocked also doesn't use the limit.
+A word is free after the learner answers any of its topics. For example, if the learner is learning `warten` in one topic, the untouched other topics of `warten` appear without using the new-word limit. The same is true for a topic of such a word that a link just unlocked.
 
 `SelectablePairs.select_word()` takes as many queued words as today's remaining limit allows. It fills the rest with a random sample of fresh words. Then it picks with equal chance among the free words and the taken words. The sample of fresh words is limited *before* the pick, so a course with hundreds of untouched words doesn't lower the chance of a few due words.
 
-`select_topic()` then prefers a topic of the chosen word that is **due for review**, which means that the learner answered it before and it is due today. Only if there is no such topic, it picks among the new topics of the word. These include linked topics that are scheduled for today but not answered yet. A review has a deadline, and new material doesn't.
+`select_topic()` then prefers a topic of the chosen word that is **due for review**, which means that the learner answered it before and it is due today. If there is no such topic, it picks among the new topics of the word. These include linked topics that are scheduled for today but not answered yet. A review has a deadline, and new material doesn't.
 
 ### The daily limit on new words
 
@@ -96,17 +96,19 @@ A learner gets at most 7 new **words** a day (`NEW_WORDS_PER_DAY`). In the code,
 
 The limit counts words, not pairs. If the learner starts `sprechen` in two topics on one day, this is one new word.
 
-A word counts as new today if the learner introduced it and introduced all its introduced topics today. A word that the learner started days ago doesn't count, even if another of its topics gets its first answer today. A word with only a queued entry and no answer doesn't count either. The check requires at least one introduced topic. Without this requirement, a word with no introduced topics would count, because "all its introduced dates are today" is true for an empty set.
+A word counts as new today if it has at least one introduced topic and all its introduced topics were introduced today. A word that the learner started days ago doesn't count, even if another of its topics gets its first answer today. A word with only a queued entry and no answer doesn't count either. Without the first condition, such would count, because "all its introduced dates are today" is true for an empty set.
 
 When the limit is the only reason that no more material is shown, the bot's "Study more" button calls `Tutor.grant_new_word_budget()`. This adds 3 words to today's limit (`NEW_WORD_BUDGET_GRANT`). Grants add up, because a learner who taps the button again explicitly wants more. A tap does nothing if the limit isn't reached. Telegram keeps old buttons active, and a tap on yesterday's button shouldn't raise today's limit. `/reset` doesn't change today's grants, because they expire the next day.
 
 ### Avoiding repeats
 
-After a first answer, a pair is due again the same day. Without extra rules, the same word could come back at once. `next_exercise()` uses three exclusions. It drops an exclusion if it would leave nothing to pick:
+After a first answer, a pair is due again the same day. Without extra rules, the same word could come back at once. `next_exercise()` uses three exclusions:
 
 1. The word of the last answer isn't picked.
 2. If the same word is picked anyway, its last topic isn't picked.
 3. Among the exercises of the pair, the last question isn't picked.
+
+It drops an exclusion if the exclusion would leave nothing to pick.
 
 ### When there's nothing to show
 
@@ -126,9 +128,9 @@ After every answer, right or wrong, `check_answer()` calls `_expedite_chained_to
 
 `_expedite_dependent()` gives such a pair an entry that is due today, with interval 0. It does this only if the pair has no entry yet and the course has an exercise for it. A pair that already has an entry keeps it. After a linked topic has its own schedule, a link doesn't change it. Otherwise topics that link to each other would reset each other's due dates forever (see [ADR 0004](adr/0004-links-only-schedule-unstarted-pairs.md)). `Tutor` reports each scheduled pair as a `TopicUnlocked` event.
 
-The pairs of a gated topic without an entry aren't "new and available", so they can't be picked until a link gives them an entry. After that, they are due like any other pair. Gates are not derived from chains (see [ADR 0012](adr/0012-gates-declared-explicitly.md)). Locked pairs don't change `/progress`, because they have no entry to count.
+The pairs of a gated topic without an entry aren't "new and available", so they can't be picked until a link gives them an entry. After that, they are due like any other pair. Locked pairs don't change `/progress`, because they have no entry to count.
 
-`Course` merges `chains` and `gates` into `word_chained_topics`. It keeps `chains_by_answer` as `answer_chained_topics`. A `gates` entry under another topic can still gate an answer-chained topic. Gating looks only at the topic, not at how its pair was scheduled.
+`Course` merges `chains` and `gates` into `word_chained_topics`. It keeps `chains_by_answer` as `answer_chained_topics`. Gates are not derived from chains (see [ADR 0012](adr/0012-gates-declared-explicitly.md)). A `gates` entry under another topic can still gate an answer-chained topic. Gating looks only at the topic, not at how its pair was scheduled.
 
 ### Restricted courses
 
@@ -156,7 +158,7 @@ An **optional** recall, after a correct answer, halves the interval of the pair,
 
 `learning` and `mastered` count words, not pairs, because a learner thinks "I'm learning `sprechen`", not about its topics separately. A word is mastered only when all its topics are mastered. If the learner knows a verb's Partizip II well but has barely started its preposition, the verb isn't mastered.
 
-`remaining_today` counts only pairs that are actually due, not new material. The number of new pairs in a day can't be known in advance, because one new word can lead to more pairs through links. For the same reason, `/progress` shows no total of untouched pairs. Such a total would be much larger than the work that the learner can actually do.
+`remaining_today` counts only pairs that are actually due, not new material. The number of new pairs in a day can't be known in advance, because one new word can lead to more pairs through links. For the same reason, `/progress` shows no total of untouched pairs. Such a total would be misleading, because most of those pairs won't be due for weeks.
 
 ## Resetting
 
