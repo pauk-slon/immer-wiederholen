@@ -4,22 +4,22 @@
 
 ## Context
 
-Word-order exercises showed their scrambled words as text written into `question`, e.g. `'...sondern ___. (in Hamburg / wohnt / sie)'`. The web widget was getting a tap-to-arrange tile UI, which needed the pieces as a list. Two problems ([#191](https://github.com/pauk-slon/immer-wiederholen/issues/191)):
+Word-order exercises showed their scrambled words as text in `question`, for example `'...sondern ___. (in Hamburg / wohnt / sie)'`. The web widget was about to get tiles that the learner arranges with taps, and the tiles needed the pieces as a list. [#191](https://github.com/pauk-slon/immer-wiederholen/issues/191) found two problems:
 
-- the parenthetical was a hand-scrambled copy of `answer` that authors kept in sync by hand, with nothing checking it;
-- the pieces are phrases, not words — `in Hamburg` is one piece — so splitting `answer` on spaces would have made a different, more fragmented exercise.
+- The text in parentheses was a scrambled copy of `answer`. Authors kept it in sync by hand, and nothing checked it.
+- The pieces are phrases, not words. For example, `in Hamburg` is one piece. A split of `answer` on spaces would have made a different exercise with more pieces.
 
 ## Decision
 
-`Exercise.word_bank` holds the answer's pieces in the correct order, validated at load time: joined with spaces, they must equal `answer`. `question` no longer contains them. Each frontend shuffles them at render time with the shared `shuffle_word_bank()`: the bot re-creates the parenthetical, the web widget shows tiles. A non-empty `word_bank` is the only signal; there's no separate `topics.yaml` flag.
+`Exercise.word_bank` holds the pieces of the answer in the correct order. The loader validates them. Joined with spaces, they must equal `answer`. `question` no longer contains them. Each frontend shuffles them when it shows the exercise, with the shared `shuffle_word_bank()`. The bot creates the text in parentheses again, and the web widget shows tiles. A non-empty `word_bank` is the only signal for a word-order exercise. There is no separate setting in `topics.yaml`.
 
 ## Alternatives considered
 
-- **Split `answer` on spaces** (the first version of #190). No new field, but the wrong granularity.
-- **A `word_order` flag in `topics.yaml`** (also in an earlier version of #190). Dropped: `word_bank` itself says how to render the exercise, as `choices: null` does for typed answers.
+- **Split `answer` on spaces** (the first version of #190). This needs no new field, but the pieces are too small.
+- **A `word_order` setting in `topics.yaml`** (also in an earlier version of #190). It was dropped, because `word_bank` itself says how to show the exercise, just as `choices: null` does for typed answers.
 
 ## Consequences
 
-- One source of truth, checked on every load.
-- Checking an answer needed no change: the arranged pieces, joined, are the answer.
-- The content had to be migrated: 54 exercises, done with a one-off script in the content repo.
+- There is one source of truth, and every load checks it.
+- The answer check needed no change, because the arranged pieces, joined, are the answer.
+- The content needed a migration of 54 exercises. A one-off script in the content repo did it.
