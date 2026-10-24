@@ -8,7 +8,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 | Command | Module | What it does |
 |---|---|---|
-| `/start` | `start` | greets the learner. A deep link with a language (`t.me/<bot>?start=en`) sets the chat's language |
+| `/start` | `start` | greets the learner. A deep link with a language (`t.me/<bot>?start=en`) sets the language of a new chat, a chat that has no FSM data yet (see [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md)) |
 | `/wiederholen` | `wiederholen` | shows the next exercise. The same module handles answers, recalls and the "next" and "study more" buttons |
 | `/progress` | `progress` | shows today's counts (due, new, answered) and how many words the learner is learning or has mastered (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
@@ -49,7 +49,7 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 
 | Setting | FSM key | Set by | Used by |
 |---|---|---|---|
-| language | `language` | `/language`, a `/start` deep link | every reply, the reminder |
+| language | `language` | `/language`, a `/start` deep link in a new chat | every reply, the reminder |
 | topic groups | `topic_groups` | `/topics` | the choice of what to show, the reminder (see below) |
 | reminder interval | `remind_after_hours` | `/reminders` | the reminder (see [The /reminders setting](#the-reminders-setting)) |
 | AI mode | `ai_mode` | `/ai` | the choice whether to rewrite a question |

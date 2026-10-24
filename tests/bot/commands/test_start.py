@@ -42,16 +42,34 @@ async def test_deep_link_payload_sets_language(
     assert (await state.get_data())["language"] == payload
 
 
-async def test_deep_link_payload_overrides_stored_language(
+@pytest.mark.parametrize(
+    "stored,payload,expected", [("ru", "en", RU.start), ("en", "ru", EN.start)]
+)
+async def test_deep_link_payload_keeps_stored_language(
+    state: FSMContext,
+    feed_message: FeedMessage,
+    stored: str,
+    payload: str,
+    expected: str,
+) -> None:
+    await state.update_data(language=stored)
+    requests = await feed_message(f"/start {payload}")
+
+    assert len(requests) == 1
+    assert requests[0].text == expected
+    assert (await state.get_data())["language"] == stored
+
+
+async def test_deep_link_payload_keeps_default_language_of_existing_chat(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
-    await state.update_data(language="ru")
+    await state.update_data(last_buttoned_message_id=None)
     requests = await feed_message("/start en")
 
     assert len(requests) == 1
-    assert requests[0].text == EN.start
-    assert (await state.get_data())["language"] == "en"
+    assert requests[0].text == RU.start
+    assert "language" not in await state.get_data()
 
 
 async def test_unknown_deep_link_payload_falls_back_to_stored_language(
