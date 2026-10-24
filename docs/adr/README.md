@@ -1,30 +1,30 @@
 # Architecture decision records
 
-An architecture decision record (ADR) is a short document about one significant decision: what problem it solved, what was chosen, what else was considered, and what follows from it. The reference pages in `docs/` describe how things work now; ADRs keep the reasons and the history, so the reference pages don't have to.
+An architecture decision record (ADR) is a short document about one significant decision. It describes the problem, the choice, the alternatives and the consequences. The reference pages in `docs/` describe how the project works now. ADRs keep the reasons and the history, so the reference pages don't have to.
 
 ## When to write one
 
-Write an ADR for a decision that had real alternatives and would be costly or risky to reverse — the kind a newcomer might "fix" without knowing why it's that way. A one-line lesson from a bug (a CSS rule, a fixed size) doesn't need one: it belongs next to the behavior it protects, in the reference page or a code comment.
+Write an ADR for a decision that had real alternatives and would be costly or risky to reverse. Without an ADR, a newcomer could "fix" such a decision without knowing the reason for it. A short lesson from a bug, such as a CSS rule or a fixed size, doesn't need an ADR. It belongs next to the behavior that it protects, in the reference page or in a code comment.
 
-A new decision gets its ADR in the same pull request that makes it.
+Add the ADR for a new decision in the same pull request that makes the decision.
 
 ## Format
 
-Files are named `NNNN-short-title.md`, numbered in order of writing. Each has:
+Each file is named `NNNN-short-title.md`. The numbers follow the order of writing. Each ADR has these sections:
 
-- **Status** — `Accepted` once the pull request that makes the decision is merged, or `Superseded by NNNN`; with the date and that pull request;
-- **Context** — the situation and the problem;
-- **Decision** — what was chosen;
-- **Alternatives considered** — what else was on the table and why it lost;
-- **Consequences** — what follows, good and bad.
+- **Status.** `Accepted` after the pull request that makes the decision is merged, or `Superseded by NNNN`. The status has the date and a link to that pull request.
+- **Context.** The situation and the problem.
+- **Decision.** The choice that was made.
+- **Alternatives considered.** The other options and the reasons why they weren't chosen.
+- **Consequences.** The results of the decision, good and bad.
 
-ADRs aren't rewritten. When a decision changes, write a new ADR and mark the old one `Superseded by NNNN`.
+Nobody rewrites an accepted ADR, because it records the reasons at the time of the decision. When a decision changes, write a new ADR and mark the old one `Superseded by NNNN`.
 
-The decisions made before ADRs existed are recorded after the fact, from their pull requests and issues, and dated by them.
+The decisions from before the project had ADRs are recorded afterwards. Their ADRs are based on the pull requests and issues of that time and have their dates.
 
 ## Index
 
-Numbers follow the order of writing; the date is when the decision was made.
+The numbers follow the order of writing. The date is the day of the decision.
 
 ### Process
 
