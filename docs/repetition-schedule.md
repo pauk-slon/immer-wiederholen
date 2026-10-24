@@ -96,7 +96,7 @@ A learner gets at most 7 new **words** a day (`NEW_WORDS_PER_DAY`). In the code,
 
 The limit counts words, not pairs. If the learner starts `sprechen` in two topics on one day, this is one new word.
 
-A word counts as new today if it has at least one introduced topic and all its introduced topics were introduced today. A word that the learner started days ago doesn't count, even if another of its topics gets its first answer today. A word with only a queued entry and no answer doesn't count either. Without the first condition, such would count, because "all its introduced dates are today" is true for an empty set.
+A word counts as new today if it has at least one introduced topic and all its introduced topics were introduced today. A word that the learner started days ago doesn't count, even if another of its topics gets its first answer today. A word with only a queued entry and no answer doesn't count either. Without the first condition, such a word would count, because "all its introduced dates are today" is true for an empty set.
 
 When the limit is the only reason that no more material is shown, the bot's "Study more" button calls `Tutor.grant_new_word_budget()`. This adds 3 words to today's limit (`NEW_WORD_BUDGET_GRANT`). Grants add up, because a learner who taps the button again explicitly wants more. A tap does nothing if the limit isn't reached. Telegram keeps old buttons active, and a tap on yesterday's button shouldn't raise today's limit. `/reset` doesn't change today's grants, because they expire the next day.
 
