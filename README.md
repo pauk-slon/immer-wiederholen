@@ -6,7 +6,7 @@ A project for creating Telegram bots that teach grammar with spaced repetition. 
 
 A German grammar course runs on this project. You can try it in Telegram or on the web:
 
-- [@ImmerWiederholenBot](https://t.me/ImmerWiederholenBot), the bot
+- [@ImmerWiederholenBot](https://t.me/ImmerWiederholenBot?start=en), the bot
 - [web.immer-wiederholen.com](https://web.immer-wiederholen.com/), the web app
 - [immer-wiederholen.com](https://immer-wiederholen.com/), grammar pages with the exercises embedded as widgets
 
