@@ -2,7 +2,7 @@
 
 A project for creating Telegram bots that teach grammar with spaced repetition. You write the course in YAML, and the bot teaches it. It tracks what each learner knows and shows each exercise again shortly before the learner would forget it. You can also embed the exercises on any web page as a widget.
 
-See [@ImmerWiederholenBot](https://t.me/ImmerWiederholenBot) for an example of a bot that teaches German grammar.
+See [@ImmerWiederholenBot](https://t.me/ImmerWiederholenBot?start=en) for an example of a bot that teaches German grammar.
 
 The [README](https://github.com/pauk-slon/immer-wiederholen#readme) describes the features and how to run the project locally.
 
