@@ -4,22 +4,22 @@
 
 ## Context
 
-The project's reasoning used to live in `CLAUDE.md`, written for AI agents: long paragraphs mixing how something works with how it came to be — "an earlier version did X, which broke Y". When those notes moved into human-readable pages under `docs/`, the reference text got clearer, but the history either had to be dropped or kept as ever-growing "Design notes". Dropping it loses the reasons behind non-obvious choices; keeping it inline makes the reference pages harder to read and mixes facts that change with facts that don't.
+The reasons behind the project's design used to be in `CLAUDE.md`, which is written for AI agents. Its long paragraphs mixed how something works with how it came to be, such as "an earlier version did X, which broke Y". These notes then moved into pages for people under `docs/`. The reference text became clearer, but the history had two options. The pages could drop it, or they could keep it in "Design notes" that would grow without limit. If the pages drop the history, the reasons behind non-obvious choices are lost. If the pages keep it, they are harder to read, and they mix facts that change with facts that don't.
 
 ## Decision
 
-Record significant decisions as architecture decision records in `docs/adr/`, in the format of [Michael Nygard's ADRs](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions) with an added "Alternatives considered" section. Reference pages describe the current state and link to the ADRs for the reasons.
+Record significant decisions as architecture decision records in `docs/adr/`. Use the format of [Michael Nygard's ADRs](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions) with an extra "Alternatives considered" section. Reference pages describe the current state and link to the ADRs for the reasons.
 
-Decisions made before this one are recorded retroactively, each dated by and linked to its original pull request. One-line lessons from bugs stay next to the behavior they protect instead of getting ADRs.
+Decisions from before this one are recorded afterwards. Each such ADR has the date of its original pull request and a link to it. Short lessons from bugs stay next to the behavior that they protect and get no ADR.
 
 ## Alternatives considered
 
-- **Keep "Design notes" in each page.** No new structure, but the notes keep growing, and there's no way to show that a decision was later replaced.
-- **Rely on pull requests and issues.** The history is there, but nobody finds it without knowing which pull request to look for.
+- **Keep "Design notes" in each page.** This needs no new structure. But the notes keep growing, and they can't show that a later decision replaced an earlier one.
+- **Rely on pull requests and issues.** The history is there, but a reader can't find it without knowing which pull request to look for.
 
 ## Consequences
 
 - Reference pages get shorter and describe only what is true now.
-- A decision's reasons can be found without digging through pull requests.
-- Writing an ADR is one more step when making a significant change.
-- Retroactive ADRs are only as good as the pull requests they're reconstructed from; where the reasons weren't written down, the ADR says so instead of inventing them, and an observation that wasn't discussed at the time is marked as such.
+- A reader can find the reasons for a decision without a search through pull requests.
+- An ADR is one more step in a significant change.
+- An ADR written afterwards is only as good as the pull requests that it is based on. If nobody wrote down the reasons, the ADR says so and doesn't invent them. It also marks an observation that nobody discussed at the time.
