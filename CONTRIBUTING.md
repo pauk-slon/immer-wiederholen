@@ -52,7 +52,7 @@ docker compose run --rm bot pytest tests/school/test_curriculum.py -k word_bank
 
 ## Documentation
 
-The pages in [`docs/`](docs) are plain Markdown. They read on GitHub, and [Zensical](https://zensical.org/) also builds them into a site (see [ADR 0018](docs/adr/0018-docs-site-built-with-zensical.md)). To build the site once into `site/`, run:
+The pages in [`docs/`](docs) are plain Markdown. You can read them on GitHub, and [Zensical](https://zensical.org/) also builds them into a site (see [ADR 0018](docs/adr/0018-docs-site-built-with-zensical.md)). To build the site once into `site/`, run:
 
 ```bash
 docker compose run --rm bot zensical build --strict
@@ -64,18 +64,20 @@ To preview the site at `http://localhost:8001/` while you edit, run the command 
 docker compose run --rm -p 8001:8000 bot zensical serve -a 0.0.0.0:8000
 ```
 
-With `--strict`, the build fails on a link to a missing page or heading. The check on pull requests uses the same flag. When you add a page, add an entry for it to `nav` in [`zensical.toml`](zensical.toml). A new ADR needs only a line in the [ADR index](docs/adr/README.md). The site contains only `docs/`. So a link from `docs/` to anything outside it, such as code, `demo/` or `CONTRIBUTING.md`, must be a GitHub URL.
+With `--strict`, the build fails on a link to a missing page or heading. The check on pull requests uses the same flag. When you add a page, add an entry for it to `nav` in [`zensical.toml`](zensical.toml). ADRs are not in `nav`. A new ADR needs only a line in the [ADR index](docs/adr/README.md). The site contains only `docs/`. So a link from `docs/` to anything outside it, such as code, `demo/` or `CONTRIBUTING.md`, must be a GitHub URL.
 
 ### Writing style
 
-The README, this file and the pages in `docs/` use simplified technical English, in the spirit of [ASD-STE100](https://www.asd-ste100.org/). The goal is text that is easy to read for everyone, including readers whose first language is not English.
+The README, this file and the pages in `docs/` use simplified technical English, in the spirit of [ASD-STE100 Simplified Technical English](https://www.asd-ste100.org/) (STE). Short, simple sentences are easier to read, especially for readers whose first language is not English.
 
 - Write short sentences. Put one idea in each sentence.
-- Use the active voice. Write instructions in the imperative.
+- Prefer the active voice. Write instructions in the imperative.
 - Use one term for one thing. Don't switch to a synonym later on the page.
-- Prefer a simple verb to a phrasal verb or an idiom.
+- Prefer a simple verb to a phrasal verb or an idiom (remove, not take out).
 - Don't join clauses with semicolons, colons or dashes. Use a colon only before a list, a table or a code block.
-- Describe what the project does. Don't state rules without a reason.
+- Connect the sentences in a paragraph by meaning. Don't list unrelated facts.
+- Name the things you mean. Avoid vague words such as everything.
+- Give the reason for a rule, not only the rule.
 
 The strict STE dictionary doesn't apply. Code identifiers and terms such as span or middleware stay as they are. Accepted ADRs are never rewritten, so older ones may not follow this style.
 
