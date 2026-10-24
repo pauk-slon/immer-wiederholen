@@ -6,7 +6,7 @@ Tracing is off until you set an OTLP endpoint. [Configuration](configuration.md#
 
 ## What gets traced
 
-Each unit of work has one root span. All the work it does, such as Redis calls and `Tutor` events, appears as child spans or span events under it.
+Each unit of work has one root span. Redis calls inside it become child spans, and `Tutor` events become span events.
 
 | Span | Process | Attributes |
 |---|---|---|
@@ -15,15 +15,15 @@ Each unit of work has one root span. All the work it does, such as Redis calls a
 | `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
 | `telegram.update` | bot | none (any other kind of update) |
 | `reminder.tick` | reminder | none (one sweep over all chats) |
-| `reminder.check_chat` | reminder | `telegram.chat_id`, `reminder.sent` (the reminder went out), `reminder.bot_blocked` (the learner had blocked the bot, or Telegram refused the message for that reason). A child of `reminder.tick` |
+| `reminder.check_chat` | reminder (child of `reminder.tick`) | `telegram.chat_id`, `reminder.sent` (the reminder went out), `reminder.bot_blocked` (the learner had blocked the bot, or Telegram refused the message for that reason) |
 | an HTTP server span per request | web | the standard HTTP attributes from Litestar's OpenTelemetry plugin, and `client.error.step` and `client.error.status` for `POST /api/client-error` |
 | a span per Redis command | all three | from `opentelemetry-instrumentation-redis` |
 
-The web widget reports its own failures to `POST /api/client-error`. It sends the step that failed and the HTTP status, if there was a response. So you can query browser-side errors next to the server's traces.
+The web widget reports its own failures to `POST /api/client-error`. It sends the step that failed and the HTTP status, if there was a response, so you can query browser-side errors next to the server's traces.
 
 The traces never contain text that a learner typed. A message span records only the command. Callback data is always a value that the bot made itself. It is a button id, sometimes with a topic group id or a reminder interval after it (`__topic_group__:verbs`, `__remind_after__:8`).
 
-OpenTelemetry records an exception that is raised inside a span on that span. In the reminder, an error in one chat goes on that chat's `reminder.check_chat` span. The sweep then logs the error and continues with the next chat.
+When code inside a span raises an exception, OpenTelemetry records it on that span. In the reminder, an error in one chat is recorded on that chat's `reminder.check_chat` span. The sweep then logs the error and continues with the next chat.
 
 ### Events from the repetition engine
 
@@ -43,15 +43,17 @@ OpenTelemetry records an exception that is raised inside a span on that span. In
 - **The cue generator.** It doesn't call `configure_tracing()`.
 - **Bot startup.** The bot sets its commands and profile before polling starts, outside any span.
 
-## How it's wired
+## How tracing is set up
 
 [`wiederholen.tracing`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/tracing.py) holds the setup that all three processes share:
 
-- **`configure_tracing()`** installs a `TracerProvider` that exports over OTLP/HTTP. If neither `OTEL_EXPORTER_OTLP_ENDPOINT` nor `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set, it does nothing. The code adds no resource attributes. The service name and the other attributes come from `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`. An earlier version had a fallback service name in the code. It was removed because a process without its `OTEL_*` variables then appeared under another process's name. Without a fallback, such a process appears as `unknown_service`, which is easy to notice.
-- **`instrument_redis()`** patches the Redis client globally. So every store's commands are traced, and the call sites need no changes. A second call only logs a warning.
+- **`configure_tracing()`** installs a `TracerProvider` that exports over OTLP/HTTP. If neither `OTEL_EXPORTER_OTLP_ENDPOINT` nor `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set, it does nothing. The code adds no resource attributes. The service name and the other attributes come from `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`.
+- **`instrument_redis()`** patches the Redis client globally, so every store's commands are traced without changes at the call sites. A second call only logs a warning.
 - **`default_tracer`** is created at import time. Until a provider is installed, it makes no-op spans. After `configure_tracing()` installs a provider, it records spans.
 
-The `main()` functions of the bot, the reminder and the web app call `configure_tracing()` and `instrument_redis()`. Nothing calls them at import time. So an import, for example in tests, never configures export.
+The `main()` functions of the bot, the reminder and the web app call `configure_tracing()` and `instrument_redis()`. Nothing calls them at import time, so an import, for example in tests, never configures export.
+
+An earlier version had a fallback service name in the code. It was removed because a process without its `OTEL_*` variables then appeared under another process's name. Without a fallback, such a process appears as `unknown_service`, which is easy to notice.
 
 ### Root spans per process
 
@@ -63,15 +65,15 @@ Each process opens its own root spans:
 
 Without these root spans, every Redis call would be a root span of its own.
 
-> **Register `TracingMiddleware` before aiogram's FSM middleware.** The FSM middleware reads the chat's state from Redis before aiogram routes the update. Middlewares wrap each other in registration order. If tracing comes second, that Redis read appears as a separate root span instead of a part of the update. For this reason, [`wiederholen/bot/__init__.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/__init__.py) creates the dispatcher with `Dispatcher(disable_fsm=True)`. This stops aiogram from registering its FSM middleware itself. The code then registers both middlewares on `dispatcher.update`, tracing first and `dispatcher.fsm` second.
+> **Register `TracingMiddleware` before aiogram's FSM middleware.** The FSM middleware reads the chat's state from Redis before aiogram routes the update. Middlewares wrap each other in registration order. If tracing comes second, that Redis read appears as a separate root span instead of part of the update's span. For this reason, [`wiederholen/bot/__init__.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/__init__.py) creates the dispatcher with `Dispatcher(disable_fsm=True)`. This stops aiogram from registering its FSM middleware itself. The code then registers both middlewares on `dispatcher.update`, tracing first and `dispatcher.fsm` second.
 
 ### How `Tutor` emits events
 
 [`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the three events as frozen dataclasses. `emit(event)` adds an event to `trace.get_current_span()` and names it after the dataclass. First, `_to_otel_attributes()` converts the dataclass fields to span attributes. It replaces enum values with their `.value` and omits `None` fields, because neither is a valid attribute value.
 
-Events go onto the span. `Tutor` doesn't return them. They are dataclasses, not dict literals. [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md) explains both choices.
+`Tutor` adds events to the span instead of returning them, and the events are dataclasses instead of dict literals. [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md) explains both choices.
 
-So `tutoring` depends on the OpenTelemetry API, but not on the SDK. Without a configured provider, the API does nothing. So `Tutor`'s tests need no tracing setup.
+Because of `emit()`, `tutoring` depends on the OpenTelemetry API, but not on the SDK. Without a configured provider, the API does nothing, so `Tutor`'s tests need no tracing setup.
 
 The events are internal to `tutoring`. The package exports only `RecallMode`, because the bot needs it for its recall flow.
 
@@ -86,13 +88,13 @@ The events are internal to `tutoring`. The package exports only `RecallMode`, be
 
 ## Testing
 
-- **Tests export nothing.** `tests/plugins/tracing.py::pytest_configure` sets `OTEL_SDK_DISABLED=true` for the whole session. Tests run in the `bot` service (`docker compose run --rm bot pytest`) and get its environment. If that environment sets a real OTLP endpoint, a test run would otherwise send spans to it.
+- **Tests export nothing.** `tests/plugins/tracing.py::pytest_configure` sets `OTEL_SDK_DISABLED=true` for the whole session. Tests run in the `bot` service (`docker compose run --rm bot pytest`) and get its environment. Without this setting, a test run would send spans to any OTLP endpoint in that environment.
 - **Tests check span content with an in-memory exporter.** The shared `tracer` and `exporter` fixtures build a recording `TracerProvider` with an `InMemorySpanExporter`. They enable the SDK again for that provider only. `tests/bot/test_tracing.py` uses them for `TracingMiddleware`. `tests/school/tutoring/test_tutoring_events.py` uses them for the events. It runs `check_answer()` or `next_exercise()` inside `tracer.start_as_current_span(...)` and reads `span.events`.
-- **Tests never use the global provider.** `trace.set_tracer_provider()` works only once per process and silently ignores later calls. So tests create their providers directly. `tests/test_tracing.py` tests `configure_tracing()` and `instrument_redis()` themselves.
+- **Tests never use the global provider.** `trace.set_tracer_provider()` works only once per process and silently ignores later calls, so tests create their providers directly. `tests/test_tracing.py` tests `configure_tracing()` and `instrument_redis()` themselves.
 
 ## Local setup
 
-To send traces from a local run, put the `OTEL_*` variables in a gitignored `compose.override.yaml` next to `compose.yaml` (see [Contributing](https://github.com/pauk-slon/immer-wiederholen/blob/main/CONTRIBUTING.md#setup)). Compose merges `environment` per service. So each of `bot`, `reminder` and `web` needs its own block with its own `OTEL_SERVICE_NAME`.
+To send traces from a local run, put the `OTEL_*` variables in a gitignored `compose.override.yaml` next to `compose.yaml` (see [Contributing](https://github.com/pauk-slon/immer-wiederholen/blob/main/CONTRIBUTING.md#setup)). Compose merges `environment` per service, so each of `bot`, `reminder` and `web` needs its own block with its own `OTEL_SERVICE_NAME`.
 
 Compose accepts a stray `=` in a key, like `OTEL_RESOURCE_ATTRIBUTES=: ...`, without an error. The `=` silently becomes part of the value. For `OTEL_RESOURCE_ATTRIBUTES`, OpenTelemetry then logs an `invalid key` warning. `docker compose config` shows the values that the variables actually get.
 
