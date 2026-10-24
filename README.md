@@ -1,6 +1,6 @@
 # Immer wiederholen!
 
-A Telegram bot and an embeddable web widget for practicing grammar with spaced repetition. *Immer wiederholen* is German for "always repeat". Courses are plain YAML.
+A Telegram bot for practicing grammar with spaced repetition. It keeps track of what each learner knows and brings every exercise back just before it would be forgotten. The same exercises can also be embedded on any web page as a widget.
 
 [![Telegram](https://img.shields.io/badge/Telegram-@ImmerWiederholenBot-2CA5E0?logo=telegram&logoColor=white)](https://t.me/ImmerWiederholenBot)
 

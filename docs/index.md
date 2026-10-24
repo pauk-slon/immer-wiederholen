@@ -1,6 +1,6 @@
 # Immer wiederholen!
 
-A Telegram bot ([@ImmerWiederholenBot](https://t.me/ImmerWiederholenBot)) and an embeddable web widget for practicing grammar with spaced repetition. Courses are plain YAML. What it can do and how to run it locally is in the [README](https://github.com/pauk-slon/immer-wiederholen#readme).
+A Telegram bot ([@ImmerWiederholenBot](https://t.me/ImmerWiederholenBot)) for practicing grammar with spaced repetition. It keeps track of what each learner knows and brings every exercise back just before it would be forgotten. The same exercises can also be embedded on any web page as a widget. What it can do and how to run it locally is in the [README](https://github.com/pauk-slon/immer-wiederholen#readme).
 
 ## Course authors
 
