@@ -1,6 +1,6 @@
 # Configuration
 
-This page describes how to run the project. It covers the processes, the environment variables that they read, the changes that the bot makes in Telegram, and the optional integrations. Each integration stays off until you set its variables.
+This page describes how to run the project. It covers the processes, the environment variables that they read, the changes that the bot makes in Telegram, and the optional integrations.
 
 For a local run, `compose.yaml` sets the variables except `BOT_TOKEN`. Put `BOT_TOKEN` in `.env` and run `docker compose up`.
 
@@ -11,20 +11,20 @@ All processes run from one Docker image, `ghcr.io/pauk-slon/immer-wiederholen:ma
 | Process | Command | What it does |
 |---|---|---|
 | bot | `python -m wiederholen.bot` (the image's default) | the Telegram bot. It uses long polling, so it needs no open port |
-| reminder | `python -m wiederholen.bot.reminder` | sends reminders to learners who stopped practicing. It checks every 15 minutes |
+| reminder | `python -m wiederholen.bot.reminder` | sends a reminder when a learner hasn't answered for the time set in `/reminders`. It checks every 15 minutes |
 | web | `python -m wiederholen.web` | the web widget, the web app and their API on port 8000 (see [Web frontend](web-frontend.md)) |
 | cue generator | `python -m wiederholen.school.authoring.cues` | a one-off run that generates missing illustrations (see [Illustrations](#illustrations)) |
 
 The image contains no course. Mount a course into the container, for example at `/app/data` (the default `COURSE_PATH`). [Course format](course-format.md) describes the files of a course.
 
-Only one `bot` process can poll Telegram for each bot token. A second process gets errors. The reminder uses the same token without polling, so it can run at the same time. Don't run a local copy with the production bot's token, because it would interrupt the production bot. Create a separate bot for development.
+Only one `bot` process can poll Telegram for each bot token. A second process gets errors. The reminder uses the same token without polling, so it can run at the same time. Don't run a local copy with the production bot's token, because the two processes would conflict. Create a separate bot for development.
 
 ## Environment variables
 
 | Variable | bot | reminder | web | Meaning |
 |---|---|---|---|---|
 | `BOT_TOKEN` | ✓ | ✓ | ✓ | the bot's token from [@BotFather](https://t.me/BotFather). The web app uses it only to verify Telegram logins |
-| `STUDENT_RECORD_STORAGE_URL` | ✓ | ✓ | ✓ | the repetition schedules of the learners |
+| `STUDENT_RECORD_STORAGE_URL` | ✓ | ✓ | ✓ | each learner's repetition schedule |
 | `STUDENT_IDENTITY_STORAGE_URL` | ✓ | ✓ | ✓ | which Telegram chats and browser logins belong to which learner |
 | `BOT_FSM_STORAGE_URL` | ✓ | ✓ | | Telegram chat state, such as the language, the settings and the exercise that the learner is answering |
 | `WEB_SESSION_STORAGE_URL` | | | ✓ | the exercise shown in each web session |
@@ -35,7 +35,7 @@ A process with a ✓ requires the variable. Every process also reads `COURSE_PAT
 
 ### Redis
 
-The four `*_STORAGE_URL` variables are Redis URLs, such as `redis://valkey:6379/0`. Valkey works as well as Redis. Each store adds a prefix to its keys, so all stores can share one database. But we recommend a separate database for each store, as in `compose.yaml`. Then you can inspect, clear or move each store separately:
+The four `*_STORAGE_URL` variables are Redis URLs, such as `redis://valkey:6379/0`. Valkey works as well as Redis. Each store adds a prefix to its keys, so all stores can share one database. But we recommend a separate database for each store. Then you can inspect or clear each store separately. `compose.yaml` uses these databases:
 
 | Variable | Database |
 |---|---|
@@ -50,7 +50,7 @@ Make the Redis data persistent, for example with a volume as in `compose.yaml`. 
 
 ### Telegram login on the web
 
-The "Log in with Telegram" button of the web app works only on the domain that you register for the bot with BotFather's `/setdomain`. Telegram allows one domain per bot (see [Web frontend](web-frontend.md)).
+The "Log in with Telegram" button of the web app works only on the domain that you register for the bot with BotFather's `/setdomain`. Telegram allows one domain per bot. [Web frontend](web-frontend.md#telegram-login) describes how the login works.
 
 ## What the bot changes in its Telegram profile
 
@@ -67,13 +67,13 @@ You enable each integration with its variables. There is no separate flag. Witho
 
 ### AI-generated questions
 
-**Bot only.** The `/ai` command switches a chat to exercises that an LLM (Anthropic's Claude) rewrites. It works for topics with `ai_generation: true` in `topics.yaml`. The feature is an experiment, so only the chats in a feature flag get it:
+**Bot only.** The `/ai` command switches a chat to exercises that an LLM (Anthropic's Claude) rewrites. It works for topics with `ai_generation: true` in `topics.yaml`. The feature is an experiment, so only the chats in a feature flag get it. The feature uses these variables:
 
 | Variable | Meaning |
 |---|---|
 | `ANTHROPIC_API_KEY` | an [Anthropic API](https://console.anthropic.com/) key |
 | `BOT_FEATURE_FLAGS` | the chats that get `/ai`, in the form `ai_exercises:<chat id>,<chat id>`. For a private chat, the chat id is the user's Telegram id |
-| `AUTHORING_GUIDE_PATH` | optional. A Markdown file with guidelines for writing exercises. The bot sends it to the model with each request. The bot omits the part from a `## Deploying` heading to the end of the file, so the same file can keep deployment notes for people at the end |
+| `AUTHORING_GUIDE_PATH` | optional. A Markdown file with guidelines for writing exercises, which the bot sends to the model with each request. The part from a `## Deploying` heading to the end of the file isn't sent, so the file can keep deployment notes for people |
 
 For chats outside the flag, `/ai` does nothing. If `ANTHROPIC_API_KEY` is missing, a flagged chat with `/ai` on gets an error message each time an AI exercise is due. Exercises of other topics appear as usual.
 
@@ -81,7 +81,7 @@ For chats outside the flag, `/ai` does nothing. If `ANTHROPIC_API_KEY` is missin
 
 ### Illustrations
 
-**Bot only.** The bot shows the questions of topics with `cue_generation: true` with an illustration, a "cue" in the code (see [Course format](course-format.md#ai-generated-questions-and-illustrations)). Cloudflare Workers AI generates the images ahead of time, and Cloudflare R2 stores them. The bot only reads them.
+**Bot only.** For topics with `cue_generation: true`, the bot shows each question with an illustration (a "cue" in the code, see [Course format](course-format.md#ai-generated-questions-and-illustrations)). Cloudflare Workers AI generates the images ahead of time, and Cloudflare R2 stores them. The bot only reads them.
 
 **1. Set up Cloudflare:**
 
