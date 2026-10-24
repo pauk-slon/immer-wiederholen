@@ -2,7 +2,7 @@
 
 ## Setup
 
-The project provides a Docker Compose configuration ([`compose.yaml`](compose.yaml)) for a local environment: the bot, the reminder, the web app and Valkey, each in its own container.
+For local development, the repository comes with a Docker Compose setup ([`compose.yaml`](compose.yaml)) that runs the bot, the reminder, the web app and Valkey.
 
 1. Create a bot for development with [@BotFather](https://t.me/BotFather) and put its token in `.env`:
 
