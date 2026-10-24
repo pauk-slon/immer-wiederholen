@@ -123,9 +123,9 @@ Either way the bot says the day is done and offers "Study more".
 - for each topic in `chains` and `gates` of the answered topic, the pair *(same word, that topic)*;
 - for each topic in `chains_by_answer`, the pair *(the exercise's answer, that topic)*.
 
-`_expedite_dependent()` gives such a pair an entry due today, with interval 0 — but only if the pair has no entry yet and the course has an exercise for it. A pair that already has an entry keeps it: once a linked topic has its own schedule, a link doesn't override it — otherwise topics linked to each other reset each other's due dates forever ([ADR 0004](adr/0004-links-only-schedule-unstarted-pairs.md)). Each scheduled pair is reported as a `TopicUnlocked` event.
+`_expedite_dependent()` gives such a pair an entry due today, with interval 0 — but only if the pair has no entry yet and the course has an exercise for it. A pair that already has an entry keeps it: once a linked topic has its own schedule, a link doesn't override it — otherwise topics linked to each other reset each other's due dates forever (see [ADR 0004](adr/0004-links-only-schedule-unstarted-pairs.md)). Each scheduled pair is reported as a `TopicUnlocked` event.
 
-A gated topic's pairs without an entry are excluded from "new and available" (why gates are declared separately from chains: [ADR 0012](adr/0012-gates-declared-explicitly.md)), so they can't be picked until a link gives them one. After that they're due like any other pair. Locked pairs don't affect `/progress`: they have no entry to count.
+A gated topic's pairs without an entry are excluded from "new and available" (gates are declared separately from chains, see [ADR 0012](adr/0012-gates-declared-explicitly.md)), so they can't be picked until a link gives them one. After that they're due like any other pair. Locked pairs don't affect `/progress`: they have no entry to count.
 
 `Course` merges `chains` and `gates` into `word_chained_topics` and keeps `chains_by_answer` as `answer_chained_topics`. An answer-chained topic can still be gated, through a `gates` entry under another topic: gating looks only at the topic, not at how its pair was scheduled.
 
