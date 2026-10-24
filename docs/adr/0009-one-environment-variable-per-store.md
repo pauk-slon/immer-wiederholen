@@ -12,7 +12,7 @@ Each store has its own URL variable and its own database number, even though the
 
 ## Alternatives considered
 
-- **One shared URL.** This needs fewer variables. But [#169](https://github.com/pauk-slon/immer-wiederholen/pull/169) notes that the stores are independent in concept. With a shared URL, a deployment couldn't move one store to another server without a change to the others.
+- **One shared URL.** This needs fewer variables. But [#169](https://github.com/pauk-slon/immer-wiederholen/pull/169) notes that the stores are independent of each other. With a shared URL, a deployment couldn't move one store to another server without a change to the others.
 
 ## Consequences
 

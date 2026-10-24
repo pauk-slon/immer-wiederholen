@@ -1,6 +1,6 @@
 # 0003. Separate learners from the ways they log in
 
-**Status:** Accepted, 2026-09-19 ([#208](https://github.com/pauk-slon/immer-wiederholen/pull/208)). Extended to browser logins on 2026-09-20 ([#219](https://github.com/pauk-slon/immer-wiederholen/pull/219)).
+**Status:** Accepted, 2026-09-19 ([#208](https://github.com/pauk-slon/immer-wiederholen/pull/208)). It was extended to browser logins on 2026-09-20 ([#219](https://github.com/pauk-slon/immer-wiederholen/pull/219)).
 
 ## Context
 
@@ -29,4 +29,4 @@ In the code, a learner is a `StudentID`, and a login is a `(provider, identifier
 - A learner who uses the bot and then logs in on the web gets the same record.
 - A new way to log in is a new provider, not a new id scheme.
 - Every request costs one more Redis lookup (observed, not discussed in #208).
-- After the change of schemes, the records created under the old scheme had no learner. There were no real users to migrate yet.
+- After the change of schemes, no login led to the records created under the old scheme any more. There were no real users to migrate yet.

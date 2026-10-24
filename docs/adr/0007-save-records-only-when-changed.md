@@ -4,7 +4,7 @@
 
 ## Context
 
-Every handler that uses a learner's record loads it and lets `Tutor` change it. Then the handler may or may not need to write it back. An answer always changes the record, `/progress` never does, and the reminder changes it only when it actually sends a reminder. When the record moved into its own store, `StudentRecordBook`, each of these handlers needed a way to save correctly without save logic of its own.
+Every handler that uses a learner's record loads it and lets `Tutor` change it. Then the handler may or may not need to save it. An answer always changes the record, `/progress` never does, and the reminder changes it only when it actually sends a reminder. When the record moved into its own store, `StudentRecordBook`, each of these handlers needed a way to save correctly without save logic of its own.
 
 ## Decision
 

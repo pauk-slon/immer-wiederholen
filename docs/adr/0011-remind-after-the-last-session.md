@@ -1,6 +1,6 @@
 # 0011. Reminders count from the last session
 
-**Status:** Accepted, 2026-10-15 ([#229](https://github.com/pauk-slon/immer-wiederholen/pull/229)). The rule of 24 hours exists since [#62](https://github.com/pauk-slon/immer-wiederholen/pull/62).
+**Status:** Accepted, 2026-10-15 ([#229](https://github.com/pauk-slon/immer-wiederholen/pull/229)). The 24-hour rule has existed since [#62](https://github.com/pauk-slon/immer-wiederholen/pull/62).
 
 ## Context
 
@@ -18,4 +18,4 @@ With `/reminders`, a learner chooses how long after their **last answer** the re
 
 - An inactive learner gets one reminder, not a series.
 - An active learner can get several reminders a day, one after each session.
-- The phone has to mute notifications at night, because a reminder can arrive at night.
+- A reminder can arrive at night. The learner's phone can mute it.
