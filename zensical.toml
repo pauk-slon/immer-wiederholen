@@ -1,5 +1,5 @@
 # Docs site config: https://zensical.org/docs/setup/basics/
-# Build locally with `docker compose run --rm bot uv run --group docs zensical build --strict`.
+# Build locally with `docker compose run --rm bot zensical build --strict`.
 [project]
 site_name = "Immer wiederholen!"
 site_description = "A Telegram bot and an embeddable web widget for practicing grammar with spaced repetition"

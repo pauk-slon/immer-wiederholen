@@ -50,11 +50,16 @@ docker compose run --rm bot pytest tests/school/test_curriculum.py -k word_bank
 
 ## Documentation
 
-The pages in [`docs/`](docs) are plain Markdown that reads on GitHub and is also built into a site with [Zensical](https://zensical.org/) (see [ADR 0018](docs/adr/0018-docs-site-built-with-zensical.md)). To build it, or to preview it at `http://localhost:8001/` while editing:
+The pages in [`docs/`](docs) are plain Markdown that reads on GitHub and is also built into a site with [Zensical](https://zensical.org/) (see [ADR 0018](docs/adr/0018-docs-site-built-with-zensical.md)). To build it once, into `site/`:
 
 ```bash
-docker compose run --rm bot uv run --group docs zensical build --strict
-docker compose run --rm -p 8001:8000 bot uv run --group docs zensical serve -a 0.0.0.0:8000
+docker compose run --rm bot zensical build --strict
+```
+
+To preview it at `http://localhost:8001/` while editing, rebuilt on every save:
+
+```bash
+docker compose run --rm -p 8001:8000 bot zensical serve -a 0.0.0.0:8000
 ```
 
 `--strict` fails on a link to a missing page or heading, as the check on pull requests does. A new page needs an entry in `nav` in [`zensical.toml`](zensical.toml); a new ADR only needs a line in the [ADR index](docs/adr/README.md). Links from `docs/` to anything outside it — code, `demo/`, `CONTRIBUTING.md` — are GitHub URLs, since the site contains only `docs/`.
