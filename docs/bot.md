@@ -11,10 +11,10 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 | `/start` | `start` | greets the learner. A deep link with a language (`t.me/<bot>?start=en`) sets the chat's language |
 | `/wiederholen` | `wiederholen` | shows the next exercise. The same module handles answers, recalls and the "next" and "study more" buttons |
 | `/progress` | `progress` | shows today's counts (due, new, answered) and how many words the learner is learning or has mastered (see [Repetition schedule](repetition-schedule.md)) |
-| `/topics` | `topics` | chooses the topic groups to practice (see [Topic selection](#topic-selection)) |
-| `/reminders` | `reminders` | chooses how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
+| `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
+| `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
 | `/language` | `language` | switches between Russian and English |
-| `/reset` | `reset` | deletes the learner's schedule after a confirmation |
+| `/reset` | `reset` | deletes the learner's schedule and today's answer counts after a confirmation |
 | `/ai` | `ai` | switches the chat to exercises that an LLM rewrites, for topics with `ai_generation`. Only chats with the `ai_exercises` [feature flag](#feature-flags) have it (see [AI-generated content](authoring.md#shadow-exercises)) |
 
 [`l10n.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/l10n.py) has the bot's texts in both languages.
@@ -28,11 +28,11 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 - the topic's `instruction` (`ℹ️`)
 - a hint from grammar classes (`🔍`), hidden in a spoiler that the learner taps to open (see [Hints from grammar classes](#hints-from-grammar-classes))
 
-The bot marks an AI-generated question with `🤖`. A multiple-choice exercise shows its options as a reply keyboard. An exercise that the learner types removes the keyboard.
+The bot marks an AI-generated question with `🤖`. A multiple-choice exercise shows its options as a reply keyboard. For an exercise with a typed answer, the bot removes the keyboard.
 
 The bot sends the message with `parse_mode="HTML"`, so **every piece of authored text goes through `html.escape()`**. Without it, a `<`, `>` or `&` in a question would break the markup.
 
-If the topic has illustrations and the question has one, the bot sends the question as a photo with the text as its caption. The exception is a text longer than Telegram's caption limit of 1024 characters. If the lookup fails, the bot logs the error and sends the question as plain text, so a storage problem never stops practice.
+If the topic has illustrations and the question has one, the bot sends the question as a photo with the text as its caption. If the text is longer than Telegram's caption limit of 1024 characters, the bot sends it as plain text. If the lookup fails, the bot logs the error and sends the question as plain text, so a storage problem never stops practice.
 
 ## Answering
 
@@ -40,10 +40,10 @@ If the topic has illustrations and the question has one, the bot sends the quest
 2. The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)):
    - **Wrong answer, the exercise has recalls.** A recall starts at once, and the learner must type the sentence.
    - **Right answer, the exercise has recalls.** The explanation comes with two buttons, "Drill" ("Закрепить") for an optional recall and "Next exercise" ("Следующее задание").
-   - **No recalls.** Only "Next exercise".
+   - **No recalls.** The explanation comes with only a "Next exercise" button.
 3. After a right recall answer, the bot says "correct" and shows a "Next exercise" button. After a wrong one, the bot shows the correct sentence and underlines the parts that differ from the learner's answer. It also shows "Try again" ("Попробовать ещё раз") and "Next exercise".
 
-When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. Sometimes the limit isn't the reason, because the learner has answered all available exercises. Then the limit stays the same, and the reply is "the day is done" again.
+When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
 
 ## Chat settings
 
@@ -58,20 +58,20 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 
 ### Topic selection
 
-`/topics` shows one inline button per topic group (`✅` or `⬜`) and a "Done" button. Each tap switches a group on or off and saves the selection at once. "Done" replaces the menu with a summary and a "Next exercise" button. The bot stores the selection as `topic_groups`, a list of group ids.
+`/topics` shows one inline button per topic group (`✅` or `⬜`) and a "Done" button. Each tap selects or deselects a group and saves the selection at once. "Done" replaces the menu with a summary and a "Next exercise" button. The bot stores the selection as `topic_groups`, a list of group ids.
 
 [`topic_selection.restrict_to_selected_groups()`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/topic_selection.py) limits the course to the selected groups with `Course.restricted_to()`. The web widget uses the same method. An empty selection means all topics. The function ignores group ids that the course no longer defines. If none of the selected groups exists any more, the learner gets all topics, not none.
 
 The bot applies the selection where it picks something to show. These places are `/wiederholen`, the "next" and "study more" buttons, and the reminder, so no learner gets a reminder about groups that they deselected. The bot intentionally doesn't apply the selection in two places:
 
-- **`/progress`.** It shows all that the learner has learned, not only today's focus.
+- **`/progress`.** It shows the learner's progress in all topics, not only today's focus.
 - **Answer checks.** The bot checks an exercise that it already showed against the full course, so a chain into an unselected group still schedules progress there.
 
 The daily limit on new words counts all topics, selected or not.
 
 ## Reminders
 
-A separate process, [`python -m wiederholen.bot.reminder`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder.py), sends a message to learners who stopped answering and have something to practice. It is a separate process, not a task inside the bot (see [ADR 0010](adr/0010-reminders-as-a-separate-process.md)). Every 15 minutes it runs `tick()`. `tick()` goes through each Telegram chat in `StudentIdentityStore` (`iter_identifiers("telegram")`). For each chat, `_remind_chat()` decides whether to send a reminder and sends it if needed.
+A separate process, [`python -m wiederholen.bot.reminder`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder.py), sends a message to learners who stopped answering and have something to practice. It is a separate process, not a task inside the bot (see [ADR 0010](adr/0010-reminders-as-a-separate-process.md)). Every 15 minutes it runs `tick()`. `tick()` checks each Telegram chat in `StudentIdentityStore` (`iter_identifiers("telegram")`). For each chat, `_remind_chat()` decides whether to send a reminder and sends it if needed.
 
 For one chat, these steps happen in order:
 
@@ -98,13 +98,13 @@ If one chat fails, the reminder logs the error and continues with the next chat.
 
 `/reminders` offers 4, 8, 12 or 24 hours after the last answer, or off, with one button each. The default is 24 hours. A tap saves the choice and confirms it. The bot stores the choice as `remind_after_hours`. The value `0` means off, which is different from "never chosen". "Never chosen" means the default. If the stored value is no longer offered, [`reminder_settings.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder_settings.py) uses the default. Unlike `/topics`, there's no "Done" step, because the setting needs only one tap. The interval counts from the last answer and doesn't follow a fixed schedule (see [ADR 0011](adr/0011-remind-after-the-last-session.md)).
 
-The setting is an interval since the last session, not "every N hours" or "N times a day". It still gives one reminder per period of inactivity, so reminders don't collect overnight. An active learner can get several reminders a day, one after each session. The bot doesn't handle time zones. The learner's phone can mute notifications at night.
+The setting is an interval since the last session, not "every N hours" or "N times a day". It still gives one reminder per period of inactivity, so reminders don't accumulate overnight. An active learner can get several reminders a day, one after each session. The bot doesn't handle time zones. The learner's phone can mute notifications at night.
 
 ### Blocked chats
 
 The Bot API can't tell whether a learner has blocked the bot. Telegram reports it in only two ways. One is a `my_chat_member` update, with status `kicked` in a private chat and `member` again after an unblock. The other is a 403 error (`TelegramForbiddenError`) on the next message.
 
-[`chat_membership.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/chat_membership.py) handles the update. It stores `bot_blocked: True` in the chat's FSM data and removes it after an unblock. aiogram subscribes to `my_chat_member` updates automatically when a handler for them exists. The reminder skips chats with the flag before it opens the student record or calls Telegram. A 403 on send also sets the flag. This covers learners who blocked the bot before the bot handled the update, and learners whose update was lost.
+[`chat_membership.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/chat_membership.py) handles the update. It stores `bot_blocked: True` in the chat's FSM data and removes it after an unblock. aiogram subscribes to `my_chat_member` updates automatically when a handler for them exists. The reminder skips chats with the flag before it opens the student record or calls Telegram. A 403 on send also sets the flag. This covers learners who blocked the bot before this handler existed, and learners whose update was lost.
 
 The flag isn't in `_CHAT_SETTINGS_KEYS`, so the end of an exercise would remove it. But a learner who has blocked the bot doesn't answer exercises. If the flag is lost anyway, the worst case is one refused message, and that message sets the flag again.
 
@@ -124,7 +124,7 @@ When you edit the text of a message, pass `reply_markup=` explicitly, with a new
 
 ## Feature flags
 
-[`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) enables a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#ai-generated-questions) describes its format. The module was made to try AI-generated exercises with a test user, without any billing.
+[`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) enables a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#ai-generated-questions) describes its format.
 
 At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, "ai_exercises", chat_id)`. The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
 
@@ -138,7 +138,7 @@ The flags have no storage and no admin command. To change a flag, edit the varia
 2. Keep the words that the learner knows well. Such a word has a repetition interval above one day, so the learner has answered it correctly at least once after its first answer. An interval of `0` can mean "answered wrong" or "answered once", and `1` is one success, so neither counts.
 3. Return the word with the longest interval, because the learner remembers it best. Choose at random among words with the same interval. Return `None` if no word qualifies.
 
-`get_hint()` returns only the word. The bot renders it with `Locale.grammar_class_hint` ("Same as for {word}"). The hint intentionally doesn't include the other word's answer. For a class like `an+Akk`, that answer would also be the answer to this question. `get_hint()` only reads the record. The bot calls it after AI mode has chosen the exercise to show. `grammar_classes` doesn't change when AI mode rewrites an exercise.
+`get_hint()` returns only the word. The bot renders it with `Locale.grammar_class_hint` ("Same as for {word}"). The hint intentionally doesn't include the other word's answer. For a class like `an+Akk`, that answer would also be the answer to this question. `get_hint()` only reads the record. The bot calls it after `_apply_ai_mode()` decides which exercise to show. `grammar_classes` doesn't change when AI mode rewrites an exercise.
 
 The web widget doesn't show these hints yet.
 
