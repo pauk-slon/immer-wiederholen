@@ -26,7 +26,7 @@ nav = [
     { "Telegram bot" = "bot.md" },
     { "Web frontend" = "web-frontend.md" },
     { "AI-generated content" = "authoring.md" },
-    { "Tracing" = "tracing.md" },
+    { "Observability" = "tracing.md" },
     { "Architecture decision records" = "adr/README.md" },
   ] },
 ]

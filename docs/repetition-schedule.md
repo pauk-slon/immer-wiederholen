@@ -109,7 +109,7 @@ A pair answered for the first time is due again the same day, so without care th
 
 ### When there's nothing to show
 
-`next_exercise()` returns `None` in two cases, reported as a `NoExerciseAvailable` span event (see [Tracing](tracing.md#events-from-the-repetition-engine)):
+`next_exercise()` returns `None` in two cases, reported as a `NoExerciseAvailable` span event (see [Observability](tracing.md#events-from-the-repetition-engine)):
 
 - **`nothing_available`**: nothing is due and nothing new is available — everything's done, or what's left is locked behind gates;
 - **`daily_cap_reached`**: only new words are left, and the limit is used up.
