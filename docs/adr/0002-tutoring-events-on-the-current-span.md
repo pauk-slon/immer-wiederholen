@@ -1,10 +1,10 @@
 # 0002. The repetition engine reports events on the current span
 
-**Status:** Accepted, 2026-08-23 ([#175](https://github.com/pauk-slon/immer-wiederholen/pull/175), closing [#173](https://github.com/pauk-slon/immer-wiederholen/issues/173)). Replaces the design of [#124](https://github.com/pauk-slon/immer-wiederholen/pull/124).
+**Status:** Accepted, 2026-08-23 ([#175](https://github.com/pauk-slon/immer-wiederholen/pull/175), closing [#173](https://github.com/pauk-slon/immer-wiederholen/issues/173)). It replaces the design of [#124](https://github.com/pauk-slon/immer-wiederholen/pull/124).
 
 ## Context
 
-`check_answer()` and `next_exercise()` returned events that only tracing used. The events are worth seeing in traces. Examples are a marked answer, a scheduled linked topic, and the case when nothing is left to show. But `wiederholen.school.tutoring` intentionally has no infrastructure dependencies, so that its tests of `Tutor` need no mocks.
+`check_answer()` and `next_exercise()` returned events that only tracing used. The events are worth seeing in traces. Examples are a marked answer, a scheduled linked topic, and the case when nothing is left to show. There was one constraint. `wiederholen.school.tutoring` intentionally has no infrastructure dependencies, so that tests of `Tutor` need no mocks.
 
 The first design ([#124](https://github.com/pauk-slon/immer-wiederholen/pull/124)) kept OpenTelemetry out of `tutoring`. `check_answer()` and `next_exercise()` returned their result together with a list of event dataclasses. The bot turned each event into a span event at every call site (`record_tutoring_events()`). Later it became clear that the bot was the only user of those lists, and it never read their content. For example, the "Study more" button depends only on `next_exercise()` returning `None`, not on the `reason` of the event.
 

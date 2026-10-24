@@ -6,7 +6,7 @@
 
 A topic link (`chains`, `gates` or `chains_by_answer` in `topics.yaml`) makes an answer in one topic schedule a linked topic for the same word (see [Course format](../course-format.md#linking-topics)). Originally, `_expedite_dependent()` also moved the due date of an already scheduled linked pair to today, every time the learner answered the source topic.
 
-For a one-way link, this only showed the linked pair earlier than its own interval required. For topics that link to each other, such as `partizip_ii` and `praeteritum`, it was a trap. Each correct answer to one topic reset the due date of the other topic to today. The intervals kept doubling, but the due dates never stayed. A learner reported that they had to answer the two forms of `ziehen` again and again. "Remaining today" stayed at 1, no matter how many correct answers they gave.
+For a one-way link, this only showed the linked pair earlier than its own interval required. For topics that link to each other, such as `partizip_ii` and `praeteritum`, it was a trap. Each correct answer to one topic reset the due date of the other topic to today. The intervals kept doubling, but the pairs never stayed scheduled for a later day. A learner reported that they had to answer the two forms of `ziehen` again and again. "Remaining today" stayed at 1, no matter how many correct answers they gave.
 
 ## Decision
 

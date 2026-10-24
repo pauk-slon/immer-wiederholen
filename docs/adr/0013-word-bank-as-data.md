@@ -16,7 +16,7 @@ Word-order exercises showed their scrambled words as text in `question`, for exa
 ## Alternatives considered
 
 - **Split `answer` on spaces** (the first version of #190). This needs no new field, but the pieces are too small.
-- **A `word_order` setting in `topics.yaml`** (also in an earlier version of #190). It was dropped, because `word_bank` itself says how to show the exercise, in the same way as `choices: null` does for typed answers.
+- **A `word_order` setting in `topics.yaml`** (also in an earlier version of #190). It was dropped, because `word_bank` itself says how to show the exercise, just as `choices: null` does for typed answers.
 
 ## Consequences
 

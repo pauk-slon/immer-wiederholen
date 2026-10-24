@@ -1,6 +1,6 @@
 # 0012. Gates are declared explicitly
 
-**Status:** Accepted, 2026-07-22 ([#79](https://github.com/pauk-slon/immer-wiederholen/pull/79)). Replaces the derived gating of [#74](https://github.com/pauk-slon/immer-wiederholen/pull/74).
+**Status:** Accepted, 2026-07-22 ([#79](https://github.com/pauk-slon/immer-wiederholen/pull/79)). It replaces the derived gating of [#74](https://github.com/pauk-slon/immer-wiederholen/pull/74).
 
 ## Context
 

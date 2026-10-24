@@ -4,7 +4,7 @@
 
 ## Context
 
-The reasons behind the project's design used to be in `CLAUDE.md`, which is written for AI agents. Its long paragraphs mixed how something works with how it came to be, such as "an earlier version did X, which broke Y". These notes then moved into pages for people under `docs/`. The reference text became clearer, but the history had two options. The pages could drop it, or they could keep it in "Design notes" that would grow without limit. If the pages drop the history, the reasons behind non-obvious choices are lost. If the pages keep it, they are harder to read, and they mix facts that change with facts that don't.
+The reasons behind the project's design used to be in `CLAUDE.md`, which is written for AI agents. Its long paragraphs mixed how something works with how it came to be, such as "an earlier version did X, which broke Y". These notes then moved into pages for people under `docs/`. The reference text became clearer. For the history, there were two options. The pages could drop it, or they could keep it in "Design notes" that would grow without limit. If the pages drop the history, the reasons behind non-obvious choices are lost. If the pages keep it, they are harder to read, and they mix facts that change with facts that don't.
 
 ## Decision
 
