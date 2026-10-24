@@ -33,18 +33,11 @@ To run your own course, put it in `data/` (gitignored; the repo is mounted into 
 
 ## Documentation
 
-Course authors need [Course format](docs/course-format.md): `exercises.yaml`, `topics.yaml` and `bot.yaml`. Operators need [Configuration](docs/configuration.md): processes, environment variables and optional integrations.
+The documentation is at [docs.immer-wiederholen.com](https://docs.immer-wiederholen.com/), built from [`docs/`](docs). Where to start:
 
-Contributors should start with [CONTRIBUTING.md](CONTRIBUTING.md), then:
-
-- [Architecture](docs/architecture.md) — packages, processes and where state lives
-- [Repetition schedule](docs/repetition-schedule.md) — how the next exercise is picked
-- [Storage and identity](docs/storage.md)
-- [Telegram bot](docs/bot.md)
-- [Web frontend](docs/web-frontend.md)
-- [AI-generated content](docs/authoring.md)
-- [Tracing](docs/tracing.md)
-- [Architecture decision records](docs/adr/README.md) — why things are the way they are
+- course authors: [Course format](docs/course-format.md);
+- operators: [Configuration](docs/configuration.md);
+- contributors: [CONTRIBUTING.md](CONTRIBUTING.md), then [Architecture](docs/architecture.md).
 
 ## License
 
