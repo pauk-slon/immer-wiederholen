@@ -1,27 +1,27 @@
 # 0005. Shadow exercises keep the answer
 
-**Status:** Accepted, 2026-08-14 ([#166](https://github.com/pauk-slon/immer-wiederholen/pull/166)); builds on [#163](https://github.com/pauk-slon/immer-wiederholen/pull/163) and [#164](https://github.com/pauk-slon/immer-wiederholen/pull/164)
+**Status:** Accepted, 2026-08-14 ([#166](https://github.com/pauk-slon/immer-wiederholen/pull/166)). It builds on [#163](https://github.com/pauk-slon/immer-wiederholen/pull/163) and [#164](https://github.com/pauk-slon/immer-wiederholen/pull/164).
 
 ## Context
 
-The `/ai` mode replaces the exercise the scheduler picked with a "shadow" written by an LLM (see [AI-generated content](../authoring.md#shadow-exercises)). The scheduler picked a specific exercise for a specific word, topic and answer; the shadow should test the same thing.
+The `/ai` mode replaces the exercise that `Tutor` picked with a "shadow" that Claude writes (see [AI-generated content](../authoring.md#shadow-exercises)). `Tutor` picked a specific exercise for a specific word, topic and answer. The shadow should test the same thing.
 
-The first version ([#163](https://github.com/pauk-slon/immer-wiederholen/pull/163)) rewrote only the question and explanation and kept everything else, so the shadow was correct by construction. From the start, generation was opt-in per topic (`ai_generation` in `topics.yaml`), for topics where the answer doesn't depend on the exact wording.
+The first version ([#163](https://github.com/pauk-slon/immer-wiederholen/pull/163)) rewrote only the question and the explanation and kept all other fields, so the shadow was correct by construction. From the start, each topic had to enable generation explicitly (`ai_generation` in `topics.yaml`). Generation was meant for topics where the answer doesn't depend on the exact wording.
 
-[#164](https://github.com/pauk-slon/immer-wiederholen/pull/164) then generated whole exercises, answer included, as a deliberate experiment: would a short prompt with the authoring guide produce good enough results on its own? The plan was to decide afterwards whether to narrow generation back down, add a verification pass, or both. Letting the model choose any answer correct for its own sentence turned out to quietly change what was being practiced for pairs that admit more than one correct answer.
+[#164](https://github.com/pauk-slon/immer-wiederholen/pull/164) then generated whole exercises, with the answer, as an intentional experiment. The question was whether a short prompt with the authoring guide would give good enough results by itself. The plan was to decide afterwards whether to limit generation again, to add a verification step, or both. The model could choose any answer that was correct for its own sentence. For pairs with more than one correct answer, this silently changed what the learner practiced.
 
 ## Decision
 
-The shadow keeps `word`, `topic` and `answer` from the picked exercise. The model writes the question, distractors, explanation, recalls and, when the original has one, the description around that fixed answer ([#166](https://github.com/pauk-slon/immer-wiederholen/pull/166)).
+The shadow keeps `word`, `topic` and `answer` from the picked exercise. Around that fixed answer, the model writes the question, the distractors, the explanation, the recalls and, if the original has one, the description ([#166](https://github.com/pauk-slon/immer-wiederholen/pull/166)).
 
 ## Alternatives considered
 
-- **Let the model choose the answer** (the #164 experiment). More varied exercises, but the shadow could test something other than what the scheduler picked.
-- **Rewrite only the wording** (the #163 version). Correct by construction; #164 moved away from it to find out how much a short prompt could generate well. No later pull request records a decision to go back.
-- **Add a verification pass**, mentioned in #164 as an option. Not done.
+- **Let the model choose the answer** (the experiment of #164). This gives more varied exercises. But the shadow could test something other than what `Tutor` picked.
+- **Rewrite only the wording** (the version of #163). This is correct by construction. #164 moved away from it to find out how much a short prompt can generate well. No later pull request records a decision to go back.
+- **Add a verification step.** #164 mentioned it as an option. It wasn't built.
 
 ## Consequences
 
-- `answer` is correct by construction, and scheduling treats a shadow like the original.
-- Distractors and recalls still depend on the model getting the grammar right.
-- Per-topic opt-in stays necessary: bare-form questions, word-order exercises and topics where the subject decides the answer can't be rewritten safely even with a fixed answer.
+- `answer` is correct by construction, and the schedule treats a shadow like the original.
+- Distractors and recalls still depend on correct grammar from the model.
+- Each topic still has to enable generation explicitly. Even with a fixed answer, some exercises can't be rewritten safely. These are questions with a bare form, word-order exercises and topics where the subject decides the answer.
