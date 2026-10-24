@@ -1,6 +1,6 @@
 # Immer wiederholen!
 
-A project for creating Telegram bots that teach grammar with spaced repetition. You write the course in YAML, and the bot teaches it. The bot tracks what each learner knows. It shows each exercise again shortly before the learner would forget it. You can also embed the exercises on any web page as a widget.
+A project for creating Telegram bots that teach grammar with spaced repetition. You write the course in YAML, and the bot teaches it. It tracks what each learner knows and shows each exercise again shortly before the learner would forget it. You can also embed the exercises on any web page as a widget.
 
 See [@ImmerWiederholenBot](https://t.me/ImmerWiederholenBot) for an example of a bot that teaches German grammar.
 
@@ -8,7 +8,7 @@ The [README](https://github.com/pauk-slon/immer-wiederholen#readme) describes th
 
 ## Course authors
 
-[Course format](course-format.md) describes the three files of a course (`exercises.yaml`, `topics.yaml` and `bot.yaml`) with every field and setting.
+[Course format](course-format.md) describes every field and setting in the three files of a course (`exercises.yaml`, `topics.yaml` and `bot.yaml`).
 
 ## Operators
 
@@ -20,9 +20,9 @@ Start with [CONTRIBUTING.md](https://github.com/pauk-slon/immer-wiederholen/blob
 
 - [Repetition schedule](repetition-schedule.md) describes how the project picks the next exercise
 - [Storage and identity](storage.md) describes where each learner's state is stored
-- [Telegram bot](bot.md)
-- [Web frontend](web-frontend.md)
-- [AI-generated content](authoring.md)
-- [Observability](tracing.md)
+- [Telegram bot](bot.md) describes the commands, the chat settings and the reminders
+- [Web frontend](web-frontend.md) describes the widget, the web app and the Telegram login
+- [AI-generated content](authoring.md) describes shadow exercises and illustrations
+- [Observability](tracing.md) describes what the processes record as traces
 
 The [Architecture decision records](adr/README.md) explain the reasons for the main design choices.
