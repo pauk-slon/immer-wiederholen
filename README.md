@@ -1,46 +1,51 @@
 # Immer wiederholen!
 
-Telegram bot for practicing language grammar using spaced repetition.
+A Telegram bot and an embeddable web widget for practicing grammar with spaced repetition. *Immer wiederholen* is German for "always repeat". The course is plain YAML; the one it runs today is German, with explanations and the interface in Russian and English.
 
 [![Telegram](https://img.shields.io/badge/Telegram-@ImmerWiederholenBot-2CA5E0?logo=telegram&logoColor=white)](https://t.me/ImmerWiederholenBot)
 
-## Spaced repetition implementation
+## Features
 
-Each exercise has a due date:
+- **Spaced repetition per word and topic.** A wrong or first answer brings an exercise back the same day; after that, each correct answer doubles the wait, up to 60 days. Up to seven new words a day, more on request.
+- **Linked topics.** Answering one topic for a word can bring a related topic forward, or unlock one that stays hidden until then — e.g. a verb's Partizip II before sentences that use it.
+- **Multiple-choice questions with explanations**, hints that point to a well-known word with the same grammar ("Same as for …"), and recalls: a follow-up sentence to write out in full, required after a wrong answer.
+- **Reminders** a set time after the last session, topic selection, and a progress summary.
+- **A web widget** for embedding on landing pages, plus a standalone web app; logging in with Telegram shares progress with the bot. Hints, reminders, topic selection and AI content are bot-only for now.
+- **Optional AI content:** illustrations shown with sentence exercises, and an experimental mode where Claude rewrites questions.
 
-- A wrong answer makes the exercise due again today.
-- A correct answer pushes the due date further away, doubling the wait each time, up to a maximum of 60 days.
+## Quickstart
 
-## Development
+You need Docker and a Telegram bot for development, created with [@BotFather](https://t.me/BotFather). Don't use a production bot's token: see [CONTRIBUTING.md](CONTRIBUTING.md#setup) for why. Put the token in `.env`:
 
-Set the `BOT_TOKEN` environment variable with your Telegram bot token (e.g. via `.env` file).
+```
+BOT_TOKEN=123456:ABC...
+```
 
-Start the bot:
+Then start everything:
 
 ```bash
 docker compose up
 ```
 
-Locally the bot runs the small demo course from [`demo/`](demo): a handful of German exercises that use every field and topic setting the course format supports, with comments explaining them. To run your own course, point `COURSE_PATH` at a directory with the same files (e.g. `COURSE_PATH=data` in `.env`):
+This starts the bot, the reminder, the web app and Valkey with the demo course from [`demo/`](demo): a few German exercises that use every feature of the course format. Open your bot in Telegram, press Start, then send `/wiederholen` for the first exercise. To open the web app locally, see [Web frontend](docs/web-frontend.md#running-locally).
 
-- `exercises.yaml` — the exercises (required)
-- `topics.yaml` — topic groups and the relations between topics (optional)
-- `bot.yaml` — the bot's Telegram name and descriptions (optional)
+To run your own course, put it in `data/` (gitignored; the repo is mounted into the containers) and set `COURSE_PATH=data` in `.env`. The files it needs are described in [Course format](docs/course-format.md).
 
-The format is described in [docs/course-format.md](docs/course-format.md); environment variables and optional integrations in [docs/configuration.md](docs/configuration.md).
+## Documentation
 
-To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/architecture.md](docs/architecture.md).
+Course authors need [Course format](docs/course-format.md): `exercises.yaml`, `topics.yaml` and `bot.yaml`. Operators need [Configuration](docs/configuration.md): processes, environment variables and optional integrations.
 
-Tests:
+Contributors should start with [CONTRIBUTING.md](CONTRIBUTING.md), then:
 
-```bash
-docker compose run --rm bot pytest .
-```
+- [Architecture](docs/architecture.md) — packages, processes and where state lives
+- [Repetition schedule](docs/repetition-schedule.md) — how the next exercise is picked
+- [Storage and identity](docs/storage.md)
+- [Telegram bot](docs/bot.md)
+- [Web frontend](docs/web-frontend.md)
+- [AI-generated content](docs/authoring.md)
+- [Tracing](docs/tracing.md)
+- [Architecture decision records](docs/adr/README.md) — why things are the way they are
 
-Linting and formatting:
+## License
 
-```bash
-docker compose run --rm bot ruff format .
-docker compose run --rm bot ruff check . --fix
-docker compose run --rm bot ty check .
-```
+[MIT](LICENSE)
