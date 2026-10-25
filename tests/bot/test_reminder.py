@@ -563,7 +563,10 @@ async def test_tick_reminds_without_a_streak_line_when_the_streak_is_broken(
         student_id,
         {
             "last_exercise": {"answered_at": (now - timedelta(hours=40)).isoformat()},
-            "streak_started_at": (now - timedelta(days=5)).isoformat(),
+            "streak": {
+                "days": 5,
+                "counted_at": (now - timedelta(hours=40)).isoformat(),
+            },
         },
     )
 
@@ -589,7 +592,10 @@ async def test_tick_reminds_when_the_streak_ends(
         student_id,
         {
             "last_exercise": {"answered_at": (now - timedelta(hours=25)).isoformat()},
-            "streak_started_at": (now - timedelta(hours=74)).isoformat(),
+            "streak": {
+                "days": 3,
+                "counted_at": (now - timedelta(hours=25)).isoformat(),
+            },
         },
     )
 

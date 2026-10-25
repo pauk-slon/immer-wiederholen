@@ -34,7 +34,7 @@ When code inside a span raises an exception, OpenTelemetry records it on that sp
 | `ExerciseAnswered` | every `check_answer()` | `word`, `topic`, `is_correct`, `is_new`, `recall_mode` (`none`, `optional`, `required`), `prev_repetition_interval` (not set on a pair's first answer), `next_repetition_interval` |
 | `TopicUnlocked` | `Tutor` schedules a linked topic for a word (see [Course format](course-format.md#linking-topics)) | `source_topic`, `dependent_topic`, `via` (`chain` or `gate`) |
 | `NoExerciseAvailable` | `next_exercise()` finds nothing to show | `reason` (`daily_cap_reached` when only new words are left and today's limit is used up, otherwise `nothing_available`) |
-| `StreakExtended` | an answer makes the streak longer or starts a new one (see [Repetition schedule](repetition-schedule.md#streak)) | `days`, the new length. It is 1 for a new streak |
+| `StreakExtended` | an answer adds a day to the streak or starts a new one (see [Repetition schedule](repetition-schedule.md#streak)) | `days`, the new length. It is 1 for a new streak |
 | `StreakBroken` | the first answer after a break of more than 36 hours | `days`, the length of the lost streak |
 
 `request_recall()` and `check_recall()` emit no events.

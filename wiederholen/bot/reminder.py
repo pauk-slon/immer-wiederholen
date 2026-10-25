@@ -1,7 +1,5 @@
 import asyncio
 import logging
-import math
-from datetime import UTC, datetime
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError
@@ -21,7 +19,7 @@ from wiederholen.tracing import configure_tracing, default_tracer, instrument_re
 
 from .bootstrap import load_bot_course_and_storage
 from .chat_membership import is_bot_blocked, mark_bot_blocked
-from .l10n import LOCALES, format_count, get_language
+from .l10n import LOCALES, append_streak_line, get_language
 from .pending_buttons import clear_stale_buttons, remember_buttoned_message
 from .reminder_settings import get_remind_after
 from .topic_selection import restrict_to_selected_groups
@@ -33,14 +31,9 @@ POLL_INTERVAL_SECONDS = 15 * 60
 
 def _format_reminder(tutor: Tutor, language: Language) -> str:
     locale = LOCALES[language]
-    if (streak := tutor.streak()) is None:
-        return locale.reminder_text
-    # Rounded up, so the last hour reads "1 h" and not "0 h"
-    hours = math.ceil((streak.breaks_at - datetime.now(UTC)).total_seconds() / 3600)
-    streak_line = locale.reminder_streak_text.format(
-        days=format_count(streak.days, "days", language), hours=hours
+    return append_streak_line(
+        locale.reminder_text, tutor.streak(), language, locale.reminder_streak_text
     )
-    return f"{locale.reminder_text}\n\n{streak_line}"
 
 
 async def _remind_chat(

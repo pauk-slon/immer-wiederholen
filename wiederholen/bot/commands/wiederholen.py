@@ -24,7 +24,7 @@ from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
 from wiederholen.bot.feature_flags import has_feature
-from wiederholen.bot.l10n import LOCALES, Locale, format_count, get_language
+from wiederholen.bot.l10n import LOCALES, Locale, append_streak_line, get_language
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     forget_buttoned_message,
@@ -123,10 +123,9 @@ def _make_study_more_button(locale: Locale) -> InlineKeyboardMarkup:
 
 def _format_nothing_due(tutor: Tutor, language: Language) -> str:
     locale = LOCALES[language]
-    if (streak := tutor.streak()) is None:
-        return locale.nothing_due_text
-    days = format_count(streak.days, "days", language)
-    return f"{locale.nothing_due_text}\n\n{locale.streak_text.format(days=days)}"
+    return append_streak_line(
+        locale.nothing_due_text, tutor.streak(), language, locale.streak_text
+    )
 
 
 def _make_recall_buttons(locale: Locale, label: str) -> InlineKeyboardMarkup:

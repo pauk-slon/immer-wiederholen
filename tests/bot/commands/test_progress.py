@@ -24,7 +24,6 @@ async def test_defaults_to_ru(feed_message: FeedMessage) -> None:
         mastered=format_count(0, "words", "ru"),
         answered_count=0,
         correct_today=0,
-        streak=format_count(0, "days", "ru"),
     )
 
 
@@ -44,7 +43,6 @@ async def test_responds_in_current_language(
         mastered=format_count(0, "words", "en"),
         answered_today=format_count(0, "exercises", "en"),
         correct_today=0,
-        streak=format_count(0, "days", "en"),
     )
 
 
@@ -89,7 +87,6 @@ async def test_reflects_student_record_breakdown(
         mastered=format_count(1, "words", "ru"),
         answered_count=0,
         correct_today=0,
-        streak=format_count(0, "days", "ru"),
     )
 
 
@@ -114,7 +111,6 @@ async def test_reflects_todays_answer_count(
         mastered=format_count(0, "words", "ru"),
         answered_count=12,
         correct_today=9,
-        streak=format_count(0, "days", "ru"),
     )
 
 
@@ -163,24 +159,25 @@ async def test_reflects_the_streak(
     seed_student_record: SeedStudentRecord,
     student_id: StudentID,
 ) -> None:
-    now = datetime.now(UTC)
+    answered_at = (datetime.now(UTC) - timedelta(hours=3)).isoformat()
     await seed_student_record(
         student_id,
         {
-            "last_exercise": {"answered_at": (now - timedelta(hours=3)).isoformat()},
-            "streak_started_at": (now - timedelta(days=1, hours=4)).isoformat(),
+            "last_exercise": {"answered_at": answered_at},
+            "streak": {"days": 2, "counted_at": answered_at},
         },
     )
 
     requests = await feed_message("/progress", course=Course([make_exercise()]))
 
     assert len(requests) == 1
-    assert requests[0].text == RU.progress_text.format(
+    progress_text = RU.progress_text.format(
         remaining_today=format_count(0, "exercises", "ru"),
         new_today=format_count(0, "words", "ru"),
         learning=format_count(0, "words", "ru"),
         mastered=format_count(0, "words", "ru"),
         answered_count=0,
         correct_today=0,
-        streak=format_count(2, "days", "ru"),
     )
+    streak_line = RU.streak_text.format(days=format_count(2, "days", "ru"))
+    assert requests[0].text == f"{progress_text}\n\n{streak_line}"

@@ -1,7 +1,9 @@
+import math
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Final, Literal
 
-from wiederholen.school import LANGUAGES, Language
+from wiederholen.school import LANGUAGES, Language, Streak
 
 _RU_UNIT_FORMS: Final[dict[str, tuple[str, str, str]]] = {
     "exercises": ("упражнение", "упражнения", "упражнений"),
@@ -128,7 +130,6 @@ RU: Final = Locale(
         "🎯 Осталось: {remaining_today}\n"
         "\n"
         "Всего\n"
-        "🔥 Серия: {streak}\n"
         "📈 В процессе: {learning}\n"
         "✅ Выучено: {mastered}"
     ),
@@ -183,7 +184,6 @@ EN: Final = Locale(
         "🎯 Left: {remaining_today}\n"
         "\n"
         "Overall\n"
-        "🔥 Streak: {streak}\n"
         "📈 Learning: {learning}\n"
         "✅ Mastered: {mastered}"
     ),
@@ -197,6 +197,22 @@ EN: Final = Locale(
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}
 DEFAULT_LANGUAGE: Final[Language] = "ru"
+
+
+def append_streak_line(
+    text: str, streak: Streak | None, language: Language, line: str
+) -> str:
+    # line is streak_text or reminder_streak_text. Without a streak, the
+    # message has no streak line at all
+    if streak is None:
+        return text
+    # Rounded up, and at least 1, so the last hour reads "1 h" and not "0 h",
+    # even if breaks_at passed after streak() was read
+    hours = max(
+        math.ceil((streak.breaks_at - datetime.now(UTC)).total_seconds() / 3600), 1
+    )
+    days = format_count(streak.days, "days", language)
+    return f"{text}\n\n{line.format(days=days, hours=hours)}"
 
 
 def get_language(state: dict[str, Any]) -> Language:

@@ -10,7 +10,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 |---|---|---|
 | `/start` | `start` | greets the learner. A deep link with a language (`t.me/<bot>?start=en`) sets the language of a new chat, a chat that has no FSM data yet (see [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md)) |
 | `/wiederholen` | `wiederholen` | shows the next exercise. The same module handles answers, recalls and the "next" and "study more" buttons |
-| `/progress` | `progress` | shows today's counts (due, new, answered), the streak and how many words the learner is learning or has mastered (see [Repetition schedule](repetition-schedule.md)) |
+| `/progress` | `progress` | shows today's counts (due, new, answered), how many words the learner is learning or has mastered and, if there is one, the streak (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
 | `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
 | `/language` | `language` | switches between Russian and English |

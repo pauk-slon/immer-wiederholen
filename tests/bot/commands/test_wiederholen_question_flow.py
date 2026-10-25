@@ -416,7 +416,10 @@ async def test_shows_the_streak_when_the_day_is_done(
                 "answered_at": (now - timedelta(minutes=5)).isoformat(),
                 "is_recall_optional": False,
             },
-            "streak_started_at": (now - timedelta(days=4, hours=1)).isoformat(),
+            "streak": {
+                "days": 5,
+                "counted_at": (now - timedelta(minutes=5)).isoformat(),
+            },
         },
     )
 

@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from wiederholen.bot.commands.wiederholen import make_next_button
-from wiederholen.bot.l10n import LOCALES, format_count, get_language
+from wiederholen.bot.l10n import LOCALES, append_streak_line, format_count, get_language
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     remember_buttoned_message,
@@ -35,29 +35,25 @@ async def command_progress(
         tutor = Tutor(course, student_record)
         progress = tutor.progress()
         streak = tutor.streak()
-    sent = await message.answer(
-        locale.progress_text.format(
-            remaining_today=format_count(
-                progress.remaining_today,
-                "exercises",
-                language,
-            ),
-            new_today=format_count(progress.new_today, "words", language),
-            learning=format_count(progress.learning, "words", language),
-            mastered=format_count(progress.mastered, "words", language),
-            answered_today=format_count(
-                progress.answered_today,
-                "exercises",
-                language,
-            ),
-            answered_count=progress.answered_today,
-            correct_today=progress.correct_today,
-            streak=format_count(
-                streak.days if streak is not None else 0,
-                "days",
-                language,
-            ),
+    text = locale.progress_text.format(
+        remaining_today=format_count(
+            progress.remaining_today,
+            "exercises",
+            language,
         ),
+        new_today=format_count(progress.new_today, "words", language),
+        learning=format_count(progress.learning, "words", language),
+        mastered=format_count(progress.mastered, "words", language),
+        answered_today=format_count(
+            progress.answered_today,
+            "exercises",
+            language,
+        ),
+        answered_count=progress.answered_today,
+        correct_today=progress.correct_today,
+    )
+    sent = await message.answer(
+        append_streak_line(text, streak, language, locale.streak_text),
         reply_markup=make_next_button(locale),
     )
     await remember_buttoned_message(state, sent)

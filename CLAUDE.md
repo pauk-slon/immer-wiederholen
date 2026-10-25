@@ -23,7 +23,7 @@ Spaced-repetition scheduling — `Tutor`/`StudentRecord`, `SelectablePairs` word
 - `_expedite_dependent()` only creates entries for pairs that have none — never move an existing entry (mutual chains would loop).
 - `Tutor` never touches a raw schedule entry: read with `get_repetition_interval()`, write with `schedule_pair()`. `StudentRecord` stays course-agnostic.
 - `is_new` and the previous interval come from `record_mark()`'s return value, never a separate lookup after it.
-- The streak breaks after 36 h without an answer, not on a calendar day (ADR 0021). `check_answer()` reads the previous streak and answer time *before* `record_mark()`, and a new streak starts at that answer's own `answered_at`.
+- The streak breaks after 36 h without an answer, not on a calendar day, and an answer adds a day only 18 h or more after the answer that added the previous one (ADR 0021). `check_answer()` reads the previous answer time *before* `record_mark()` replaces it.
 
 ## Persistence and student identity
 

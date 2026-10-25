@@ -34,11 +34,18 @@ class AnswerStats(TypedDict):
     correct: int
 
 
+class StreakEntry(TypedDict):
+    days: int
+    # The answer that last added a day, not the last answer
+    counted_at: str
+
+
 class StudentRecord:
     _SCHEDULE_ENTRY_ADAPTER: Final = TypeAdapter(_ScheduleEntry)
     _WORD_SCHEDULE_KEY: Final = "word_schedule"
     _TODAY_ANSWERS_KEY: Final = "today_answers"
     _NEW_WORD_BUDGET_KEY: Final = "new_word_budget"
+    _STREAK_KEY: Final = "streak"
 
     def __init__(self, data: dict, *, today: date | None = None) -> None:
         self._data = data
@@ -89,14 +96,15 @@ class StudentRecord:
     def last_reminded_at(self, value: datetime) -> None:
         self._data["last_reminded_at"] = value.isoformat()
 
-    @property
-    def streak_started_at(self) -> datetime | None:
-        if (raw_value := self._data.get("streak_started_at")) is not None:
-            return datetime.fromisoformat(raw_value)
+    def get_streak(self) -> tuple[int, datetime] | None:
+        if (streak := self._data.get(self._STREAK_KEY)) is None:
+            return None
+        return streak["days"], datetime.fromisoformat(streak["counted_at"])
 
-    @streak_started_at.setter
-    def streak_started_at(self, value: datetime) -> None:
-        self._data["streak_started_at"] = value.isoformat()
+    def set_streak(self, days: int, counted_at: datetime) -> None:
+        self._data[self._STREAK_KEY] = StreakEntry(
+            days=days, counted_at=counted_at.isoformat()
+        )
 
     def _get_self_expiring(self, key: str) -> dict | None:
         # Stale (not-today) values are simply treated as absent — no
