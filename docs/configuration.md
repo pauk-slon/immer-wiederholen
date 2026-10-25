@@ -8,7 +8,7 @@ For a local run, `compose.yaml` sets the variables except `BOT_TOKEN`. Put `BOT_
 
 All processes run from one Docker image, `ghcr.io/pauk-slon/immer-wiederholen:main`. The image is built from the `prod` stage of the `Dockerfile` on every push to `main`. Each commit on `main` has a version, such as `2026.10.3`, and its image also gets the version as a tag, such as `ghcr.io/pauk-slon/immer-wiederholen:2026.10.3`. The version is the UTC month of the merge and the number of that merge among the month's merges into `main`. A larger version is always a later commit, so you can deploy or roll back to a specific commit by its version tag. The versions can have gaps. A merge whose checks fail isn't published, but it still takes a number. [ADR 0020](adr/0020-calendar-version-per-commit.md) explains why this format was chosen.
 
-The registry keeps the 10 newest images. After each publish, the workflow deletes the older ones, so you can roll back at most 9 commits. A container that runs an older image keeps working, but you can't pull that image again.
+The registry keeps the images of the 30 newest published versions. After each publish, the workflow deletes older versions and images without a tag, such as the previous build of a version that was built again. You can roll back to any of the 30 versions. A container that runs an older image keeps working, but you can't pull that image again, so deploy before production is 30 versions behind `main` (see [ADR 0023](adr/0023-registry-keeps-30-versions.md)).
 
 | Process | Command | What it does |
 |---|---|---|

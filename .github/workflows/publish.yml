@@ -11,6 +11,11 @@ jobs:
   publish:
     if: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
     runs-on: ubuntu-latest
+    # One run at a time, so two runs never delete versions from the registry
+    # at the same time
+    concurrency:
+      group: publish
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
@@ -48,10 +53,18 @@ jobs:
           # would include the children of a tagged image.
           provenance: false
           sbom: false
-      # Keeps the 10 newest images, tagged or not, so a rollback can go back
-      # at most 9 commits. See docs/configuration.md.
+      # Untagged versions are earlier builds whose tags moved to a newer image.
+      # See docs/adr/0023-registry-keeps-30-versions.md.
       - uses: actions/delete-package-versions@v5
         with:
-          package-name: immer-wiederholen
+          package-name: ${{ github.event.repository.name }}
           package-type: container
-          min-versions-to-keep: 10
+          delete-only-untagged-versions: true
+          min-versions-to-keep: 0
+      # Only tagged versions are left, so this keeps the images of the 30
+      # newest published versions
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: container
+          min-versions-to-keep: 30
