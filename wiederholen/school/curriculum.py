@@ -128,9 +128,7 @@ class Exercise:
             raise ValueError("grammar_classes must not be empty if set")
 
     def to_dict(self) -> dict:
-        # A single answer as a string, the way an author writes it. An older
-        # version reads such saved data back after a rollback
-        return asdict(self) | {"answer": self.authored_answer}
+        return asdict(self)
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
@@ -139,11 +137,6 @@ class Exercise:
         if d.get("recalls") is not None:
             d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
         return cls(**d)
-
-    @property
-    def authored_answer(self) -> str | list[str]:
-        # A single answer as a string, the way a course author writes it
-        return self.answer[0] if len(self.answer) == 1 else self.answer
 
     @property
     def answer_text(self) -> str:

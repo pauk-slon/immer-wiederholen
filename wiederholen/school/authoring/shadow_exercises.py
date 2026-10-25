@@ -163,12 +163,17 @@ def _recall_to_dict(recall: Recall) -> dict:
     return data
 
 
+def _authored_answer(exercise: Exercise) -> str | list[str]:
+    # A single answer as a string, the way a course author writes it
+    return exercise.answer[0] if len(exercise.answer) == 1 else exercise.answer
+
+
 def _exercise_to_dict(exercise: Exercise) -> dict:
     data: dict = {
         "word": exercise.word,
         "topic": exercise.topic,
         "question": exercise.question,
-        "answer": exercise.authored_answer,
+        "answer": _authored_answer(exercise),
         "distractors": exercise.distractors,
         "explanation": exercise.explanation,
     }
@@ -237,7 +242,7 @@ def _build_prompt(exercise: Exercise, few_shot: list[Exercise]) -> str:
         f"authoring guide above. {answer_rule}\n\n"
         f"word: {exercise.word!r}\n"
         f"topic: {exercise.topic!r}\n"
-        f"answer: {exercise.authored_answer!r}\n\n"
+        f"answer: {_authored_answer(exercise)!r}\n\n"
         "Here is the exercise currently scheduled for this exact word and "
         "topic, as your example (same YAML shape as exercises.yaml):\n\n"
         "```yaml\n"

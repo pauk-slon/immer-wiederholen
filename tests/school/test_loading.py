@@ -240,19 +240,18 @@ class TestExerciseValidation:
         ):
             Course.load(tmp_path)
 
-    def test_single_answer_is_saved_as_a_string(self) -> None:
-        # An older version can read it back after a rollback
-        assert make_exercise(answer="auf").to_dict()["answer"] == "auf"
+    def test_single_answer_is_saved_as_a_list(self) -> None:
+        assert make_exercise(answer="auf").to_dict()["answer"] == ["auf"]
 
     def test_several_answers_are_saved_as_a_list(self) -> None:
         exercise = make_exercise(answer=["Komm", "Komme"], distractors=[])
         assert Exercise.from_dict(exercise.to_dict()) == exercise
 
     def test_exercise_saved_with_a_single_answer_string_loads(self) -> None:
-        # Also an exercise in FSM or web session data saved before answer became
-        # a list
+        # An exercise in FSM or web session data saved before answer became a list
         exercise = make_exercise(answer="auf")
-        assert Exercise.from_dict(exercise.to_dict()) == exercise
+        saved = exercise.to_dict() | {"answer": "auf"}
+        assert Exercise.from_dict(saved) == exercise
 
 
 def _grouped(topics: dict) -> dict:
