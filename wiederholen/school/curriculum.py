@@ -170,8 +170,8 @@ def shuffle_word_bank(word_bank: Sequence[str], answers: Sequence[str]) -> list[
     # after the question) and wiederholen.web (rendered as tap-to-arrange
     # tiles) — one shuffle-with-reshuffle-guard implementation rather than
     # each frontend keeping its own copy. A single-chunk word_bank has no
-    # other permutation to land on, so reshuffling would loop forever —
-    # returned as-is instead.
+    # other permutation to land on, so it's returned as-is without
+    # reshuffling.
     if len(word_bank) < 2:
         return list(word_bank)
     solved = {fold_case(answer) for answer in answers}

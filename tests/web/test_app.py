@@ -159,9 +159,8 @@ async def test_next_exercise_returns_a_shuffled_word_bank(
 async def test_next_exercise_word_bank_for_a_single_chunk_answer_is_unshuffled(
     web_app_factory: WebAppFactory,
 ) -> None:
-    # shuffle_word_bank()'s reshuffle-until-different loop would spin
-    # forever on a single chunk — there's no other permutation to land on —
-    # so it returns the one-element list as-is instead.
+    # A single chunk has no other order to land on, so shuffle_word_bank()
+    # returns it as-is without reshuffling.
     exercise = make_exercise(
         word="weil",
         topic="nebensatzkonjunktion_wortstellung",
