@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
       # YYYY.M.N: the UTC month of the commit and its number among this month's
-      # commits on main. See docs/adr/0020-calver-image-versions.md.
+      # commits on main. See docs/adr/0020-calendar-version-per-commit.md.
       - id: version
         env:
           TZ: UTC
