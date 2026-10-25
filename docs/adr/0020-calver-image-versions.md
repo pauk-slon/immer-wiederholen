@@ -1,6 +1,6 @@
 # 0020. Image versions are calendar-based
 
-**Status:** Accepted, 2026-10-25 ([#PR](https://github.com/pauk-slon/immer-wiederholen/pull/PR)).
+**Status:** Accepted, 2026-10-25 ([#300](https://github.com/pauk-slon/immer-wiederholen/pull/300)).
 
 ## Context
 
