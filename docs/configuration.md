@@ -6,7 +6,7 @@ For a local run, `compose.yaml` sets the variables except `BOT_TOKEN`. Put `BOT_
 
 ## Processes
 
-All processes run from one Docker image, `ghcr.io/pauk-slon/immer-wiederholen:main`. The image is built from the `prod` stage of the `Dockerfile` on every push to `main`.
+All processes run from one Docker image, `ghcr.io/pauk-slon/immer-wiederholen:main`. The image is built from the `prod` stage of the `Dockerfile` on every push to `main`. Each build also gets a version tag, such as `ghcr.io/pauk-slon/immer-wiederholen:2026.10.3`. The version is the UTC month of the commit and the number of that commit among the month's commits on `main`. A larger version is always a newer build, so you can deploy or roll back to a specific build by its tag. [ADR 0020](adr/0020-calver-image-versions.md) explains the format.
 
 | Process | Command | What it does |
 |---|---|---|
@@ -122,8 +122,11 @@ Tracing is off until you set an OTLP endpoint. Without an endpoint, the exporter
 | `OTEL_SERVICE_NAME` | `bot`, `reminder` or `web`. Set a different name for each process. Without it, all processes report as `unknown_service` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment=prod` |
 
+The image sets `APP_VERSION` to its version, and the processes send it as the `service.version` resource attribute. Don't set `APP_VERSION` yourself. A locally built image doesn't set it, so its spans have no `service.version`.
+
 Only the OTLP/HTTP exporter is installed, so `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` doesn't work. [Observability](tracing.md) describes what gets traced.
 
 ## Decisions
 
 - [One environment variable per store](adr/0009-one-environment-variable-per-store.md) (ADR 0009)
+- [Image versions are calendar-based](adr/0020-calver-image-versions.md) (ADR 0020)
