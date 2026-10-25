@@ -35,7 +35,7 @@ def _record(
 def _answer(student_record: dict) -> Tutor:
     exercise = make_exercise()
     tutor = Tutor(Course([exercise]), student_record)
-    tutor.check_answer(exercise, exercise.answer)
+    tutor.check_answer(exercise, exercise.answer[0])
     return tutor
 
 

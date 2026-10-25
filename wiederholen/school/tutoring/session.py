@@ -48,15 +48,17 @@ def _fold_case(text: str) -> str:
 
 def _is_answer_correct(exercise: Exercise, answer: str) -> bool:
     if not exercise.distractors:
-        return _fold_case(answer) == _fold_case(exercise.answer)
+        return any(
+            _fold_case(answer) == _fold_case(correct) for correct in exercise.answer
+        )
     # Case can change the meaning, so two options can differ only in case, and an
     # exact match with an option wins. An answer typed instead of chosen, which a
     # phone may capitalize, matches without case only if no other option does
-    options = [exercise.answer, *exercise.distractors]
+    options = [*exercise.answer, *exercise.distractors]
     if answer.strip() in (option.strip() for option in options):
-        return answer.strip() == exercise.answer.strip()
+        return answer.strip() in (correct.strip() for correct in exercise.answer)
     matches = [option for option in options if _fold_case(option) == _fold_case(answer)]
-    return matches == [exercise.answer]
+    return bool(matches) and all(match in exercise.answer for match in matches)
 
 
 class Tutor:
@@ -278,7 +280,7 @@ class Tutor:
             exercise.topic,
             [],
         ):
-            if self._expedite_dependent(exercise.answer, dependent_topic):
+            if self._expedite_dependent(exercise.answer[0], dependent_topic):
                 self._emit_topic_unlocked(exercise.topic, dependent_topic)
 
     def check_answer(

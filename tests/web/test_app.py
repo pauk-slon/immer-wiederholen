@@ -283,6 +283,21 @@ async def test_check_answer_reports_wrong_answers_too(
     assert response.json()["correct"] is False
 
 
+async def test_check_answer_reports_every_correct_answer(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(word="kommen", answer=["Komm", "Komme"], distractors=[])
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        response = await client.post(
+            "/api/exercise/check", json={"answer": "Kommt", "topics": ["government"]}
+        )
+
+    assert response.json()["answer"] == "Komm / Komme"
+
+
 async def test_check_answer_respects_the_requested_language(
     web_app_factory: WebAppFactory,
 ) -> None:

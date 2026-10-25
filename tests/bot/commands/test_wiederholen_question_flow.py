@@ -60,7 +60,7 @@ async def test_reply_keyboard_contains_all_options(
     assert len(requests) == 1
     assert isinstance(requests[0].reply_markup, ReplyKeyboardMarkup)
     buttons = [btn.text for row in requests[0].reply_markup.keyboard for btn in row]
-    assert sorted(buttons) == sorted(exercise.distractors + [exercise.answer])
+    assert sorted(buttons) == sorted([*exercise.distractors, *exercise.answer])
 
 
 async def test_reply_keyboard_remove_for_input_exercise(
@@ -213,7 +213,7 @@ async def test_avoids_repeating_previously_shown_question(
         word="sprechen",
         topic="government",
         question="Ich spreche ___ meiner Mutter.",
-        answer="mit",
+        answer=["mit"],
         distractors=["über", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )
@@ -221,7 +221,7 @@ async def test_avoids_repeating_previously_shown_question(
         word="sprechen",
         topic="government",
         question="Wir sprechen ___ das Problem.",
-        answer="über",
+        answer=["über"],
         distractors=["mit", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )

@@ -26,7 +26,7 @@ class TestHandleAnswer:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict())
 
-        requests = await feed_message(exercise.answer, course=Course([exercise]))
+        requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
         assert RU.correct in requests[0].text
         assert exercise.explanation["ru"] in requests[1].text
@@ -44,7 +44,7 @@ class TestHandleAnswer:
             exercise.distractors[0], course=Course([exercise])
         )
 
-        assert exercise.answer in requests[0].text
+        assert exercise.answer[0] in requests[0].text
         assert exercise.explanation["ru"] in requests[1].text
 
 
@@ -58,7 +58,7 @@ class TestNextExerciseButton:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict())
 
-        requests = await feed_message(exercise.answer, course=Course([exercise]))
+        requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
         assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
         buttons = [
@@ -141,7 +141,7 @@ class TestNextExerciseButton:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict())
 
-        requests = await feed_message(exercise.answer, course=Course([exercise]))
+        requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
         assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
         buttons = [
@@ -161,7 +161,7 @@ class TestNextExerciseButton:
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict())
 
-        await feed_message(exercise.answer, course=Course([exercise]))
+        await feed_message(exercise.answer[0], course=Course([exercise]))
         requests = await feed_callback_query(RECALL, course=Course([exercise]))
         recall_message = requests[1]
 
@@ -196,7 +196,7 @@ class TestNextExerciseButton:
             word="sprechen",
             topic="government",
             question="Ich spreche ___ meiner Mutter.",
-            answer="mit",
+            answer=["mit"],
             distractors=["über", "an", "für"],
             explanation={"ru": "x", "en": "y"},
         )
@@ -204,7 +204,7 @@ class TestNextExerciseButton:
             word="sprechen",
             topic="government",
             question="Wir sprechen ___ das Problem.",
-            answer="über",
+            answer=["über"],
             distractors=["mit", "an", "für"],
             explanation={"ru": "x", "en": "y"},
         )

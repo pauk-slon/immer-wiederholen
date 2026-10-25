@@ -157,8 +157,20 @@ async def test_shows_the_scheduled_exercise_as_the_primary_reference_example() -
 
     prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
     assert target.question in prompt
-    assert f"answer: {target.answer}" in prompt
+    assert "answer: auf" in prompt
     assert all(distractor in prompt for distractor in target.distractors)
+
+
+async def test_gives_every_answer_when_there_are_several() -> None:
+    target = make_exercise(word="senden", answer=["sandte", "sendete"])
+    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+
+    shadow = await generate_shadow_exercise(client, target, Course([target]))
+
+    prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
+    assert "answer: ['sandte', 'sendete']" in prompt
+    assert "all of them are correct" in prompt
+    assert shadow.answer == ["sandte", "sendete"]
 
 
 async def test_reference_example_is_valid_yaml_matching_the_scheduled_exercise() -> (
@@ -180,7 +192,7 @@ async def test_reference_example_is_valid_yaml_matching_the_scheduled_exercise()
             "word": target.word,
             "topic": target.topic,
             "question": target.question,
-            "answer": target.answer,
+            "answer": "auf",
             "distractors": target.distractors,
             "explanation": target.explanation,
             "recalls": [

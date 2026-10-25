@@ -167,7 +167,8 @@ def _exercise_to_dict(exercise: Exercise) -> dict:
         "word": exercise.word,
         "topic": exercise.topic,
         "question": exercise.question,
-        "answer": exercise.answer,
+        # A single answer as a plain string, the way an author writes it
+        "answer": exercise.answer[0] if len(exercise.answer) == 1 else exercise.answer,
         "distractors": exercise.distractors,
         "explanation": exercise.explanation,
     }
@@ -218,15 +219,22 @@ def _build_prompt(exercise: Exercise, few_shot: list[Exercise]) -> str:
     # docstring for why) — that's specific to this generation flow, not a
     # fact about German or about authoring exercises in general, so it has
     # no natural home in a guide written for a human author.
+    answer_note = ""
+    if len(exercise.answer) > 1:
+        answer_note = (
+            " The answer has several forms, and all of them are correct. "
+            "Every one of them must fill the blank correctly, and no "
+            "distractor may be one of them."
+        )
     return (
         "Write a new exercise for the given word and topic, following the "
         "authoring guide above. The answer is fixed at the value below — "
         "write a question whose blank is correctly and unambiguously "
         "filled by exactly this answer, and distractors that are wrong "
-        "for it.\n\n"
+        f"for it.{answer_note}\n\n"
         f"word: {exercise.word!r}\n"
         f"topic: {exercise.topic!r}\n"
-        f"answer: {exercise.answer!r}\n\n"
+        f"answer: {_exercise_to_dict(exercise)['answer']!r}\n\n"
         "Here is the exercise currently scheduled for this exact word and "
         "topic, as your example (same YAML shape as exercises.yaml):\n\n"
         "```yaml\n"

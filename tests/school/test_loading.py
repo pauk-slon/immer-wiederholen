@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import TmpYamlFile
-from tests.plugins.curriculum import make_exercise_data
-from wiederholen.school.curriculum import Course, TopicGroup
+from tests.plugins.curriculum import make_exercise, make_exercise_data
+from wiederholen.school.curriculum import Course, Exercise, TopicGroup
 
 
 class TestExerciseValidation:
@@ -14,7 +14,7 @@ class TestExerciseValidation:
         tmp_yaml_file: TmpYamlFile,
     ) -> None:
         exercise_data = make_exercise_data()
-        exercise_data["distractors"][0] = exercise_data["answer"]
+        exercise_data["distractors"][0] = "auf"
         with (
             pytest.raises(ValueError, match="must not be in distractors"),
             tmp_yaml_file([exercise_data], filename="exercises.yaml"),
@@ -74,6 +74,97 @@ class TestExerciseValidation:
         with tmp_yaml_file([exercise_data], filename="exercises.yaml"):
             course = Course.load(tmp_path)
         assert course.exercises[0].word_bank == ["sie", "wohnt", "in Hamburg"]
+
+    def test_single_answer_loads_as_a_list(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        with tmp_yaml_file(
+            [make_exercise_data(answer="auf")], filename="exercises.yaml"
+        ):
+            course = Course.load(tmp_path)
+        assert course.exercises[0].answer == ["auf"]
+
+    def test_several_answers_load(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        exercise_data = make_exercise_data(answer=["Komm", "Komme"], distractors=[])
+        with tmp_yaml_file([exercise_data], filename="exercises.yaml"):
+            course = Course.load(tmp_path)
+        assert course.exercises[0].answer == ["Komm", "Komme"]
+
+    def test_empty_answer_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        with (
+            pytest.raises(ValueError, match="answer must not be empty"),
+            tmp_yaml_file([make_exercise_data(answer=[])], filename="exercises.yaml"),
+        ):
+            Course.load(tmp_path)
+
+    def test_repeated_answer_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        with (
+            pytest.raises(ValueError, match="must not repeat an answer"),
+            tmp_yaml_file(
+                [make_exercise_data(answer=["auf", "auf"])],
+                filename="exercises.yaml",
+            ),
+        ):
+            Course.load(tmp_path)
+
+    def test_second_answer_in_distractors_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        with (
+            pytest.raises(ValueError, match="must not be in distractors"),
+            tmp_yaml_file(
+                [make_exercise_data(answer=["auf", "für"], distractors=["für", "an"])],
+                filename="exercises.yaml",
+            ),
+        ):
+            Course.load(tmp_path)
+
+    def test_another_order_of_the_word_bank_loads(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        exercise_data = make_exercise_data(
+            answer=["heute kommt er", "er kommt heute"], distractors=[]
+        ) | {"word_bank": ["heute", "kommt", "er"]}
+        with tmp_yaml_file([exercise_data], filename="exercises.yaml"):
+            course = Course.load(tmp_path)
+        assert course.exercises[0].answer == ["heute kommt er", "er kommt heute"]
+
+    def test_answer_that_splits_a_word_bank_chunk_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        exercise_data = make_exercise_data(
+            answer=["sie wohnt in Hamburg", "in sie wohnt Hamburg"], distractors=[]
+        ) | {"word_bank": ["sie", "wohnt", "in Hamburg"]}
+        with (
+            pytest.raises(ValueError, match="must be an order of word_bank"),
+            tmp_yaml_file([exercise_data], filename="exercises.yaml"),
+        ):
+            Course.load(tmp_path)
+
+    def test_exercise_saved_with_a_single_answer_string_loads(self) -> None:
+        # An exercise in FSM or web session data saved before answer became a list
+        saved = make_exercise(answer="auf").to_dict() | {"answer": "auf"}
+        assert Exercise.from_dict(saved).answer == ["auf"]
 
 
 def _grouped(topics: dict) -> dict:
@@ -331,6 +422,17 @@ class TestTopicsConfigLoading:
 
 
 class TestRecallValidation:
+    def test_single_answer_loads_as_a_list(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        data = make_exercise_data(recalls=True)
+        data["recalls"][0] |= {"answer": "Ich warte auf den Bus."}
+        with tmp_yaml_file([data], filename="exercises.yaml"):
+            course = Course.load(tmp_path)
+        assert course.exercises[0].recalls[0].answer == ["Ich warte auf den Bus."]
+
     def test_empty_answer_raises(
         self,
         tmp_path: Path,

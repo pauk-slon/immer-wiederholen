@@ -1,14 +1,14 @@
 from collections.abc import Sequence
 from typing import Literal, NotRequired, TypedDict, Unpack
 
-from wiederholen.school.curriculum import Exercise, Recall, Topic
+from wiederholen.school.curriculum import Exercise, Topic
 
 type Language = Literal["ru", "en"]
 
 
 class RecallData(TypedDict):
     question: str
-    answer: list[str]
+    answer: str | list[str]
     hint: NotRequired[dict[Language, str]]
 
 
@@ -16,7 +16,7 @@ class ExerciseData(TypedDict):
     word: str
     topic: Topic
     question: str
-    answer: str
+    answer: str | list[str]
     distractors: list[str]
     explanation: dict[Language, str]
     recalls: NotRequired[list[RecallData]]
@@ -34,7 +34,7 @@ class RecallKwargs(TypedDict, total=False):
 class ExerciseDataKwargs(TypedDict, total=False):
     word: str
     topic: Topic
-    answer: str
+    answer: str | list[str]
     distractors: list[str]
     recalls: bool | Sequence[RecallKwargs]
     description: dict[Language, str]
@@ -75,17 +75,4 @@ def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
 
 
 def make_exercise(**kwargs: Unpack[ExerciseDataKwargs]) -> Exercise:
-    data = make_exercise_data(**kwargs)
-    recalls_data = data.get("recalls")
-    return Exercise(
-        word=data["word"],
-        topic=data["topic"],
-        question=data["question"],
-        answer=data["answer"],
-        distractors=data["distractors"],
-        explanation=data["explanation"],
-        recalls=[Recall(**r) for r in recalls_data] if recalls_data else [],
-        description=data.get("description"),
-        word_bank=data.get("word_bank"),
-        grammar_classes=data.get("grammar_classes"),
-    )
+    return Exercise.from_dict(dict(make_exercise_data(**kwargs)))

@@ -87,7 +87,7 @@ async def test_selection_survives_answering_an_exercise(
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict(), topic_groups=["cases"])
 
-    await feed_message(exercise.answer, course=Course([exercise]))
+    await feed_message(exercise.answer[0], course=Course([exercise]))
 
     assert (await state.get_data())["topic_groups"] == ["cases"]
 

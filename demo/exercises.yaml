@@ -39,6 +39,16 @@
     - question: Er hat einen Kaffee ___.
       answer: [Er hat einen Kaffee getrunken.]
 
+# A list in answer: every form in it counts as correct.
+- word: senden
+  topic: partizip_ii
+  question: senden
+  answer: [gesendet, gesandt]
+  distractors: []
+  explanation:
+    ru: "senden — отправлять; Partizip II: gesendet или gesandt (haben)"
+    en: "senden — to send; Partizip II: gesendet or gesandt (haben)"
+
 # description: a translation of the sentence, shown with the question so the
 # learner knows which word is meant. Topics with cue_generation in
 # topics.yaml get an illustration generated from description.en.

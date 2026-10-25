@@ -14,7 +14,7 @@ All exercise endpoints take a JSON body and identify the learner by the session 
 | Endpoint | Body | Returns |
 |---|---|---|
 | `POST /api/exercise/next` | `topics`, `language` | the next exercise, or `null` if nothing is left today |
-| `POST /api/exercise/check` | `answer`, `topics`, `language` | `correct`, `answer`, `explanation`, `recall` (`none`, `optional`, `required`) |
+| `POST /api/exercise/check` | `answer`, `topics`, `language` | `correct`, `answer` (all correct answers, separated by ` / `), `explanation`, `recall` (`none`, `optional`, `required`) |
 | `POST /api/exercise/recall` | `topics`, `language` | a recall with `question` and `hint` |
 | `POST /api/exercise/recall/check` | `answer`, `topics`, but no `language`, because the expected sentence is German | `correct`, `answer` |
 | `POST /api/client-error` | `step`, `status` | nothing (204, see [Error reports](#error-reports)) |

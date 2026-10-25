@@ -12,6 +12,27 @@ from wiederholen.school.i18n import LANGUAGES, Language
 type Topic = str
 
 
+def _as_list(answer: str | list[str]) -> list[str]:
+    # A course author writes a single answer as a plain string
+    return [answer] if isinstance(answer, str) else answer
+
+
+def _is_arrangement(text: str, chunks: Sequence[str]) -> bool:
+    # Whether text is all the chunks joined with spaces, in some order
+    if not chunks:
+        return text == ""
+    for index, chunk in enumerate(chunks):
+        if text == chunk:
+            rest = ""
+        elif text.startswith(chunk + " "):
+            rest = text[len(chunk) + 1 :]
+        else:
+            continue
+        if _is_arrangement(rest, [*chunks[:index], *chunks[index + 1 :]]):
+            return True
+    return False
+
+
 @dataclass(frozen=True)
 class Recall:
     question: str
@@ -31,6 +52,8 @@ class Recall:
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
+        d = dict(d)
+        d["answer"] = _as_list(d["answer"])
         return cls(**d)
 
 
@@ -39,7 +62,7 @@ class Exercise:
     word: str
     topic: Topic
     question: str
-    answer: str
+    answer: list[str]
     distractors: list[str]
     explanation: dict[Language, str]
     recalls: list[Recall] = field(default_factory=list)
@@ -48,8 +71,12 @@ class Exercise:
     grammar_classes: list[str] | None = None
 
     def __post_init__(self) -> None:
-        if self.answer in self.distractors:
-            raise ValueError(f"answer '{self.answer}' must not be in distractors")
+        if len(self.answer) == 0:
+            raise ValueError("answer must not be empty")
+        if len(set(self.answer)) != len(self.answer):
+            raise ValueError(f"answer {self.answer} must not repeat an answer")
+        if set(self.answer) & set(self.distractors):
+            raise ValueError(f"answer {self.answer} must not be in distractors")
         if set(self.explanation.keys()) != LANGUAGES:
             raise ValueError(
                 f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
@@ -58,10 +85,16 @@ class Exercise:
             raise ValueError(
                 f"description must have keys {LANGUAGES}, got {set(self.description.keys())}"
             )
-        if self.word_bank is not None and " ".join(self.word_bank) != self.answer:
-            raise ValueError(
-                f"word_bank {self.word_bank} must join into answer '{self.answer}'"
-            )
+        if self.word_bank is not None:
+            if " ".join(self.word_bank) != self.answer[0]:
+                raise ValueError(
+                    f"word_bank {self.word_bank} must join into answer '{self.answer[0]}'"
+                )
+            for answer in self.answer[1:]:
+                if not _is_arrangement(answer, self.word_bank):
+                    raise ValueError(
+                        f"answer '{answer}' must be an order of word_bank {self.word_bank}"
+                    )
         if self.grammar_classes is not None and len(self.grammar_classes) == 0:
             raise ValueError("grammar_classes must not be empty if set")
 
@@ -71,6 +104,7 @@ class Exercise:
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         d = dict(d)
+        d["answer"] = _as_list(d["answer"])
         if d.get("recalls") is not None:
             d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
         return cls(**d)

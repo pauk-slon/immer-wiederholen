@@ -280,7 +280,7 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
     await state.update_data(shown_exercise=exercise.to_dict())
     await seed_student_record(student_id, student_record)
 
-    await feed_message(exercise.answer, course=Course([exercise]))
+    await feed_message(exercise.answer[0], course=Course([exercise]))
     await feed_callback_query(RECALL, course=Course([exercise]))
 
     student_record = await read_student_record(student_id)
