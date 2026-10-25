@@ -1,11 +1,9 @@
 import hashlib
-import math
 import random
-from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Self, TypedDict
+from typing import Final, Self, TypedDict
 
 import yaml
 
@@ -20,7 +18,7 @@ def fold_case(text: str) -> str:
     return text.strip().casefold()
 
 
-def _as_list(answer: str | list[str]) -> list[str]:
+def _as_list(answer: object) -> object:
     # A course author writes a single answer as a plain string
     return [answer] if isinstance(answer, str) else answer
 
@@ -76,7 +74,7 @@ class Recall:
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         d = dict(d)
-        d["answer"] = _as_list(d["answer"])
+        d["answer"] = _as_list(d.get("answer"))
         return cls(**d)
 
 
@@ -133,7 +131,7 @@ class Exercise:
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         d = dict(d)
-        d["answer"] = _as_list(d["answer"])
+        d["answer"] = _as_list(d.get("answer"))
         if d.get("recalls") is not None:
             d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
         return cls(**d)
@@ -167,6 +165,9 @@ class Exercise:
         return hashlib.sha256(self.question.encode()).hexdigest()
 
 
+_SHUFFLE_ATTEMPTS: Final = 100
+
+
 def shuffle_word_bank(word_bank: Sequence[str], answers: Sequence[str]) -> list[str]:
     # Shared by wiederholen.bot (re-inserted as a "(a / b / c)" parenthetical
     # after the question) and wiederholen.web (rendered as tap-to-arrange
@@ -174,20 +175,17 @@ def shuffle_word_bank(word_bank: Sequence[str], answers: Sequence[str]) -> list[
     # each frontend keeping its own copy. A single-chunk word_bank has no
     # other permutation to land on, so reshuffling would loop forever —
     # returned as-is instead.
-    solved = {fold_case(answer) for answer in answers}
-    # The same chunk twice gives the same order twice, so count orders
-    # without repeats. When every order is an answer, there's nothing
-    # unsolved to land on either
-    orders = math.factorial(len(word_bank))
-    for count in Counter(word_bank).values():
-        orders //= math.factorial(count)
-    if orders <= len(solved):
+    if len(word_bank) < 2:
         return list(word_bank)
+    solved = {fold_case(answer) for answer in answers}
     shuffled = list(word_bank)
     # Reshuffle on the chance (real for a short sentence) that shuffle()
     # lands on an order that is an answer — the learner should never be
-    # handed an already-solved word bank.
-    while fold_case(" ".join(shuffled)) in solved:
+    # handed an already-solved word bank. The attempts are limited, because
+    # every order can be an answer, as for [Ja, ja] with the answer "Ja ja"
+    for _ in range(_SHUFFLE_ATTEMPTS):
+        if fold_case(" ".join(shuffled)) not in solved:
+            break
         random.shuffle(shuffled)
     return shuffled
 

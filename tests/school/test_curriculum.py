@@ -98,14 +98,18 @@ def test_shuffle_word_bank_never_returns_the_order_of_another_answer() -> None:
         )
 
 
-def test_shuffle_word_bank_returns_the_word_bank_when_every_order_is_an_answer() -> (
-    None
-):
-    # Reshuffling would otherwise loop forever
-    assert shuffle_word_bank(["heute", "nicht"], ["heute nicht", "nicht heute"]) == [
-        "heute",
-        "nicht",
-    ]
+@pytest.mark.parametrize(
+    ("word_bank", "answers"),
+    [
+        (["heute", "nicht"], ["heute nicht", "nicht heute"]),
+        # Both orders are the same answer without case
+        (["Ja", "ja"], ["Ja ja"]),
+    ],
+)
+def test_shuffle_word_bank_stops_when_every_order_is_an_answer(
+    word_bank: list[str], answers: list[str]
+) -> None:
+    assert sorted(shuffle_word_bank(word_bank, answers)) == sorted(word_bank)
 
 
 def test_grammar_classes_defaults_to_none() -> None:

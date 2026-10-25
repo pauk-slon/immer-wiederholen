@@ -173,6 +173,19 @@ class TestExerciseValidation:
             course = Course.load(tmp_path)
         assert course.exercises[0].answer[1] == "Ich gehe am Montag"
 
+    def test_missing_answer_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        exercise_data = dict(make_exercise_data())
+        del exercise_data["answer"]
+        with (
+            pytest.raises(ValueError, match="must be a string or a list of strings"),
+            tmp_yaml_file([exercise_data], filename="exercises.yaml"),
+        ):
+            Course.load(tmp_path)
+
     @pytest.mark.parametrize("answer", [2024, None, ["ja", False]])
     def test_answer_that_isnt_a_string_raises(
         self,

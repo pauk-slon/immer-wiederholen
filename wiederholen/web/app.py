@@ -60,11 +60,11 @@ class ExerciseDTO:
     instruction: str | None
     # Only set for an Exercise.word_bank exercise — its phrase chunks,
     # shuffled fresh for this response, for the widget's tap-to-arrange tile
-    # UI. Reassembling them in the correct order and joining with " "
-    # reconstructs `answer` exactly (Exercise.__post_init__ already
-    # guarantees " ".join(word_bank) == answer), so no change to
-    # check_answer()'s own comparison is needed; the widget just submits
-    # that joined string like any typed answer.
+    # UI. Joined with " " in a correct order, they give one of the answers,
+    # the way check_answer() compares (Exercise.__post_init__ guarantees
+    # that " ".join(word_bank) is the first answer, and that every other
+    # answer is another order of the chunks without case), so the widget
+    # just submits that joined string like any typed answer.
     word_bank: list[str] | None = None
 
 

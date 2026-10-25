@@ -847,9 +847,9 @@ class GermanExerciseWidget extends HTMLElement {
   // not by their text, so two identical words (e.g. two "der" tiles) are
   // each independently clickable without any special-casing. No submit
   // button: once the bank is empty, the assembled tiles' text joins with
-  // " " and goes straight to the existing _submitAnswer() — reconstructing
-  // exercise.answer exactly when arranged correctly, so check_answer()
-  // needs no change at all to handle it (see app.py). Skips .centered-pair,
+  // " " and goes straight to the existing _submitAnswer() — giving one of
+  // the exercise's answers when arranged in a correct order, so
+  // check_answer() needs no change at all to handle it (see app.py). Skips .centered-pair,
   // unlike _renderQuestion()'s own typed/choice layout above: this content
   // needs normal top-down reading order, with most of the card's height
   // left for the tiles themselves, not flashcard centering. The empty
