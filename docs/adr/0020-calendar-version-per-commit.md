@@ -4,7 +4,7 @@
 
 ## Context
 
-Every merge into `main` builds the image and deploys it. Before this decision, the image had one tag, `:main`, which moved with every build. Only the `org.opencontainers.image.revision` label told which commit an image contained. A rollback to an earlier commit needed a revert and a new build, because no tag pointed to the image of the earlier commit.
+Every merge into `main` builds and publishes the image. The deploy is a separate manual step. Before this decision, the image had one tag, `:main`, which moved with every build. Only the `org.opencontainers.image.revision` label told which commit an image contained. A rollback to an earlier commit needed a revert and a new build, because no tag pointed to the image of the earlier commit.
 
 The main goal is a version that people can read and say. A request like "roll back to 2026.10.3" must be easy to say, write and remember, and it must not be a commit hash. The second goal is order. Of two versions, a person must see which commit is newer without a lookup. A commit hash gives neither.
 
@@ -34,7 +34,7 @@ Tools that read the version programmatically, such as `packaging` or a SemVer li
 - **Commit hash as the tag.** Not chosen, because a person can't say or remember it, and it doesn't show which commit is newer.
 - **One counter, such as the number of commits on `main`.** It is easy to say and shows the order. Not chosen, because a number like `272` tells nothing about the date of the commit. A single number also isn't valid SemVer.
 - **SemVer.** Not chosen, because the service has no consumers that would read a major or minor change from the number. Each bump would be a manual decision with no use.
-- **A per-deploy counter in git tags.** It would have no gaps when a build fails. Not chosen, because the version would depend on state outside the commit, and two builds at the same time could take the same number.
+- **A counter of published images in git tags.** It would have no gaps when a build fails. Not chosen, because the version would depend on state outside the commit, and two builds at the same time could take the same number.
 - **A zero-padded month, `YYYY.0M.N`.** Not chosen, because PEP 440 normalizes `2026.01` to `2026.1`, and the leading zero makes the version invalid SemVer.
 
 ## Consequences
