@@ -32,6 +32,7 @@ The date is the day of the decision.
 |---|---|---|---|
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | 2026-10-24 | Accepted |
 | [0018](0018-docs-site-built-with-zensical.md) | The docs site is built with Zensical | 2026-10-24 | Accepted |
+| [0020](0020-calendar-version-per-commit.md) | Each commit on main gets a calendar version | 2026-10-25 | Accepted |
 
 ### Repetition engine and course format
 

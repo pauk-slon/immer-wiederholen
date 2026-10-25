@@ -28,6 +28,8 @@ CMD ["python", "-m", "wiederholen.bot"]
 
 FROM python:3.15-slim AS prod
 ARG VENV
+ARG APP_VERSION
+ENV APP_VERSION=$APP_VERSION
 COPY --from=build $VENV $VENV
 WORKDIR /app
 ENV UV_PROJECT_ENVIRONMENT=$VENV

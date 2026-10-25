@@ -66,6 +66,40 @@ def test_configure_tracing_installs_a_provider_when_an_otlp_endpoint_is_configur
     assert isinstance(installed_providers[0], TracerProvider)
 
 
+def _configure_tracing_and_get_resource_attributes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> dict[str, object]:
+    # Spies on the setter for the same reason as the test above.
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
+    monkeypatch.delenv("OTEL_RESOURCE_ATTRIBUTES", raising=False)
+    installed_providers: list[TracerProvider] = []
+    monkeypatch.setattr(trace, "set_tracer_provider", installed_providers.append)
+
+    tracing.configure_tracing()
+
+    return dict(installed_providers[0].resource.attributes)
+
+
+def test_configure_tracing_reports_app_version_as_service_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_VERSION", "2026.10.3")
+
+    attributes = _configure_tracing_and_get_resource_attributes(monkeypatch)
+
+    assert attributes["service.version"] == "2026.10.3"
+
+
+def test_configure_tracing_reports_no_service_version_without_app_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("APP_VERSION", raising=False)
+
+    attributes = _configure_tracing_and_get_resource_attributes(monkeypatch)
+
+    assert "service.version" not in attributes
+
+
 def test_instrument_redis_is_idempotent() -> None:
     # RedisInstrumentor().instrument() just logs a warning and no-ops on a
     # repeat call rather than raising — calling it twice here (both

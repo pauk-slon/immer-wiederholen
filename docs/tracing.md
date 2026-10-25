@@ -47,7 +47,7 @@ When code inside a span raises an exception, OpenTelemetry records it on that sp
 
 [`wiederholen.tracing`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/tracing.py) holds the setup that all three processes share:
 
-- **`configure_tracing()`** installs a `TracerProvider` that exports over OTLP/HTTP. If neither `OTEL_EXPORTER_OTLP_ENDPOINT` nor `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set, it does nothing. The code adds no resource attributes. The service name and the other attributes come from `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`.
+- **`configure_tracing()`** installs a `TracerProvider` that exports over OTLP/HTTP. If neither `OTEL_EXPORTER_OTLP_ENDPOINT` nor `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set, it does nothing. The code adds only `service.version`, from the `APP_VERSION` variable that the published image sets. The service name and the other attributes come from `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`.
 - **`instrument_redis()`** patches the Redis client globally, so every store's commands are traced without changes at the call sites. A second call only logs a warning.
 - **`default_tracer`** is created at import time. Until a provider is installed, it makes no-op spans. After `configure_tracing()` installs a provider, it records spans.
 
