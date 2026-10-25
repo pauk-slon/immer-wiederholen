@@ -218,7 +218,14 @@ class Tutor:
         exercise: Exercise,
         answer: str,
     ) -> Mark:
-        is_correct = answer.strip().lower() == exercise.answer.strip().lower()
+        if exercise.distractors:
+            # The learner picks one of the options, and options can differ only
+            # in case (Ihr and ihr), so the choice must match exactly
+            is_correct = answer.strip() == exercise.answer.strip()
+        else:
+            # casefold() also turns ß into ss, which learners type when their
+            # keyboard has no ß
+            is_correct = answer.strip().casefold() == exercise.answer.strip().casefold()
         if not exercise.recalls:
             recall_mode = RecallMode.none
         elif is_correct:
@@ -264,7 +271,7 @@ class Tutor:
 
     def check_recall(self, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:
-            return " ".join(s.lower().strip(".,!?").split())
+            return " ".join(s.casefold().strip(".,!?").split())
 
         normalized = normalize(text)
         return any(normalize(a) == normalized for a in recall.answer)

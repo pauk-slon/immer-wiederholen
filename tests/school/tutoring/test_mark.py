@@ -19,3 +19,21 @@ def test_check_returns_optional_recall_on_correct_answer_with_recall() -> None:
     exercise = make_exercise(answer="auf", recalls=True)
     mark = Tutor(Course([exercise]), {}).check_answer(exercise, "auf")
     assert mark == Mark(is_correct=True, recall=RecallMode.optional)
+
+
+def test_check_requires_the_exact_option_in_a_multiple_choice_exercise() -> None:
+    exercise = make_exercise(answer="Ihr", distractors=["ihr", "sein", "euer"])
+    mark = Tutor(Course([exercise]), {}).check_answer(exercise, "ihr")
+    assert mark.is_correct is False
+
+
+def test_check_ignores_case_of_a_typed_answer() -> None:
+    exercise = make_exercise(answer="Bus", distractors=[])
+    mark = Tutor(Course([exercise]), {}).check_answer(exercise, "bus")
+    assert mark.is_correct is True
+
+
+def test_check_accepts_ss_for_eszett_in_a_typed_answer() -> None:
+    exercise = make_exercise(answer="heißer", distractors=[])
+    mark = Tutor(Course([exercise]), {}).check_answer(exercise, "heisser")
+    assert mark.is_correct is True
