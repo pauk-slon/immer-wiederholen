@@ -152,3 +152,32 @@ async def test_next_exercise_button_is_remembered_for_later_cleanup(
 
     data = await state.get_data()
     assert data["last_buttoned_message_id"] is not None
+
+
+async def test_reflects_the_streak(
+    feed_message: FeedMessage,
+    seed_student_record: SeedStudentRecord,
+    student_id: StudentID,
+) -> None:
+    answered_at = (datetime.now(UTC) - timedelta(hours=3)).isoformat()
+    await seed_student_record(
+        student_id,
+        {
+            "last_exercise": {"answered_at": answered_at},
+            "streak": {"days": 2, "counted_at": answered_at},
+        },
+    )
+
+    requests = await feed_message("/progress", course=Course([make_exercise()]))
+
+    assert len(requests) == 1
+    progress_text = RU.progress_text.format(
+        remaining_today=format_count(0, "exercises", "ru"),
+        new_today=format_count(0, "words", "ru"),
+        learning=format_count(0, "words", "ru"),
+        mastered=format_count(0, "words", "ru"),
+        answered_count=0,
+        correct_today=0,
+    )
+    streak_line = RU.streak_text.format(days=format_count(2, "days", "ru"))
+    assert requests[0].text == f"{progress_text}\n\n{streak_line}"

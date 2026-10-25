@@ -8,12 +8,18 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 
 from wiederholen.bot.commands.wiederholen import make_next_button
-from wiederholen.school import Course, StudentIdentityStore, StudentRecordBook, Tutor
+from wiederholen.school import (
+    Course,
+    Language,
+    StudentIdentityStore,
+    StudentRecordBook,
+    Tutor,
+)
 from wiederholen.tracing import configure_tracing, default_tracer, instrument_redis
 
 from .bootstrap import load_bot_course_and_storage
 from .chat_membership import is_bot_blocked, mark_bot_blocked
-from .l10n import LOCALES, get_language
+from .l10n import LOCALES, append_streak_line, get_language
 from .pending_buttons import clear_stale_buttons, remember_buttoned_message
 from .reminder_settings import get_remind_after
 from .topic_selection import restrict_to_selected_groups
@@ -21,6 +27,13 @@ from .topic_selection import restrict_to_selected_groups
 logger = logging.getLogger(__name__)
 
 POLL_INTERVAL_SECONDS = 15 * 60
+
+
+def _format_reminder(tutor: Tutor, language: Language) -> str:
+    locale = LOCALES[language]
+    return append_streak_line(
+        locale.reminder_text, tutor.streak(), language, locale.reminder_streak_text
+    )
 
 
 async def _remind_chat(
@@ -61,7 +74,8 @@ async def _remind_chat(
             return
         if (remind_after := get_remind_after(data)) is None:
             return
-        locale = LOCALES[get_language(data)]
+        language = get_language(data)
+        locale = LOCALES[language]
         # Only what /wiederholen would actually show counts — otherwise a
         # learner who deselected a group would keep being nudged about it.
         course = restrict_to_selected_groups(course, data)
@@ -82,7 +96,9 @@ async def _remind_chat(
                 # catch twice.
                 await clear_stale_buttons(bot, chat_id, state)
                 sent = await bot.send_message(
-                    chat_id, locale.reminder_text, reply_markup=make_next_button(locale)
+                    chat_id,
+                    _format_reminder(tutor, language),
+                    reply_markup=make_next_button(locale),
                 )
             except TelegramForbiddenError:
                 # Covers learners who blocked the bot before my_chat_member

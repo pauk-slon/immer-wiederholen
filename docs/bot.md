@@ -10,11 +10,11 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 |---|---|---|
 | `/start` | `start` | greets the learner. A deep link with a language (`t.me/<bot>?start=en`) sets the language of a new chat, a chat that has no FSM data yet (see [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md)) |
 | `/wiederholen` | `wiederholen` | shows the next exercise. The same module handles answers, recalls and the "next" and "study more" buttons |
-| `/progress` | `progress` | shows today's counts (due, new, answered) and how many words the learner is learning or has mastered (see [Repetition schedule](repetition-schedule.md)) |
+| `/progress` | `progress` | shows today's counts (due, new, answered), how many words the learner is learning or has mastered and, if there is one, the streak (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
 | `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
 | `/language` | `language` | switches between Russian and English |
-| `/reset` | `reset` | deletes the learner's schedule and today's answer counts after a confirmation |
+| `/reset` | `reset` | deletes the learner's schedule and today's answer counts after a confirmation. The streak stays |
 | `/ai` | `ai` | switches the chat to exercises that an LLM rewrites, for topics with `ai_generation`. Only chats with the `ai_exercises` [feature flag](#feature-flags) have it (see [AI-generated content](authoring.md#shadow-exercises)) |
 
 [`l10n.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/l10n.py) has the bot's texts in both languages.
@@ -43,7 +43,7 @@ If the topic has illustrations and the question has one, the bot sends the quest
    - **No recalls.** The explanation comes with only a "Next exercise" button.
 3. After a right recall answer, the bot says "correct" and shows a "Next exercise" button. After a wrong one, the bot shows the correct sentence and underlines the parts that differ from the learner's answer. It also shows "Try again" ("Попробовать ещё раз") and "Next exercise".
 
-When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
+When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
 
 ## Chat settings
 
@@ -78,7 +78,7 @@ For one chat, these steps happen in order:
 1. Read the chat's FSM data. Stop if the learner has blocked the bot (see [Blocked chats](#blocked-chats)) or turned reminders off.
 2. Limit the course to the selected topic groups.
 3. Open the student record with `check_out()` and ask `Tutor.should_remind(remind_after)`.
-4. Remove the buttons from the chat's previous message with buttons (see [Pending inline buttons](#pending-inline-buttons)). Send the reminder with a "Next exercise" button.
+4. Remove the buttons from the chat's previous message with buttons (see [Pending inline buttons](#pending-inline-buttons)). Send the reminder with a "Next exercise" button. If the learner has a streak, the reminder also says how long the streak is and in how many hours it ends. The hours are rounded up, so the last hour shows as 1 hour, not 0. The longest `/reminders` interval is 24 hours, so a streak always has at least 12 hours left when the reminder comes.
 5. If Telegram accepts the message, call `Tutor.record_reminder_sent()`. Only this step changes the student record, so the record is saved only in this case.
 
 If one chat fails, the reminder logs the error and continues with the next chat.

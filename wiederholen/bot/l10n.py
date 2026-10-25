@@ -1,15 +1,19 @@
+import math
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Final, Literal
 
-from wiederholen.school import LANGUAGES, Language
+from wiederholen.school import LANGUAGES, Language, Streak
 
 _RU_UNIT_FORMS: Final[dict[str, tuple[str, str, str]]] = {
     "exercises": ("упражнение", "упражнения", "упражнений"),
     "words": ("слово", "слова", "слов"),
+    "days": ("день", "дня", "дней"),
 }
 _EN_UNIT_FORMS: Final[dict[str, tuple[str, str]]] = {
     "exercises": ("exercise", "exercises"),
     "words": ("word", "words"),
+    "days": ("day", "days"),
 }
 
 
@@ -27,7 +31,7 @@ def _ru_plural(n: int, one: str, few: str, many: str) -> str:
 
 def format_count(
     n: int,
-    unit: Literal["exercises", "words"],
+    unit: Literal["exercises", "words", "days"],
     language: Language,
 ) -> str:
     if language == "ru":
@@ -73,8 +77,10 @@ class Locale:
     reset_done: str
     reset_cancelled: str
     reminder_text: str
+    reminder_streak_text: str
     progress_text: str
     nothing_due_text: str
+    streak_text: str
     ai_mode_on: str
     ai_mode_off: str
     ai_generation_failed: str
@@ -114,6 +120,7 @@ RU: Final = Locale(
     reset_done="✅ Прогресс сброшен",
     reset_cancelled="Отменено",
     reminder_text="🔔 Есть что повторить! Загляни и сделай /wiederholen!",
+    reminder_streak_text="🔥 Серия: {days}. Прервётся через {hours} ч",
     progress_text=(
         "📊 Твой прогресс\n"
         "\n"
@@ -127,6 +134,7 @@ RU: Final = Locale(
         "✅ Выучено: {mastered}"
     ),
     nothing_due_text="🎉 На сегодня всё! Загляни завтра — будут новые слова и повторения.",
+    streak_text="🔥 Серия: {days}",
     ai_mode_on="🤖 AI-режим включён",
     ai_mode_off="AI-режим выключен",
     ai_generation_failed="⚠️ Не получилось сгенерировать упражнение. Попробуй ещё раз или отключи /ai",
@@ -166,6 +174,7 @@ EN: Final = Locale(
     reset_done="✅ Progress has been reset",
     reset_cancelled="Cancelled",
     reminder_text="🔔 Something to review! Come back and do /wiederholen!",
+    reminder_streak_text="🔥 Streak: {days}. It ends in {hours} h",
     progress_text=(
         "📊 Your progress\n"
         "\n"
@@ -179,6 +188,7 @@ EN: Final = Locale(
         "✅ Mastered: {mastered}"
     ),
     nothing_due_text="🎉 That's all for today! Come back tomorrow for new words and reviews.",
+    streak_text="🔥 Streak: {days}",
     ai_mode_on="🤖 AI mode is on",
     ai_mode_off="AI mode is off",
     ai_generation_failed="⚠️ Couldn't generate the exercise. Try again, or turn off /ai",
@@ -187,6 +197,22 @@ EN: Final = Locale(
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}
 DEFAULT_LANGUAGE: Final[Language] = "ru"
+
+
+def append_streak_line(
+    text: str, streak: Streak | None, language: Language, line: str
+) -> str:
+    # line is streak_text or reminder_streak_text. Without a streak, the
+    # message has no streak line at all
+    if streak is None:
+        return text
+    # Rounded up, and at least 1, so the last hour reads "1 h" and not "0 h",
+    # even if breaks_at passed after streak() was read
+    hours = max(
+        math.ceil((streak.breaks_at - datetime.now(UTC)).total_seconds() / 3600), 1
+    )
+    days = format_count(streak.days, "days", language)
+    return f"{text}\n\n{line.format(days=days, hours=hours)}"
 
 
 def get_language(state: dict[str, Any]) -> Language:

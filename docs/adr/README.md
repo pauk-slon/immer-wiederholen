@@ -42,6 +42,7 @@ The date is the day of the decision.
 | [0004](0004-links-only-schedule-unstarted-pairs.md) | Topic links only schedule pairs that haven't started | 2026-07-29 | Accepted |
 | [0012](0012-gates-declared-explicitly.md) | Gates are declared explicitly | 2026-07-22 | Accepted |
 | [0013](0013-word-bank-as-data.md) | Word banks are data, not text in the question | 2026-08-26 | Accepted |
+| [0021](0021-streaks-from-intervals-between-answers.md) | Streaks count intervals between answers, not calendar days | 2026-10-25 | Accepted |
 
 ### Storage and identity
 

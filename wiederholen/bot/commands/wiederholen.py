@@ -24,7 +24,7 @@ from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
 from wiederholen.bot.feature_flags import has_feature
-from wiederholen.bot.l10n import LOCALES, Locale, get_language
+from wiederholen.bot.l10n import LOCALES, Locale, append_streak_line, get_language
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     forget_buttoned_message,
@@ -118,6 +118,13 @@ def _make_study_more_button(locale: Locale) -> InlineKeyboardMarkup:
                 )
             ]
         ]
+    )
+
+
+def _format_nothing_due(tutor: Tutor, language: Language) -> str:
+    locale = LOCALES[language]
+    return append_streak_line(
+        locale.nothing_due_text, tutor.streak(), language, locale.streak_text
     )
 
 
@@ -342,7 +349,8 @@ async def command_wiederholen(
         exercise = tutor.next_exercise()
         if exercise is None:
             sent = await message.answer(
-                locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
+                _format_nothing_due(tutor, language),
+                reply_markup=_make_study_more_button(locale),
             )
             await remember_buttoned_message(state, sent)
             return
@@ -500,7 +508,8 @@ async def _respond_with_next_exercise(
         if isinstance(callback.message, Message):
             await callback.message.edit_reply_markup(reply_markup=None)
             sent = await callback.message.answer(
-                locale.nothing_due_text, reply_markup=_make_study_more_button(locale)
+                _format_nothing_due(tutor, language),
+                reply_markup=_make_study_more_button(locale),
             )
             await remember_buttoned_message(state, sent)
         await callback.answer()

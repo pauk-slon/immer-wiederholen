@@ -16,6 +16,7 @@ from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import ExerciseData, make_exercise, make_exercise_data
 from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
+from wiederholen.bot.l10n import RU, format_count
 from wiederholen.bot.reminder import POLL_INTERVAL_SECONDS, main, run, tick
 from wiederholen.school import Course, StudentIdentityStore, StudentRecordBook
 from wiederholen.school.curriculum import TopicGroup
@@ -520,3 +521,89 @@ async def test_main_calls_run_with_constructed_dependencies(
     assert isinstance(student_record_book_arg, StudentRecordBook)
     assert isinstance(student_identity_store_arg, StudentIdentityStore)
     assert isinstance(course_arg, Course)
+
+
+async def _send_reminder(
+    telegram_bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+) -> SendMessage:
+    bot = Bot(token=telegram_bot_token)
+    mock_request = _make_request_mock()
+    with patch.object(bot.session, "make_request", mock_request):
+        await tick(
+            bot,
+            redis_storage,
+            student_record_book,
+            student_identity_store,
+            Course([make_exercise()]),
+        )
+    sent = [
+        call.args[1]
+        for call in mock_request.call_args_list
+        if isinstance(call.args[1], SendMessage)
+    ]
+    assert len(sent) == 1
+    return sent[0]
+
+
+async def test_tick_reminds_without_a_streak_line_when_the_streak_is_broken(
+    telegram_bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    now = datetime.now(UTC)
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "1"
+    )
+    await seed_student_record(
+        student_id,
+        {
+            "last_exercise": {"answered_at": (now - timedelta(hours=40)).isoformat()},
+            "streak": {
+                "days": 5,
+                "counted_at": (now - timedelta(hours=40)).isoformat(),
+            },
+        },
+    )
+
+    sent = await _send_reminder(
+        telegram_bot_token, redis_storage, student_record_book, student_identity_store
+    )
+
+    assert sent.text == RU.reminder_text
+
+
+async def test_tick_reminds_when_the_streak_ends(
+    telegram_bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    now = datetime.now(UTC)
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "1"
+    )
+    await seed_student_record(
+        student_id,
+        {
+            "last_exercise": {"answered_at": (now - timedelta(hours=25)).isoformat()},
+            "streak": {
+                "days": 3,
+                "counted_at": (now - timedelta(hours=25)).isoformat(),
+            },
+        },
+    )
+
+    sent = await _send_reminder(
+        telegram_bot_token, redis_storage, student_record_book, student_identity_store
+    )
+
+    streak_line = RU.reminder_streak_text.format(
+        days=format_count(3, "days", "ru"), hours=11
+    )
+    assert sent.text == f"{RU.reminder_text}\n\n{streak_line}"

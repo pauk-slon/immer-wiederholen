@@ -24,7 +24,14 @@ from wiederholen.school.student_record_book import (
     StudentID,
     StudentRecordBook,
 )
-from wiederholen.school.tutoring import Mark, Progress, RecallMode, StudentRecord, Tutor
+from wiederholen.school.tutoring import (
+    Mark,
+    Progress,
+    RecallMode,
+    Streak,
+    StudentRecord,
+    Tutor,
+)
 
 __all__ = [
     "LANGUAGES",
@@ -43,6 +50,7 @@ __all__ = [
     "RecallMode",
     "RedisStudentIdentityStore",
     "RedisStudentRecordBook",
+    "Streak",
     "StudentID",
     "StudentIdentityStore",
     "StudentRecord",
