@@ -43,7 +43,7 @@ async def test_next_button_left_pending_after_answer_is_remembered(
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 
-    await feed_message(exercise.answer, course=Course([exercise]))
+    await feed_message(exercise.answer[0], course=Course([exercise]))
 
     data = await state.get_data()
     assert data["last_buttoned_message_id"] is not None
@@ -58,7 +58,7 @@ async def test_typing_a_command_instead_of_tapping_next_clears_it(
     await state.update_data(shown_exercise=exercise.to_dict())
     other_exercise = make_exercise(word="hoffen")
 
-    await feed_message(exercise.answer, course=Course([exercise, other_exercise]))
+    await feed_message(exercise.answer[0], course=Course([exercise, other_exercise]))
     requests = await feed_message(
         "/wiederholen", course=Course([exercise, other_exercise])
     )
@@ -80,7 +80,7 @@ async def test_clicking_the_button_itself_leaves_nothing_pending(
     other_exercise = make_exercise(word="hoffen")
     course = Course([exercise, other_exercise])
 
-    await feed_message(exercise.answer, course=course)
+    await feed_message(exercise.answer[0], course=course)
     await feed_callback_query(NEXT_EXERCISE, course=course)
 
     data = await state.get_data()

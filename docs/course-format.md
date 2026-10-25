@@ -58,15 +58,33 @@ A list of exercises:
 | `word` | yes | the vocabulary item that the exercise practices |
 | `topic` | yes | the grammar aspect that the exercise practices |
 | `question` | yes | the text that the learner sees, such as a sentence with a `___` gap or a bare verb to conjugate |
-| `answer` | yes | the correct answer |
-| `distractors` | yes, may be `[]` | wrong options. If there are any, the learner picks from `distractors` plus `answer`, shuffled. If the list is empty, the learner types the answer |
+| `answer` | yes | the correct answer, or a list of correct answers (see [Several correct answers](#several-correct-answers)) |
+| `distractors` | yes, may be `[]` | wrong options. If there are any, the learner picks from `distractors` plus every answer, shuffled. If the list is empty, the learner types the answer |
 | `explanation` | yes | `{ru, en}`, shown after every answer, right or wrong |
 | `recalls` | no | follow-up sentences that the learner types in full (see [Recalls](#recalls)) |
 | `description` | no | `{ru, en}`, shown with the question. Usually it's a translation of the sentence, so it's clear which word is meant. An illustration needs it (see [`cue_generation`](#ai-generated-questions-and-illustrations)) |
-| `word_bank` | no | `answer` split into chunks, in the correct order, for word-order exercises. The bot shows them shuffled after the question, and the web widget shows them as tiles to arrange. A chunk can be several words (`im Chor`) |
+| `word_bank` | no | the first answer split into chunks, in the correct order, for word-order exercises. Other answers must use the same chunks in another order, but a capital letter can move to another chunk, as in `Ich gehe am Montag` for the chunks `Am Montag`, `gehe`, `ich`. The bot shows the chunks shuffled after the question, and the web widget shows them as tiles to arrange. If another order exists, the shuffled order isn't one of the answers. A chunk can be several words (`im Chor`) |
 | `grammar_classes` | no | **bot only.** Labels for words that behave alike in this topic, such as the Ablaut pattern `i-a-u` shared by `singen` and `trinken` in `partizip_ii`. See [Hints from grammar classes](#hints-from-grammar-classes) |
 
-The answer check ignores spaces around the answer and compares without case, by Unicode case folding. For example, `ss` also matches the German `ß`. Options can differ only in case, because case can change the meaning, like `Ihr` and `ihr` in German. An answer that is exactly one of the options counts only if it is `answer`. An answer that matches only without case, for example one that the learner typed instead of choosing, counts only if no other option matches it too.
+The answer check ignores spaces around the answer and compares without case, by Unicode case folding. For example, `ss` also matches the German `ß`. Options can differ only in case, because case can change the meaning, like `Ihr` and `ihr` in German. An answer that is exactly one of the options counts only if it is one of the answers. An answer that matches only without case, for example one that the learner typed instead of choosing, counts only if it is an answer and no other option matches it too.
+
+### Several correct answers
+
+Some questions have more than one correct answer. For example, the `du` form of the Imperativ can end in `-e` or not, and `senden` has two Partizip II forms. List all of them in `answer`:
+
+```yaml
+- word: kommen
+  topic: imperativ_du
+  question: "Anna, (kommen) bitte schnell her!"
+  answer: [Komm, Komme]
+  distractors: []
+```
+
+All answers count as correct, and none of them is marked as the main one. After a wrong answer, the bot and the web widget show all of them, separated by ` / `. Use `explanation` to say which form is more common.
+
+In a multiple-choice exercise, every answer is an option, so the learner sees more than one correct option. In a `word_bank` exercise, the answers are different orders of the same chunks.
+
+Only the first answer is used where the course needs one word. `chains_by_answer` schedules the topic for the first answer, and `word_bank` gives the chunks of the first answer in the correct order.
 
 ### Recalls
 
@@ -75,7 +93,7 @@ A recall asks the learner to type a whole sentence with the word they just answe
 | Field | Required | Meaning |
 |---|---|---|
 | `question` | yes | the prompt |
-| `answer` | yes | a list of accepted sentences |
+| `answer` | yes | the accepted sentence, or a list of accepted sentences |
 | `hint` | no | `ru`, `en` or both, shown under the prompt, such as a translation of a rare word |
 
 After a wrong answer, the learner must complete a recall before the next exercise. After a correct answer, the recall is optional, and the learner sees a "Drill" button ("Закрепить" in Russian). Each time, one of the exercise's recalls is picked at random. If the learner answers a recall wrong and asks for another one, a different recall is picked when possible.
@@ -94,9 +112,9 @@ An exercise can have several classes, such as a narrow class and a broad class.
 
 A course fails to load if:
 
-- `answer` is one of `distractors`
+- `answer` is an empty list, has the same answer twice, or has an answer that is one of `distractors`
 - `explanation` or `description` doesn't have exactly the `ru` and `en` keys
-- `word_bank` joined with spaces isn't `answer`
+- `word_bank` joined with spaces isn't the first answer, or another answer isn't an order of the `word_bank` chunks
 - `grammar_classes` is an empty list (omit the field instead)
 - a recall's `answer` is empty, or its `hint` has keys other than `ru` and `en`
 
@@ -129,7 +147,7 @@ Each topic can have these settings, all optional:
 |---|---|
 | `chains` | topics to schedule for today, for the same word, after the learner answers this topic |
 | `gates` | topics to keep hidden for a word until the learner answers this topic for that word |
-| `chains_by_answer` | like `chains`, but for the word that is this exercise's answer |
+| `chains_by_answer` | like `chains`, but for the word that is this exercise's first answer |
 | `instruction` | `{ru, en}`, shown under every question of this topic, such as "Enter the missing word" |
 | `ai_generation` | **bot only.** `true` lets the `/ai` mode rewrite this topic's exercises with an LLM (see below) |
 | `cue_generation` | **bot only.** `true` gives this topic's questions illustrations (see below) |

@@ -57,8 +57,9 @@ _TOOL: Final[ToolParam] = {
                 "type": "string",
                 "description": (
                     "The exercise's question, in the same format the topic uses. "
-                    "Its blank must be correctly and unambiguously filled by the "
-                    "fixed answer given in the prompt — not a different, "
+                    "Its blank must be correctly filled by the fixed answer "
+                    "given in the prompt, by every one of its forms if it has "
+                    "several, and by no other word — not a different, "
                     "also-plausible completion."
                 ),
             },
@@ -162,12 +163,17 @@ def _recall_to_dict(recall: Recall) -> dict:
     return data
 
 
+def _authored_answer(exercise: Exercise) -> str | list[str]:
+    # A single answer as a string, the way a course author writes it
+    return exercise.answer[0] if len(exercise.answer) == 1 else exercise.answer
+
+
 def _exercise_to_dict(exercise: Exercise) -> dict:
     data: dict = {
         "word": exercise.word,
         "topic": exercise.topic,
         "question": exercise.question,
-        "answer": exercise.answer,
+        "answer": _authored_answer(exercise),
         "distractors": exercise.distractors,
         "explanation": exercise.explanation,
     }
@@ -218,15 +224,25 @@ def _build_prompt(exercise: Exercise, few_shot: list[Exercise]) -> str:
     # docstring for why) — that's specific to this generation flow, not a
     # fact about German or about authoring exercises in general, so it has
     # no natural home in a guide written for a human author.
+    if len(exercise.answer) == 1:
+        answer_rule = (
+            "The answer is fixed at the value below — write a question whose "
+            "blank is correctly and unambiguously filled by exactly this "
+            "answer, and distractors that are wrong for it."
+        )
+    else:
+        answer_rule = (
+            "The answer is fixed at the forms below, and all of them are "
+            "correct — write a question whose blank is correctly filled by "
+            "every one of these forms and by no other word, and distractors "
+            "that are wrong for it. No distractor may be one of these forms."
+        )
     return (
         "Write a new exercise for the given word and topic, following the "
-        "authoring guide above. The answer is fixed at the value below — "
-        "write a question whose blank is correctly and unambiguously "
-        "filled by exactly this answer, and distractors that are wrong "
-        "for it.\n\n"
+        f"authoring guide above. {answer_rule}\n\n"
         f"word: {exercise.word!r}\n"
         f"topic: {exercise.topic!r}\n"
-        f"answer: {exercise.answer!r}\n\n"
+        f"answer: {_authored_answer(exercise)!r}\n\n"
         "Here is the exercise currently scheduled for this exact word and "
         "topic, as your example (same YAML shape as exercises.yaml):\n\n"
         "```yaml\n"

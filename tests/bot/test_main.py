@@ -23,6 +23,7 @@ from tests.plugins.curriculum import ExerciseData, make_exercise_data
 from wiederholen.bot import dispatcher
 from wiederholen.bot.__main__ import main
 from wiederholen.school import Course, CueStore, StudentRecordBook, Tutor
+from wiederholen.school.curriculum import Exercise
 
 
 @pytest.fixture
@@ -140,16 +141,7 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert kwargs["cue_store"] is None
     exercise = Tutor(kwargs["course"], {}).next_exercise()
     assert exercise is not None
-    loaded_exercise = exercise.to_dict()
-    if not loaded_exercise["recalls"]:
-        del loaded_exercise["recalls"]
-    if loaded_exercise["description"] is None:
-        del loaded_exercise["description"]
-    if loaded_exercise["word_bank"] is None:
-        del loaded_exercise["word_bank"]
-    if loaded_exercise["grammar_classes"] is None:
-        del loaded_exercise["grammar_classes"]
-    assert loaded_exercise == exercise_data
+    assert exercise == Exercise.from_dict(dict(exercise_data))
 
 
 async def test_starts_polling_with_feature_flags_from_env(

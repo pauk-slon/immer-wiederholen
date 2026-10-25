@@ -273,7 +273,7 @@ async def test_ai_mode_survives_answering_an_exercise(
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict(), ai_mode=True)
 
-    await feed_message(exercise.answer, course=Course([exercise]))
+    await feed_message(exercise.answer[0], course=Course([exercise]))
 
     data = await state.get_data()
     assert data["ai_mode"] is True

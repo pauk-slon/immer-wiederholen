@@ -19,6 +19,7 @@ def test_demo_course_uses_every_exercise_field(demo_course: Course) -> None:
     exercises = demo_course.exercises
     assert any(exercise.distractors for exercise in exercises)
     assert any(not exercise.distractors for exercise in exercises)
+    assert any(len(exercise.answer) > 1 for exercise in exercises)
     assert any(len(exercise.recalls) > 1 for exercise in exercises)
     assert any(recall.hint for exercise in exercises for recall in exercise.recalls)
     assert any(exercise.description for exercise in exercises)

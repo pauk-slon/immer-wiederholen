@@ -125,7 +125,7 @@ In both cases the bot says that the day is done and shows "Study more".
 After every answer, right or wrong, `check_answer()` calls `_expedite_chained_topics()`. It finds these pairs:
 
 - For each topic in `chains` and `gates` of the answered topic, the pair *(same word, that topic)*.
-- For each topic in `chains_by_answer`, the pair *(the exercise's answer, that topic)*.
+- For each topic in `chains_by_answer`, the pair *(the exercise's first answer, that topic)*. The other answers don't take part in links.
 
 `_expedite_dependent()` gives such a pair an entry that is due today, with interval 0. It does this only if the pair has no entry yet and the course has an exercise for it. A pair that already has an entry keeps it. After a linked topic has its own schedule, a link doesn't change it. Otherwise topics that link to each other would reset each other's due dates forever (see [ADR 0004](adr/0004-links-only-schedule-unstarted-pairs.md)). `Tutor` reports each scheduled pair as a `TopicUnlocked` event.
 

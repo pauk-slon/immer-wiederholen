@@ -16,7 +16,7 @@ async def test_correct_answer_shows_success_text(
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 
-    requests = await feed_message(exercise.answer, course=Course([exercise]))
+    requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
     assert RU.correct in requests[0].text
     assert exercise.explanation["ru"] in requests[1].text
@@ -32,8 +32,21 @@ async def test_wrong_answer_shows_correct_answer(
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
-    assert exercise.answer in requests[0].text
+    assert exercise.answer[0] in requests[0].text
     assert exercise.explanation["ru"] in requests[1].text
+
+
+async def test_wrong_answer_shows_every_correct_answer(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(answer=["Komm", "Komme"], distractors=[])
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict())
+
+    requests = await feed_message("falsch", course=Course([exercise]))
+
+    assert "Komm / Komme" in requests[0].text
 
 
 async def test_next_button_after_correct_answer(
@@ -44,7 +57,7 @@ async def test_next_button_after_correct_answer(
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 
-    requests = await feed_message(exercise.answer, course=Course([exercise]))
+    requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
     assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
     buttons = [
@@ -127,7 +140,7 @@ async def test_recall_button_after_correct_answer_with_recall(
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 
-    requests = await feed_message(exercise.answer, course=Course([exercise]))
+    requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
     assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
     buttons = [

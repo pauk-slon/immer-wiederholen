@@ -88,6 +88,6 @@ async def test_choice_survives_answering_an_exercise(
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict(), remind_after_hours=4)
 
-    await feed_message(exercise.answer, course=Course([exercise]))
+    await feed_message(exercise.answer[0], course=Course([exercise]))
 
     assert (await state.get_data())["remind_after_hours"] == 4

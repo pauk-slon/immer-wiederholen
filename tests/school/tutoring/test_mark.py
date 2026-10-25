@@ -57,3 +57,19 @@ def test_check_accepts_ss_for_eszett_in_a_typed_answer() -> None:
     exercise = make_exercise(answer="heißer", distractors=[])
     mark = Tutor(Course([exercise]), {}).check_answer(exercise, "heisser")
     assert mark.is_correct is True
+
+
+def test_check_accepts_any_of_several_typed_answers() -> None:
+    exercise = make_exercise(answer=["Komm", "Komme"], distractors=[])
+    tutor = Tutor(Course([exercise]), {})
+    assert tutor.check_answer(exercise, "komm").is_correct is True
+    assert tutor.check_answer(exercise, "komme").is_correct is True
+    assert tutor.check_answer(exercise, "kommst").is_correct is False
+
+
+def test_check_accepts_any_of_several_correct_options() -> None:
+    exercise = make_exercise(answer=["sandte", "sendete"], distractors=["sendte"])
+    tutor = Tutor(Course([exercise]), {})
+    assert tutor.check_answer(exercise, "sandte").is_correct is True
+    assert tutor.check_answer(exercise, "sendete").is_correct is True
+    assert tutor.check_answer(exercise, "sendte").is_correct is False

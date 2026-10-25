@@ -86,7 +86,7 @@ async def _clear_keeping_chat_settings(state: FSMContext, state_data: dict) -> N
 
 
 def _make_reply_keyboard(exercise: Exercise) -> ReplyKeyboardMarkup:
-    options = list(exercise.distractors) + [exercise.answer]
+    options = [*exercise.distractors, *exercise.answer]
     random.shuffle(options)
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=opt)] for opt in options],
@@ -186,7 +186,8 @@ def _format_question(
         # fresh on every render instead of frozen once at authoring time,
         # same as the web widget's own tile UI shuffles its copy.
         chunks = " / ".join(
-            html.escape(chunk) for chunk in shuffle_word_bank(exercise.word_bank)
+            html.escape(chunk)
+            for chunk in shuffle_word_bank(exercise.word_bank, exercise.answer)
         )
         text += f" ({chunks})"
     if exercise.description:
@@ -417,7 +418,7 @@ async def handle_answer(
         result_line = (
             locale.correct
             if mark.is_correct
-            else locale.wrong.format(answer=shown_exercise.answer)
+            else locale.wrong.format(answer=shown_exercise.answer_text)
         )
         if mark.recall == RecallMode.optional:
             reply_markup = _make_recall_buttons(locale, locale.btn_recall)

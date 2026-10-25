@@ -519,7 +519,7 @@ def test_next_exercise_avoids_repeating_last_answered_question() -> None:
         word="sprechen",
         topic="government",
         question="Ich spreche ___ meiner Mutter.",
-        answer="mit",
+        answer=["mit"],
         distractors=["über", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )
@@ -527,7 +527,7 @@ def test_next_exercise_avoids_repeating_last_answered_question() -> None:
         word="sprechen",
         topic="government",
         question="Wir sprechen ___ das Problem.",
-        answer="über",
+        answer=["über"],
         distractors=["mit", "an", "für"],
         explanation={"ru": "x", "en": "y"},
     )
@@ -927,6 +927,26 @@ class TestAnswerChainedTopics:
         today = datetime.now(UTC).date().isoformat()
         assert state["word_schedule"]["auf"]["preposition_meaning"]["due_date"] == today
         assert state["word_schedule"]["auf"]["preposition_case"]["due_date"] == today
+
+    def test_chains_by_the_first_of_several_answers(self) -> None:
+        government_exercise = make_exercise(
+            word="warten", topic="government", answer=["auf", "an"], distractors=[]
+        )
+        auf_exercise = make_exercise(word="auf", topic="preposition_meaning")
+        an_exercise = make_exercise(word="an", topic="preposition_meaning")
+        state: dict = {}
+        tutor = Tutor(
+            Course(
+                [government_exercise, auf_exercise, an_exercise],
+                answer_chained_topics={"government": ["preposition_meaning"]},
+            ),
+            state,
+        )
+
+        tutor.check_answer(government_exercise, "an")
+
+        assert "preposition_meaning" in state["word_schedule"]["auf"]
+        assert "an" not in state["word_schedule"]
 
     def test_does_not_expedite_by_word_when_only_chained_by_answer(self) -> None:
         government_exercise = make_exercise(
@@ -1554,7 +1574,7 @@ class TestRequestRecallInterval:
             }
         }
         tutor = Tutor(Course([exercise]), student_record)
-        tutor.check_answer(exercise, exercise.answer)
+        tutor.check_answer(exercise, exercise.answer[0])
 
         tutor.request_recall(exercise)
 
@@ -1576,7 +1596,7 @@ class TestRequestRecallInterval:
             }
         }
         tutor = Tutor(Course([exercise]), student_record)
-        tutor.check_answer(exercise, exercise.answer)
+        tutor.check_answer(exercise, exercise.answer[0])
 
         tutor.request_recall(exercise)
         tutor.request_recall(exercise)

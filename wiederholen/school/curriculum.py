@@ -3,13 +3,54 @@ import random
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Self, TypedDict
+from typing import Final, Self, TypedDict
 
 import yaml
 
 from wiederholen.school.i18n import LANGUAGES, Language
 
 type Topic = str
+
+
+def fold_case(text: str) -> str:
+    # casefold() is Unicode caseless matching. Unlike lower(), it also
+    # matches spellings like ss for ß
+    return text.strip().casefold()
+
+
+def _as_list(answer: object) -> object:
+    # A course author writes a single answer as a plain string
+    return [answer] if isinstance(answer, str) else answer
+
+
+def _check_answer_type(answer: object) -> None:
+    if not isinstance(answer, list) or not all(
+        isinstance(item, str) for item in answer
+    ):
+        raise ValueError(
+            f"answer must be a string or a list of strings, got {answer!r}"
+        )
+
+
+def _is_arrangement(text: str, chunks: Sequence[str]) -> bool:
+    # Whether text is all the chunks joined with spaces, in some order. Both
+    # are already folded, because a new order can move a capital letter
+    if not chunks:
+        return text == ""
+    tried: set[str] = set()
+    for index, chunk in enumerate(chunks):
+        if chunk in tried:
+            continue
+        tried.add(chunk)
+        if text == chunk:
+            rest = ""
+        elif text.startswith(chunk + " "):
+            rest = text[len(chunk) + 1 :]
+        else:
+            continue
+        if _is_arrangement(rest, [*chunks[:index], *chunks[index + 1 :]]):
+            return True
+    return False
 
 
 @dataclass(frozen=True)
@@ -19,6 +60,7 @@ class Recall:
     hint: dict[Language, str] | None = None
 
     def __post_init__(self) -> None:
+        _check_answer_type(self.answer)
         if len(self.answer) == 0:
             raise ValueError("recall.answer must not be empty")
         if self.hint is not None and not set(self.hint.keys()).issubset(LANGUAGES):
@@ -31,6 +73,8 @@ class Recall:
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
+        d = dict(d)
+        d["answer"] = _as_list(d.get("answer"))
         return cls(**d)
 
 
@@ -39,7 +83,7 @@ class Exercise:
     word: str
     topic: Topic
     question: str
-    answer: str
+    answer: list[str]
     distractors: list[str]
     explanation: dict[Language, str]
     recalls: list[Recall] = field(default_factory=list)
@@ -48,8 +92,19 @@ class Exercise:
     grammar_classes: list[str] | None = None
 
     def __post_init__(self) -> None:
-        if self.answer in self.distractors:
-            raise ValueError(f"answer '{self.answer}' must not be in distractors")
+        _check_answer_type(self.answer)
+        if len(self.answer) == 0:
+            raise ValueError("answer must not be empty")
+        # Compared the way an answer is checked, so that two answers can't
+        # differ only in case or surrounding spaces
+        if len({fold_case(answer) for answer in self.answer}) != len(self.answer):
+            raise ValueError(f"answer {self.answer} must not repeat an answer")
+        # Stripped the way an answer is checked, but not folded, because an
+        # option can differ from an answer only in case
+        if {answer.strip() for answer in self.answer} & {
+            distractor.strip() for distractor in self.distractors
+        }:
+            raise ValueError(f"answer {self.answer} must not be in distractors")
         if set(self.explanation.keys()) != LANGUAGES:
             raise ValueError(
                 f"explanation must have keys {LANGUAGES}, got {set(self.explanation.keys())}"
@@ -58,10 +113,17 @@ class Exercise:
             raise ValueError(
                 f"description must have keys {LANGUAGES}, got {set(self.description.keys())}"
             )
-        if self.word_bank is not None and " ".join(self.word_bank) != self.answer:
-            raise ValueError(
-                f"word_bank {self.word_bank} must join into answer '{self.answer}'"
-            )
+        if self.word_bank is not None:
+            if " ".join(self.word_bank) != self.answer[0]:
+                raise ValueError(
+                    f"word_bank {self.word_bank} must join into answer '{self.answer[0]}'"
+                )
+            folded_chunks = [fold_case(chunk) for chunk in self.word_bank]
+            for answer in self.answer[1:]:
+                if not _is_arrangement(fold_case(answer), folded_chunks):
+                    raise ValueError(
+                        f"answer '{answer}' must be an order of word_bank {self.word_bank}"
+                    )
         if self.grammar_classes is not None and len(self.grammar_classes) == 0:
             raise ValueError("grammar_classes must not be empty if set")
 
@@ -71,9 +133,15 @@ class Exercise:
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         d = dict(d)
+        d["answer"] = _as_list(d.get("answer"))
         if d.get("recalls") is not None:
             d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
         return cls(**d)
+
+    @property
+    def answer_text(self) -> str:
+        # Every answer, for the line that a frontend shows after a mistake
+        return " / ".join(self.answer)
 
     @property
     def cue_key(self) -> str:
@@ -94,21 +162,28 @@ class Exercise:
         return hashlib.sha256(self.question.encode()).hexdigest()
 
 
-def shuffle_word_bank(word_bank: Sequence[str]) -> list[str]:
+_SHUFFLE_ATTEMPTS: Final = 100
+
+
+def shuffle_word_bank(word_bank: Sequence[str], answers: Sequence[str]) -> list[str]:
     # Shared by wiederholen.bot (re-inserted as a "(a / b / c)" parenthetical
     # after the question) and wiederholen.web (rendered as tap-to-arrange
     # tiles) — one shuffle-with-reshuffle-guard implementation rather than
     # each frontend keeping its own copy. A single-chunk word_bank has no
-    # other permutation to land on, so reshuffling would loop forever —
-    # returned as-is instead.
+    # other permutation to land on, so it's returned as-is without
+    # reshuffling.
     if len(word_bank) < 2:
         return list(word_bank)
+    solved = {fold_case(answer) for answer in answers}
     shuffled = list(word_bank)
     # Reshuffle on the chance (real for a short sentence) that shuffle()
-    # lands back on the original order — the learner should never be handed
-    # an already-solved word bank.
-    while shuffled == list(word_bank):
+    # lands on an order that is an answer — the learner should never be
+    # handed an already-solved word bank. The attempts are limited, because
+    # every order can be an answer, as for [Ja, ja] with the answer "Ja ja"
+    for _ in range(_SHUFFLE_ATTEMPTS):
         random.shuffle(shuffled)
+        if fold_case(" ".join(shuffled)) not in solved:
+            break
     return shuffled
 
 
