@@ -6,10 +6,12 @@ from wiederholen.school import LANGUAGES, Language
 _RU_UNIT_FORMS: Final[dict[str, tuple[str, str, str]]] = {
     "exercises": ("упражнение", "упражнения", "упражнений"),
     "words": ("слово", "слова", "слов"),
+    "days": ("день", "дня", "дней"),
 }
 _EN_UNIT_FORMS: Final[dict[str, tuple[str, str]]] = {
     "exercises": ("exercise", "exercises"),
     "words": ("word", "words"),
+    "days": ("day", "days"),
 }
 
 
@@ -27,7 +29,7 @@ def _ru_plural(n: int, one: str, few: str, many: str) -> str:
 
 def format_count(
     n: int,
-    unit: Literal["exercises", "words"],
+    unit: Literal["exercises", "words", "days"],
     language: Language,
 ) -> str:
     if language == "ru":
@@ -73,8 +75,10 @@ class Locale:
     reset_done: str
     reset_cancelled: str
     reminder_text: str
+    reminder_streak_text: str
     progress_text: str
     nothing_due_text: str
+    streak_text: str
     ai_mode_on: str
     ai_mode_off: str
     ai_generation_failed: str
@@ -114,6 +118,7 @@ RU: Final = Locale(
     reset_done="✅ Прогресс сброшен",
     reset_cancelled="Отменено",
     reminder_text="🔔 Есть что повторить! Загляни и сделай /wiederholen!",
+    reminder_streak_text="🔥 Серия: {days}. Прервётся через {hours} ч",
     progress_text=(
         "📊 Твой прогресс\n"
         "\n"
@@ -123,10 +128,12 @@ RU: Final = Locale(
         "🎯 Осталось: {remaining_today}\n"
         "\n"
         "Всего\n"
+        "🔥 Серия: {streak}\n"
         "📈 В процессе: {learning}\n"
         "✅ Выучено: {mastered}"
     ),
     nothing_due_text="🎉 На сегодня всё! Загляни завтра — будут новые слова и повторения.",
+    streak_text="🔥 Серия: {days}",
     ai_mode_on="🤖 AI-режим включён",
     ai_mode_off="AI-режим выключен",
     ai_generation_failed="⚠️ Не получилось сгенерировать упражнение. Попробуй ещё раз или отключи /ai",
@@ -166,6 +173,7 @@ EN: Final = Locale(
     reset_done="✅ Progress has been reset",
     reset_cancelled="Cancelled",
     reminder_text="🔔 Something to review! Come back and do /wiederholen!",
+    reminder_streak_text="🔥 Streak: {days}. It ends in {hours} h",
     progress_text=(
         "📊 Your progress\n"
         "\n"
@@ -175,10 +183,12 @@ EN: Final = Locale(
         "🎯 Left: {remaining_today}\n"
         "\n"
         "Overall\n"
+        "🔥 Streak: {streak}\n"
         "📈 Learning: {learning}\n"
         "✅ Mastered: {mastered}"
     ),
     nothing_due_text="🎉 That's all for today! Come back tomorrow for new words and reviews.",
+    streak_text="🔥 Streak: {days}",
     ai_mode_on="🤖 AI mode is on",
     ai_mode_off="AI mode is off",
     ai_generation_failed="⚠️ Couldn't generate the exercise. Try again, or turn off /ai",

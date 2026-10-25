@@ -14,7 +14,7 @@ from tests.plugins.aiogram import FeedMessage
 from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import SeedStudentRecord
 from wiederholen.bot.commands.wiederholen import STUDY_MORE, UserState
-from wiederholen.bot.l10n import RU
+from wiederholen.bot.l10n import RU, format_count
 from wiederholen.school import Course, CueStore, Exercise, Language, StudentID, Tutor
 
 
@@ -390,3 +390,38 @@ async def test_ignores_the_cue_store_for_a_non_eligible_topic(
 
     assert not any(isinstance(r, SendPhoto) for r in requests)
     cue_store.get_cue_url.assert_not_called()
+
+
+async def test_shows_the_streak_when_the_day_is_done(
+    feed_message: FeedMessage,
+    seed_student_record: SeedStudentRecord,
+    student_id: StudentID,
+) -> None:
+    exercise = make_exercise(word="warten")
+    now = datetime.now(UTC)
+    await seed_student_record(
+        student_id,
+        {
+            "word_schedule": {
+                "warten": {
+                    "government": {
+                        "repetition_interval": 4,
+                        "due_date": (now.date() + timedelta(days=4)).isoformat(),
+                        "introduced_at": (now.date() - timedelta(days=4)).isoformat(),
+                    },
+                },
+            },
+            "last_exercise": {
+                "question": exercise.question,
+                "answered_at": (now - timedelta(minutes=5)).isoformat(),
+                "is_recall_optional": False,
+            },
+            "streak_started_at": (now - timedelta(days=4, hours=1)).isoformat(),
+        },
+    )
+
+    requests = await feed_message("/wiederholen", course=Course([exercise]))
+
+    assert len(requests) == 1
+    streak_line = RU.streak_text.format(days=format_count(5, "days", "ru"))
+    assert requests[0].text == f"{RU.nothing_due_text}\n\n{streak_line}"

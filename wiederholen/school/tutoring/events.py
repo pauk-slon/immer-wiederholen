@@ -37,7 +37,25 @@ class NoExerciseAvailable:
     reason: Literal["nothing_available", "daily_cap_reached"]
 
 
-TutoringEvent = ExerciseAnswered | TopicUnlocked | NoExerciseAvailable
+@dataclass(frozen=True)
+class StreakExtended:
+    # 1 when an answer starts a new streak
+    days: int
+
+
+@dataclass(frozen=True)
+class StreakBroken:
+    # Reported by the first answer after the break, with the lost streak's length
+    days: int
+
+
+TutoringEvent = (
+    ExerciseAnswered
+    | TopicUnlocked
+    | NoExerciseAvailable
+    | StreakExtended
+    | StreakBroken
+)
 
 
 def _to_otel_attributes(event: TutoringEvent) -> dict[str, Any]:

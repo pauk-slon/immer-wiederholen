@@ -24,6 +24,7 @@ async def test_defaults_to_ru(feed_message: FeedMessage) -> None:
         mastered=format_count(0, "words", "ru"),
         answered_count=0,
         correct_today=0,
+        streak=format_count(0, "days", "ru"),
     )
 
 
@@ -43,6 +44,7 @@ async def test_responds_in_current_language(
         mastered=format_count(0, "words", "en"),
         answered_today=format_count(0, "exercises", "en"),
         correct_today=0,
+        streak=format_count(0, "days", "en"),
     )
 
 
@@ -87,6 +89,7 @@ async def test_reflects_student_record_breakdown(
         mastered=format_count(1, "words", "ru"),
         answered_count=0,
         correct_today=0,
+        streak=format_count(0, "days", "ru"),
     )
 
 
@@ -111,6 +114,7 @@ async def test_reflects_todays_answer_count(
         mastered=format_count(0, "words", "ru"),
         answered_count=12,
         correct_today=9,
+        streak=format_count(0, "days", "ru"),
     )
 
 
@@ -152,3 +156,31 @@ async def test_next_exercise_button_is_remembered_for_later_cleanup(
 
     data = await state.get_data()
     assert data["last_buttoned_message_id"] is not None
+
+
+async def test_reflects_the_streak(
+    feed_message: FeedMessage,
+    seed_student_record: SeedStudentRecord,
+    student_id: StudentID,
+) -> None:
+    now = datetime.now(UTC)
+    await seed_student_record(
+        student_id,
+        {
+            "last_exercise": {"answered_at": (now - timedelta(hours=3)).isoformat()},
+            "streak_started_at": (now - timedelta(days=1, hours=4)).isoformat(),
+        },
+    )
+
+    requests = await feed_message("/progress", course=Course([make_exercise()]))
+
+    assert len(requests) == 1
+    assert requests[0].text == RU.progress_text.format(
+        remaining_today=format_count(0, "exercises", "ru"),
+        new_today=format_count(0, "words", "ru"),
+        learning=format_count(0, "words", "ru"),
+        mastered=format_count(0, "words", "ru"),
+        answered_count=0,
+        correct_today=0,
+        streak=format_count(2, "days", "ru"),
+    )

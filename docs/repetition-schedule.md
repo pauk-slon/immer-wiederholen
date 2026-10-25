@@ -1,10 +1,10 @@
 # Repetition schedule
 
-This page describes how `wiederholen.school.tutoring` decides what a learner practices and when. It covers the schedule, the growth of intervals, the choice of the next exercise, the daily limit on new words, the scheduling of linked topics and the numbers of `/progress`. [Course format](course-format.md#linking-topics) describes how to declare links in `topics.yaml`.
+This page describes how `wiederholen.school.tutoring` decides what a learner practices and when. It covers the schedule, the growth of intervals, the choice of the next exercise, the daily limit on new words, the scheduling of linked topics, the numbers of `/progress` and the streak. [Course format](course-format.md#linking-topics) describes how to declare links in `topics.yaml`.
 
 The repetition engine consists of two classes in [`tutoring/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/tutoring):
 
-- **`Tutor`** (`session.py`) makes the decisions with `next_exercise()`, `check_answer()`, `request_recall()`, `check_recall()`, `should_remind()`, `progress()` and `get_hint()`. The frontend creates it for each request as `Tutor(course, student_record)`.
+- **`Tutor`** (`session.py`) makes the decisions with `next_exercise()`, `check_answer()`, `request_recall()`, `check_recall()`, `should_remind()`, `progress()`, `streak()` and `get_hint()`. The frontend creates it for each request as `Tutor(course, student_record)`.
 - **`StudentRecord`** (`student_record.py`) reads and writes the learner's record. The record is a plain dict that the frontend loaded from storage (see [Storage and identity](storage.md#student-records)). `StudentRecord` knows nothing about the course.
 
 `SelectablePairs` (`selection.py`) chooses the word and the topic for `next_exercise()`. [Conventions](#conventions) lists the rules for changes to these classes.
@@ -41,6 +41,7 @@ The record also has these keys:
 | `today_answers` | today's count of answers and correct answers |
 | `new_word_budget` | the extra new words that "Study more" added today |
 | `last_reminded_at` | the time of the last reminder |
+| `streak_started_at` | the time of the first answer of the current streak (see [Streak](#streak)) |
 
 `today_answers` and `new_word_budget` store their date, and their count is valid only on that day, so no cleanup is needed the next morning.
 
@@ -160,11 +161,29 @@ An **optional** recall, after a correct answer, halves the interval of the pair,
 
 `remaining_today` counts only pairs that are actually due, not new material. The number of new pairs in a day can't be known in advance, because one new word can lead to more pairs through links. For the same reason, `/progress` shows no total of untouched pairs. Such a total would be misleading, because most of those pairs won't be due for weeks.
 
+## Streak
+
+The streak is the number of days that a learner practices without a break. `Tutor.streak()` returns it as a `Streak` with `days` and `breaks_at`, or `None` if there's no streak now. It changes nothing.
+
+- **Practice.** Any answer to a main exercise counts, right or wrong. Recall answers don't count.
+- **Break.** The streak breaks when more than 36 hours (`STREAK_BREAKS_AFTER`) pass after the last answer. `breaks_at` is the time of the last answer plus 36 hours. After that time, `streak()` returns `None`.
+- **Length.** The length is `floor((last answer − streak_started_at) / 24 h) + 1`. It counts to the last answer, not to now. Several answers in one day don't make the streak longer.
+
+`check_answer()` updates the streak after `record_mark()`. It reads the streak and the time of the previous answer before `record_mark()` replaces `last_exercise`. If there was no streak, the answer starts a new one. `streak_started_at` then gets this answer's own `answered_at`, so the start is never later than the last answer.
+
+The bot shows the streak in `/progress`, when the day is done and in the reminder (see [Telegram bot](bot.md)). The web widget doesn't show it yet, but its answers count too, because the streak is in the student record.
+
+Calendar days aren't used, because the bot doesn't know the learner's time zone, and a UTC day can change in the middle of the learner's evening (see [ADR 0021](adr/0021-streaks-from-intervals-between-answers.md)). A learner who practices every 35 hours keeps the streak, although some calendar days have no practice.
+
+A record from before streaks has `last_exercise` but no `streak_started_at`. It has no streak until the next answer, and `Tutor` reports no break for it.
+
+`Tutor` reports `StreakExtended` when an answer makes the streak longer, with `days` 1 for a new streak. The first answer after a break also reports `StreakBroken` with the length of the lost streak (see [Observability](tracing.md#events-from-the-repetition-engine)).
+
 ## Resetting
 
 `/reset` calls `StudentRecord.reset_progress(student_record)`. It deletes the schedule and today's answer counts. Without the reset of the counts, `/progress` would still show today's answers right after a reset.
 
-It keeps the rest of the record, which is today's "Study more" grants, `last_exercise` and `last_reminded_at`. Because `last_exercise` stays, the reminder still measures inactivity from the last answer before the reset, so a learner can get a reminder soon after a reset (see [#258](https://github.com/pauk-slon/immer-wiederholen/issues/258)).
+It keeps the rest of the record, which is today's "Study more" grants, `last_exercise`, `last_reminded_at` and `streak_started_at`. A reset changes the schedule, not the practice habit, so the streak continues. Because `last_exercise` stays, the reminder still measures inactivity from the last answer before the reset, so a learner can get a reminder soon after a reset (see [#258](https://github.com/pauk-slon/immer-wiederholen/issues/258)).
 
 ## Example: a learner's first day
 
@@ -191,3 +210,4 @@ The [demo course](https://github.com/pauk-slon/immer-wiederholen/tree/main/demo)
 - [The repetition engine reports events on the current span](adr/0002-tutoring-events-on-the-current-span.md) (ADR 0002)
 - [Topic links only schedule pairs that haven't started](adr/0004-links-only-schedule-unstarted-pairs.md) (ADR 0004)
 - [Gates are declared explicitly](adr/0012-gates-declared-explicitly.md) (ADR 0012)
+- [Streaks count intervals between answers, not calendar days](adr/0021-streaks-from-intervals-between-answers.md) (ADR 0021)

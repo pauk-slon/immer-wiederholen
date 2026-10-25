@@ -26,13 +26,15 @@ async def command_progress(
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
-    # progress() is read-only (see wiederholen.school.tutoring.session) —
+    # progress() and streak() are read-only (see wiederholen.school.tutoring.session) —
     # open() detects that nothing changed and skips the write on its own.
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(message.chat.id)
     )
     async with student_record_book.check_out(student_id) as student_record:
-        progress = Tutor(course, student_record).progress()
+        tutor = Tutor(course, student_record)
+        progress = tutor.progress()
+        streak = tutor.streak()
     sent = await message.answer(
         locale.progress_text.format(
             remaining_today=format_count(
@@ -50,6 +52,11 @@ async def command_progress(
             ),
             answered_count=progress.answered_today,
             correct_today=progress.correct_today,
+            streak=format_count(
+                streak.days if streak is not None else 0,
+                "days",
+                language,
+            ),
         ),
         reply_markup=make_next_button(locale),
     )

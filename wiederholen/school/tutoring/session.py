@@ -9,6 +9,8 @@ from wiederholen.school.tutoring.events import (
     ExerciseAnswered,
     NoExerciseAvailable,
     RecallMode,
+    StreakBroken,
+    StreakExtended,
     TopicUnlocked,
     emit,
 )
@@ -30,6 +32,16 @@ class Progress:
     mastered: int
     answered_today: int
     correct_today: int
+
+
+@dataclass(frozen=True)
+class Streak:
+    days: int
+    breaks_at: datetime
+
+
+def _count_streak_days(started_at: datetime, last_answered_at: datetime) -> int:
+    return (last_answered_at - started_at) // timedelta(days=1) + 1
 
 
 def _fold_case(text: str) -> str:
@@ -56,6 +68,7 @@ class Tutor:
     REMIND_AFTER: Final = timedelta(hours=24)
     NEW_WORDS_PER_DAY: Final = 7
     NEW_WORD_BUDGET_GRANT: Final = 3
+    STREAK_BREAKS_AFTER: Final = timedelta(hours=36)
 
     def __init__(self, course: Course, student_record: dict) -> None:
         self._course = course
@@ -111,6 +124,52 @@ class Tutor:
             for word, topic in not_scheduled_pairs
             if topic not in self._course.gated_topics
         }
+
+    def _get_last_answered_at(self) -> datetime | None:
+        if (last_exercise := self._student_record.get_last_exercise()) is None:
+            return None
+        return datetime.fromisoformat(last_exercise["answered_at"])
+
+    def streak(self) -> Streak | None:
+        last_answered_at = self._get_last_answered_at()
+        started_at = self._student_record.streak_started_at
+        if last_answered_at is None or started_at is None:
+            return None
+        breaks_at = last_answered_at + self.STREAK_BREAKS_AFTER
+        if datetime.now(UTC) > breaks_at:
+            return None
+        return Streak(
+            days=_count_streak_days(started_at, last_answered_at),
+            breaks_at=breaks_at,
+        )
+
+    def _update_streak(
+        self,
+        previous_streak: Streak | None,
+        previous_answered_at: datetime | None,
+    ) -> None:
+        # Runs after record_mark(), so the streak is measured to this answer.
+        # The caller reads both arguments before record_mark() replaces
+        # last_exercise's answered_at
+        if previous_streak is not None:
+            streak = self.streak()
+            assert streak is not None
+            if streak.days > previous_streak.days:
+                emit(StreakExtended(days=streak.days))
+            return
+        started_at = self._student_record.streak_started_at
+        # A record from before streaks existed has no start, so there's
+        # nothing to report as broken
+        if started_at is not None and previous_answered_at is not None:
+            emit(
+                StreakBroken(days=_count_streak_days(started_at, previous_answered_at))
+            )
+        # The start is this answer's own time, not a fresh now(), so the
+        # streak never starts after its last answer
+        answered_at = self._get_last_answered_at()
+        assert answered_at is not None
+        self._student_record.streak_started_at = answered_at
+        emit(StreakExtended(days=1))
 
     def _get_last_pair(self) -> tuple[str, str] | None:
         last_exercise = self._student_record.get_last_exercise()
@@ -244,6 +303,8 @@ class Tutor:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
+        previous_answered_at = self._get_last_answered_at()
+        previous_streak = self.streak()
         is_new, prev_repetition_interval = self._student_record.record_mark(
             exercise.question,
             exercise.word,
@@ -279,6 +340,7 @@ class Tutor:
             )
         )
         self._expedite_chained_topics(exercise)
+        self._update_streak(previous_streak, previous_answered_at)
         return Mark(is_correct=is_correct, recall=recall_mode)
 
     def check_recall(self, recall: Recall, text: str) -> bool:
@@ -350,9 +412,8 @@ class Tutor:
     def should_remind(self, remind_after: timedelta = REMIND_AFTER) -> bool:
         if not self._get_due_pairs() and not self._get_available_not_scheduled_pairs():
             return False
-        if (last_exercise := self._student_record.get_last_exercise()) is None:
+        if (last_answered_at := self._get_last_answered_at()) is None:
             return False
-        last_answered_at = datetime.fromisoformat(last_exercise["answered_at"])
         if datetime.now(UTC) - last_answered_at < remind_after:
             return False
         last_reminded_at = self._student_record.last_reminded_at

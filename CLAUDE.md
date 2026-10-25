@@ -1,6 +1,6 @@
 # immer-wiederholen
 
-Telegram bot for practicing German with multiple choice questions (aiogram, Python). Exercises and topic relations are loaded at startup from the directory set by `COURSE_PATH` env var (default: `data`) — `{COURSE_PATH}/exercises.yaml` and `{COURSE_PATH}/topics.yaml`. Bot commands: `/start`, `/wiederholen` (show a exercise with answer options), `/progress` (today's remaining/new-today/answered-today counts plus a learning/mastered breakdown by word), `/language` (toggle ru/en), `/reminders` (how long after the last session to send a reminder, or turn reminders off — see `docs/bot.md`), `/topics` (choose which topic groups exercises come from, see `docs/bot.md`), `/reset` (wipe the repetition schedule and today's answer stats after an inline confirm/cancel prompt).
+Telegram bot for practicing German with multiple choice questions (aiogram, Python). Exercises and topic relations are loaded at startup from the directory set by `COURSE_PATH` env var (default: `data`) — `{COURSE_PATH}/exercises.yaml` and `{COURSE_PATH}/topics.yaml`. Bot commands: `/start`, `/wiederholen` (show a exercise with answer options), `/progress` (today's remaining/new-today/answered-today counts, the streak, plus a learning/mastered breakdown by word), `/language` (toggle ru/en), `/reminders` (how long after the last session to send a reminder, or turn reminders off — see `docs/bot.md`), `/topics` (choose which topic groups exercises come from, see `docs/bot.md`), `/reset` (wipe the repetition schedule and today's answer stats after an inline confirm/cancel prompt).
 
 The course format (`exercises.yaml`, `topics.yaml`, `bot.yaml`, every exercise field and topic setting) is documented for course authors in `docs/course-format.md` — read it before changing `wiederholen.school.curriculum`'s fields or loading, and update it (plus `demo/`, which `tests/school/test_demo_course.py` checks still uses every field and setting) along with any format change. `demo/` is the default local course (`compose.yaml` sets `COURSE_PATH: ${COURSE_PATH:-demo}`); the real content lives in a separate private repo, bind-mounted to the gitignored `data/` with `COURSE_PATH: data` in `compose.override.yaml`. The code's own default stays `data`, which is what production relies on.
 
@@ -16,13 +16,14 @@ The package map, the dependency rules between `wiederholen.school`, `wiederholen
 
 ## Repetition schedule
 
-Spaced-repetition scheduling — `Tutor`/`StudentRecord`, `SelectablePairs` word/topic selection, repeat-avoidance, the daily new-word cap, chains/gates in `topics.yaml`, and `/progress`'s six numbers — is documented in full in `docs/repetition-schedule.md`. Read it before touching `wiederholen.school.tutoring.session`/`selection`/`student_record` or `wiederholen.school.curriculum.Course`'s chain/gate loading. The rules that matter most:
+Spaced-repetition scheduling — `Tutor`/`StudentRecord`, `SelectablePairs` word/topic selection, repeat-avoidance, the daily new-word cap, chains/gates in `topics.yaml`, `/progress`'s six numbers and the streak — is documented in full in `docs/repetition-schedule.md`. Read it before touching `wiederholen.school.tutoring.session`/`selection`/`student_record` or `wiederholen.school.curriculum.Course`'s chain/gate loading. The rules that matter most:
 
 - The schedule is per `(word, topic)` pair; the daily new-word limit is per *word*.
 - A first or wrong answer sets the interval to 0 and makes the pair due again today; don't make it 1.
 - `_expedite_dependent()` only creates entries for pairs that have none — never move an existing entry (mutual chains would loop).
 - `Tutor` never touches a raw schedule entry: read with `get_repetition_interval()`, write with `schedule_pair()`. `StudentRecord` stays course-agnostic.
 - `is_new` and the previous interval come from `record_mark()`'s return value, never a separate lookup after it.
+- The streak breaks after 36 h without an answer, not on a calendar day (ADR 0021). `check_answer()` reads the previous streak and answer time *before* `record_mark()`, and a new streak starts at that answer's own `answered_at`.
 
 ## Persistence and student identity
 

@@ -89,6 +89,15 @@ class StudentRecord:
     def last_reminded_at(self, value: datetime) -> None:
         self._data["last_reminded_at"] = value.isoformat()
 
+    @property
+    def streak_started_at(self) -> datetime | None:
+        if (raw_value := self._data.get("streak_started_at")) is not None:
+            return datetime.fromisoformat(raw_value)
+
+    @streak_started_at.setter
+    def streak_started_at(self, value: datetime) -> None:
+        self._data["streak_started_at"] = value.isoformat()
+
     def _get_self_expiring(self, key: str) -> dict | None:
         # Stale (not-today) values are simply treated as absent — no
         # explicit cleanup needed.
