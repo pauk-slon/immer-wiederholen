@@ -99,7 +99,11 @@ class Exercise:
         # differ only in case or surrounding spaces
         if len({fold_case(answer) for answer in self.answer}) != len(self.answer):
             raise ValueError(f"answer {self.answer} must not repeat an answer")
-        if set(self.answer) & set(self.distractors):
+        # Stripped the way an answer is checked, but not folded, because an
+        # option can differ from an answer only in case
+        if {answer.strip() for answer in self.answer} & {
+            distractor.strip() for distractor in self.distractors
+        }:
             raise ValueError(f"answer {self.answer} must not be in distractors")
         if set(self.explanation.keys()) != LANGUAGES:
             raise ValueError(
@@ -184,9 +188,9 @@ def shuffle_word_bank(word_bank: Sequence[str], answers: Sequence[str]) -> list[
     # handed an already-solved word bank. The attempts are limited, because
     # every order can be an answer, as for [Ja, ja] with the answer "Ja ja"
     for _ in range(_SHUFFLE_ATTEMPTS):
+        random.shuffle(shuffled)
         if fold_case(" ".join(shuffled)) not in solved:
             break
-        random.shuffle(shuffled)
     return shuffled
 
 

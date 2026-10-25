@@ -149,6 +149,20 @@ class TestExerciseValidation:
         ):
             Course.load(tmp_path)
 
+    def test_distractor_that_is_an_answer_with_spaces_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        with (
+            pytest.raises(ValueError, match="must not be in distractors"),
+            tmp_yaml_file(
+                [make_exercise_data(answer="auf", distractors=["auf ", "an"])],
+                filename="exercises.yaml",
+            ),
+        ):
+            Course.load(tmp_path)
+
     def test_another_order_of_the_word_bank_loads(
         self,
         tmp_path: Path,
