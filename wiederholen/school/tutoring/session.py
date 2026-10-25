@@ -32,6 +32,25 @@ class Progress:
     correct_today: int
 
 
+def _fold_case(text: str) -> str:
+    # casefold() is Unicode caseless matching. Unlike lower(), it also
+    # matches spellings like ss for ß
+    return text.strip().casefold()
+
+
+def _is_answer_correct(exercise: Exercise, answer: str) -> bool:
+    if not exercise.distractors:
+        return _fold_case(answer) == _fold_case(exercise.answer)
+    # Case can change the meaning, so two options can differ only in case, and an
+    # exact match with an option wins. An answer typed instead of chosen, which a
+    # phone may capitalize, matches without case only if no other option does
+    options = [exercise.answer, *exercise.distractors]
+    if answer.strip() in (option.strip() for option in options):
+        return answer.strip() == exercise.answer.strip()
+    matches = [option for option in options if _fold_case(option) == _fold_case(answer)]
+    return matches == [exercise.answer]
+
+
 class Tutor:
     MAX_REPETITION_INTERVAL_DAYS: Final = 60
     REMIND_AFTER: Final = timedelta(hours=24)
@@ -218,14 +237,7 @@ class Tutor:
         exercise: Exercise,
         answer: str,
     ) -> Mark:
-        if exercise.distractors:
-            # The learner picks one of the options, and options can differ only
-            # in case (Ihr and ihr), so the choice must match exactly
-            is_correct = answer.strip() == exercise.answer.strip()
-        else:
-            # casefold() also turns ß into ss, which learners type when their
-            # keyboard has no ß
-            is_correct = answer.strip().casefold() == exercise.answer.strip().casefold()
+        is_correct = _is_answer_correct(exercise, answer)
         if not exercise.recalls:
             recall_mode = RecallMode.none
         elif is_correct:

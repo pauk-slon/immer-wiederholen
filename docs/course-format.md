@@ -66,7 +66,7 @@ A list of exercises:
 | `word_bank` | no | `answer` split into chunks, in the correct order, for word-order exercises. The bot shows them shuffled after the question, and the web widget shows them as tiles to arrange. A chunk can be several words (`im Chor`) |
 | `grammar_classes` | no | **bot only.** Labels for words that behave alike in this topic, such as the Ablaut pattern `i-a-u` shared by `singen` and `trinken` in `partizip_ii`. See [Hints from grammar classes](#hints-from-grammar-classes) |
 
-The answer check ignores spaces around the answer. A chosen option must match `answer` exactly, so options can differ only in case, like `Ihr` and `ihr`. A typed answer can differ from `answer` in case and can have `ss` instead of `ß`, because learners without a German keyboard often can't type `ß`.
+The answer check ignores spaces around the answer and compares without case, by Unicode case folding. For example, `ss` also matches the German `ß`. Options can differ only in case, because case can change the meaning, like `Ihr` and `ihr` in German. An answer that is exactly one of the options counts only if it is `answer`. An answer that matches only without case, for example one that the learner typed instead of choosing, counts only if no other option matches it too.
 
 ### Recalls
 
@@ -80,7 +80,7 @@ A recall asks the learner to type a whole sentence with the word they just answe
 
 After a wrong answer, the learner must complete a recall before the next exercise. After a correct answer, the recall is optional, and the learner sees a "Drill" button ("Закрепить" in Russian). Each time, one of the exercise's recalls is picked at random. If the learner answers a recall wrong and asks for another one, a different recall is picked when possible.
 
-The recall check ignores case, extra spaces and a final `.`, `,`, `!` or `?`. It also accepts `ss` instead of `ß`.
+The recall check ignores case, extra spaces and a final `.`, `,`, `!` or `?`. It compares by Unicode case folding too.
 
 ### Hints from grammar classes
 
