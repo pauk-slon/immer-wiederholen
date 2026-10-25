@@ -302,6 +302,7 @@ class Tutor:
             exercise.topic,
             is_answer_correct=is_correct,
             is_recall_optional=recall_mode == RecallMode.optional,
+            answered_at=answered_at,
         )
         next_repetition_interval = self._calc_next_repetition_interval(
             prev_repetition_interval=prev_repetition_interval,

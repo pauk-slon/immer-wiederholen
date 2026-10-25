@@ -61,9 +61,10 @@ def test_the_first_answer_starts_a_one_day_streak() -> None:
     student_record: dict = {}
 
     assert _days_after_answer(student_record) == 1
-    counted_at = datetime.fromisoformat(student_record["streak"]["counted_at"])
-    answered_at = datetime.fromisoformat(student_record["last_exercise"]["answered_at"])
-    assert abs(answered_at - counted_at) < timedelta(seconds=1)
+    assert (
+        student_record["streak"]["counted_at"]
+        == student_record["last_exercise"]["answered_at"]
+    )
 
 
 def test_a_wrong_answer_also_counts_as_practice() -> None:
@@ -118,14 +119,14 @@ def test_an_evening_then_a_morning_session_adds_no_day() -> None:
     assert _days_after_answer(student_record) == 3
 
 
-def test_a_gap_of_36_hours_keeps_the_streak() -> None:
-    student_record = _record(answered_ago=timedelta(hours=35), days=3)
+def test_a_gap_just_under_36_hours_keeps_the_streak() -> None:
+    student_record = _record(answered_ago=timedelta(hours=35, minutes=59), days=3)
 
     assert _days_after_answer(student_record) == 4
 
 
-def test_a_gap_over_36_hours_starts_a_new_streak() -> None:
-    student_record = _record(answered_ago=timedelta(hours=37), days=10)
+def test_a_gap_just_over_36_hours_starts_a_new_streak() -> None:
+    student_record = _record(answered_ago=timedelta(hours=36, minutes=1), days=10)
 
     assert _days_after_answer(student_record) == 1
 
@@ -142,7 +143,7 @@ def test_the_streak_breaks_36_hours_after_the_last_answer() -> None:
 
 
 def test_there_is_no_streak_after_36_hours_without_answers() -> None:
-    student_record = _record(answered_ago=timedelta(hours=37), days=3)
+    student_record = _record(answered_ago=timedelta(hours=36, minutes=1), days=3)
 
     assert Tutor(Course([make_exercise()]), student_record).streak() is None
 

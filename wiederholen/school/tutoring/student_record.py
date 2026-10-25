@@ -62,12 +62,13 @@ class StudentRecord:
         *,
         is_answer_correct: bool,
         is_recall_optional: bool,
+        answered_at: datetime,
     ) -> tuple[bool, int | None]:
         self._data["last_exercise"] = LastExercise(
             question=question,
             word=word,
             topic=topic,
-            answered_at=datetime.now(UTC).isoformat(),
+            answered_at=answered_at.isoformat(),
             is_recall_optional=is_recall_optional,
         )
         answered, right = self.get_answer_stats_today()

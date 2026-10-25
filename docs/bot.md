@@ -78,7 +78,7 @@ For one chat, these steps happen in order:
 1. Read the chat's FSM data. Stop if the learner has blocked the bot (see [Blocked chats](#blocked-chats)) or turned reminders off.
 2. Limit the course to the selected topic groups.
 3. Open the student record with `check_out()` and ask `Tutor.should_remind(remind_after)`.
-4. Remove the buttons from the chat's previous message with buttons (see [Pending inline buttons](#pending-inline-buttons)). Send the reminder with a "Next exercise" button. If the learner has a streak, the reminder also says how long the streak is and in how many hours it ends. The hours are rounded up, so the last hour shows as 1 hour, not 0. With a `/reminders` interval of 36 hours or more, the streak has already ended, and the reminder has no such line.
+4. Remove the buttons from the chat's previous message with buttons (see [Pending inline buttons](#pending-inline-buttons)). Send the reminder with a "Next exercise" button. If the learner has a streak, the reminder also says how long the streak is and in how many hours it ends. The hours are rounded up, so the last hour shows as 1 hour, not 0. The longest `/reminders` interval is 24 hours, so a streak always has at least 12 hours left when the reminder comes.
 5. If Telegram accepts the message, call `Tutor.record_reminder_sent()`. Only this step changes the student record, so the record is saved only in this case.
 
 If one chat fails, the reminder logs the error and continues with the next chat.
