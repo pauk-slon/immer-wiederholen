@@ -1,6 +1,6 @@
 # 0021. Streaks count intervals between answers, not calendar days
 
-**Status:** Accepted, 2026-10-25 ([#PR](https://github.com/pauk-slon/immer-wiederholen/pull/PR)). Discussed in [#306](https://github.com/pauk-slon/immer-wiederholen/issues/306).
+**Status:** Accepted, 2026-10-25 ([#307](https://github.com/pauk-slon/immer-wiederholen/pull/307)). Discussed in [#306](https://github.com/pauk-slon/immer-wiederholen/issues/306).
 
 ## Context
 
