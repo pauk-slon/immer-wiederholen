@@ -178,6 +178,8 @@ The bot doesn't know the learner's time zone, so it can't count calendar days (s
 | every day a little earlier, for example 9:00, 8:00, 7:00 | 1 day a day, while the time moves by less than 6 hours a day |
 | a switch from evenings to mornings, for example 20:00, then 9:00 every day | 1 day less, because 9:00 is only 13 hours after 20:00. The day isn't added later |
 | two sessions on one day at least 18 hours apart, for example 5:00 and 23:30 | 1 day too many |
+| a session every 35 hours | the streak continues, although some calendar days have no practice. This works like a built-in streak freeze |
+| 0:30, then 23:30 on the next day | the streak breaks, because the sessions are 47 hours apart |
 
 `check_answer()` reads the time of the previous answer before `record_mark()` replaces `last_exercise`, and updates the streak at its end.
 
