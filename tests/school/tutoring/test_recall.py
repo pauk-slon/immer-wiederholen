@@ -43,3 +43,15 @@ def test_request_recall_repeats_question_when_no_other_variant_is_available() ->
     recall = Tutor(Course([exercise]), student_record).request_recall(exercise)
 
     assert recall.question == exercise.recalls[0].question
+
+
+def test_check_recall_accepts_ss_for_eszett() -> None:
+    exercise = make_exercise(
+        recalls=[{"question": "Er hat ___.", "answer": ["Er hat ihn gestoßen."]}],
+    )
+
+    is_correct = Tutor(Course([exercise]), {}).check_recall(
+        exercise.recalls[0], "er hat ihn gestossen"
+    )
+
+    assert is_correct is True
