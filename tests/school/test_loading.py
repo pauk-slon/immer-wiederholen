@@ -121,6 +121,20 @@ class TestExerciseValidation:
         ):
             Course.load(tmp_path)
 
+    def test_answers_differing_only_in_case_raise(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        with (
+            pytest.raises(ValueError, match="must not repeat an answer"),
+            tmp_yaml_file(
+                [make_exercise_data(answer=["Komm", "komm "], distractors=[])],
+                filename="exercises.yaml",
+            ),
+        ):
+            Course.load(tmp_path)
+
     def test_second_answer_in_distractors_raises(
         self,
         tmp_path: Path,
@@ -161,10 +175,19 @@ class TestExerciseValidation:
         ):
             Course.load(tmp_path)
 
+    def test_single_answer_is_saved_as_a_string(self) -> None:
+        # An older version can read it back after a rollback
+        assert make_exercise(answer="auf").to_dict()["answer"] == "auf"
+
+    def test_several_answers_are_saved_as_a_list(self) -> None:
+        exercise = make_exercise(answer=["Komm", "Komme"], distractors=[])
+        assert Exercise.from_dict(exercise.to_dict()) == exercise
+
     def test_exercise_saved_with_a_single_answer_string_loads(self) -> None:
-        # An exercise in FSM or web session data saved before answer became a list
-        saved = make_exercise(answer="auf").to_dict() | {"answer": "auf"}
-        assert Exercise.from_dict(saved).answer == ["auf"]
+        # Also an exercise in FSM or web session data saved before answer became
+        # a list
+        exercise = make_exercise(answer="auf")
+        assert Exercise.from_dict(exercise.to_dict()) == exercise
 
 
 def _grouped(topics: dict) -> dict:

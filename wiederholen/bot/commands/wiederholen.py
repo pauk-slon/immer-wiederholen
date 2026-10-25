@@ -417,7 +417,7 @@ async def handle_answer(
         result_line = (
             locale.correct
             if mark.is_correct
-            else locale.wrong.format(answer=" / ".join(shown_exercise.answer))
+            else locale.wrong.format(answer=shown_exercise.answer_text)
         )
         if mark.recall == RecallMode.optional:
             reply_markup = _make_recall_buttons(locale, locale.btn_recall)

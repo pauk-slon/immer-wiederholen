@@ -73,11 +73,3 @@ def test_check_accepts_any_of_several_correct_options() -> None:
     assert tutor.check_answer(exercise, "sandte").is_correct is True
     assert tutor.check_answer(exercise, "sendete").is_correct is True
     assert tutor.check_answer(exercise, "sendte").is_correct is False
-
-
-def test_check_accepts_a_typed_option_that_matches_only_correct_options_without_case() -> (
-    None
-):
-    exercise = make_exercise(answer=["Ihr", "ihr"], distractors=["sein", "euer"])
-    mark = Tutor(Course([exercise]), {}).check_answer(exercise, "IHR")
-    assert mark.is_correct is True

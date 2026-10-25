@@ -296,7 +296,7 @@ async def check_answer(
         CheckAnswerResponse(
             correct=mark.is_correct,
             recall=mark.recall.value,
-            answer=" / ".join(shown_exercise.answer),
+            answer=shown_exercise.answer_text,
             explanation=shown_exercise.explanation[data.language],
         )
     )

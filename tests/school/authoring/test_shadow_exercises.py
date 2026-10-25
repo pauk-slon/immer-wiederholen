@@ -170,6 +170,7 @@ async def test_gives_every_answer_when_there_are_several() -> None:
     prompt = client.messages.create.await_args.kwargs["messages"][0]["content"]
     assert "answer: ['sandte', 'sendete']" in prompt
     assert "all of them are correct" in prompt
+    assert "exactly this answer" not in prompt
     assert shadow.answer == ["sandte", "sendete"]
 
 

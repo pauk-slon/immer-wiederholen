@@ -58,7 +58,7 @@ def _is_answer_correct(exercise: Exercise, answer: str) -> bool:
     if answer.strip() in (option.strip() for option in options):
         return answer.strip() in (correct.strip() for correct in exercise.answer)
     matches = [option for option in options if _fold_case(option) == _fold_case(answer)]
-    return bool(matches) and all(match in exercise.answer for match in matches)
+    return len(matches) == 1 and matches[0] in exercise.answer
 
 
 class Tutor:

@@ -73,7 +73,11 @@ class Exercise:
     def __post_init__(self) -> None:
         if len(self.answer) == 0:
             raise ValueError("answer must not be empty")
-        if len(set(self.answer)) != len(self.answer):
+        # Compared the way an answer is checked, so that two answers can't
+        # differ only in case or surrounding spaces
+        if len({answer.strip().casefold() for answer in self.answer}) != len(
+            self.answer
+        ):
             raise ValueError(f"answer {self.answer} must not repeat an answer")
         if set(self.answer) & set(self.distractors):
             raise ValueError(f"answer {self.answer} must not be in distractors")
@@ -99,7 +103,12 @@ class Exercise:
             raise ValueError("grammar_classes must not be empty if set")
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        # A single answer as a string, the way an author writes it. An older
+        # version reads such saved data back after a rollback
+        d = asdict(self)
+        if len(self.answer) == 1:
+            d["answer"] = self.answer[0]
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
@@ -108,6 +117,11 @@ class Exercise:
         if d.get("recalls") is not None:
             d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
         return cls(**d)
+
+    @property
+    def answer_text(self) -> str:
+        # Every answer, for the line that a frontend shows after a mistake
+        return " / ".join(self.answer)
 
     @property
     def cue_key(self) -> str:

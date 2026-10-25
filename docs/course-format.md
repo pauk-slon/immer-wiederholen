@@ -66,11 +66,11 @@ A list of exercises:
 | `word_bank` | no | the first answer split into chunks, in the correct order, for word-order exercises. Other answers must use the same chunks in another order. The bot shows them shuffled after the question, and the web widget shows them as tiles to arrange. A chunk can be several words (`im Chor`) |
 | `grammar_classes` | no | **bot only.** Labels for words that behave alike in this topic, such as the Ablaut pattern `i-a-u` shared by `singen` and `trinken` in `partizip_ii`. See [Hints from grammar classes](#hints-from-grammar-classes) |
 
-The answer check ignores spaces around the answer and compares without case, by Unicode case folding. For example, `ss` also matches the German `ß`. Options can differ only in case, because case can change the meaning, like `Ihr` and `ihr` in German. An answer that is exactly one of the options counts only if it is one of the answers. An answer that matches only without case, for example one that the learner typed instead of choosing, counts only if every option that it matches is an answer.
+The answer check ignores spaces around the answer and compares without case, by Unicode case folding. For example, `ss` also matches the German `ß`. Options can differ only in case, because case can change the meaning, like `Ihr` and `ihr` in German. An answer that is exactly one of the options counts only if it is one of the answers. An answer that matches only without case, for example one that the learner typed instead of choosing, counts only if it is an answer and no other option matches it too.
 
 ### Several correct answers
 
-Some questions have more than one correct answer. For example, the `du` form of the Imperativ can end in `-e` or not, and `senden` has two Präteritum forms. List all of them in `answer`:
+Some questions have more than one correct answer. For example, the `du` form of the Imperativ can end in `-e` or not, and `senden` has two Partizip II forms. List all of them in `answer`:
 
 ```yaml
 - word: kommen
