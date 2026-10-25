@@ -45,5 +45,5 @@ dev = [
 
 [tool.uv]
 # aiogram 3.31 caps pydantic below 2.14, the first release with Python 3.15 wheels.
-# Remove once aiogram ships https://github.com/aiogram/aiogram/pull/1949.
+# Remove once aiogram ships https://github.com/aiogram/aiogram/pull/1949 (#299).
 override-dependencies = ["pydantic~=2.14.1"]
