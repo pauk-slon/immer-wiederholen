@@ -4,7 +4,9 @@
 
 ## Context
 
-Every merge into `main` builds the image and deploys it. Before this decision, the image had one tag, `:main`, which moved with every build. Only the `org.opencontainers.image.revision` label told which commit an image contained. A commit hash doesn't show which of two builds is newer, and a person can't read it at a glance. A rollback to an earlier build needed a revert and a new build, because no tag pointed to the earlier image. The `version` in `pyproject.toml` stays `0.1.0`, because the project isn't published as a package and nothing reads it.
+Every merge into `main` builds the image and deploys it. Before this decision, the image had one tag, `:main`, which moved with every build. Only the `org.opencontainers.image.revision` label told which commit an image contained. A rollback to an earlier build needed a revert and a new build, because no tag pointed to the earlier image.
+
+The main goal is a version that people can read and say. A request like "roll back to 2026.10.3" must be easy to say, write and remember, and it must not be a commit hash. The second goal is order. Of two versions, a person must see which build is newer without a lookup. A commit hash gives neither. The `version` in `pyproject.toml` stays `0.1.0`, because the project isn't published as a package and nothing reads it.
 
 ## Decision
 
@@ -27,14 +29,15 @@ The format is valid and canonical under PEP 440. It is also valid SemVer, so too
 
 ## Alternatives considered
 
-- **Commit hash as the tag.** Not chosen, because it doesn't show which build is newer, and it isn't readable.
-- **One counter, such as the number of commits on `main`.** It shows the order, but a number like `272` tells nothing about the date. A single number also isn't valid SemVer.
+- **Commit hash as the tag.** Not chosen, because a person can't say or remember it, and it doesn't show which build is newer.
+- **One counter, such as the number of commits on `main`.** It is easy to say and shows the order. Not chosen, because a number like `272` tells nothing about the date of the build. A single number also isn't valid SemVer.
 - **SemVer.** Not chosen, because the service has no consumers that would read a major or minor change from the number. Each bump would be a manual decision with no use.
 - **A per-deploy counter in git tags.** It would have no gaps when a build fails. Not chosen, because the version would depend on state outside the commit, and two builds at the same time could take the same number.
 - **A zero-padded month, `YYYY.0M.N`.** Not chosen, because PEP 440 normalizes `2026.01` to `2026.1`, and the leading zero makes the version invalid SemVer.
 
 ## Consequences
 
+- A person can name a build in speech or in a message, for example "roll back to 2026.10.3".
 - A larger version is always a newer build. A person can compare two versions without a lookup.
 - A deploy can use a specific version tag, and a rollback to an earlier build needs no new build.
 - `N` counts all merges, also those whose checks failed and that weren't published. The published versions can have gaps, for example `2026.10.4` and then `2026.10.6`.
