@@ -1,6 +1,6 @@
 ARG VENV=/opt/venv
 
-FROM python:3.14-slim AS build
+FROM python:3.15-slim AS build
 ARG VENV
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /build
@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-dev --no-install-project
 
-FROM python:3.14-slim AS dev
+FROM python:3.15-slim AS dev
 ARG VENV
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 COPY --from=build $VENV $VENV
@@ -26,7 +26,7 @@ COPY wiederholen/ wiederholen/
 COPY tests/ tests/
 CMD ["python", "-m", "wiederholen.bot"]
 
-FROM python:3.14-slim AS prod
+FROM python:3.15-slim AS prod
 ARG VENV
 COPY --from=build $VENV $VENV
 WORKDIR /app
