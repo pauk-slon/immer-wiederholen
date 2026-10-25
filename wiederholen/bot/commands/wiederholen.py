@@ -186,7 +186,8 @@ def _format_question(
         # fresh on every render instead of frozen once at authoring time,
         # same as the web widget's own tile UI shuffles its copy.
         chunks = " / ".join(
-            html.escape(chunk) for chunk in shuffle_word_bank(exercise.word_bank)
+            html.escape(chunk)
+            for chunk in shuffle_word_bank(exercise.word_bank, exercise.answer)
         )
         text += f" ({chunks})"
     if exercise.description:

@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from functools import cached_property
 from typing import Final, Literal
 
-from wiederholen.school.curriculum import Course, Exercise, Recall
+from wiederholen.school.curriculum import Course, Exercise, Recall, fold_case
 from wiederholen.school.tutoring.events import (
     ExerciseAnswered,
     NoExerciseAvailable,
@@ -40,16 +40,10 @@ class Streak:
     breaks_at: datetime
 
 
-def _fold_case(text: str) -> str:
-    # casefold() is Unicode caseless matching. Unlike lower(), it also
-    # matches spellings like ss for ß
-    return text.strip().casefold()
-
-
 def _is_answer_correct(exercise: Exercise, answer: str) -> bool:
     if not exercise.distractors:
         return any(
-            _fold_case(answer) == _fold_case(correct) for correct in exercise.answer
+            fold_case(answer) == fold_case(correct) for correct in exercise.answer
         )
     # Case can change the meaning, so two options can differ only in case, and an
     # exact match with an option wins. An answer typed instead of chosen, which a
@@ -57,7 +51,7 @@ def _is_answer_correct(exercise: Exercise, answer: str) -> bool:
     options = [*exercise.answer, *exercise.distractors]
     if answer.strip() in (option.strip() for option in options):
         return answer.strip() in (correct.strip() for correct in exercise.answer)
-    matches = [option for option in options if _fold_case(option) == _fold_case(answer)]
+    matches = [option for option in options if fold_case(option) == fold_case(answer)]
     return len(matches) == 1 and matches[0] in exercise.answer
 
 

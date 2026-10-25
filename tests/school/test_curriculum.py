@@ -69,7 +69,7 @@ def test_cue_key_differs_for_a_different_question() -> None:
 def test_shuffle_word_bank_returns_a_permutation_of_the_input() -> None:
     word_bank = ["sie", "wohnt", "in Hamburg"]
 
-    shuffled = shuffle_word_bank(word_bank)
+    shuffled = shuffle_word_bank(word_bank, ["sie wohnt in Hamburg"])
 
     assert sorted(shuffled) == sorted(word_bank)
 
@@ -78,13 +78,34 @@ def test_shuffle_word_bank_never_returns_the_original_order() -> None:
     word_bank = ["sie", "wohnt", "in Hamburg"]
 
     for _ in range(50):
-        assert shuffle_word_bank(word_bank) != word_bank
+        assert shuffle_word_bank(word_bank, ["sie wohnt in Hamburg"]) != word_bank
 
 
 def test_shuffle_word_bank_returns_a_single_chunk_unchanged() -> None:
     # No other permutation exists to prefer — reshuffling would otherwise
     # loop forever comparing a one-element list against itself.
-    assert shuffle_word_bank(["Hallo"]) == ["Hallo"]
+    assert shuffle_word_bank(["Hallo"], ["Hallo"]) == ["Hallo"]
+
+
+def test_shuffle_word_bank_never_returns_the_order_of_another_answer() -> None:
+    word_bank = ["Am Montag", "gehe", "ich"]
+    answers = ["Am Montag gehe ich", "Ich gehe am Montag"]
+
+    for _ in range(50):
+        assert shuffle_word_bank(word_bank, answers) not in (
+            ["Am Montag", "gehe", "ich"],
+            ["ich", "gehe", "Am Montag"],
+        )
+
+
+def test_shuffle_word_bank_returns_the_word_bank_when_every_order_is_an_answer() -> (
+    None
+):
+    # Reshuffling would otherwise loop forever
+    assert shuffle_word_bank(["heute", "nicht"], ["heute nicht", "nicht heute"]) == [
+        "heute",
+        "nicht",
+    ]
 
 
 def test_grammar_classes_defaults_to_none() -> None:
@@ -100,3 +121,15 @@ def test_grammar_classes_roundtrips_through_to_dict_and_from_dict() -> None:
     exercise = make_exercise(grammar_classes=["e-a-o", "i-a-o"])
 
     assert Exercise.from_dict(exercise.to_dict()) == exercise
+
+
+def test_exercise_built_with_a_string_answer_raises() -> None:
+    with pytest.raises(ValueError, match="must be a string or a list of strings"):
+        Exercise(
+            word="ja",
+            topic="answers",
+            question="Bist du da?",
+            answer="ja",  # ty: ignore[invalid-argument-type]
+            distractors=[],
+            explanation={"ru": "да", "en": "yes"},
+        )

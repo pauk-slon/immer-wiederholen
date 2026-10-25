@@ -57,8 +57,9 @@ _TOOL: Final[ToolParam] = {
                 "type": "string",
                 "description": (
                     "The exercise's question, in the same format the topic uses. "
-                    "Its blank must be correctly and unambiguously filled by the "
-                    "fixed answer given in the prompt — not a different, "
+                    "Its blank must be correctly filled by the fixed answer "
+                    "given in the prompt, by every one of its forms if it has "
+                    "several, and by no other word — not a different, "
                     "also-plausible completion."
                 ),
             },
@@ -167,7 +168,7 @@ def _exercise_to_dict(exercise: Exercise) -> dict:
         "word": exercise.word,
         "topic": exercise.topic,
         "question": exercise.question,
-        "answer": exercise.to_dict()["answer"],
+        "answer": exercise.authored_answer,
         "distractors": exercise.distractors,
         "explanation": exercise.explanation,
     }
@@ -236,7 +237,7 @@ def _build_prompt(exercise: Exercise, few_shot: list[Exercise]) -> str:
         f"authoring guide above. {answer_rule}\n\n"
         f"word: {exercise.word!r}\n"
         f"topic: {exercise.topic!r}\n"
-        f"answer: {exercise.to_dict()['answer']!r}\n\n"
+        f"answer: {exercise.authored_answer!r}\n\n"
         "Here is the exercise currently scheduled for this exact word and "
         "topic, as your example (same YAML shape as exercises.yaml):\n\n"
         "```yaml\n"

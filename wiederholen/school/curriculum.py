@@ -1,5 +1,7 @@
 import hashlib
+import math
 import random
+from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
@@ -12,16 +14,36 @@ from wiederholen.school.i18n import LANGUAGES, Language
 type Topic = str
 
 
+def fold_case(text: str) -> str:
+    # casefold() is Unicode caseless matching. Unlike lower(), it also
+    # matches spellings like ss for ß
+    return text.strip().casefold()
+
+
 def _as_list(answer: str | list[str]) -> list[str]:
     # A course author writes a single answer as a plain string
     return [answer] if isinstance(answer, str) else answer
 
 
+def _check_answer_type(answer: object) -> None:
+    if not isinstance(answer, list) or not all(
+        isinstance(item, str) for item in answer
+    ):
+        raise ValueError(
+            f"answer must be a string or a list of strings, got {answer!r}"
+        )
+
+
 def _is_arrangement(text: str, chunks: Sequence[str]) -> bool:
-    # Whether text is all the chunks joined with spaces, in some order
+    # Whether text is all the chunks joined with spaces, in some order. Both
+    # are already folded, because a new order can move a capital letter
     if not chunks:
         return text == ""
+    tried: set[str] = set()
     for index, chunk in enumerate(chunks):
+        if chunk in tried:
+            continue
+        tried.add(chunk)
         if text == chunk:
             rest = ""
         elif text.startswith(chunk + " "):
@@ -40,6 +62,7 @@ class Recall:
     hint: dict[Language, str] | None = None
 
     def __post_init__(self) -> None:
+        _check_answer_type(self.answer)
         if len(self.answer) == 0:
             raise ValueError("recall.answer must not be empty")
         if self.hint is not None and not set(self.hint.keys()).issubset(LANGUAGES):
@@ -71,13 +94,12 @@ class Exercise:
     grammar_classes: list[str] | None = None
 
     def __post_init__(self) -> None:
+        _check_answer_type(self.answer)
         if len(self.answer) == 0:
             raise ValueError("answer must not be empty")
         # Compared the way an answer is checked, so that two answers can't
         # differ only in case or surrounding spaces
-        if len({answer.strip().casefold() for answer in self.answer}) != len(
-            self.answer
-        ):
+        if len({fold_case(answer) for answer in self.answer}) != len(self.answer):
             raise ValueError(f"answer {self.answer} must not repeat an answer")
         if set(self.answer) & set(self.distractors):
             raise ValueError(f"answer {self.answer} must not be in distractors")
@@ -94,8 +116,9 @@ class Exercise:
                 raise ValueError(
                     f"word_bank {self.word_bank} must join into answer '{self.answer[0]}'"
                 )
+            folded_chunks = [fold_case(chunk) for chunk in self.word_bank]
             for answer in self.answer[1:]:
-                if not _is_arrangement(answer, self.word_bank):
+                if not _is_arrangement(fold_case(answer), folded_chunks):
                     raise ValueError(
                         f"answer '{answer}' must be an order of word_bank {self.word_bank}"
                     )
@@ -105,10 +128,7 @@ class Exercise:
     def to_dict(self) -> dict:
         # A single answer as a string, the way an author writes it. An older
         # version reads such saved data back after a rollback
-        d = asdict(self)
-        if len(self.answer) == 1:
-            d["answer"] = self.answer[0]
-        return d
+        return asdict(self) | {"answer": self.authored_answer}
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
@@ -117,6 +137,11 @@ class Exercise:
         if d.get("recalls") is not None:
             d["recalls"] = [Recall.from_dict(r) for r in d["recalls"]]
         return cls(**d)
+
+    @property
+    def authored_answer(self) -> str | list[str]:
+        # A single answer as a string, the way a course author writes it
+        return self.answer[0] if len(self.answer) == 1 else self.answer
 
     @property
     def answer_text(self) -> str:
@@ -142,20 +167,27 @@ class Exercise:
         return hashlib.sha256(self.question.encode()).hexdigest()
 
 
-def shuffle_word_bank(word_bank: Sequence[str]) -> list[str]:
+def shuffle_word_bank(word_bank: Sequence[str], answers: Sequence[str]) -> list[str]:
     # Shared by wiederholen.bot (re-inserted as a "(a / b / c)" parenthetical
     # after the question) and wiederholen.web (rendered as tap-to-arrange
     # tiles) — one shuffle-with-reshuffle-guard implementation rather than
     # each frontend keeping its own copy. A single-chunk word_bank has no
     # other permutation to land on, so reshuffling would loop forever —
     # returned as-is instead.
-    if len(word_bank) < 2:
+    solved = {fold_case(answer) for answer in answers}
+    # The same chunk twice gives the same order twice, so count orders
+    # without repeats. When every order is an answer, there's nothing
+    # unsolved to land on either
+    orders = math.factorial(len(word_bank))
+    for count in Counter(word_bank).values():
+        orders //= math.factorial(count)
+    if orders <= len(solved):
         return list(word_bank)
     shuffled = list(word_bank)
     # Reshuffle on the chance (real for a short sentence) that shuffle()
-    # lands back on the original order — the learner should never be handed
-    # an already-solved word bank.
-    while shuffled == list(word_bank):
+    # lands on an order that is an answer — the learner should never be
+    # handed an already-solved word bank.
+    while fold_case(" ".join(shuffled)) in solved:
         random.shuffle(shuffled)
     return shuffled
 

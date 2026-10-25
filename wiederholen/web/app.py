@@ -222,7 +222,11 @@ def _to_exercise_dto(
     if exercise.distractors:
         choices = [*exercise.distractors, *exercise.answer]
         random.shuffle(choices)
-    word_bank = shuffle_word_bank(exercise.word_bank) if exercise.word_bank else None
+    word_bank = (
+        shuffle_word_bank(exercise.word_bank, exercise.answer)
+        if exercise.word_bank
+        else None
+    )
     return ExerciseDTO(
         word=exercise.word,
         topic=exercise.topic,
