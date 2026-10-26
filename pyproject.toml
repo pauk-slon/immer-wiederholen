@@ -8,7 +8,8 @@ license-files = ["LICENSE"]
 requires-python = ">=3.15"
 dependencies = [
     "aioboto3>=15.5.0",
-    "aiogram[redis]>=3.31.0",
+    # Capped for the pydantic override, see [tool.uv]
+    "aiogram[redis]>=3.31.0,<3.32",
     "anthropic>=2.3.0",
     "httpx>=0.28.1",
     "litestar[standard]>=2.25.0",
@@ -46,4 +47,6 @@ dev = [
 [tool.uv]
 # aiogram 3.31 caps pydantic below 2.14, the first release with Python 3.15 wheels.
 # Remove once aiogram ships https://github.com/aiogram/aiogram/pull/1949 (#299).
+# The override replaces the pydantic requirement of every aiogram version, so
+# aiogram is capped below 3.32: check the override when raising the cap.
 override-dependencies = ["pydantic~=2.14.1"]
