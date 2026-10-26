@@ -11,6 +11,7 @@ from litestar import Litestar, Request, get, post
 from litestar.config.cors import CORSConfig
 from litestar.datastructures import State
 from litestar.exceptions import HTTPException
+from litestar.params import JSONBody
 from litestar.plugins.opentelemetry import OpenTelemetryConfig, OpenTelemetryPlugin
 from litestar.response import Redirect, Response
 from litestar.static_files import create_static_files_router
@@ -240,7 +241,7 @@ def _to_exercise_dto(
 
 @post("/api/exercise/next", status_code=200)
 async def next_exercise(
-    data: NextExerciseRequest, request: Request, state: State
+    data: JSONBody[NextExerciseRequest], request: Request, state: State
 ) -> Response[ExerciseDTO | None]:
     course: Course = state["course"]
     student_record_book: StudentRecordBook = state["student_record_book"]
@@ -272,7 +273,7 @@ async def next_exercise(
 
 @post("/api/exercise/check", status_code=200)
 async def check_answer(
-    data: CheckAnswerRequest, request: Request, state: State
+    data: JSONBody[CheckAnswerRequest], request: Request, state: State
 ) -> Response[CheckAnswerResponse]:
     course: Course = state["course"]
     student_record_book: StudentRecordBook = state["student_record_book"]
@@ -308,7 +309,7 @@ async def check_answer(
 
 @post("/api/exercise/recall", status_code=200)
 async def request_recall(
-    data: RecallRequest, request: Request, state: State
+    data: JSONBody[RecallRequest], request: Request, state: State
 ) -> Response[RecallDTO]:
     course: Course = state["course"]
     student_record_book: StudentRecordBook = state["student_record_book"]
@@ -347,7 +348,7 @@ async def request_recall(
 
 @post("/api/exercise/recall/check", status_code=200)
 async def check_recall(
-    data: CheckRecallRequest, request: Request, state: State
+    data: JSONBody[CheckRecallRequest], request: Request, state: State
 ) -> Response[CheckRecallResponse]:
     course: Course = state["course"]
     student_record_book: StudentRecordBook = state["student_record_book"]
@@ -389,7 +390,7 @@ class ClientErrorRequest:
 
 
 @post("/api/client-error", status_code=204)
-async def client_error(data: ClientErrorRequest) -> None:
+async def client_error(data: JSONBody[ClientErrorRequest]) -> None:
     # Best-effort, fire-and-forget from the client (see widget.js's own
     # _reportClientError(), which swallows any failure of this call too —
     # a broken error report must never itself become a new user-facing
