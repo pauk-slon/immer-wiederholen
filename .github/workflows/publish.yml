@@ -44,9 +44,15 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:main
             ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          # GHCR links the package to the repository by `source` and shows
+          # `description` on the package page
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.licenses=MIT
           build-args: APP_VERSION=${{ steps.version.outputs.version }}
           # One manifest per image, without an index or attestation manifests.
           # The next step deletes untagged versions, and with an index these
