@@ -8,7 +8,7 @@ license-files = ["LICENSE"]
 requires-python = ">=3.15"
 dependencies = [
     "aioboto3>=15.5.0",
-    "aiogram[redis]>=3.30,<3.32",
+    "aiogram[redis]>=3.31.0",
     "anthropic>=2.3.0",
     "httpx>=0.28.1",
     "litestar[standard]>=2.25.0",
