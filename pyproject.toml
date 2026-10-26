@@ -18,7 +18,7 @@ dependencies = [
     "opentelemetry-instrumentation-redis>=0.66b1",
     "opentelemetry-sdk>=1.45.1",
     "pydantic~=2.14.1",
-    "pyyaml~=6.0.3",
+    "pyyaml>=6.0.3",
     "typing-extensions>=4.16.0",
 ]
 
