@@ -63,7 +63,7 @@ async def test_reply_keyboard_contains_all_options(
     assert sorted(buttons) == sorted([*exercise.distractors, *exercise.answer])
 
 
-async def test_reply_keyboard_contains_every_answer(
+async def test_reply_keyboard_contains_every_answer_without_the_setting(
     feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(answer=["auf", "an"], distractors=["für", "um"])

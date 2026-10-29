@@ -143,7 +143,7 @@ class Exercise:
     def primary_answer(self) -> str:
         # The form that the exercise teaches: the one word for
         # chains_by_answer and word_bank, and the only answer shown with
-        # the topic setting show_primary_answer_only (ADR 0024)
+        # the topic setting show_primary_answer_only
         return self.answer[0]
 
     @property
@@ -341,9 +341,9 @@ class Course:
         #
         # topic_groups/word_chained_topics/answer_chained_topics/gated_topics/
         # topic_instructions/ai_generatable_topics/cue_generatable_topics/
-        # primary_answer_only_topics are deliberately left untouched rather than filtered down too: a
-        # chain/gate pointing at
-        # a topic excluded here just never finds an exercise to expedite
+        # primary_answer_only_topics are deliberately left untouched rather
+        # than filtered down too: a chain/gate pointing at a topic excluded
+        # here just never finds an exercise to expedite
         # (Tutor._expedite_dependent() already treats "dependent topic has
         # no exercises" as a no-op, the same case a topic with genuinely no
         # exercises in the full course hits), and the rest are inert,
