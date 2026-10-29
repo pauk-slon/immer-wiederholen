@@ -59,11 +59,11 @@ A list of exercises:
 | `topic` | yes | the grammar aspect that the exercise practices |
 | `question` | yes | the text that the learner sees, such as a sentence with a `___` gap or a bare verb to conjugate |
 | `answer` | yes | the correct answer, or a list of correct answers (see [Several correct answers](#several-correct-answers)) |
-| `distractors` | yes, may be `[]` | wrong options. If there are any, the learner picks from `distractors` plus every answer, shuffled. If the list is empty, the learner types the answer |
+| `distractors` | yes, may be `[]` | wrong options. If there are any, the learner picks from `distractors` plus every answer, shuffled. With [`show_primary_answer_only`](#several-correct-answers), only the primary answer is an option. If the list is empty, the learner types the answer |
 | `explanation` | yes | `{ru, en}`, shown after every answer, right or wrong |
 | `recalls` | no | follow-up sentences that the learner types in full (see [Recalls](#recalls)) |
 | `description` | no | `{ru, en}`, shown with the question. Usually it's a translation of the sentence, so it's clear which word is meant. An illustration needs it (see [`cue_generation`](#ai-generated-questions-and-illustrations)) |
-| `word_bank` | no | the first answer split into chunks, in the correct order, for word-order exercises. Other answers must use the same chunks in another order, but a capital letter can move to another chunk, as in `Ich gehe am Montag` for the chunks `Am Montag`, `gehe`, `ich`. The bot shows the chunks shuffled after the question, and the web widget shows them as tiles to arrange. If another order exists, the shuffled order isn't one of the answers. A chunk can be several words (`im Chor`) |
+| `word_bank` | no | the primary answer split into chunks, in the correct order, for word-order exercises. Other answers must use the same chunks in another order, but a capital letter can move to another chunk, as in `Ich gehe am Montag` for the chunks `Am Montag`, `gehe`, `ich`. The bot shows the chunks shuffled after the question, and the web widget shows them as tiles to arrange. If another order exists, the shuffled order isn't one of the answers. A chunk can be several words (`im Chor`) |
 | `grammar_classes` | no | **bot only.** Labels for words that behave alike in this topic, such as the Ablaut pattern `i-a-u` shared by `singen` and `trinken` in `partizip_ii`. See [Hints from grammar classes](#hints-from-grammar-classes) |
 
 The answer check ignores spaces around the answer and compares without case, by Unicode case folding. For example, `ss` also matches the German `ß`. Options can differ only in case, because case can change the meaning, like `Ihr` and `ihr` in German. An answer that is exactly one of the options counts only if it is one of the answers. An answer that matches only without case, for example one that the learner typed instead of choosing, counts only if it is an answer and no other option matches it too.
@@ -80,11 +80,30 @@ Some questions have more than one correct answer. For example, the `du` form of 
   distractors: []
 ```
 
-All answers count as correct, and none of them is marked as the main one. After a wrong answer, the bot and the web widget show all of them, separated by ` / `. Use `explanation` to say which form is more common.
+All answers count as correct. The first answer is the **primary answer**. It is the form that the exercise teaches. After a wrong answer, the bot and the web widget show all answers, separated by ` / `. Use `explanation` to say which form is more common.
 
 In a multiple-choice exercise, every answer is an option, so the learner sees more than one correct option. In a `word_bank` exercise, the answers are different orders of the same chunks.
 
-Only the first answer is used where the course needs one word. `chains_by_answer` schedules the topic for the first answer, and `word_bank` gives the chunks of the first answer in the correct order.
+Some answers are only accepted, not taught. For example, a `plural` question is `die Stadt` and the answer is `Städte`, but a learner often types `die Städte`. Put the taught form first in `answer`:
+
+```yaml
+- word: Stadt
+  topic: plural
+  question: die Stadt
+  answer: [Städte, die Städte]
+  distractors: []
+```
+
+and set `show_primary_answer_only` for the topic in `topics.yaml`:
+
+```yaml
+    plural:
+      show_primary_answer_only: true
+```
+
+Then the bot and the web widget show only `Städte` after a wrong answer, and `die Städte` still counts as correct. In a multiple-choice exercise, only the primary answer is an option, so the learner never sees a correct option that the bot doesn't name. A typed answer that isn't an option still counts if it is one of the answers (see [ADR 0024](adr/0024-primary-answer-per-topic.md)).
+
+Only the primary answer is used where the course needs one word. `chains_by_answer` schedules the topic for the primary answer, and `word_bank` gives the chunks of the primary answer in the correct order.
 
 ### Recalls
 
@@ -114,7 +133,7 @@ A course fails to load if:
 
 - `answer` is an empty list, has the same answer twice, or has an answer that is one of `distractors`
 - `explanation` or `description` doesn't have exactly the `ru` and `en` keys
-- `word_bank` joined with spaces isn't the first answer, or another answer isn't an order of the `word_bank` chunks
+- `word_bank` joined with spaces isn't the primary answer, or another answer isn't an order of the `word_bank` chunks
 - `grammar_classes` is an empty list (omit the field instead)
 - a recall's `answer` is empty, or its `hint` has keys other than `ru` and `en`
 
@@ -147,10 +166,11 @@ Each topic can have these settings, all optional:
 |---|---|
 | `chains` | topics to schedule for today, for the same word, after the learner answers this topic |
 | `gates` | topics to keep hidden for a word until the learner answers this topic for that word |
-| `chains_by_answer` | like `chains`, but for the word that is this exercise's first answer |
+| `chains_by_answer` | like `chains`, but for the word that is this exercise's primary answer |
 | `instruction` | `{ru, en}`, shown under every question of this topic, such as "Enter the missing word" |
 | `ai_generation` | **bot only.** `true` lets the `/ai` mode rewrite this topic's exercises with an LLM (see below) |
 | `cue_generation` | **bot only.** `true` gives this topic's questions illustrations (see below) |
+| `show_primary_answer_only` | `true` shows only the primary answer after a mistake and as an option. Every answer still counts (see [Several correct answers](#several-correct-answers)) |
 
 ### Linking topics
 

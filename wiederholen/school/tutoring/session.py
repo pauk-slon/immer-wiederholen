@@ -274,7 +274,7 @@ class Tutor:
             exercise.topic,
             [],
         ):
-            if self._expedite_dependent(exercise.answer[0], dependent_topic):
+            if self._expedite_dependent(exercise.primary_answer, dependent_topic):
                 self._emit_topic_unlocked(exercise.topic, dependent_topic)
 
     def check_answer(

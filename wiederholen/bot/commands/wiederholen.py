@@ -85,8 +85,8 @@ async def _clear_keeping_chat_settings(state: FSMContext, state_data: dict) -> N
     )
 
 
-def _make_reply_keyboard(exercise: Exercise) -> ReplyKeyboardMarkup:
-    options = [*exercise.distractors, *exercise.answer]
+def _make_reply_keyboard(exercise: Exercise, course: Course) -> ReplyKeyboardMarkup:
+    options = [*exercise.distractors, *course.shown_answers(exercise)]
     random.shuffle(options)
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=opt)] for opt in options],
@@ -213,9 +213,9 @@ def _highlight_diff(user_text: str, correct_text: str) -> str:
     return "".join(correct_parts)
 
 
-def _show_exercise_kwargs(exercise: Exercise) -> dict:
+def _show_exercise_kwargs(exercise: Exercise, course: Course) -> dict:
     if exercise.distractors:
-        return {"reply_markup": _make_reply_keyboard(exercise)}
+        return {"reply_markup": _make_reply_keyboard(exercise, course)}
     return {"reply_markup": ReplyKeyboardRemove()}
 
 
@@ -391,7 +391,7 @@ async def command_wiederholen(
             course,
             cue_store,
             parse_mode="HTML",
-            **_show_exercise_kwargs(exercise),
+            **_show_exercise_kwargs(exercise, course),
         )
 
 
@@ -418,7 +418,7 @@ async def handle_answer(
         result_line = (
             locale.correct
             if mark.is_correct
-            else locale.wrong.format(answer=shown_exercise.answer_text)
+            else locale.wrong.format(answer=course.shown_answer_text(shown_exercise))
         )
         if mark.recall == RecallMode.optional:
             reply_markup = _make_recall_buttons(locale, locale.btn_recall)
@@ -555,7 +555,7 @@ async def _respond_with_next_exercise(
             course,
             cue_store,
             parse_mode="HTML",
-            **_show_exercise_kwargs(exercise),
+            **_show_exercise_kwargs(exercise, course),
         )
     await callback.answer()
 

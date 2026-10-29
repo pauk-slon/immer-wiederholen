@@ -44,7 +44,8 @@ The date is the day of the decision.
 | [0012](0012-gates-declared-explicitly.md) | Gates are declared explicitly | 2026-07-22 | Accepted |
 | [0013](0013-word-bank-as-data.md) | Word banks are data, not text in the question | 2026-08-26 | Accepted |
 | [0021](0021-streaks-from-intervals-between-answers.md) | Streaks count intervals between answers, not calendar days | 2026-10-25 | Accepted |
-| [0022](0022-several-equal-answers.md) | An exercise can have several equal answers | 2026-10-25 | Accepted |
+| [0022](0022-several-equal-answers.md) | An exercise can have several equal answers | 2026-10-25 | Amended by [0024](0024-primary-answer-per-topic.md) |
+| [0024](0024-primary-answer-per-topic.md) | A topic can show only the primary answer | 2026-10-29 | Accepted |
 
 ### Storage and identity
 

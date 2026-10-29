@@ -402,6 +402,23 @@ class TestTopicsConfigLoading:
             course = Course.load(tmp_path)
         assert course.ai_generatable_topics == frozenset()
 
+    def test_loads_show_primary_answer_only_flag(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        data = {
+            "plural": {"show_primary_answer_only": True},
+            "konjunktiv_ii": {"show_primary_answer_only": False},
+            "partizip_ii": None,
+        }
+        with (
+            tmp_yaml_file([], filename="exercises.yaml"),
+            tmp_yaml_file(_grouped(data), filename="topics.yaml"),
+        ):
+            course = Course.load(tmp_path)
+        assert course.primary_answer_only_topics == frozenset({"plural"})
+
     def test_loads_topic_groups(
         self,
         tmp_path: Path,

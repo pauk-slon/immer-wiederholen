@@ -297,6 +297,54 @@ async def test_check_answer_reports_every_correct_answer(
     assert response.json()["answer"] == "Komm / Komme"
 
 
+async def test_check_answer_reports_only_the_primary_answer_with_the_setting(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(answer=["Städte", "die Städte"], distractors=[])
+    course = Course([exercise], primary_answer_only_topics=frozenset({exercise.topic}))
+    app = web_app_factory(course)
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        response = await client.post(
+            "/api/exercise/check", json={"answer": "Stadt", "topics": ["government"]}
+        )
+
+    assert response.json()["answer"] == "Städte"
+
+
+async def test_check_answer_accepts_another_answer_with_the_setting(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(answer=["Städte", "die Städte"], distractors=[])
+    course = Course([exercise], primary_answer_only_topics=frozenset({exercise.topic}))
+    app = web_app_factory(course)
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        response = await client.post(
+            "/api/exercise/check",
+            json={"answer": "die Städte", "topics": ["government"]},
+        )
+
+    assert response.json()["correct"] is True
+
+
+async def test_next_exercise_offers_only_the_primary_answer_with_the_setting(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(answer=["auf", "an"], distractors=["für", "um"])
+    course = Course([exercise], primary_answer_only_topics=frozenset({exercise.topic}))
+    app = web_app_factory(course)
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        response = await client.post(
+            "/api/exercise/next", json={"topics": ["government"]}
+        )
+
+    assert sorted(response.json()["choices"]) == sorted(["auf", "für", "um"])
+
+
 async def test_check_answer_respects_the_requested_language(
     web_app_factory: WebAppFactory,
 ) -> None:

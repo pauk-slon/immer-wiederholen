@@ -36,7 +36,7 @@ If the topic has illustrations and the question has one, the bot sends the quest
 
 ## Answering
 
-1. The learner answers with a tap on an option or with typed text. The bot says whether the answer was right and shows the correct answers if it wasn't. Then the bot removes the options keyboard and sends the `explanation`.
+1. The learner answers with a tap on an option or with typed text. The bot says whether the answer was right and shows the correct answers if it wasn't. A topic with `show_primary_answer_only` shows only the primary answer, and only the primary answer is an option (see [Course format](course-format.md#several-correct-answers)). Then the bot removes the options keyboard and sends the `explanation`.
 2. The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)):
    - **Wrong answer, the exercise has recalls.** A recall starts at once, and the learner must type the sentence.
    - **Right answer, the exercise has recalls.** The explanation comes with two buttons, "Drill" ("Закрепить") for an optional recall and "Next exercise" ("Следующее задание").

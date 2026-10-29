@@ -63,6 +63,29 @@ async def test_reply_keyboard_contains_all_options(
     assert sorted(buttons) == sorted([*exercise.distractors, *exercise.answer])
 
 
+async def test_reply_keyboard_contains_every_answer(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(answer=["auf", "an"], distractors=["für", "um"])
+    requests = await feed_message("/wiederholen", course=Course([exercise]))
+
+    assert isinstance(requests[0].reply_markup, ReplyKeyboardMarkup)
+    buttons = [btn.text for row in requests[0].reply_markup.keyboard for btn in row]
+    assert sorted(buttons) == sorted(["auf", "an", "für", "um"])
+
+
+async def test_reply_keyboard_contains_only_the_primary_answer_with_the_setting(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(answer=["auf", "an"], distractors=["für", "um"])
+    course = Course([exercise], primary_answer_only_topics=frozenset({exercise.topic}))
+    requests = await feed_message("/wiederholen", course=course)
+
+    assert isinstance(requests[0].reply_markup, ReplyKeyboardMarkup)
+    buttons = [btn.text for row in requests[0].reply_markup.keyboard for btn in row]
+    assert sorted(buttons) == sorted(["auf", "für", "um"])
+
+
 async def test_reply_keyboard_remove_for_input_exercise(
     feed_message: FeedMessage,
 ) -> None:
