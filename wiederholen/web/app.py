@@ -221,7 +221,7 @@ def _to_exercise_dto(
 ) -> ExerciseDTO:
     choices: list[str] | None = None
     if exercise.distractors:
-        choices = [*exercise.distractors, *exercise.answer]
+        choices = [*exercise.distractors, *course.shown_answers(exercise)]
         random.shuffle(choices)
     word_bank = (
         shuffle_word_bank(exercise.word_bank, exercise.answer)
@@ -301,7 +301,7 @@ async def check_answer(
         CheckAnswerResponse(
             correct=mark.is_correct,
             recall=mark.recall.value,
-            answer=shown_exercise.answer_text,
+            answer=course.shown_answer_text(shown_exercise),
             explanation=shown_exercise.explanation[data.language],
         )
     )

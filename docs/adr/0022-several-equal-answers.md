@@ -1,6 +1,6 @@
 # 0022. An exercise can have several equal answers
 
-**Status:** Accepted, 2026-10-25. The feature is discussed in [#305](https://github.com/pauk-slon/immer-wiederholen/issues/305).
+**Status:** Accepted, 2026-10-25. Amended by [0024](0024-primary-answer-per-topic.md). The feature is discussed in [#305](https://github.com/pauk-slon/immer-wiederholen/issues/305).
 
 ## Context
 

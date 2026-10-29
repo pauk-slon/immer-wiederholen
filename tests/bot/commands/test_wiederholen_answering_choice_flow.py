@@ -47,6 +47,22 @@ class TestHandleAnswer:
         assert exercise.answer[0] in requests[0].text
         assert exercise.explanation["ru"] in requests[1].text
 
+    async def test_typed_answer_that_is_not_an_option_is_correct_with_the_setting(
+        self,
+        state: FSMContext,
+        feed_message: FeedMessage,
+    ) -> None:
+        exercise = make_exercise(answer=["auf", "an"], distractors=["für", "um"])
+        course = Course(
+            [exercise], primary_answer_only_topics=frozenset({exercise.topic})
+        )
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=exercise.to_dict())
+
+        requests = await feed_message("an", course=course)
+
+        assert RU.correct in requests[0].text
+
 
 class TestNextExerciseButton:
     async def test_appears_after_correct_answer(

@@ -114,9 +114,10 @@ class Exercise:
                 f"description must have keys {LANGUAGES}, got {set(self.description.keys())}"
             )
         if self.word_bank is not None:
-            if " ".join(self.word_bank) != self.answer[0]:
+            if " ".join(self.word_bank) != self.primary_answer:
                 raise ValueError(
-                    f"word_bank {self.word_bank} must join into answer '{self.answer[0]}'"
+                    f"word_bank {self.word_bank} must join into answer "
+                    f"'{self.primary_answer}'"
                 )
             folded_chunks = [fold_case(chunk) for chunk in self.word_bank]
             for answer in self.answer[1:]:
@@ -139,9 +140,11 @@ class Exercise:
         return cls(**d)
 
     @property
-    def answer_text(self) -> str:
-        # Every answer, for the line that a frontend shows after a mistake
-        return " / ".join(self.answer)
+    def primary_answer(self) -> str:
+        # The form that the exercise teaches: the one word for
+        # chains_by_answer and word_bank, and the only answer shown with
+        # the topic setting show_primary_answer_only
+        return self.answer[0]
 
     @property
     def cue_key(self) -> str:
@@ -210,6 +213,7 @@ class _TopicsConfig(TypedDict):
     topic_instructions: dict[str, dict[Language, str]]
     ai_generatable_topics: frozenset[str]
     cue_generatable_topics: frozenset[str]
+    primary_answer_only_topics: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -235,6 +239,9 @@ class Course:
     cue_generatable_topics: frozenset[str] = field(
         default_factory=frozenset, kw_only=True
     )
+    primary_answer_only_topics: frozenset[str] = field(
+        default_factory=frozenset, kw_only=True
+    )
 
     @staticmethod
     def _load_exercises(path: Path) -> list[Exercise]:
@@ -253,6 +260,7 @@ class Course:
                 topic_instructions={},
                 ai_generatable_topics=frozenset(),
                 cue_generatable_topics=frozenset(),
+                primary_answer_only_topics=frozenset(),
             )
         with open(path) as f:
             data = yaml.safe_load(f) or {}
@@ -265,6 +273,7 @@ class Course:
         topic_instructions: dict[str, dict[Language, str]] = {}
         ai_generatable_topics: set[str] = set()
         cue_generatable_topics: set[str] = set()
+        primary_answer_only_topics: set[str] = set()
         for group_id, group in data.items():
             topics = group.get("topics") or {}
             topic_groups[group_id] = TopicGroup(
@@ -293,6 +302,8 @@ class Course:
                     ai_generatable_topics.add(source)
                 if relations.get("cue_generation"):
                     cue_generatable_topics.add(source)
+                if relations.get("show_primary_answer_only"):
+                    primary_answer_only_topics.add(source)
         # A gated topic only ever unlocks via its source, so selecting its
         # group without the source's would leave it locked forever — chains
         # crossing groups are fine (an unselected dependent is just never
@@ -312,6 +323,7 @@ class Course:
             topic_instructions=topic_instructions,
             ai_generatable_topics=frozenset(ai_generatable_topics),
             cue_generatable_topics=frozenset(cue_generatable_topics),
+            primary_answer_only_topics=frozenset(primary_answer_only_topics),
         )
 
     @classmethod
@@ -328,10 +340,10 @@ class Course:
         # (word, topic), not by which Course object selected them.
         #
         # topic_groups/word_chained_topics/answer_chained_topics/gated_topics/
-        # topic_instructions/ai_generatable_topics/cue_generatable_topics are
-        # deliberately left untouched rather than filtered down too: a
-        # chain/gate pointing at
-        # a topic excluded here just never finds an exercise to expedite
+        # topic_instructions/ai_generatable_topics/cue_generatable_topics/
+        # primary_answer_only_topics are deliberately left untouched rather
+        # than filtered down too: a chain/gate pointing at a topic excluded
+        # here just never finds an exercise to expedite
         # (Tutor._expedite_dependent() already treats "dependent topic has
         # no exercises" as a no-op, the same case a topic with genuinely no
         # exercises in the full course hits), and the rest are inert,
@@ -344,3 +356,15 @@ class Course:
                 exercise for exercise in self.exercises if exercise.topic in allowed
             ],
         )
+
+    def shown_answers(self, exercise: Exercise) -> list[str]:
+        # The answers a frontend shows: as options of a multiple-choice
+        # exercise, and after a mistake. The answer check still accepts
+        # every answer
+        if exercise.topic in self.primary_answer_only_topics:
+            return [exercise.primary_answer]
+        return list(exercise.answer)
+
+    def shown_answer_text(self, exercise: Exercise) -> str:
+        # The line that a frontend shows after a mistake
+        return " / ".join(self.shown_answers(exercise))

@@ -49,6 +49,35 @@ async def test_wrong_answer_shows_every_correct_answer(
     assert "Komm / Komme" in requests[0].text
 
 
+async def test_wrong_answer_shows_only_the_primary_answer_with_the_setting(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(answer=["Städte", "die Städte"], distractors=[])
+    course = Course([exercise], primary_answer_only_topics=frozenset({exercise.topic}))
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict())
+
+    requests = await feed_message("Stadte", course=course)
+
+    assert "Städte" in requests[0].text
+    assert "die Städte" not in requests[0].text
+
+
+async def test_other_answer_is_correct_with_the_setting(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(answer=["Städte", "die Städte"], distractors=[])
+    course = Course([exercise], primary_answer_only_topics=frozenset({exercise.topic}))
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict())
+
+    requests = await feed_message("Die Städte", course=course)
+
+    assert RU.correct in requests[0].text
+
+
 async def test_next_button_after_correct_answer(
     state: FSMContext,
     feed_message: FeedMessage,

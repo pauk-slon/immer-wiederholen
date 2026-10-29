@@ -35,6 +35,7 @@ def test_restricted_to_leaves_chains_gates_and_instructions_untouched() -> None:
         topic_instructions={"preposition_meaning": {"ru": "x", "en": "y"}},
         ai_generatable_topics=frozenset({"government"}),
         cue_generatable_topics=frozenset({"government"}),
+        primary_answer_only_topics=frozenset({"government"}),
     )
 
     restricted = course.restricted_to(["government"])
@@ -50,6 +51,29 @@ def test_restricted_to_leaves_chains_gates_and_instructions_untouched() -> None:
     }
     assert restricted.ai_generatable_topics == frozenset({"government"})
     assert restricted.cue_generatable_topics == frozenset({"government"})
+    assert restricted.primary_answer_only_topics == frozenset({"government"})
+
+
+def test_primary_answer_is_the_first_answer() -> None:
+    exercise = make_exercise(answer=["Städte", "die Städte"])
+
+    assert exercise.primary_answer == "Städte"
+
+
+def test_shown_answers_are_every_answer_by_default() -> None:
+    exercise = make_exercise(answer=["Städte", "die Städte"])
+    course = Course([exercise])
+
+    assert course.shown_answers(exercise) == ["Städte", "die Städte"]
+    assert course.shown_answer_text(exercise) == "Städte / die Städte"
+
+
+def test_shown_answers_are_only_the_primary_answer_with_the_setting() -> None:
+    exercise = make_exercise(answer=["Städte", "die Städte"])
+    course = Course([exercise], primary_answer_only_topics=frozenset({exercise.topic}))
+
+    assert course.shown_answers(exercise) == ["Städte"]
+    assert course.shown_answer_text(exercise) == "Städte"
 
 
 def test_cue_key_is_deterministic_for_the_same_question() -> None:

@@ -28,7 +28,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 - the topic's `instruction` (`ℹ️`)
 - a hint from grammar classes (`🔍`), hidden in a spoiler that the learner taps to open (see [Hints from grammar classes](#hints-from-grammar-classes))
 
-The bot marks an AI-generated question with `🤖`. A multiple-choice exercise shows its options as a reply keyboard. For an exercise with a typed answer, the bot removes the keyboard.
+The bot marks an AI-generated question with `🤖`. A multiple-choice exercise shows its options as a reply keyboard. In a topic with `show_primary_answer_only`, the primary answer is the only correct option. For an exercise with a typed answer, the bot removes the keyboard.
 
 The bot sends the message with `parse_mode="HTML"`, so **every piece of authored text goes through `html.escape()`**. Without it, a `<`, `>` or `&` in a question would break the markup.
 
@@ -36,7 +36,7 @@ If the topic has illustrations and the question has one, the bot sends the quest
 
 ## Answering
 
-1. The learner answers with a tap on an option or with typed text. The bot says whether the answer was right and shows the correct answers if it wasn't. Then the bot removes the options keyboard and sends the `explanation`.
+1. The learner answers with a tap on an option or with typed text. The bot says whether the answer was right and shows the correct answers if it wasn't. In a topic with `show_primary_answer_only`, the bot shows only the primary answer (see [Course format](course-format.md#several-correct-answers)). Then the bot removes the options keyboard and sends the `explanation`.
 2. The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)):
    - **Wrong answer, the exercise has recalls.** A recall starts at once, and the learner must type the sentence.
    - **Right answer, the exercise has recalls.** The explanation comes with two buttons, "Drill" ("Закрепить") for an optional recall and "Next exercise" ("Следующее задание").

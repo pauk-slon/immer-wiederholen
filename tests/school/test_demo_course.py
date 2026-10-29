@@ -35,6 +35,7 @@ def test_demo_course_uses_every_topics_setting(demo_course: Course) -> None:
     assert demo_course.topic_instructions
     assert demo_course.ai_generatable_topics
     assert demo_course.cue_generatable_topics
+    assert demo_course.primary_answer_only_topics
 
 
 def test_demo_course_has_bot_info(monkeypatch: pytest.MonkeyPatch) -> None:
