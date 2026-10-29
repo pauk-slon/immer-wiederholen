@@ -47,7 +47,7 @@ Each exercise endpoint calls one method of `Tutor`. These are `next_exercise()`,
 
 **The exercise** (`ExerciseDTO`) never includes the answer:
 
-- `choices` has the distractors and the answer, shuffled, for a multiple-choice exercise. It is `null` for a typed exercise.
+- `choices` has the distractors and the answers that the topic shows, shuffled, for a multiple-choice exercise (see [Several correct answers](course-format.md#several-correct-answers)). It is `null` for a typed exercise.
 - `word_bank` has the chunks, shuffled again for each request, for a word-order exercise. It is `null` otherwise. The widget joins the arranged chunks with spaces and sends them as a normal answer, so the check needs no special case.
 - `question`, `description` and `instruction` are in the requested language.
 

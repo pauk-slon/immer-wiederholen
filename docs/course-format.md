@@ -59,7 +59,7 @@ A list of exercises:
 | `topic` | yes | the grammar aspect that the exercise practices |
 | `question` | yes | the text that the learner sees, such as a sentence with a `___` gap or a bare verb to conjugate |
 | `answer` | yes | the correct answer, or a list of correct answers (see [Several correct answers](#several-correct-answers)) |
-| `distractors` | yes, may be `[]` | wrong options. If there are any, the learner picks from `distractors` plus every answer, shuffled. With [`show_primary_answer_only`](#several-correct-answers), only the primary answer is an option. If the list is empty, the learner types the answer |
+| `distractors` | yes, may be `[]` | wrong options. If there are any, the learner picks from `distractors` plus every answer, shuffled. If the list is empty, the learner types the answer. With [`show_primary_answer_only`](#several-correct-answers), the primary answer is the only correct option |
 | `explanation` | yes | `{ru, en}`, shown after every answer, right or wrong |
 | `recalls` | no | follow-up sentences that the learner types in full (see [Recalls](#recalls)) |
 | `description` | no | `{ru, en}`, shown with the question. Usually it's a translation of the sentence, so it's clear which word is meant. An illustration needs it (see [`cue_generation`](#ai-generated-questions-and-illustrations)) |
@@ -80,11 +80,11 @@ Some questions have more than one correct answer. For example, the `du` form of 
   distractors: []
 ```
 
-All answers count as correct. The first answer is the **primary answer**. It is the form that the exercise teaches. After a wrong answer, the bot and the web widget show all answers, separated by ` / `. Use `explanation` to say which form is more common.
+All answers count as correct. The first answer is the **primary answer**. It is the form that the exercise teaches. After a wrong answer, the bot and the web widget show all answers, separated by ` / `, unless the topic sets `show_primary_answer_only` (see below). Use `explanation` to say which form is more common.
 
-In a multiple-choice exercise, every answer is an option, so the learner sees more than one correct option. In a `word_bank` exercise, the answers are different orders of the same chunks.
+In a multiple-choice exercise, every answer is an option, so the learner sees more than one correct option. With `show_primary_answer_only`, the primary answer is the only correct option. In a `word_bank` exercise, the answers are different orders of the same chunks.
 
-Some answers are only accepted, not taught. For example, a `plural` question is `die Stadt` and the answer is `Städte`, but a learner often types `die Städte`. Put the taught form first in `answer`:
+Some answers are only accepted, not taught. For example, a `plural` question is `die Stadt` and the answer is `Städte`, but a learner often types `die Städte`. Put the primary answer first in `answer`:
 
 ```yaml
 - word: Stadt
@@ -94,14 +94,19 @@ Some answers are only accepted, not taught. For example, a `plural` question is 
   distractors: []
 ```
 
-and set `show_primary_answer_only` for the topic in `topics.yaml`:
+Then set `show_primary_answer_only` for the topic in `topics.yaml`:
 
 ```yaml
+nouns:
+  title:
+    ru: Существительные
+    en: Nouns
+  topics:
     plural:
       show_primary_answer_only: true
 ```
 
-Then the bot and the web widget show only `Städte` after a wrong answer, and `die Städte` still counts as correct. In a multiple-choice exercise, only the primary answer is an option, so the learner never sees a correct option that the bot doesn't name. A typed answer that isn't an option still counts if it is one of the answers (see [ADR 0024](adr/0024-primary-answer-per-topic.md)).
+After a wrong answer, the bot and the web widget show only `Städte`, and `die Städte` still counts as correct. In a multiple-choice exercise, the other answers aren't options. Otherwise the learner could tap a correct option that the bot never shows as an answer. In the bot, a learner can also type an answer that isn't an option. It counts if it is one of the answers (see [ADR 0024](adr/0024-primary-answer-per-topic.md)).
 
 Only the primary answer is used where the course needs one word. `chains_by_answer` schedules the topic for the primary answer, and `word_bank` gives the chunks of the primary answer in the correct order.
 
@@ -115,7 +120,7 @@ A recall asks the learner to type a whole sentence with the word they just answe
 | `answer` | yes | the accepted sentence, or a list of accepted sentences |
 | `hint` | no | `ru`, `en` or both, shown under the prompt, such as a translation of a rare word |
 
-After a wrong answer, the learner must complete a recall before the next exercise. After a correct answer, the recall is optional, and the learner sees a "Drill" button ("Закрепить" in Russian). Each time, one of the exercise's recalls is picked at random. If the learner answers a recall wrong and asks for another one, a different recall is picked when possible.
+After a wrong answer, the learner must complete a recall before the next exercise. After a correct answer, the recall is optional, and the learner sees a "Drill" button ("Закрепить" in Russian). Each time, one of the exercise's recalls is picked at random. If the learner answers a recall wrong and asks for another one, a different recall is picked when possible. After a wrong answer to a recall, the bot and the web widget show the recall's first accepted sentence.
 
 The recall check ignores case, extra spaces and a final `.`, `,`, `!` or `?`. It compares by Unicode case folding too.
 
@@ -170,7 +175,7 @@ Each topic can have these settings, all optional:
 | `instruction` | `{ru, en}`, shown under every question of this topic, such as "Enter the missing word" |
 | `ai_generation` | **bot only.** `true` lets the `/ai` mode rewrite this topic's exercises with an LLM (see below) |
 | `cue_generation` | **bot only.** `true` gives this topic's questions illustrations (see below) |
-| `show_primary_answer_only` | `true` shows only the primary answer after a mistake and as an option. Every answer still counts (see [Several correct answers](#several-correct-answers)) |
+| `show_primary_answer_only` | `true` shows only the primary answer after a wrong answer and makes it the only correct option. Every answer still counts as correct (see [Several correct answers](#several-correct-answers)) |
 
 ### Linking topics
 

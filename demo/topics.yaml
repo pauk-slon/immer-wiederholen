@@ -31,8 +31,8 @@ verbs:
       instruction:
         ru: Укажи форму Partizip II
         en: Give the Partizip II form
-      # After a mistake, show only the first item of an exercise's answer
-      # list (senden: gesendet), not every form that counts as correct.
+      # After a wrong answer, show only the primary answer, the first item
+      # of answer (senden: gesendet), not every form that counts as correct.
       show_primary_answer_only: true
     partizip_ii_meaning:
       instruction:

@@ -25,6 +25,6 @@ A new topic setting `show_primary_answer_only` in `topics.yaml` controls what a 
 ## Consequences
 
 - The primary answer has a name, and the special role of the first answer is now part of the format.
-- In a multiple-choice exercise with the setting, the learner doesn't see a correct option that the bot never names.
+- In a multiple-choice exercise with the setting, the learner can't tap a correct option that the bot never shows as an answer.
 - A shadow exercise keeps `answer` unchanged (see [ADR 0005](0005-shadow-exercises-keep-the-answer.md)), and the topic settings apply to it too.
-- A recall already showed only its first answer after a mistake, so an exercise in such a topic and its recall now behave the same.
+- A recall already showed only its first answer after a wrong answer, so an exercise in such a topic and its recall now behave the same.
