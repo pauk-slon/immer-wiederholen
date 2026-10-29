@@ -1,6 +1,6 @@
 # 0024. A topic can show only the primary answer
 
-**Status:** Accepted, 2026-10-29. The feature is discussed in [#312](https://github.com/pauk-slon/immer-wiederholen/issues/312). Amends [ADR 0022](0022-several-equal-answers.md).
+**Status:** Accepted, 2026-10-29 ([#313](https://github.com/pauk-slon/immer-wiederholen/pull/313)). The feature is discussed in [#312](https://github.com/pauk-slon/immer-wiederholen/issues/312). Amends [ADR 0022](0022-several-equal-answers.md).
 
 ## Context
 
