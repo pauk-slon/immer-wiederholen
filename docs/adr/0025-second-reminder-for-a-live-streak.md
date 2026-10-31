@@ -1,6 +1,6 @@
 # 0025. A live streak gets a second reminder
 
-**Status:** Accepted, 2026-10-31. Amends [ADR 0011](0011-remind-after-the-last-session.md).
+**Status:** Accepted, 2026-10-31 ([#314](https://github.com/pauk-slon/immer-wiederholen/pull/314)). Amends [ADR 0011](0011-remind-after-the-last-session.md).
 
 ## Context
 
