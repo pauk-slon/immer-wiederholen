@@ -127,3 +127,59 @@ def test_should_remind_honors_a_shorter_remind_after() -> None:
 
     assert tutor.should_remind(timedelta(hours=4)) is True
     assert tutor.should_remind(timedelta(hours=8)) is False
+
+
+def _reminded_record(
+    answered_hours_ago: int, reminded_hours_ago: int, *, streak: bool = True
+) -> dict:
+    now = datetime.now(UTC)
+    answered_at = (now - timedelta(hours=answered_hours_ago)).isoformat()
+    student_record: dict = {
+        "last_exercise": {"answered_at": answered_at},
+        "last_reminded_at": (now - timedelta(hours=reminded_hours_ago)).isoformat(),
+    }
+    if streak:
+        student_record["streak"] = {"days": 5, "counted_at": answered_at}
+    return student_record
+
+
+def test_should_remind_again_after_24h_when_the_streak_is_alive() -> None:
+    student_record = _reminded_record(answered_hours_ago=25, reminded_hours_ago=21)
+
+    tutor = Tutor(Course([make_exercise()]), student_record)
+
+    assert tutor.should_remind(timedelta(hours=4)) is True
+
+
+def test_should_not_remind_again_before_24h() -> None:
+    student_record = _reminded_record(answered_hours_ago=23, reminded_hours_ago=19)
+
+    tutor = Tutor(Course([make_exercise()]), student_record)
+
+    assert tutor.should_remind(timedelta(hours=4)) is False
+
+
+def test_should_not_remind_a_third_time() -> None:
+    student_record = _reminded_record(answered_hours_ago=30, reminded_hours_ago=5)
+
+    tutor = Tutor(Course([make_exercise()]), student_record)
+
+    assert tutor.should_remind(timedelta(hours=4)) is False
+
+
+def test_should_not_remind_again_without_a_streak() -> None:
+    student_record = _reminded_record(
+        answered_hours_ago=25, reminded_hours_ago=21, streak=False
+    )
+
+    tutor = Tutor(Course([make_exercise()]), student_record)
+
+    assert tutor.should_remind(timedelta(hours=4)) is False
+
+
+def test_should_not_remind_again_after_the_streak_broke() -> None:
+    student_record = _reminded_record(answered_hours_ago=37, reminded_hours_ago=33)
+
+    tutor = Tutor(Course([make_exercise()]), student_record)
+
+    assert tutor.should_remind(timedelta(hours=4)) is False

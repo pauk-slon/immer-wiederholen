@@ -62,6 +62,7 @@ class Tutor:
     NEW_WORD_BUDGET_GRANT: Final = 3
     STREAK_BREAKS_AFTER: Final = timedelta(hours=36)
     STREAK_DAY_AFTER: Final = timedelta(hours=18)
+    STREAK_REMIND_AFTER: Final = timedelta(hours=24)
 
     def __init__(self, course: Course, student_record: dict) -> None:
         self._course = course
@@ -402,10 +403,19 @@ class Tutor:
             return False
         if (last_answered_at := self._get_last_answered_at()) is None:
             return False
-        if datetime.now(UTC) - last_answered_at < remind_after:
-            return False
+        now = datetime.now(UTC)
         last_reminded_at = self._student_record.last_reminded_at
-        return last_reminded_at is None or last_reminded_at < last_answered_at
+        if last_reminded_at is None or last_reminded_at < last_answered_at:
+            return now - last_answered_at >= remind_after
+        # Already reminded since the last answer. A live streak gets one more
+        # reminder, at the time of day when the learner last practiced, unless
+        # the first one came at that time or later
+        streak_reminder_at = last_answered_at + self.STREAK_REMIND_AFTER
+        return (
+            self.streak() is not None
+            and now >= streak_reminder_at
+            and last_reminded_at < streak_reminder_at
+        )
 
     def record_reminder_sent(self) -> None:
         self._student_record.last_reminded_at = datetime.now(UTC)

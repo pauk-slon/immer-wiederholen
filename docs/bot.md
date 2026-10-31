@@ -90,7 +90,7 @@ If one chat fails, the reminder logs the error and continues with the next chat.
 - **The learner has answered at least once.** A learner who pressed `/start` and never answered never gets a reminder.
 - **There's something to practice.** A review is due, or new material is available. Here the daily limit on new words doesn't count. A learner at the limit who has overdue reviews should still get a reminder. An earlier version checked only for new material and missed such learners.
 - **The learner stopped answering.** The last answer to a main exercise was at least `remind_after` ago. Recall answers and other actions don't count.
-- **No reminder since then.** The bot sends at most one reminder per period of inactivity, never a second one.
+- **No reminder since then, with one exception.** The bot sends one reminder per period of inactivity. If the learner has a streak, the bot sends a second reminder 24 hours after the last answer, unless the first reminder came at that time or later (see [ADR 0025](adr/0025-second-reminder-for-a-live-streak.md)). So only the intervals of 4, 8 and 12 hours can get a second reminder. It has the same text, and the learner has 12 hours left to keep the streak. It comes at the time of day of the last session, so the learner is probably awake.
 
 `should_remind()` changes nothing. The reminder calls `record_reminder_sent()` only after Telegram accepted the message, so a failed send never counts as delivered.
 
@@ -98,7 +98,7 @@ If one chat fails, the reminder logs the error and continues with the next chat.
 
 `/reminders` offers 4, 8, 12 or 24 hours after the last answer, or off, with one button each. The default is 24 hours. A tap saves the choice and confirms it. The bot stores the choice as `remind_after_hours`. The value `0` means off, which is different from "never chosen". "Never chosen" means the default. If the stored value is no longer offered, [`reminder_settings.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder_settings.py) uses the default. Unlike `/topics`, there's no "Done" step, because the setting needs only one tap. The interval counts from the last answer and doesn't follow a fixed schedule (see [ADR 0011](adr/0011-remind-after-the-last-session.md)).
 
-The setting is an interval since the last session, not "every N hours" or "N times a day". It still gives one reminder per period of inactivity, so reminders don't accumulate overnight. An active learner can get several reminders a day, one after each session. The bot doesn't handle time zones. The learner's phone can mute notifications at night.
+The setting is an interval since the last session, not "every N hours" or "N times a day". It gives at most two reminders per period of inactivity, so reminders don't accumulate overnight. An active learner can get several reminders a day, one after each session. The bot doesn't handle time zones. The learner's phone can mute notifications at night.
 
 ### Blocked chats
 
@@ -152,3 +152,4 @@ The reminder's tests call `tick()` directly, with no incoming update, so [`tests
 
 - [Reminders run as a separate process](adr/0010-reminders-as-a-separate-process.md) (ADR 0010)
 - [Reminders count from the last session](adr/0011-remind-after-the-last-session.md) (ADR 0011)
+- [A live streak gets a second reminder](adr/0025-second-reminder-for-a-live-streak.md) (ADR 0025)
