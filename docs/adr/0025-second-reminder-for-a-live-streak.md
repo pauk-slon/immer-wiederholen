@@ -8,9 +8,13 @@
 
 ## Decision
 
-If a learner already got a reminder and the streak is alive, the bot sends one more reminder 24 hours after the last answer. If the first reminder came at that time or later, the bot sends no second reminder. So only intervals of 4, 8 and 12 hours get a second reminder.
+A learner who already got a reminder gets one more reminder if all of these conditions are true:
 
-24 hours is the one time before the break that needs no time zone. It is the time of day when the learner last practiced, so the learner is probably awake. The learner also has 12 hours left.
+- **The streak has at least 2 days.** Every first answer creates a streak of 1 day, so a lower limit would remind a learner who tried the bot once. Such a learner has no streak to protect.
+- **The time is in the hour after the 24-hour mark since the last answer.** 24 hours is the one time before the break that needs no time zone. It is the time of day when the learner last practiced, so the learner is probably awake. The learner also has about 12 hours left. The reminder process runs every 15 minutes, so 1 hour is sufficient. After this hour, the bot sends no second reminder, because the time of day could be wrong and little time would be left.
+- **The first reminder came at least 6 hours before the mark.** The first reminder can come late, because the bot sends no reminder while there's nothing to practice. Without this limit, two similar messages could come minutes apart. The limit is 6 hours and not 12 hours, because the first reminder of a 12-hour interval can come some minutes after 12 hours.
+
+With the default interval of 24 hours, the first reminder comes after the mark, so this learner gets no second reminder.
 
 The reminder already says when the streak ends, so the text doesn't change. `last_reminded_at` is sufficient to find out which reminder is next, so the student record doesn't change.
 
@@ -23,6 +27,9 @@ The reminder already says when the streak ends, so the text doesn't change. `las
 
 ## Consequences
 
-- A learner with a streak gets at most two reminders per period of inactivity. A learner without a streak still gets one.
-- A learner who stopped practicing gets no more reminders after the streak breaks, so the concern about a series of reminders in ADR 0011 doesn't apply.
+- A learner with a streak of at least 2 days gets at most two reminders per period of inactivity. Other learners still get one.
+- A learner who stopped practicing gets no more reminders after the hour at the 24-hour mark, so the concern about a series of reminders in ADR 0011 doesn't apply.
+- If the reminder process doesn't run in that hour, the learner gets no second reminder. This also means that a deploy doesn't send second reminders to all learners at once.
+- A learner who changes the interval from 4 to 24 hours after the first reminder can still get the second reminder. This is harmless, because the learner would get a reminder at that time anyway.
+- If the learner opened a question after the first reminder and didn't answer, the second reminder removes the buttons of that question, as the first reminder already does. The new reminder has its own button for the next exercise.
 - The notification of the first reminder stays on the phone until the learner opens the chat, because Telegram can remove a notification only together with its message.

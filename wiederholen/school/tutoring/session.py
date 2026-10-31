@@ -63,6 +63,9 @@ class Tutor:
     STREAK_BREAKS_AFTER: Final = timedelta(hours=36)
     STREAK_DAY_AFTER: Final = timedelta(hours=18)
     STREAK_REMIND_AFTER: Final = timedelta(hours=24)
+    STREAK_REMIND_WINDOW: Final = timedelta(hours=1)
+    STREAK_REMIND_MIN_GAP: Final = timedelta(hours=6)
+    STREAK_REMIND_MIN_DAYS: Final = 2
 
     def __init__(self, course: Course, student_record: dict) -> None:
         self._course = course
@@ -407,14 +410,19 @@ class Tutor:
         last_reminded_at = self._student_record.last_reminded_at
         if last_reminded_at is None or last_reminded_at < last_answered_at:
             return now - last_answered_at >= remind_after
-        # Already reminded since the last answer. A live streak gets one more
-        # reminder, at the time of day when the learner last practiced, unless
-        # the first one came at that time or later
+        # Already reminded since the last answer. A real streak gets one more
+        # reminder, at the time of day when the learner last practiced. The
+        # window keeps a late sweep from sending it at night, and the gap keeps
+        # it from following a first reminder that came late
+        streak = self.streak()
         streak_reminder_at = last_answered_at + self.STREAK_REMIND_AFTER
         return (
-            self.streak() is not None
-            and now >= streak_reminder_at
-            and last_reminded_at < streak_reminder_at
+            streak is not None
+            and streak.days >= self.STREAK_REMIND_MIN_DAYS
+            and streak_reminder_at
+            <= now
+            < streak_reminder_at + self.STREAK_REMIND_WINDOW
+            and last_reminded_at <= streak_reminder_at - self.STREAK_REMIND_MIN_GAP
         )
 
     def record_reminder_sent(self) -> None:

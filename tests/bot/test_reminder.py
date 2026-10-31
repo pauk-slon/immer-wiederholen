@@ -623,11 +623,13 @@ async def test_tick_reminds_again_when_the_streak_has_12_hours_left(
     await seed_student_record(
         student_id,
         {
-            "last_exercise": {"answered_at": (now - timedelta(hours=25)).isoformat()},
-            "last_reminded_at": (now - timedelta(hours=21)).isoformat(),
+            "last_exercise": {
+                "answered_at": (now - timedelta(hours=24, minutes=30)).isoformat()
+            },
+            "last_reminded_at": (now - timedelta(hours=20)).isoformat(),
             "streak": {
                 "days": 3,
-                "counted_at": (now - timedelta(hours=25)).isoformat(),
+                "counted_at": (now - timedelta(hours=24, minutes=30)).isoformat(),
             },
         },
     )
@@ -642,6 +644,6 @@ async def test_tick_reminds_again_when_the_streak_has_12_hours_left(
     )
 
     streak_line = RU.reminder_streak_text.format(
-        days=format_count(3, "days", "ru"), hours=11
+        days=format_count(3, "days", "ru"), hours=12
     )
     assert sent.text == f"{RU.reminder_text}\n\n{streak_line}"

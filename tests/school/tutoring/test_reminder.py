@@ -130,56 +130,111 @@ def test_should_remind_honors_a_shorter_remind_after() -> None:
 
 
 def _reminded_record(
-    answered_hours_ago: int, reminded_hours_ago: int, *, streak: bool = True
+    answered_ago: timedelta, reminded_ago: timedelta, *, streak_days: int | None = 5
 ) -> dict:
     now = datetime.now(UTC)
-    answered_at = (now - timedelta(hours=answered_hours_ago)).isoformat()
+    answered_at = (now - answered_ago).isoformat()
     student_record: dict = {
         "last_exercise": {"answered_at": answered_at},
-        "last_reminded_at": (now - timedelta(hours=reminded_hours_ago)).isoformat(),
+        "last_reminded_at": (now - reminded_ago).isoformat(),
     }
-    if streak:
-        student_record["streak"] = {"days": 5, "counted_at": answered_at}
+    if streak_days is not None:
+        student_record["streak"] = {"days": streak_days, "counted_at": answered_at}
     return student_record
 
 
-def test_should_remind_again_after_24h_when_the_streak_is_alive() -> None:
-    student_record = _reminded_record(answered_hours_ago=25, reminded_hours_ago=21)
-
+def _should_remind_with_4h_interval(student_record: dict) -> bool:
     tutor = Tutor(Course([make_exercise()]), student_record)
-
-    assert tutor.should_remind(timedelta(hours=4)) is True
-
-
-def test_should_not_remind_again_before_24h() -> None:
-    student_record = _reminded_record(answered_hours_ago=23, reminded_hours_ago=19)
-
-    tutor = Tutor(Course([make_exercise()]), student_record)
-
-    assert tutor.should_remind(timedelta(hours=4)) is False
+    return tutor.should_remind(timedelta(hours=4))
 
 
-def test_should_not_remind_a_third_time() -> None:
-    student_record = _reminded_record(answered_hours_ago=30, reminded_hours_ago=5)
+def test_should_remind_again_at_24h_when_the_streak_is_alive() -> None:
+    student_record = _reminded_record(timedelta(hours=24), timedelta(hours=20))
 
-    tutor = Tutor(Course([make_exercise()]), student_record)
+    assert _should_remind_with_4h_interval(student_record) is True
 
-    assert tutor.should_remind(timedelta(hours=4)) is False
+
+def test_should_remind_again_after_a_12h_first_reminder_from_a_late_sweep() -> None:
+    student_record = _reminded_record(
+        timedelta(hours=24, minutes=30), timedelta(hours=12, minutes=15)
+    )
+
+    assert _should_remind_with_4h_interval(student_record) is True
+
+
+def test_should_remind_again_with_a_2_day_streak() -> None:
+    student_record = _reminded_record(
+        timedelta(hours=24, minutes=30), timedelta(hours=20), streak_days=2
+    )
+
+    assert _should_remind_with_4h_interval(student_record) is True
+
+
+def test_should_not_remind_again_with_a_1_day_streak() -> None:
+    student_record = _reminded_record(
+        timedelta(hours=24, minutes=30), timedelta(hours=20), streak_days=1
+    )
+
+    assert _should_remind_with_4h_interval(student_record) is False
 
 
 def test_should_not_remind_again_without_a_streak() -> None:
     student_record = _reminded_record(
-        answered_hours_ago=25, reminded_hours_ago=21, streak=False
+        timedelta(hours=24, minutes=30), timedelta(hours=20), streak_days=None
     )
 
-    tutor = Tutor(Course([make_exercise()]), student_record)
-
-    assert tutor.should_remind(timedelta(hours=4)) is False
+    assert _should_remind_with_4h_interval(student_record) is False
 
 
-def test_should_not_remind_again_after_the_streak_broke() -> None:
-    student_record = _reminded_record(answered_hours_ago=37, reminded_hours_ago=33)
+def test_should_not_remind_again_before_24h() -> None:
+    student_record = _reminded_record(timedelta(hours=23), timedelta(hours=19))
 
-    tutor = Tutor(Course([make_exercise()]), student_record)
+    assert _should_remind_with_4h_interval(student_record) is False
+
+
+def test_should_not_remind_again_after_the_window_closed() -> None:
+    student_record = _reminded_record(timedelta(hours=25), timedelta(hours=21))
+
+    assert _should_remind_with_4h_interval(student_record) is False
+
+
+def test_should_remind_again_when_the_first_reminder_is_exactly_the_gap_away() -> None:
+    student_record = _reminded_record(
+        timedelta(hours=24, minutes=30), timedelta(hours=6, minutes=30)
+    )
+
+    assert _should_remind_with_4h_interval(student_record) is True
+
+
+def test_should_not_remind_again_when_the_first_reminder_came_late() -> None:
+    student_record = _reminded_record(
+        timedelta(hours=24, minutes=30), timedelta(hours=6, minutes=29)
+    )
+
+    assert _should_remind_with_4h_interval(student_record) is False
+
+
+def test_should_not_remind_a_third_time() -> None:
+    student_record = _reminded_record(
+        timedelta(hours=24, minutes=30), timedelta(minutes=15)
+    )
+
+    assert _should_remind_with_4h_interval(student_record) is False
+
+
+def test_should_not_remind_again_with_nothing_to_practice() -> None:
+    student_record = _reminded_record(
+        timedelta(hours=24, minutes=30), timedelta(hours=20)
+    )
+    student_record["word_schedule"] = {
+        "warten": {
+            "government": {
+                "repetition_interval": 30,
+                "due_date": (datetime.now(UTC).date() + timedelta(days=20)).isoformat(),
+            },
+        },
+    }
+
+    tutor = Tutor(Course([make_exercise(word="warten")]), student_record)
 
     assert tutor.should_remind(timedelta(hours=4)) is False
