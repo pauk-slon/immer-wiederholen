@@ -90,7 +90,7 @@ If one chat fails, the reminder logs the error and continues with the next chat.
 - **The learner has answered at least once.** A learner who pressed `/start` and never answered never gets a reminder.
 - **There's something to practice.** A review is due, or new material is available. Here the daily limit on new words doesn't count. A learner at the limit who has overdue reviews should still get a reminder. An earlier version checked only for new material and missed such learners.
 - **The learner stopped answering.** The last answer to a main exercise was at least `remind_after` ago. Recall answers and other actions don't count.
-- **No reminder since then, with one exception.** The bot sends one reminder per period of inactivity. A learner with a streak of at least 2 days can get a second reminder. It comes in the hour after the 24-hour mark since the last answer, so it comes at the time of day of the last session and about 12 hours before the streak ends. The first reminder must have come at least 6 hours before that mark, so two reminders never come close together. With the default interval of 24 hours, the first reminder comes after the mark, so there's no second one (see [ADR 0025](adr/0025-second-reminder-for-a-live-streak.md)).
+- **No reminder since then, with one exception.** The bot sends one reminder per period of inactivity. A learner with a streak of at least 2 days can get a second reminder. It comes in the hour after the 24-hour mark since the last answer, so it comes at the time of day of the last session and about 12 hours before the streak ends. The first reminder must have come at least 6 hours before that mark, so two reminders never come close together. With the default interval of 24 hours, the first reminder comes after the mark, so there's no second one (see [ADR 0025](adr/0025-second-reminder-for-a-streak.md)).
 
 `should_remind()` changes nothing. The reminder calls `record_reminder_sent()` only after Telegram accepted the message, so a failed send never counts as delivered.
 
@@ -152,4 +152,4 @@ The reminder's tests call `tick()` directly, with no incoming update, so [`tests
 
 - [Reminders run as a separate process](adr/0010-reminders-as-a-separate-process.md) (ADR 0010)
 - [Reminders count from the last session](adr/0011-remind-after-the-last-session.md) (ADR 0011)
-- [A live streak gets a second reminder](adr/0025-second-reminder-for-a-live-streak.md) (ADR 0025)
+- [A streak of 2 days or more gets a second reminder](adr/0025-second-reminder-for-a-streak.md) (ADR 0025)

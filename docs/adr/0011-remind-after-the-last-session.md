@@ -1,6 +1,6 @@
 # 0011. Reminders count from the last session
 
-**Status:** Accepted, 2026-10-15 ([#229](https://github.com/pauk-slon/immer-wiederholen/pull/229)). Amended by [0025](0025-second-reminder-for-a-live-streak.md). The 24-hour rule has existed since [#62](https://github.com/pauk-slon/immer-wiederholen/pull/62).
+**Status:** Accepted, 2026-10-15 ([#229](https://github.com/pauk-slon/immer-wiederholen/pull/229)). Amended by [0025](0025-second-reminder-for-a-streak.md). The 24-hour rule has existed since [#62](https://github.com/pauk-slon/immer-wiederholen/pull/62).
 
 ## Context
 
