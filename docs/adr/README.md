@@ -61,8 +61,9 @@ The date is the day of the decision.
 | ADR | Decision | Date | Status |
 |---|---|---|---|
 | [0010](0010-reminders-as-a-separate-process.md) | Reminders run as a separate process | 2026-07-19 | Accepted |
-| [0011](0011-remind-after-the-last-session.md) | Reminders count from the last session | 2026-10-15 | Accepted |
+| [0011](0011-remind-after-the-last-session.md) | Reminders count from the last session | 2026-10-15 | Amended by [0025](0025-second-reminder-for-a-streak.md) |
 | [0019](0019-start-payload-sets-only-a-new-language.md) | A /start language payload sets only a new chat's language | 2026-10-24 | Accepted |
+| [0025](0025-second-reminder-for-a-streak.md) | A streak of 2 days or more gets a second reminder | 2026-10-31 | Accepted |
 
 ### Web frontend
 

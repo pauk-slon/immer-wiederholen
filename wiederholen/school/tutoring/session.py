@@ -62,6 +62,10 @@ class Tutor:
     NEW_WORD_BUDGET_GRANT: Final = 3
     STREAK_BREAKS_AFTER: Final = timedelta(hours=36)
     STREAK_DAY_AFTER: Final = timedelta(hours=18)
+    STREAK_REMIND_AFTER: Final = timedelta(hours=24)
+    STREAK_REMIND_WINDOW: Final = timedelta(hours=1)
+    STREAK_REMIND_MIN_GAP: Final = timedelta(hours=6)
+    STREAK_REMIND_MIN_DAYS: Final = 2
 
     def __init__(self, course: Course, student_record: dict) -> None:
         self._course = course
@@ -402,10 +406,20 @@ class Tutor:
             return False
         if (last_answered_at := self._get_last_answered_at()) is None:
             return False
-        if datetime.now(UTC) - last_answered_at < remind_after:
-            return False
+        now = datetime.now(UTC)
         last_reminded_at = self._student_record.last_reminded_at
-        return last_reminded_at is None or last_reminded_at < last_answered_at
+        if last_reminded_at is None or last_reminded_at < last_answered_at:
+            return now - last_answered_at >= remind_after
+        streak = self.streak()
+        streak_reminder_at = last_answered_at + self.STREAK_REMIND_AFTER
+        return (
+            streak is not None
+            and streak.days >= self.STREAK_REMIND_MIN_DAYS
+            and streak_reminder_at
+            <= now
+            < streak_reminder_at + self.STREAK_REMIND_WINDOW
+            and last_reminded_at <= streak_reminder_at - self.STREAK_REMIND_MIN_GAP
+        )
 
     def record_reminder_sent(self) -> None:
         self._student_record.last_reminded_at = datetime.now(UTC)

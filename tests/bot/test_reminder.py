@@ -607,3 +607,43 @@ async def test_tick_reminds_when_the_streak_ends(
         days=format_count(3, "days", "ru"), hours=11
     )
     assert sent.text == f"{RU.reminder_text}\n\n{streak_line}"
+
+
+async def test_tick_reminds_again_when_the_streak_has_12_hours_left(
+    telegram_bot_token: str,
+    redis_storage: RedisStorage,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    seed_student_record: SeedStudentRecord,
+) -> None:
+    now = datetime.now(UTC)
+    student_id = await student_identity_store.resolve_or_create_student_id(
+        "telegram", "1"
+    )
+    await seed_student_record(
+        student_id,
+        {
+            "last_exercise": {
+                "answered_at": (now - timedelta(hours=24, minutes=30)).isoformat()
+            },
+            "last_reminded_at": (now - timedelta(hours=20)).isoformat(),
+            "streak": {
+                "days": 3,
+                "counted_at": (now - timedelta(hours=24, minutes=30)).isoformat(),
+            },
+        },
+    )
+    bot = Bot(token=telegram_bot_token)
+    state = FSMContext(
+        storage=redis_storage, key=StorageKey(bot_id=bot.id, chat_id=1, user_id=1)
+    )
+    await state.update_data(remind_after_hours=4)
+
+    sent = await _send_reminder(
+        telegram_bot_token, redis_storage, student_record_book, student_identity_store
+    )
+
+    streak_line = RU.reminder_streak_text.format(
+        days=format_count(3, "days", "ru"), hours=12
+    )
+    assert sent.text == f"{RU.reminder_text}\n\n{streak_line}"
