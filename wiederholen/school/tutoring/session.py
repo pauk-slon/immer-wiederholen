@@ -410,10 +410,6 @@ class Tutor:
         last_reminded_at = self._student_record.last_reminded_at
         if last_reminded_at is None or last_reminded_at < last_answered_at:
             return now - last_answered_at >= remind_after
-        # Already reminded since the last answer. A real streak gets one more
-        # reminder, at the time of day when the learner last practiced. The
-        # window keeps a late sweep from sending it at night, and the gap keeps
-        # it from following a first reminder that came late
         streak = self.streak()
         streak_reminder_at = last_answered_at + self.STREAK_REMIND_AFTER
         return (
