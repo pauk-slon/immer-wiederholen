@@ -8,12 +8,12 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 | Command | Module | What it does |
 |---|---|---|
-| `/start` | `start` | greets the learner. A deep link with a language (`t.me/<bot>?start=en`) sets the language of a new chat, a chat that has no FSM data yet (see [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md)) |
+| `/start` | `start` | greets the learner, with a "Next exercise" button. A deep link with a language (`t.me/<bot>?start=en`) sets the language of a new chat, a chat that has no FSM data yet (see [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md)) |
 | `/wiederholen` | `wiederholen` | shows the next exercise. The same module handles answers, recalls and the "next" and "study more" buttons |
 | `/progress` | `progress` | shows today's counts (due, new, answered), how many words the learner is learning or has mastered and, if there is one, the streak (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
 | `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
-| `/language` | `language` | switches between Russian and English |
+| `/language` | `language` | switches between Russian and English and confirms the new language |
 | `/reset` | `reset` | deletes the learner's schedule and today's answer counts after a confirmation. The streak stays |
 | `/ai` | `ai` | switches the chat to exercises that an LLM rewrites, for topics with `ai_generation`. Only chats with the `ai_exercises` [feature flag](#feature-flags) have it (see [AI-generated content](authoring.md#shadow-exercises)) |
 
@@ -118,7 +118,7 @@ A tap on an inline button ("Next exercise", "Drill", "Study more" and others) re
 - **`forget_buttoned_message(state)`.** Call it when a callback handler removed its own buttons and attached no new ones.
 - **`clear_stale_buttons(bot, chat_id, state)`.** It removes the buttons from the remembered message, if there is one, and forgets the message. It ignores a `TelegramBadRequest`, which means that the message was already edited, deleted or is too old.
 
-Every command that the learner types calls `clear_stale_buttons()` first. These commands are `/wiederholen`, `/progress`, `/topics`, `/reminders`, `/language`, `/reset` and `/ai`. `/start` is the one typed command that doesn't call it. The reminder calls it right before it sends a message. `clear_stale_buttons()` takes a bot and a chat id, not a `Message`, because the reminder has no incoming message.
+Every command that the learner types calls `clear_stale_buttons()` first. These commands are `/start`, `/wiederholen`, `/progress`, `/topics`, `/reminders`, `/language`, `/reset` and `/ai`. The reminder calls it right before it sends a message. `clear_stale_buttons()` takes a bot and a chat id, not a `Message`, because the reminder has no incoming message.
 
 When you edit the text of a message, pass `reply_markup=` explicitly, with a new keyboard or `None`. If you edit only the text, the message keeps its old keyboard.
 

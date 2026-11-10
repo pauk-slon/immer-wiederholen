@@ -1,7 +1,10 @@
 import pytest
 from aiogram.fsm.context import FSMContext
+from aiogram.methods import EditMessageReplyMarkup
+from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedMessage
+from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
 
 
@@ -82,3 +85,43 @@ async def test_unknown_deep_link_payload_falls_back_to_stored_language(
     assert len(requests) == 1
     assert requests[0].text == EN.start
     assert (await state.get_data())["language"] == "en"
+
+
+async def test_greeting_has_next_exercise_button(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    requests = await feed_message("/start")
+
+    markup = requests[0].reply_markup
+    assert isinstance(markup, InlineKeyboardMarkup)
+    assert markup.inline_keyboard[0][0].callback_data == NEXT_EXERCISE
+    # feed_raw_update numbers the messages that the bot sends from 1000
+    assert (await state.get_data())["last_buttoned_message_id"] == 1000
+
+
+async def test_clears_a_stale_button(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    await state.update_data(last_buttoned_message_id=77)
+
+    requests = await feed_message("/start")
+
+    edits = [r for r in requests if isinstance(r, EditMessageReplyMarkup)]
+    assert len(edits) == 1
+    assert edits[0].message_id == 77
+
+
+async def test_deep_link_payload_after_start_keeps_language(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    # The greeting's button is stored in the FSM data, so after /start the
+    # chat isn't new anymore (ADR 0019)
+    await feed_message("/start")
+
+    requests = await feed_message("/start en")
+
+    assert requests[-1].text == RU.start
+    assert "language" not in await state.get_data()

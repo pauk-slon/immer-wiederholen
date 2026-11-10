@@ -3,9 +3,9 @@
 info:
   ru:
     name: Immer wiederholen! (демо)
-    description: Демо-курс немецкой грамматики с интервальным повторением
+    description: Демо-курс немецкой грамматики. Я задаю вопросы на формы глаголов и предлоги и возвращаюсь к каждому заданию, пока ты его не запомнишь.
     short_description: Демо-курс немецкой грамматики с интервальным повторением
   en:
     name: Immer wiederholen! (demo)
-    description: A demo German grammar course with spaced repetition
+    description: A demo German grammar course. I ask about verb forms and prepositions and bring each exercise back until you remember it.
     short_description: A demo German grammar course with spaced repetition

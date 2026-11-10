@@ -3,7 +3,12 @@ from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
+from wiederholen.bot.commands.wiederholen import make_next_button
 from wiederholen.bot.l10n import LOCALES, get_language
+from wiederholen.bot.pending_buttons import (
+    clear_stale_buttons,
+    remember_buttoned_message,
+)
 from wiederholen.school import LANGUAGES
 
 router = Router()
@@ -26,4 +31,7 @@ async def command_start(
         await state.update_data(language=language)
     else:
         language = get_language(data)
-    await message.answer(LOCALES[language].start)
+    await clear_stale_buttons(message.bot, message.chat.id, state)
+    locale = LOCALES[language]
+    sent = await message.answer(locale.start, reply_markup=make_next_button(locale))
+    await remember_buttoned_message(state, sent)

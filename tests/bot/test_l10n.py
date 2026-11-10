@@ -35,11 +35,11 @@ def test_format_count_ru_words(n: int, expected: str) -> None:
 @pytest.mark.parametrize(
     ("n", "expected"),
     [
-        (1, "1 упражнение"),
-        (2, "2 упражнения"),
-        (5, "5 упражнений"),
-        (11, "11 упражнений"),
-        (21, "21 упражнение"),
+        (1, "1 задание"),
+        (2, "2 задания"),
+        (5, "5 заданий"),
+        (11, "11 заданий"),
+        (21, "21 задание"),
     ],
 )
 def test_format_count_ru_exercises(n: int, expected: str) -> None:
