@@ -451,9 +451,13 @@ function escapeHtml(value) {
 // is included even though it duplicates the English literals that used to
 // be inline, so a topic/language combination the API doesn't recognize
 // still degrades to a real language rather than a KeyError.
+//
+// nothingAvailable, correct and wrong repeat the bot's nothing_due_text,
+// correct and wrong in l10n.py, so the same state reads the same in both
+// frontends. Change them together.
 const STRINGS = {
   ru: {
-    nothingAvailable: "🎉 На сегодня всё! Загляни завтра за новыми заданиями.",
+    nothingAvailable:"🎉 На сегодня всё! Загляни завтра за новыми заданиями.",
     somethingWrong: "Что-то пошло не так",
     tryAgain: "Попробовать снова",
     next: "Дальше",

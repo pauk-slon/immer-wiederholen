@@ -96,7 +96,8 @@ async def test_greeting_has_next_exercise_button(
     markup = requests[0].reply_markup
     assert isinstance(markup, InlineKeyboardMarkup)
     assert markup.inline_keyboard[0][0].callback_data == NEXT_EXERCISE
-    assert (await state.get_data())["last_buttoned_message_id"] is not None
+    # feed_raw_update numbers the messages that the bot sends from 1000
+    assert (await state.get_data())["last_buttoned_message_id"] == 1000
 
 
 async def test_clears_a_stale_button(
@@ -110,3 +111,17 @@ async def test_clears_a_stale_button(
     edits = [r for r in requests if isinstance(r, EditMessageReplyMarkup)]
     assert len(edits) == 1
     assert edits[0].message_id == 77
+
+
+async def test_deep_link_payload_after_start_keeps_language(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    # The greeting's button is stored in the FSM data, so after /start the
+    # chat isn't new anymore (ADR 0019)
+    await feed_message("/start")
+
+    requests = await feed_message("/start en")
+
+    assert requests[-1].text == RU.start
+    assert "language" not in await state.get_data()
