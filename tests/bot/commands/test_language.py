@@ -14,7 +14,7 @@ async def test_switches_ru_to_en(
 
     assert len(requests) == 1
     assert (await state.get_data())["language"] == "en"
-    assert requests[0].text == EN.start
+    assert requests[0].text == EN.language_set
 
 
 async def test_switches_en_to_ru(
@@ -26,7 +26,7 @@ async def test_switches_en_to_ru(
 
     assert len(requests) == 1
     assert (await state.get_data())["language"] == "ru"
-    assert requests[0].text == RU.start
+    assert requests[0].text == RU.language_set
 
 
 async def test_defaults_to_ru_then_switches_to_en(
@@ -37,7 +37,7 @@ async def test_defaults_to_ru_then_switches_to_en(
 
     assert len(requests) == 1
     assert (await state.get_data())["language"] == "en"
-    assert requests[0].text == EN.start
+    assert requests[0].text == EN.language_set
 
 
 async def test_clears_a_stale_button_left_from_wiederholen(

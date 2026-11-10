@@ -13,7 +13,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 | `/progress` | `progress` | shows today's counts (due, new, answered), how many words the learner is learning or has mastered and, if there is one, the streak (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
 | `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
-| `/language` | `language` | switches between Russian and English |
+| `/language` | `language` | switches between Russian and English and confirms the new language |
 | `/reset` | `reset` | deletes the learner's schedule and today's answer counts after a confirmation. The streak stays |
 | `/ai` | `ai` | switches the chat to exercises that an LLM rewrites, for topics with `ai_generation`. Only chats with the `ai_exercises` [feature flag](#feature-flags) have it (see [AI-generated content](authoring.md#shadow-exercises)) |
 

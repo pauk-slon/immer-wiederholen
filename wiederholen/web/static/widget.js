@@ -453,12 +453,12 @@ function escapeHtml(value) {
 // still degrades to a real language rather than a KeyError.
 const STRINGS = {
   ru: {
-    nothingAvailable: "Пока нечего тренировать — загляните позже!",
-    somethingWrong: "Что-то пошло не так.",
+    nothingAvailable: "Пока нечего тренировать — загляни позже!",
+    somethingWrong: "Что-то пошло не так",
     tryAgain: "Попробовать снова",
     next: "Дальше",
-    correct: "Верно!",
-    correctAnswer: (answer) => `Правильный ответ: ${answer}`,
+    correct: "Правильно!",
+    wrong: (answer) => `Неправильно. Правильный ответ: ${answer}`,
     // Mirrors the bot's own l10n.py wording exactly (btn_recall,
     // btn_recall_retry, recall_correct, recall_wrong, recall_prompt) —
     // recallRetry is kept distinct from tryAgain above (a different
@@ -471,20 +471,20 @@ const STRINGS = {
     recallDrill: "Закрепить",
     recallRetry: "Попробовать ещё раз",
     recallCorrect: "Правильно!",
-    recallWrong: (answer) => `Неправильно. Правильный вариант: ${answer}`,
-    recallInstruction: "Восстановите фразу",
+    recallWrong: (answer) => `Неправильно. Правильный ответ: ${answer}`,
+    recallInstruction: "Восстанови фразу",
   },
   en: {
     nothingAvailable: "Nothing to practice here right now — come back later!",
-    somethingWrong: "Something went wrong.",
+    somethingWrong: "Something went wrong",
     tryAgain: "Try again",
     next: "Next",
     correct: "Correct!",
-    correctAnswer: (answer) => `Correct answer: ${answer}`,
+    wrong: (answer) => `Wrong. The correct answer is: ${answer}`,
     recallDrill: "Drill",
     recallRetry: "Try again",
     recallCorrect: "Correct!",
-    recallWrong: (answer) => `Wrong. Correct answer: ${answer}`,
+    recallWrong: (answer) => `Wrong. The correct answer is: ${answer}`,
     recallInstruction: "Reconstruct the phrase",
   },
 };
@@ -898,7 +898,7 @@ class GermanExerciseWidget extends HTMLElement {
   _renderResult(result) {
     const label = result.correct
       ? `<p class="correct">✅ ${escapeHtml(this._strings.correct)}</p>`
-      : `<p class="wrong">❌ ${escapeHtml(this._strings.correctAnswer(result.answer))}</p>`;
+      : `<p class="wrong">❌ ${escapeHtml(this._strings.wrong(result.answer))}</p>`;
     this._render(
       // label + explanation share one .centered-pair, the same treatment
       // question + description get on the question card: the verdict
@@ -998,7 +998,7 @@ class GermanExerciseWidget extends HTMLElement {
       // space) rather than being squeezed into someone else's. .instruction
       // here plays the same role it does on the question card (a fixed
       // note on how to answer *this* step, not part of the question text
-      // itself) — mirrors the bot's own recall_prompt ("Восстановите
+      // itself) — mirrors the bot's own recall_prompt ("Восстанови
       // фразу:") — without it, a learner had no explanation of what a
       // recall step even was or how it differs from the main exercise
       // (caught from a direct user report: the bot has this framing, the

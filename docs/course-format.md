@@ -126,7 +126,7 @@ The recall check ignores case, extra spaces and a final `.`, `,`, `!` or `?`. It
 
 ### Hints from grammar classes
 
-**Bot only.** A hint appears when the learner has learned another word with the same grammar class in the same topic. The hint names that word, such as "Same as for singen" ("Так же, как и у singen" in Russian). The learner taps the hint to open it.
+**Bot only.** A hint appears when the learner has learned another word with the same grammar class in the same topic. The hint names that word, such as "Same as for singen" ("Так же, как у singen" in Russian). The learner taps the hint to open it.
 
 The hint shows only the word, not its answer, because the answers can match. For example, in a class like `an+Akk` (verbs with `an` and the accusative), the other word's answer is often the answer to this question too.
 
