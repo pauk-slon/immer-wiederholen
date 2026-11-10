@@ -453,7 +453,7 @@ function escapeHtml(value) {
 // still degrades to a real language rather than a KeyError.
 const STRINGS = {
   ru: {
-    nothingAvailable: "Пока нечего тренировать — загляни позже!",
+    nothingAvailable: "🎉 На сегодня всё! Загляни завтра за новыми заданиями.",
     somethingWrong: "Что-то пошло не так",
     tryAgain: "Попробовать снова",
     next: "Дальше",
@@ -472,10 +472,10 @@ const STRINGS = {
     recallRetry: "Попробовать ещё раз",
     recallCorrect: "Правильно!",
     recallWrong: (answer) => `Неправильно. Правильный ответ: ${answer}`,
-    recallInstruction: "Восстанови фразу",
+    recallInstruction: "Напиши фразу целиком",
   },
   en: {
-    nothingAvailable: "Nothing to practice here right now — come back later!",
+    nothingAvailable: "🎉 That's all for today! Come back tomorrow for more.",
     somethingWrong: "Something went wrong",
     tryAgain: "Try again",
     next: "Next",
@@ -485,7 +485,7 @@ const STRINGS = {
     recallRetry: "Try again",
     recallCorrect: "Correct!",
     recallWrong: (answer) => `Wrong. The correct answer is: ${answer}`,
-    recallInstruction: "Reconstruct the phrase",
+    recallInstruction: "Type the whole sentence",
   },
 };
 
@@ -998,8 +998,8 @@ class GermanExerciseWidget extends HTMLElement {
       // space) rather than being squeezed into someone else's. .instruction
       // here plays the same role it does on the question card (a fixed
       // note on how to answer *this* step, not part of the question text
-      // itself) — mirrors the bot's own recall_prompt ("Восстанови
-      // фразу:") — without it, a learner had no explanation of what a
+      // itself) — mirrors the bot's own recall_prompt ("Напиши фразу
+      // целиком:") — without it, a learner had no explanation of what a
       // recall step even was or how it differs from the main exercise
       // (caught from a direct user report: the bot has this framing, the
       // widget didn't).

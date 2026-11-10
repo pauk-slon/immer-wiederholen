@@ -89,10 +89,10 @@ class Locale:
 
 
 RU: Final = Locale(
-    start="Привет! Я помогу тебе учить язык с помощью интервального повторения.\n\nИспользуй /wiederholen, чтобы начать.",
+    start="Привет! Я буду давать тебе короткие задания и возвращаться к ним, пока ты их не запомнишь.\n\nНажми /wiederholen, чтобы начать.",
     correct="🟢 Правильно!",
     wrong="🔴 Неправильно. Правильный ответ: {answer}",
-    recall_prompt="Восстанови фразу:\n{recall}",
+    recall_prompt="Напиши фразу целиком:\n{recall}",
     recall_correct="🟢 Правильно!",
     recall_wrong="🔴 Неправильно. Правильный ответ:\n{answer}",
     cmd_start="Начать",
@@ -120,7 +120,7 @@ RU: Final = Locale(
     reset_cancel_button="Отмена",
     reset_done="✅ Прогресс сброшен",
     reset_cancelled="Отменено",
-    reminder_text="🔔 Есть что повторить! Загляни в /wiederholen",
+    reminder_text="🔔 Есть что повторить! Нажми /wiederholen",
     reminder_streak_text="🔥 Серия: {days}. Прервётся через {hours} ч",
     progress_text=(
         "📊 Твой прогресс\n"
@@ -134,7 +134,7 @@ RU: Final = Locale(
         "📈 В процессе: {learning}\n"
         "✅ Выучено: {mastered}"
     ),
-    nothing_due_text="🎉 На сегодня всё! Загляни завтра — будут новые задания и повторения.",
+    nothing_due_text="🎉 На сегодня всё! Загляни завтра за новыми заданиями.",
     streak_text="🔥 Серия: {days}",
     ai_mode_on="🤖 AI-режим включён",
     ai_mode_off="AI-режим выключен",
@@ -144,10 +144,10 @@ RU: Final = Locale(
 )
 
 EN: Final = Locale(
-    start="Hi! I'll help you learn a language with spaced repetition.\n\nUse /wiederholen to start.",
+    start="Hi! I'll give you short exercises and bring them back until you remember them.\n\nTap /wiederholen to start.",
     correct="🟢 Correct!",
     wrong="🔴 Wrong. The correct answer is: {answer}",
-    recall_prompt="Reconstruct the phrase:\n{recall}",
+    recall_prompt="Type the whole sentence:\n{recall}",
     recall_correct="🟢 Correct!",
     recall_wrong="🔴 Wrong. The correct answer is:\n{answer}",
     cmd_start="Start",
@@ -175,7 +175,7 @@ EN: Final = Locale(
     reset_cancel_button="Cancel",
     reset_done="✅ Progress has been reset",
     reset_cancelled="Cancelled",
-    reminder_text="🔔 Something to review! Come back to /wiederholen",
+    reminder_text="🔔 Something to review! Tap /wiederholen",
     reminder_streak_text="🔥 Streak: {days}. It ends in {hours} h",
     progress_text=(
         "📊 Your progress\n"
@@ -189,7 +189,7 @@ EN: Final = Locale(
         "📈 Learning: {learning}\n"
         "✅ Mastered: {mastered}"
     ),
-    nothing_due_text="🎉 That's all for today! Come back tomorrow for new exercises and reviews.",
+    nothing_due_text="🎉 That's all for today! Come back tomorrow for more.",
     streak_text="🔥 Streak: {days}",
     ai_mode_on="🤖 AI mode is on",
     ai_mode_off="AI mode is off",
