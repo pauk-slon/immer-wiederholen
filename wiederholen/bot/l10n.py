@@ -89,7 +89,7 @@ class Locale:
 
 
 RU: Final = Locale(
-    start="Привет! Я буду давать тебе короткие задания и возвращаться к ним, пока ты их не запомнишь.\n\nНажми /wiederholen, чтобы начать.",
+    start="Привет! Я буду давать тебе короткие задания и возвращаться к ним, пока ты их не запомнишь.",
     correct="🟢 Правильно!",
     wrong="🔴 Неправильно. Правильный ответ: {answer}",
     recall_prompt="Напиши фразу целиком:\n{recall}",
@@ -120,7 +120,7 @@ RU: Final = Locale(
     reset_cancel_button="Отмена",
     reset_done="✅ Прогресс сброшен",
     reset_cancelled="Отменено",
-    reminder_text="🔔 Есть что повторить! Нажми /wiederholen",
+    reminder_text="🔔 Есть что повторить!",
     reminder_streak_text="🔥 Серия: {days}. Прервётся через {hours} ч",
     progress_text=(
         "📊 Твой прогресс\n"
@@ -144,7 +144,7 @@ RU: Final = Locale(
 )
 
 EN: Final = Locale(
-    start="Hi! I'll give you short exercises and bring them back until you remember them.\n\nTap /wiederholen to start.",
+    start="Hi! I'll give you short exercises and bring them back until you remember them.",
     correct="🟢 Correct!",
     wrong="🔴 Wrong. The correct answer is: {answer}",
     recall_prompt="Type the whole sentence:\n{recall}",
@@ -175,7 +175,7 @@ EN: Final = Locale(
     reset_cancel_button="Cancel",
     reset_done="✅ Progress has been reset",
     reset_cancelled="Cancelled",
-    reminder_text="🔔 Something to review! Tap /wiederholen",
+    reminder_text="🔔 Something to review!",
     reminder_streak_text="🔥 Streak: {days}. It ends in {hours} h",
     progress_text=(
         "📊 Your progress\n"
