@@ -23,6 +23,8 @@ The web widget reports its own failures to `POST /api/client-error`. It sends th
 
 The traces never contain text that a learner typed. A message span records only the command. Callback data is always a value that the bot made itself. It is a button id, sometimes with a topic group id or a reminder interval after it (`__topic_group__:verbs`, `__remind_after__:8`).
 
+Every bot span also gets `telegram.handled`. It is `false` when no handler matched the update. The learner then got no reply. Use it to find messages that the bot ignored. The span doesn't record the text, so you see only that it happened. A handler that raises an exception leaves the attribute unset.
+
 When code inside a span raises an exception, OpenTelemetry records it on that span. In the reminder, an error in one chat is recorded on that chat's `reminder.check_chat` span. The sweep then logs the error and continues with the next chat.
 
 ### Events from the repetition engine
@@ -32,6 +34,7 @@ When code inside a span raises an exception, OpenTelemetry records it on that sp
 | Event | When | Attributes |
 |---|---|---|
 | `ExerciseAnswered` | every `check_answer()` | `word`, `topic`, `is_correct`, `is_new`, `recall_mode` (`none`, `optional`, `required`), `prev_repetition_interval` (not set on a pair's first answer), `next_repetition_interval` |
+| `ExerciseSelected` | `next_exercise()` picks an exercise | `word`, `topic`, `is_new` (the learner never answered this pair). The frontend can still fail to show it, for example when AI generation fails. The last `ExerciseSelected` without an `ExerciseAnswered` after it shows where a learner stopped |
 | `TopicUnlocked` | `Tutor` schedules a linked topic for a word (see [Course format](course-format.md#linking-topics)) | `source_topic`, `dependent_topic`, `via` (`chain` or `gate`) |
 | `NoExerciseAvailable` | `next_exercise()` finds nothing to show | `reason` (`daily_cap_reached` when only new words are left and today's limit is used up, otherwise `nothing_available`) |
 | `StreakExtended` | an answer adds a day to the streak or starts a new one (see [Repetition schedule](repetition-schedule.md#streak)) | `days`, the new length. It is 1 for a new streak |
@@ -71,7 +74,7 @@ Without these root spans, every Redis call would be a root span of its own.
 
 ### How `Tutor` emits events
 
-[`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the three events as frozen dataclasses. `emit(event)` adds an event to `trace.get_current_span()` and names it after the dataclass. First, `_to_otel_attributes()` converts the dataclass fields to span attributes. It replaces enum values with their `.value` and omits `None` fields, because neither is a valid attribute value.
+[`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the events as frozen dataclasses. `emit(event)` adds an event to `trace.get_current_span()` and names it after the dataclass. First, `_to_otel_attributes()` converts the dataclass fields to span attributes. It replaces enum values with their `.value` and omits `None` fields, because neither is a valid attribute value.
 
 `Tutor` adds events to the span instead of returning them, and the events are dataclasses instead of dict literals. [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md) explains both choices.
 

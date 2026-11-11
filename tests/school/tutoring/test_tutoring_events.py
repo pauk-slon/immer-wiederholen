@@ -315,3 +315,82 @@ def test_next_exercise_reports_daily_cap_reached(
     assert exercise is None
     span = exporter.get_finished_spans()[0]
     assert _events(span) == [("NoExerciseAvailable", {"reason": "daily_cap_reached"})]
+
+
+def test_next_exercise_reports_a_new_pair_selected(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    tutor = Tutor(Course([make_exercise(word="warten")]), {})
+
+    with tracer.start_as_current_span("test-span"):
+        exercise = tutor.next_exercise()
+
+    assert exercise is not None
+    span = exporter.get_finished_spans()[0]
+    assert _events(span) == [
+        (
+            "ExerciseSelected",
+            {"word": "warten", "topic": "government", "is_new": True},
+        )
+    ]
+
+
+def test_next_exercise_reports_a_due_review_selected_as_not_new(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    today = datetime.now(UTC).date()
+    state = {
+        "word_schedule": {
+            "warten": {
+                "government": {
+                    "repetition_interval": 4,
+                    "due_date": (today - timedelta(days=1)).isoformat(),
+                    "introduced_at": (today - timedelta(days=5)).isoformat(),
+                },
+            },
+        }
+    }
+    tutor = Tutor(Course([make_exercise(word="warten")]), state)
+
+    with tracer.start_as_current_span("test-span"):
+        tutor.next_exercise()
+
+    span = exporter.get_finished_spans()[0]
+    assert _events(span) == [
+        (
+            "ExerciseSelected",
+            {"word": "warten", "topic": "government", "is_new": False},
+        )
+    ]
+
+
+def test_next_exercise_reports_a_chain_queued_pair_selected_as_new(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    # A chain created the entry, but the learner has never answered the pair
+    today = datetime.now(UTC).date()
+    state = {
+        "word_schedule": {
+            "warten": {
+                "government": {
+                    "repetition_interval": 0,
+                    "due_date": today.isoformat(),
+                },
+            },
+        }
+    }
+    tutor = Tutor(Course([make_exercise(word="warten")]), state)
+
+    with tracer.start_as_current_span("test-span"):
+        tutor.next_exercise()
+
+    span = exporter.get_finished_spans()[0]
+    assert _events(span) == [
+        (
+            "ExerciseSelected",
+            {"word": "warten", "topic": "government", "is_new": True},
+        )
+    ]
