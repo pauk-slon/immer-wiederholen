@@ -56,6 +56,6 @@ class TracingMiddleware(BaseMiddleware):
             attributes=attributes,
         ) as span:
             result = await handler(event, data)
-            # No handler matched, so the learner got no reply
+            # False when no handler matched, so the learner got no reply
             span.set_attribute("telegram.handled", result is not UNHANDLED)
             return result

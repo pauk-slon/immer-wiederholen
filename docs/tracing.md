@@ -10,10 +10,10 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 
 | Span | Process | Attributes |
 |---|---|---|
-| `telegram.message` | bot | `telegram.chat_id`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/` |
-| `telegram.callback_query` | bot | `telegram.callback_data`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns |
-| `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
-| `telegram.update` | bot | none (any other kind of update) |
+| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/` |
+| `telegram.callback_query` | bot | `telegram.callback_data`, `telegram.handled`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns |
+| `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it), `telegram.handled` |
+| `telegram.update` | bot | `telegram.handled` only (any other kind of update) |
 | `reminder.tick` | reminder | none (one sweep over all chats) |
 | `reminder.check_chat` | reminder (child of `reminder.tick`) | `telegram.chat_id`, `reminder.sent` (the reminder went out), `reminder.bot_blocked` (the learner had blocked the bot, or Telegram refused the message for that reason) |
 | an HTTP server span per request | web | the standard HTTP attributes from Litestar's OpenTelemetry plugin, and `client.error.step` and `client.error.status` for `POST /api/client-error` |
@@ -23,7 +23,7 @@ The web widget reports its own failures to `POST /api/client-error`. It sends th
 
 The traces never contain text that a learner typed. A message span records only the command. Callback data is always a value that the bot made itself. It is a button id, sometimes with a topic group id or a reminder interval after it (`__topic_group__:verbs`, `__remind_after__:8`).
 
-Every bot span also gets `telegram.handled`. It is `false` when no handler matched the update. The learner then got no reply. Use it to find messages that the bot ignored. The span doesn't record the text, so you see only that it happened. A handler that raises an exception leaves the attribute unset.
+`telegram.handled` is `false` when no handler matched the update. For a new message or a button press, this means that the learner got no reply. The span doesn't record the text, so you see only that it happened. Some updates need no reply, and they also get `false`. An edited message, for example, also makes a `telegram.message` span. So `false` alone doesn't always mean that the bot ignored the learner. A handler that raises an exception leaves the attribute unset. Such a span has `error` set instead.
 
 When code inside a span raises an exception, OpenTelemetry records it on that span. In the reminder, an error in one chat is recorded on that chat's `reminder.check_chat` span. The sweep then logs the error and continues with the next chat.
 
@@ -34,7 +34,7 @@ When code inside a span raises an exception, OpenTelemetry records it on that sp
 | Event | When | Attributes |
 |---|---|---|
 | `ExerciseAnswered` | every `check_answer()` | `word`, `topic`, `is_correct`, `is_new`, `recall_mode` (`none`, `optional`, `required`), `prev_repetition_interval` (not set on a pair's first answer), `next_repetition_interval` |
-| `ExerciseSelected` | `next_exercise()` picks an exercise | `word`, `topic`, `is_new` (the learner never answered this pair). The frontend can still fail to show it, for example when AI generation fails. The last `ExerciseSelected` without an `ExerciseAnswered` after it shows where a learner stopped |
+| `ExerciseSelected` | `next_exercise()` picks an exercise | `word`, `topic`, `question` (the authored question text), `is_new` (the learner never answered this pair). The frontend can still fail to show it, for example when AI generation fails. The last `ExerciseSelected` without an `ExerciseAnswered` after it shows where a learner stopped |
 | `TopicUnlocked` | `Tutor` schedules a linked topic for a word (see [Course format](course-format.md#linking-topics)) | `source_topic`, `dependent_topic`, `via` (`chain` or `gate`) |
 | `NoExerciseAvailable` | `next_exercise()` finds nothing to show | `reason` (`daily_cap_reached` when only new words are left and today's limit is used up, otherwise `nothing_available`) |
 | `StreakExtended` | an answer adds a day to the streak or starts a new one (see [Repetition schedule](repetition-schedule.md#streak)) | `days`, the new length. It is 1 for a new streak |

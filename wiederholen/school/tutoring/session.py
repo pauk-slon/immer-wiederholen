@@ -173,9 +173,8 @@ class Tutor:
         return (word, topic)
 
     def next_exercise(self) -> Exercise | None:
-        due_introduced = self._get_due_pairs(is_introduced=True)
         selectable_pairs = SelectablePairs(
-            due_introduced=due_introduced,
+            due_introduced=self._get_due_pairs(is_introduced=True),
             due_not_introduced=self._get_due_pairs(is_introduced=False),
             not_scheduled=self._get_available_not_scheduled_pairs(),
         )
@@ -206,14 +205,17 @@ class Tutor:
             ]
         ):
             candidates = filtered_exercises
+        exercise = random.choice(candidates)
         emit(
             ExerciseSelected(
                 word=selected_word,
                 topic=selected_topic,
-                is_new=(selected_word, selected_topic) not in due_introduced,
+                question=exercise.question,
+                is_new=(selected_word, selected_topic)
+                in selectable_pairs.not_introduced,
             )
         )
-        return random.choice(candidates)
+        return exercise
 
     def progress(self) -> Progress:
         learning = 0

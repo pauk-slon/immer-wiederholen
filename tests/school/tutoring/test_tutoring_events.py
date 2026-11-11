@@ -331,7 +331,12 @@ def test_next_exercise_reports_a_new_pair_selected(
     assert _events(span) == [
         (
             "ExerciseSelected",
-            {"word": "warten", "topic": "government", "is_new": True},
+            {
+                "word": "warten",
+                "topic": "government",
+                "question": "Ich ___ warten.",
+                "is_new": True,
+            },
         )
     ]
 
@@ -361,7 +366,12 @@ def test_next_exercise_reports_a_due_review_selected_as_not_new(
     assert _events(span) == [
         (
             "ExerciseSelected",
-            {"word": "warten", "topic": "government", "is_new": False},
+            {
+                "word": "warten",
+                "topic": "government",
+                "question": "Ich ___ warten.",
+                "is_new": False,
+            },
         )
     ]
 
@@ -391,6 +401,11 @@ def test_next_exercise_reports_a_chain_queued_pair_selected_as_new(
     assert _events(span) == [
         (
             "ExerciseSelected",
-            {"word": "warten", "topic": "government", "is_new": True},
+            {
+                "word": "warten",
+                "topic": "government",
+                "question": "Ich ___ warten.",
+                "is_new": True,
+            },
         )
     ]

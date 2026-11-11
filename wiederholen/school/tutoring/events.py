@@ -27,6 +27,8 @@ class ExerciseSelected:
     # A frontend may still fail to show it (e.g. AI generation errors)
     word: str
     topic: str
+    # Authored text, never what the learner typed
+    question: str
     is_new: bool
 
 
