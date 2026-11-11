@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from aiogram.dispatcher.event.bases import UNHANDLED
 from aiogram.types import (
     CallbackQuery,
     Chat,
@@ -148,6 +149,7 @@ async def test_my_chat_member_span_carries_chat_id_and_new_status(
     assert _attributes(span) == {
         "telegram.chat_id": 42,
         "telegram.chat_member.status": "kicked",
+        "telegram.handled": True,
     }
 
 
@@ -171,7 +173,23 @@ async def test_other_update_types_get_a_generic_span(
 
     span = exporter.get_finished_spans()[0]
     assert span.name == "telegram.update"
-    assert _attributes(span) == {}
+    assert _attributes(span) == {"telegram.handled": True}
+
+
+async def test_update_no_handler_matched_is_marked_unhandled(
+    middleware: TracingMiddleware,
+    exporter: InMemorySpanExporter,
+) -> None:
+    event = Update(update_id=1, message=_make_message("gesprochen"))
+
+    async def handler(event, data):
+        return UNHANDLED
+
+    result = await middleware(handler, event, {})
+
+    assert result is UNHANDLED
+    span = exporter.get_finished_spans()[0]
+    assert _attributes(span)["telegram.handled"] is False
 
 
 async def test_handler_exception_propagates_and_is_recorded(

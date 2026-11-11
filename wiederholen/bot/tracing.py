@@ -2,6 +2,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
+from aiogram.dispatcher.event.bases import UNHANDLED
 from aiogram.types import (
     CallbackQuery,
     ChatMemberUpdated,
@@ -53,5 +54,8 @@ class TracingMiddleware(BaseMiddleware):
             span_name,
             kind=trace.SpanKind.SERVER,
             attributes=attributes,
-        ):
-            return await handler(event, data)
+        ) as span:
+            result = await handler(event, data)
+            # False when no handler matched, so the learner got no reply
+            span.set_attribute("telegram.handled", result is not UNHANDLED)
+            return result

@@ -23,6 +23,16 @@ class ExerciseAnswered:
 
 
 @dataclass(frozen=True)
+class ExerciseSelected:
+    # A frontend may still fail to show it (e.g. AI generation errors)
+    word: str
+    topic: str
+    # Authored text, never what the learner typed
+    question: str
+    is_new: bool
+
+
+@dataclass(frozen=True)
 class TopicUnlocked:
     source_topic: str
     dependent_topic: str
@@ -51,6 +61,7 @@ class StreakBroken:
 
 TutoringEvent = (
     ExerciseAnswered
+    | ExerciseSelected
     | TopicUnlocked
     | NoExerciseAvailable
     | StreakExtended

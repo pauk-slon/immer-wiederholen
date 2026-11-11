@@ -7,6 +7,7 @@ from typing import Final, Literal
 from wiederholen.school.curriculum import Course, Exercise, Recall, fold_case
 from wiederholen.school.tutoring.events import (
     ExerciseAnswered,
+    ExerciseSelected,
     NoExerciseAvailable,
     RecallMode,
     StreakBroken,
@@ -204,7 +205,17 @@ class Tutor:
             ]
         ):
             candidates = filtered_exercises
-        return random.choice(candidates)
+        exercise = random.choice(candidates)
+        emit(
+            ExerciseSelected(
+                word=selected_word,
+                topic=selected_topic,
+                question=exercise.question,
+                is_new=(selected_word, selected_topic)
+                in selectable_pairs.not_introduced,
+            )
+        )
+        return exercise
 
     def progress(self) -> Progress:
         learning = 0

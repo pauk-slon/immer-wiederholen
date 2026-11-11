@@ -10,10 +10,10 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 
 | Span | Process | Attributes |
 |---|---|---|
-| `telegram.message` | bot | `telegram.chat_id`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/` |
-| `telegram.callback_query` | bot | `telegram.callback_data`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns |
-| `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
-| `telegram.update` | bot | none (any other kind of update) |
+| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/` |
+| `telegram.callback_query` | bot | `telegram.callback_data`, `telegram.handled`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns |
+| `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
+| `telegram.update` | bot | `telegram.handled` only (any other kind of update) |
 | `reminder.tick` | reminder | none (one sweep over all chats) |
 | `reminder.check_chat` | reminder (child of `reminder.tick`) | `telegram.chat_id`, `reminder.sent` (the reminder went out), `reminder.bot_blocked` (the learner had blocked the bot, or Telegram refused the message for that reason) |
 | an HTTP server span per request | web | the standard HTTP attributes from Litestar's OpenTelemetry plugin, and `client.error.step` and `client.error.status` for `POST /api/client-error` |
@@ -21,9 +21,11 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 
 The web widget reports its own failures to `POST /api/client-error`. It sends the step that failed and the HTTP status, if there was a response, so you can query browser-side errors next to the server's traces.
 
-The traces never contain text that a learner typed. A message span records only the command. Callback data is always a value that the bot made itself. It is a button id, sometimes with a topic group id or a reminder interval after it (`__topic_group__:verbs`, `__remind_after__:8`).
+The traces never contain text that a learner typed. A message span records only the command. Callback data is always a value that the bot made itself. It is a button id, sometimes with a topic group id or a reminder interval after it (`__topic_group__:verbs`, `__remind_after__:8`). The traces can contain text from the course. `ExerciseSelected` records the question text.
 
 When code inside a span raises an exception, OpenTelemetry records it on that span. In the reminder, an error in one chat is recorded on that chat's `reminder.check_chat` span. The sweep then logs the error and continues with the next chat.
+
+`telegram.handled` is `false` when no handler matched the update. For a new message or a button press, this means that the learner got no reply. Some updates need no reply, but they also get `false`. An edited message is one example. It gets a `telegram.message` span too, so the span name doesn't separate the two cases. A handler that raises an exception leaves the attribute unset.
 
 ### Events from the repetition engine
 
@@ -31,11 +33,14 @@ When code inside a span raises an exception, OpenTelemetry records it on that sp
 
 | Event | When | Attributes |
 |---|---|---|
+| `ExerciseSelected` | `next_exercise()` picks an exercise | `word`, `topic`, `question` (the question text from the course), `is_new` (the learner never answered this pair) |
 | `ExerciseAnswered` | every `check_answer()` | `word`, `topic`, `is_correct`, `is_new`, `recall_mode` (`none`, `optional`, `required`), `prev_repetition_interval` (not set on a pair's first answer), `next_repetition_interval` |
 | `TopicUnlocked` | `Tutor` schedules a linked topic for a word (see [Course format](course-format.md#linking-topics)) | `source_topic`, `dependent_topic`, `via` (`chain` or `gate`) |
 | `NoExerciseAvailable` | `next_exercise()` finds nothing to show | `reason` (`daily_cap_reached` when only new words are left and today's limit is used up, otherwise `nothing_available`) |
 | `StreakExtended` | an answer adds a day to the streak or starts a new one (see [Repetition schedule](repetition-schedule.md#streak)) | `days`, the new length. It is 1 for a new streak |
 | `StreakBroken` | the first answer after a break of more than 36 hours | `days`, the length of the lost streak |
+
+`ExerciseSelected` records the exercise that `Tutor` picked, not the message that the learner saw. In `/ai` mode the bot shows a generated question instead, and `question` still holds the original. If generation fails, the learner sees no question at all. To find where a learner stopped, look for their last `ExerciseSelected` without an `ExerciseAnswered` after it.
 
 `request_recall()` and `check_recall()` emit no events.
 
@@ -71,7 +76,7 @@ Without these root spans, every Redis call would be a root span of its own.
 
 ### How `Tutor` emits events
 
-[`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the three events as frozen dataclasses. `emit(event)` adds an event to `trace.get_current_span()` and names it after the dataclass. First, `_to_otel_attributes()` converts the dataclass fields to span attributes. It replaces enum values with their `.value` and omits `None` fields, because neither is a valid attribute value.
+[`wiederholen.school.tutoring.events`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/tutoring/events.py) defines the events as frozen dataclasses. `emit(event)` adds an event to `trace.get_current_span()` and names it after the dataclass. First, `_to_otel_attributes()` converts the dataclass fields to span attributes. It replaces enum values with their `.value` and omits `None` fields, because neither is a valid attribute value.
 
 `Tutor` adds events to the span instead of returning them, and the events are dataclasses instead of dict literals. [ADR 0002](adr/0002-tutoring-events-on-the-current-span.md) explains both choices.
 
