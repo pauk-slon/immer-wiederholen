@@ -20,11 +20,11 @@ The answer to the last exercise still finishes a lesson after it expired (see [A
 
 - **The UTC day, as in ADR 0026.** Not chosen, because the lesson stops at a time that depends on the learner's time zone.
 - **1 hour, as `WebSessionStore`.** Not chosen, because a break of an hour is usual in a chat, for example for a call or a meal.
-- **More than 4 hours.** Not chosen, because the shortest reminder comes 4 hours after the last answer. After a reminder, a new lesson is a better start than the rest of an old one.
+- **More than 4 hours.** Not chosen, because the shortest reminder comes 4 hours after the last answer. After a reminder, a new lesson is a better start than the rest of an old one. A learner who left between two exercises gets a new lesson then. A learner who left an exercise without an answer gets that exercise again, and the answer lets the old lesson continue.
 - **The time since the start of the lesson.** Not chosen, because a learner who takes long over one exercise would lose the lesson while practicing.
 
 ## Consequences
 
 - A lesson can continue after midnight UTC. Its new words count for the limit of the day when the learner answers them, and the next lesson chooses new words by that count. So the daily limit still holds.
 - In the web app, the session and the lesson in `WebSessionStore` expire after 1 hour, so the lesson there lives at most 1 hour.
-- A lesson saved with `date` before this change has no `active_at`, so it counts as expired. Only a lesson that was unfinished at the deployment is lost.
+- A lesson saved with `date` before this change has no `active_at`, so it counts as expired. It gives no more exercises, but the answer to the exercise that it gave still finishes it, so that answer still counts for the streak.

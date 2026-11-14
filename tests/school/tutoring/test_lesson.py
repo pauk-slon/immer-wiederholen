@@ -281,6 +281,8 @@ def test_a_lesson_with_a_malformed_time_is_not_current() -> None:
 
     assert not Lesson({"active_at": "yesterday"}, now=now).is_current()
     assert not Lesson({"active_at": 0}, now=now).is_current()
+    naive = now.replace(tzinfo=None).isoformat()
+    assert not Lesson({"active_at": naive}, now=now).is_current()
 
 
 def test_a_lesson_from_before_the_ttl_is_not_current() -> None:
@@ -383,3 +385,19 @@ def test_a_skipped_exercise_leaves_the_lesson_size(
     )
     span = exporter.get_finished_spans()[0]
     assert _lesson_events(span) == [("LessonFinished", {"size": 2, "correct": 2})]
+
+
+def test_the_last_answer_finishes_a_lesson_from_before_the_ttl() -> None:
+    # Shown before the deployment, answered after it: the answer still
+    # finishes the lesson and counts for the streak
+    exercise = make_exercise()
+    lesson = {"date": "2026-11-14", "size": 1, "exercise_keys": []}
+    student_record: dict = {}
+
+    mark = Tutor(Course([exercise]), student_record, lesson=lesson).check_answer(
+        exercise, exercise.answer[0]
+    )
+
+    assert mark.finished_lesson == FinishedLesson(
+        size=1, correct=1, extends_streak=True
+    )

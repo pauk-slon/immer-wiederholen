@@ -12,6 +12,8 @@ class Lesson:
     # exercise that is no longer in the (possibly restricted) course is
     # skipped instead of shown in an outdated form.
     _ACTIVE_AT_KEY: Final = "active_at"
+    # A lesson saved before ADR 0028 has a date instead of active_at
+    _LEGACY_DATE_KEY: Final = "date"
     _SIZE_KEY: Final = "size"
     _EXERCISE_KEYS_KEY: Final = "exercise_keys"
     _FINISHED_KEY: Final = "finished"
@@ -27,7 +29,10 @@ class Lesson:
         self._now = now
 
     def _is_started(self) -> bool:
-        return self._ACTIVE_AT_KEY in self._data
+        # A lesson in the old format is started but expired: it gives no
+        # more exercises, but the answer to the one that it gave still
+        # finishes it, so that answer still counts for the streak
+        return self._ACTIVE_AT_KEY in self._data or self._LEGACY_DATE_KEY in self._data
 
     def _touch(self) -> None:
         self._data[self._ACTIVE_AT_KEY] = self._now.isoformat()
@@ -38,7 +43,8 @@ class Lesson:
             return False
         try:
             return self._now - datetime.fromisoformat(active_at) <= self.EXPIRES_AFTER
-        except ValueError:
+        except ValueError, TypeError:
+            # TypeError for a time without a time zone
             return False
 
     def _get_exercise_keys(self) -> list[str]:
