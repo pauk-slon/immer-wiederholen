@@ -193,11 +193,11 @@ An **optional** recall, after a correct answer, halves the interval of the pair,
 
 The streak is the number of days that a learner practices without a break. `Tutor.streak()` returns it as a `Streak` with `days` and `breaks_at`, or `None` if there's no streak now. It changes nothing.
 
-- **Practice.** A finished [lesson](#lessons) counts, with right or wrong answers. A lesson that is shorter than the lesson size also counts. An answer that doesn't finish a lesson changes nothing. Recall answers don't count.
+- **Practice.** A finished [lesson](#lessons) counts. Its answers can be right or wrong. A lesson that is shorter than the lesson size also counts. An answer that doesn't finish a lesson changes nothing. Recall answers don't count. For now, a lesson has one exercise, so every answer finishes a lesson.
 - **Break.** The streak breaks when more than 36 hours (`STREAK_BREAKS_AFTER`) pass without a finished lesson. `breaks_at` is the time of the last finished lesson (`last_lesson_finished_at`) plus 36 hours. After that time, `streak()` returns `None`, and the next finished lesson starts a new streak of 1 day.
 - **Days.** The record stores the number of days and the time of the finished lesson that added the last day (`counted_at`). A lesson adds a day if it is finished at least 18 hours (`STREAK_DAY_AFTER`) after `counted_at`. Then its time becomes the new `counted_at`. Other lessons change nothing.
 
-For now, a lesson has one exercise, so every answer finishes a lesson. The bot doesn't know the learner's time zone, so it can't count calendar days (see [ADR 0021](adr/0021-streaks-from-intervals-between-answers.md) and [ADR 0027](adr/0027-streaks-count-finished-lessons.md)). In the table, a session is a finished lesson. The 18 hours give these results:
+The bot doesn't know the learner's time zone, so it can't count calendar days (see [ADR 0021](adr/0021-streaks-from-intervals-between-answers.md) and [ADR 0027](adr/0027-streaks-count-finished-lessons.md)). In the table, a session is a finished lesson. The 18 hours give these results:
 
 | Practice | Result |
 |---|---|
@@ -209,9 +209,11 @@ For now, a lesson has one exercise, so every answer finishes a lesson. The bot d
 | a session every 35 hours | the streak continues, although some calendar days have no practice. This works like a built-in streak freeze |
 | 0:30, then 23:30 on the next day | the streak breaks, because the sessions are 47 hours apart |
 
-`check_answer()` reads the time of the previous finished lesson before `record_mark()` replaces `last_exercise`. When the answer finishes a lesson, `check_answer()` stores its time in `last_lesson_finished_at` and updates the streak.
+`check_answer()` reads the time of the previous finished lesson before `record_mark()` replaces `last_exercise`. For a record without `last_lesson_finished_at`, this time comes from `last_exercise`, so `check_answer()` reads it first. When the answer finishes a lesson, `check_answer()` stores its time in `last_lesson_finished_at` and updates the streak.
 
-A record from before lessons has no `last_lesson_finished_at`. `Tutor` then uses the time of the last answer from `last_exercise`. Before lessons, every answer was practice, so this is the same time. A record from before streaks has `last_exercise` but no `streak`. It has no streak until the next finished lesson, and `Tutor` reports no break for it.
+A record from before [ADR 0027](adr/0027-streaks-count-finished-lessons.md) has no `last_lesson_finished_at`. `Tutor` then uses the time of the last answer from `last_exercise`. Before ADR 0027, every answer was practice, so this is the same time.
+
+A record from before streaks has `last_exercise` but no `streak`. It has no streak until the next finished lesson, and `Tutor` reports no break for it.
 
 The bot shows the streak in `/progress`, when the day is done and in the reminder (see [Telegram bot](bot.md)). Without a streak, these messages have no streak line. The web widget doesn't show the streak yet, but its answers count too, because the streak is in the student record.
 

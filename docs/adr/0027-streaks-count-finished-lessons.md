@@ -21,7 +21,7 @@ The student record stores the time of the last finished lesson as `last_lesson_f
 
 The answer to the last exercise of a lesson finishes the lesson, also if the lesson started on an earlier day. A lesson from an earlier day gives no more exercises (see ADR 0026), but the learner can still answer the exercise that it gave last.
 
-The streak reminder of [ADR 0025](0025-second-reminder-for-a-streak.md) counts from the last finished lesson, as `breaks_at` does. The usual reminder still counts from the last answer. The streak reminder can now come without an earlier reminder, because an answer in an unfinished lesson puts the usual reminder off.
+The streak reminder of [ADR 0025](0025-second-reminder-for-a-streak.md) counts from the last finished lesson, as `breaks_at` does. The usual reminder still counts from the last answer. The streak reminder can now come without an earlier reminder, because an answer in an unfinished lesson delays the usual reminder.
 
 ## Alternatives considered
 

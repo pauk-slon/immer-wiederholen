@@ -96,12 +96,22 @@ If one chat fails, the reminder logs the error and continues with the next chat.
 
 ### When a reminder is due
 
-`Tutor.should_remind(remind_after)` makes the decision, so the rule stays with the rest of the schedule. It returns true only if all of these conditions are true:
+`Tutor.should_remind(remind_after)` makes the decision, so the rule stays with the rest of the schedule. It returns true for a usual reminder or for a streak reminder. Both need these conditions:
 
 - **The learner has answered at least once.** A learner who pressed `/start` and never answered never gets a reminder.
 - **There's something to practice.** A review is due, or new material is available. Here the daily limit on new words doesn't count. A learner at the limit who has overdue reviews should still get a reminder. An earlier version checked only for new material and missed such learners.
+
+A **usual reminder** also needs these conditions:
+
 - **The learner stopped answering.** The last answer to a main exercise was at least `remind_after` ago. Recall answers and other actions don't count.
-- **No reminder since then, with one exception.** The bot sends one reminder per period of inactivity. A learner with a streak of at least 2 days can get a second reminder. It comes in the hour after the 24-hour mark since the last finished lesson, so it comes at the time of day of the last session and about 12 hours before the streak ends. An earlier reminder must have come at least 6 hours before that mark, so two reminders never come close together. The learner can get this reminder without an earlier one, if an answer in an unfinished lesson came after the last finished lesson (see [ADR 0027](adr/0027-streaks-count-finished-lessons.md)). With the default interval of 24 hours, the first reminder comes after the mark, so there's no second one (see [ADR 0025](adr/0025-second-reminder-for-a-streak.md)).
+- **No reminder since the last answer.** The bot sends one usual reminder per period of inactivity.
+
+A **streak reminder** is for a learner with a streak of at least 2 days. It also needs these conditions:
+
+- **The time is right.** It is the hour after the 24-hour mark since the last finished lesson. So the reminder comes at the time of day of the last session and about 12 hours before the streak ends.
+- **No recent reminder.** The last reminder came at least 6 hours before that mark, or there was none. So two reminders never come close together.
+
+Usually the streak reminder is a second reminder. It comes after a usual reminder with a short interval (see [ADR 0025](adr/0025-second-reminder-for-a-streak.md)). With the default interval of 24 hours, the usual reminder comes after the mark, so there's no streak reminder. The streak reminder comes first if the learner answered in an unfinished lesson after the last finished lesson. Then the usual reminder counts from that answer and comes later (see [ADR 0027](adr/0027-streaks-count-finished-lessons.md)).
 
 `should_remind()` changes nothing. The reminder calls `record_reminder_sent()` only after Telegram accepted the message, so a failed send never counts as delivered.
 
