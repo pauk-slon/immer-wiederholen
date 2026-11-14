@@ -43,9 +43,10 @@ The date is the day of the decision.
 | [0004](0004-links-only-schedule-unstarted-pairs.md) | Topic links only schedule pairs that haven't started | 2026-07-29 | Accepted |
 | [0012](0012-gates-declared-explicitly.md) | Gates are declared explicitly | 2026-07-22 | Accepted |
 | [0013](0013-word-bank-as-data.md) | Word banks are data, not text in the question | 2026-08-26 | Accepted |
-| [0021](0021-streaks-from-intervals-between-answers.md) | Streaks count intervals between answers, not calendar days | 2026-10-25 | Accepted |
+| [0021](0021-streaks-from-intervals-between-answers.md) | Streaks count intervals between answers, not calendar days | 2026-10-25 | Superseded by [0027](0027-streaks-count-finished-lessons.md) |
 | [0022](0022-several-equal-answers.md) | An exercise can have several equal answers | 2026-10-25 | Amended by [0024](0024-primary-answer-per-topic.md) |
 | [0024](0024-primary-answer-per-topic.md) | A topic can show only the primary answer | 2026-10-29 | Accepted |
+| [0027](0027-streaks-count-finished-lessons.md) | Streaks count finished lessons, not answers | 2026-11-14 | Accepted |
 
 ### Storage and identity
 
@@ -55,7 +56,7 @@ The date is the day of the decision.
 | [0007](0007-save-records-only-when-changed.md) | Save a student record only when it changes | 2026-08-23 | Accepted |
 | [0008](0008-student-record-separate-from-chat-state.md) | Keep the student record separate from chat state | 2026-08-23 | Accepted |
 | [0009](0009-one-environment-variable-per-store.md) | One environment variable per store | 2026-08-23 | Accepted |
-| [0026](0026-lessons-in-conversation-state.md) | Lessons are conversation state and refer to exercises by a content hash | 2026-11-14 | Accepted |
+| [0026](0026-lessons-in-conversation-state.md) | Lessons are conversation state and refer to exercises by a content hash | 2026-11-14 | Amended by [0027](0027-streaks-count-finished-lessons.md) |
 
 ### Telegram bot
 
@@ -64,7 +65,7 @@ The date is the day of the decision.
 | [0010](0010-reminders-as-a-separate-process.md) | Reminders run as a separate process | 2026-07-19 | Accepted |
 | [0011](0011-remind-after-the-last-session.md) | Reminders count from the last session | 2026-10-15 | Amended by [0025](0025-second-reminder-for-a-streak.md) |
 | [0019](0019-start-payload-sets-only-a-new-language.md) | A /start language payload sets only a new chat's language | 2026-10-24 | Accepted |
-| [0025](0025-second-reminder-for-a-streak.md) | A streak of 2 days or more gets a second reminder | 2026-10-31 | Accepted |
+| [0025](0025-second-reminder-for-a-streak.md) | A streak of 2 days or more gets a second reminder | 2026-10-31 | Amended by [0027](0027-streaks-count-finished-lessons.md) |
 
 ### Web frontend
 

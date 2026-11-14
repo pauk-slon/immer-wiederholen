@@ -32,10 +32,12 @@ def _record(
     return student_record
 
 
-def _answer(student_record: dict) -> Tutor:
-    exercise = make_exercise()
-    tutor = Tutor(Course([exercise]), student_record)
-    tutor.check_answer(exercise, exercise.answer[0])
+def _answer(student_record: dict, answer: str | None = None) -> Tutor:
+    # A lesson of one exercise, shown and answered, as a frontend does it
+    tutor = Tutor(Course([make_exercise()]), student_record)
+    exercise = tutor.next_exercise()
+    assert exercise is not None
+    tutor.check_answer(exercise, exercise.answer[0] if answer is None else answer)
     return tutor
 
 
@@ -68,12 +70,7 @@ def test_the_first_answer_starts_a_one_day_streak() -> None:
 
 
 def test_a_wrong_answer_also_counts_as_practice() -> None:
-    exercise = make_exercise()
-    tutor = Tutor(Course([exercise]), {})
-
-    tutor.check_answer(exercise, "nonsense")
-
-    streak = tutor.streak()
+    streak = _answer({}, "nonsense").streak()
     assert streak is not None
     assert streak.days == 1
 
@@ -213,3 +210,70 @@ class TestEvents:
         assert self._streak_events_after_answer(tracer, exporter, student_record) == [
             ("StreakExtended", {"days": 1})
         ]
+
+
+def test_an_answer_that_doesnt_finish_the_lesson_adds_no_day() -> None:
+    student_record: dict = {}
+    lesson: dict = {}
+    course = Course([make_exercise(word="warten"), make_exercise(word="hoffen")])
+    tutor = Tutor(course, student_record, lesson=lesson, lesson_size=2)
+    exercise = tutor.next_exercise()
+    assert exercise is not None
+
+    tutor.check_answer(exercise, exercise.answer[0])
+
+    assert tutor.streak() is None
+    assert "last_lesson_finished_at" not in student_record
+
+
+def test_the_last_answer_of_a_lesson_starts_the_streak() -> None:
+    student_record: dict = {}
+    lesson: dict = {}
+    course = Course([make_exercise(word="warten"), make_exercise(word="hoffen")])
+    for _ in range(2):
+        tutor = Tutor(course, student_record, lesson=lesson, lesson_size=2)
+        exercise = tutor.next_exercise()
+        assert exercise is not None
+        tutor.check_answer(exercise, exercise.answer[0])
+
+    streak = tutor.streak()
+    assert streak is not None
+    assert streak.days == 1
+    assert (
+        student_record["last_lesson_finished_at"]
+        == student_record["last_exercise"]["answered_at"]
+    )
+
+
+def test_the_streak_breaks_36_hours_after_the_last_finished_lesson() -> None:
+    # The last answer was 1 hour ago, in a lesson that isn't finished
+    student_record = _record(answered_ago=timedelta(hours=1), days=3)
+    finished_at = datetime.now(UTC) - timedelta(hours=30)
+    student_record["last_lesson_finished_at"] = finished_at.isoformat()
+
+    streak = Tutor(Course([make_exercise()]), student_record).streak()
+
+    assert streak is not None
+    assert streak.breaks_at == finished_at + Tutor.STREAK_BREAKS_AFTER
+
+
+def test_a_gap_over_36_hours_since_the_last_finished_lesson_starts_a_new_streak() -> (
+    None
+):
+    student_record = _record(answered_ago=timedelta(hours=1), days=10)
+    student_record["last_lesson_finished_at"] = (
+        datetime.now(UTC) - timedelta(hours=36, minutes=1)
+    ).isoformat()
+
+    assert _days_after_answer(student_record) == 1
+
+
+def test_reset_progress_keeps_the_last_finished_lesson() -> None:
+    student_record = _record(answered_ago=timedelta(hours=10), days=3)
+    student_record["last_lesson_finished_at"] = student_record["last_exercise"][
+        "answered_at"
+    ]
+
+    StudentRecord.reset_progress(student_record)
+
+    assert "last_lesson_finished_at" in student_record

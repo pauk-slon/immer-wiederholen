@@ -24,7 +24,7 @@ Spaced-repetition scheduling — `Tutor`/`StudentRecord`/`Lesson`, `SelectablePa
 - `Tutor` never touches a raw schedule entry: read with `get_repetition_interval()`, write with `schedule_pair()`. `StudentRecord` stays course-agnostic.
 - `is_new` and the previous interval come from `record_mark()`'s return value, never a separate lookup after it.
 - `next_exercise()` takes exercises from a lesson (`LESSON_SIZE`, 1 for now, #325); a lesson stores `Exercise.content_key` values (a hash of every field — `question` repeats across topics and even within a pair), skips keys the course doesn't have, and lives only for the day it started (ADR 0026).
-- The streak breaks after 36 h without an answer, not on a calendar day, and an answer adds a day only 18 h or more after the answer that added the previous one (ADR 0021). `check_answer()` reads the previous answer time *before* `record_mark()` replaces it.
+- The streak counts finished lessons, not answers (ADR 0027): it breaks after 36 h without a finished lesson, not on a calendar day, and a lesson adds a day only 18 h or more after the lesson that added the previous one. `check_answer()` reads the previous practice time (`last_lesson_finished_at`, or the last answer for an older record) *before* `record_mark()` replaces it. The streak reminder counts from the last finished lesson, the usual reminder from the last answer.
 
 ## Persistence and student identity
 

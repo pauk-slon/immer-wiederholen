@@ -89,7 +89,7 @@ For one chat, these steps happen in order:
 1. Read the chat's FSM data. Stop if the learner has blocked the bot (see [Blocked chats](#blocked-chats)) or turned reminders off.
 2. Limit the course to the selected topic groups.
 3. Open the student record with `check_out()` and ask `Tutor.should_remind(remind_after)`.
-4. Remove the buttons from the chat's previous message with buttons (see [Pending inline buttons](#pending-inline-buttons)). Send the reminder with a "Next exercise" button. If the learner has a streak, the reminder also says how long the streak is and in how many hours it ends. The hours are rounded up, so the last hour shows as 1 hour, not 0. The longest `/reminders` interval is 24 hours, so a streak always has at least 12 hours left when the reminder comes.
+4. Remove the buttons from the chat's previous message with buttons (see [Pending inline buttons](#pending-inline-buttons)). Send the reminder with a "Next exercise" button. If the learner has a streak, the reminder also says how long the streak is and in how many hours it ends. The hours are rounded up, so the last hour shows as 1 hour, not 0. The longest `/reminders` interval is 24 hours. So if the last answer finished a lesson, a streak has at least 12 hours left when the reminder comes. After an answer in an unfinished lesson, the streak can have less time left, because it counts from the last finished lesson.
 5. If Telegram accepts the message, call `Tutor.record_reminder_sent()`. Only this step changes the student record, so the record is saved only in this case.
 
 If one chat fails, the reminder logs the error and continues with the next chat.
@@ -101,7 +101,7 @@ If one chat fails, the reminder logs the error and continues with the next chat.
 - **The learner has answered at least once.** A learner who pressed `/start` and never answered never gets a reminder.
 - **There's something to practice.** A review is due, or new material is available. Here the daily limit on new words doesn't count. A learner at the limit who has overdue reviews should still get a reminder. An earlier version checked only for new material and missed such learners.
 - **The learner stopped answering.** The last answer to a main exercise was at least `remind_after` ago. Recall answers and other actions don't count.
-- **No reminder since then, with one exception.** The bot sends one reminder per period of inactivity. A learner with a streak of at least 2 days can get a second reminder. It comes in the hour after the 24-hour mark since the last answer, so it comes at the time of day of the last session and about 12 hours before the streak ends. The first reminder must have come at least 6 hours before that mark, so two reminders never come close together. With the default interval of 24 hours, the first reminder comes after the mark, so there's no second one (see [ADR 0025](adr/0025-second-reminder-for-a-streak.md)).
+- **No reminder since then, with one exception.** The bot sends one reminder per period of inactivity. A learner with a streak of at least 2 days can get a second reminder. It comes in the hour after the 24-hour mark since the last finished lesson, so it comes at the time of day of the last session and about 12 hours before the streak ends. An earlier reminder must have come at least 6 hours before that mark, so two reminders never come close together. The learner can get this reminder without an earlier one, if an answer in an unfinished lesson came after the last finished lesson (see [ADR 0027](adr/0027-streaks-count-finished-lessons.md)). With the default interval of 24 hours, the first reminder comes after the mark, so there's no second one (see [ADR 0025](adr/0025-second-reminder-for-a-streak.md)).
 
 `should_remind()` changes nothing. The reminder calls `record_reminder_sent()` only after Telegram accepted the message, so a failed send never counts as delivered.
 
@@ -164,3 +164,4 @@ The reminder's tests call `tick()` directly, with no incoming update, so [`tests
 - [Reminders run as a separate process](adr/0010-reminders-as-a-separate-process.md) (ADR 0010)
 - [Reminders count from the last session](adr/0011-remind-after-the-last-session.md) (ADR 0011)
 - [A streak of 2 days or more gets a second reminder](adr/0025-second-reminder-for-a-streak.md) (ADR 0025)
+- [Streaks count finished lessons, not answers](adr/0027-streaks-count-finished-lessons.md) (ADR 0027)

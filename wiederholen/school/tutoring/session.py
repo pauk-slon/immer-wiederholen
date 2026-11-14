@@ -150,38 +150,48 @@ class Tutor:
             return None
         return datetime.fromisoformat(last_exercise["answered_at"])
 
+    def _get_last_practiced_at(self) -> datetime | None:
+        # A finished lesson is practice for the streak (see ADR 0027). A
+        # record from before lessons has no last_lesson_finished_at. Until
+        # then every answer finished a lesson of one exercise, so its last
+        # answer is the same time
+        last_lesson_finished_at = self._student_record.last_lesson_finished_at
+        if last_lesson_finished_at is not None:
+            return last_lesson_finished_at
+        return self._get_last_answered_at()
+
     def streak(self) -> Streak | None:
-        last_answered_at = self._get_last_answered_at()
+        last_practiced_at = self._get_last_practiced_at()
         stored_streak = self._student_record.get_streak()
-        if last_answered_at is None or stored_streak is None:
+        if last_practiced_at is None or stored_streak is None:
             return None
-        breaks_at = last_answered_at + self.STREAK_BREAKS_AFTER
+        breaks_at = last_practiced_at + self.STREAK_BREAKS_AFTER
         if datetime.now(UTC) > breaks_at:
             return None
         days, _counted_at = stored_streak
         return Streak(days=days, breaks_at=breaks_at)
 
     def _update_streak(
-        self, previous_answered_at: datetime | None, answered_at: datetime
+        self, previous_practiced_at: datetime | None, practiced_at: datetime
     ) -> None:
-        # Without the learner's time zone, a day is counted when an answer
-        # comes at least STREAK_DAY_AFTER after the answer that counted the
-        # previous day. So two sessions a day, such as 8:00 and 20:00, add
-        # one day, not two
+        # Without the learner's time zone, a day is counted when a lesson is
+        # finished at least STREAK_DAY_AFTER after the lesson that counted
+        # the previous day. So two sessions a day, such as 8:00 and 20:00,
+        # add one day, not two
         stored_streak = self._student_record.get_streak()
         if (
             stored_streak is None
-            or previous_answered_at is None
-            or answered_at - previous_answered_at > self.STREAK_BREAKS_AFTER
+            or previous_practiced_at is None
+            or practiced_at - previous_practiced_at > self.STREAK_BREAKS_AFTER
         ):
             if stored_streak is not None:
                 emit(StreakBroken(days=stored_streak[0]))
-            self._student_record.set_streak(1, answered_at)
+            self._student_record.set_streak(1, practiced_at)
             emit(StreakExtended(days=1))
             return
         days, counted_at = stored_streak
-        if answered_at - counted_at >= self.STREAK_DAY_AFTER:
-            self._student_record.set_streak(days + 1, answered_at)
+        if practiced_at - counted_at >= self.STREAK_DAY_AFTER:
+            self._student_record.set_streak(days + 1, practiced_at)
             emit(StreakExtended(days=days + 1))
 
     def _get_last_pair(self) -> tuple[str, str] | None:
@@ -365,8 +375,9 @@ class Tutor:
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
-        # Read before record_mark() replaces last_exercise's answered_at
-        previous_answered_at = self._get_last_answered_at()
+        # Read before record_mark() replaces last_exercise's answered_at,
+        # which a record from before lessons falls back to
+        previous_practiced_at = self._get_last_practiced_at()
         answered_at = datetime.now(UTC)
         is_new, prev_repetition_interval = self._student_record.record_mark(
             exercise.question,
@@ -404,9 +415,10 @@ class Tutor:
             )
         )
         self._expedite_chained_topics(exercise)
-        self._update_streak(previous_answered_at, answered_at)
         if self._lesson.finish():
             emit(LessonFinished(size=self._lesson.size))
+            self._student_record.last_lesson_finished_at = answered_at
+            self._update_streak(previous_practiced_at, answered_at)
         return Mark(is_correct=is_correct, recall=recall_mode)
 
     def check_recall(self, recall: Recall, text: str) -> bool:
@@ -482,17 +494,27 @@ class Tutor:
             return False
         now = datetime.now(UTC)
         last_reminded_at = self._student_record.last_reminded_at
-        if last_reminded_at is None or last_reminded_at < last_answered_at:
-            return now - last_answered_at >= remind_after
+        if (
+            last_reminded_at is None or last_reminded_at < last_answered_at
+        ) and now - last_answered_at >= remind_after:
+            return True
+        # The streak reminder counts from the last finished lesson, as
+        # breaks_at does, and the usual reminder from the last answer. So an
+        # answer in an unfinished lesson doesn't put the streak reminder off
         streak = self.streak()
-        streak_reminder_at = last_answered_at + self.STREAK_REMIND_AFTER
+        last_practiced_at = self._get_last_practiced_at()
+        if streak is None or last_practiced_at is None:
+            return False
+        streak_reminder_at = last_practiced_at + self.STREAK_REMIND_AFTER
         return (
-            streak is not None
-            and streak.days >= self.STREAK_REMIND_MIN_DAYS
+            streak.days >= self.STREAK_REMIND_MIN_DAYS
             and streak_reminder_at
             <= now
             < streak_reminder_at + self.STREAK_REMIND_WINDOW
-            and last_reminded_at <= streak_reminder_at - self.STREAK_REMIND_MIN_GAP
+            and (
+                last_reminded_at is None
+                or last_reminded_at <= streak_reminder_at - self.STREAK_REMIND_MIN_GAP
+            )
         )
 
     def record_reminder_sent(self) -> None:

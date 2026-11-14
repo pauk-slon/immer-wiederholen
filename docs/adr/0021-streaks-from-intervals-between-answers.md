@@ -1,6 +1,6 @@
 # 0021. Streaks count intervals between answers, not calendar days
 
-**Status:** Accepted, 2026-10-25 ([#307](https://github.com/pauk-slon/immer-wiederholen/pull/307)). The feature is discussed in [#306](https://github.com/pauk-slon/immer-wiederholen/issues/306).
+**Status:** Accepted, 2026-10-25 ([#307](https://github.com/pauk-slon/immer-wiederholen/pull/307)). Superseded by [0027](0027-streaks-count-finished-lessons.md). The feature is discussed in [#306](https://github.com/pauk-slon/immer-wiederholen/issues/306).
 
 ## Context
 
