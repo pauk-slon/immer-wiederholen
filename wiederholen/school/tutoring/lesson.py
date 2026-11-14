@@ -58,9 +58,11 @@ class Lesson:
         return exercise_keys[0]
 
     def finish(self) -> bool:
-        # True only once per lesson, for the answer to its last exercise
+        # True only once per lesson, for the answer to its last exercise.
+        # Also for a lesson from an earlier day: it gives no more exercises,
+        # but the learner can still answer the one that it gave last
         if (
-            not self._is_current()
+            self._DATE_KEY not in self._data
             or self._get_exercise_keys()
             or self._data.get(self._FINISHED_KEY)
         ):

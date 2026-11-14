@@ -36,7 +36,7 @@ class AnswerStats(TypedDict):
 
 class StreakEntry(TypedDict):
     days: int
-    # The answer that last added a day, not the last answer
+    # The finished lesson that last added a day, not the last one
     counted_at: str
 
 
@@ -96,6 +96,15 @@ class StudentRecord:
     @last_reminded_at.setter
     def last_reminded_at(self, value: datetime) -> None:
         self._data["last_reminded_at"] = value.isoformat()
+
+    @property
+    def last_lesson_finished_at(self) -> datetime | None:
+        if (raw_value := self._data.get("last_lesson_finished_at")) is not None:
+            return datetime.fromisoformat(raw_value)
+
+    @last_lesson_finished_at.setter
+    def last_lesson_finished_at(self, value: datetime) -> None:
+        self._data["last_lesson_finished_at"] = value.isoformat()
 
     def get_streak(self) -> tuple[int, datetime] | None:
         if (streak := self._data.get(self._STREAK_KEY)) is None:

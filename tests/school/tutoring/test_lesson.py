@@ -195,6 +195,24 @@ def test_the_answer_to_the_last_exercise_finishes_the_lesson_once(
     assert _lesson_events(again_span) == []
 
 
+def test_the_answer_to_the_last_exercise_of_an_earlier_days_lesson_finishes_it(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    exercise = make_exercise()
+    lesson: dict = {}
+    _next(Tutor(Course([exercise]), {}, lesson=lesson))
+    lesson["date"] = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+
+    with tracer.start_as_current_span("test-span"):
+        Tutor(Course([exercise]), {}, lesson=lesson).check_answer(
+            exercise, exercise.answer[0]
+        )
+
+    span = exporter.get_finished_spans()[0]
+    assert _lesson_events(span) == [("LessonFinished", {"size": 1})]
+
+
 def test_an_answer_without_a_lesson_finishes_nothing(
     tracer: Tracer,
     exporter: InMemorySpanExporter,

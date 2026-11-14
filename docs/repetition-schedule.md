@@ -42,7 +42,8 @@ The record also has these keys:
 | `today_answers` | today's count of answers and correct answers |
 | `new_word_budget` | the extra new words that "Study more" added today |
 | `last_reminded_at` | the time of the last reminder |
-| `streak` | the number of days in the current streak and the time of the answer that added the last day (see [Streak](#streak)) |
+| `last_lesson_finished_at` | the time of the last finished lesson (see [Streak](#streak)) |
+| `streak` | the number of days in the current streak and the time of the finished lesson that added the last day (see [Streak](#streak)) |
 
 `today_answers` and `new_word_budget` store their date, and their count is valid only on that day, so no cleanup is needed the next morning.
 
@@ -101,9 +102,9 @@ A word is free after the learner answers any of its topics. For example, if the 
 - A new word uses today's limit as soon as it is taken, so a lesson never has more new words than the limit allows.
 - The lesson can be shorter than the size, if less material is available. If nothing is available, there's no lesson, and `next_exercise()` returns `None`.
 
-A lesson stores `Exercise.content_key` values, a SHA-256 hash of all fields of each exercise. `next_exercise()` skips a key that the course doesn't have. Such an exercise was edited or removed, or the learner no longer selects its topic. A lesson lives only for the day when it started. Its pairs that the learner didn't answer come back as due reviews.
+A lesson stores `Exercise.content_key` values, a SHA-256 hash of all fields of each exercise. `next_exercise()` skips a key that the course doesn't have. Such an exercise was edited or removed, or the learner no longer selects its topic. A lesson gives exercises only on the day when it started. Its pairs that the learner didn't answer come back as due reviews.
 
-The answer to the last exercise of a lesson finishes it. `check_answer()` reports this once per lesson. A lesson isn't part of the student record. Each frontend keeps its own lesson next to the exercise that it shows (see [Storage and identity](storage.md#chat-state) and [ADR 0026](adr/0026-lessons-in-conversation-state.md)).
+The answer to the last exercise of a lesson finishes it, also if the lesson started on an earlier day. `check_answer()` reports this once per lesson. A finished lesson counts for the [streak](#streak). A lesson isn't part of the student record. Each frontend keeps its own lesson next to the exercise that it shows (see [Storage and identity](storage.md#chat-state) and [ADR 0026](adr/0026-lessons-in-conversation-state.md)).
 
 ```json
 {"date": "2026-11-14", "size": 5, "exercise_keys": ["3f9a…", "b21c…"]}
@@ -192,11 +193,11 @@ An **optional** recall, after a correct answer, halves the interval of the pair,
 
 The streak is the number of days that a learner practices without a break. `Tutor.streak()` returns it as a `Streak` with `days` and `breaks_at`, or `None` if there's no streak now. It changes nothing.
 
-- **Practice.** Any answer to a main exercise counts, right or wrong. Recall answers don't count.
-- **Break.** The streak breaks when more than 36 hours (`STREAK_BREAKS_AFTER`) pass between two answers. `breaks_at` is the time of the last answer plus 36 hours. After that time, `streak()` returns `None`, and the next answer starts a new streak of 1 day.
-- **Days.** The record stores the number of days and the time of the answer that added the last day (`counted_at`). An answer adds a day if it comes at least 18 hours (`STREAK_DAY_AFTER`) after `counted_at`. Then it becomes the new `counted_at`. Other answers change nothing.
+- **Practice.** A finished [lesson](#lessons) counts. Its answers can be right or wrong. A lesson that is shorter than the lesson size also counts. An answer that doesn't finish a lesson changes nothing. Recall answers don't count. For now, a lesson has one exercise, so every answer finishes a lesson.
+- **Break.** The streak breaks when more than 36 hours (`STREAK_BREAKS_AFTER`) pass without a finished lesson. `breaks_at` is the time of the last finished lesson (`last_lesson_finished_at`) plus 36 hours. After that time, `streak()` returns `None`, and the next finished lesson starts a new streak of 1 day.
+- **Days.** The record stores the number of days and the time of the finished lesson that added the last day (`counted_at`). A lesson adds a day if it is finished at least 18 hours (`STREAK_DAY_AFTER`) after `counted_at`. Then its time becomes the new `counted_at`. Other lessons change nothing.
 
-The bot doesn't know the learner's time zone, so it can't count calendar days (see [ADR 0021](adr/0021-streaks-from-intervals-between-answers.md)). The 18 hours give these results:
+The bot doesn't know the learner's time zone, so it can't count calendar days (see [ADR 0021](adr/0021-streaks-from-intervals-between-answers.md) and [ADR 0027](adr/0027-streaks-count-finished-lessons.md)). In the table, a session is a finished lesson. The 18 hours give these results:
 
 | Practice | Result |
 |---|---|
@@ -208,19 +209,21 @@ The bot doesn't know the learner's time zone, so it can't count calendar days (s
 | a session every 35 hours | the streak continues, although some calendar days have no practice. This works like a built-in streak freeze |
 | 0:30, then 23:30 on the next day | the streak breaks, because the sessions are 47 hours apart |
 
-`check_answer()` reads the time of the previous answer before `record_mark()` replaces `last_exercise`, and updates the streak at its end.
+`check_answer()` reads the time of the previous finished lesson before `record_mark()` replaces `last_exercise`. For a record without `last_lesson_finished_at`, this time comes from `last_exercise`, so `check_answer()` reads it first. When the answer finishes a lesson, `check_answer()` stores its time in `last_lesson_finished_at` and updates the streak.
 
-A record from before streaks has `last_exercise` but no `streak`. It has no streak until the next answer, and `Tutor` reports no break for it.
+A record from before [ADR 0027](adr/0027-streaks-count-finished-lessons.md) has no `last_lesson_finished_at`. `Tutor` then uses the time of the last answer from `last_exercise`. Before ADR 0027, every answer was practice, so this is the same time.
+
+A record from before streaks has `last_exercise` but no `streak`. It has no streak until the next finished lesson, and `Tutor` reports no break for it.
 
 The bot shows the streak in `/progress`, when the day is done and in the reminder (see [Telegram bot](bot.md)). Without a streak, these messages have no streak line. The web widget doesn't show the streak yet, but its answers count too, because the streak is in the student record.
 
-`Tutor` reports `StreakExtended` when an answer adds a day, with `days` 1 for a new streak. The first answer after a break also reports `StreakBroken` with the length of the lost streak (see [Observability](tracing.md#events-from-the-repetition-engine)).
+`Tutor` reports `StreakExtended` when a finished lesson adds a day, with `days` 1 for a new streak. The first finished lesson after a break also reports `StreakBroken` with the length of the lost streak (see [Observability](tracing.md#events-from-the-repetition-engine)).
 
 ## Resetting
 
 `/reset` calls `StudentRecord.reset_progress(student_record)`. It deletes the schedule and today's answer counts. Without the reset of the counts, `/progress` would still show today's answers right after a reset.
 
-It keeps the rest of the record, which is today's "Study more" grants, `last_exercise`, `last_reminded_at` and `streak`. A reset changes the schedule, not the practice habit, so the streak continues. Because `last_exercise` stays, the reminder still measures inactivity from the last answer before the reset, so a learner can get a reminder soon after a reset (see [#258](https://github.com/pauk-slon/immer-wiederholen/issues/258)).
+It keeps the rest of the record, which is today's "Study more" grants, `last_exercise`, `last_reminded_at`, `last_lesson_finished_at` and `streak`. A reset changes the schedule, not the practice habit, so the streak continues. Because `last_exercise` stays, the reminder still measures inactivity from the last answer before the reset, so a learner can get a reminder soon after a reset (see [#258](https://github.com/pauk-slon/immer-wiederholen/issues/258)).
 
 The current lesson isn't part of the record, so `/reset` doesn't change it either (see [Lessons](#lessons)). The learner finishes the lesson, and its pairs are answered as new pairs.
 
@@ -250,4 +253,5 @@ The [demo course](https://github.com/pauk-slon/immer-wiederholen/tree/main/demo)
 - [Topic links only schedule pairs that haven't started](adr/0004-links-only-schedule-unstarted-pairs.md) (ADR 0004)
 - [Gates are declared explicitly](adr/0012-gates-declared-explicitly.md) (ADR 0012)
 - [Streaks count intervals between answers, not calendar days](adr/0021-streaks-from-intervals-between-answers.md) (ADR 0021)
+- [Streaks count finished lessons, not answers](adr/0027-streaks-count-finished-lessons.md) (ADR 0027)
 - [Lessons are conversation state and refer to exercises by a content hash](adr/0026-lessons-in-conversation-state.md) (ADR 0026)

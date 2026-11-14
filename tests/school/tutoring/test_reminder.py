@@ -238,3 +238,24 @@ def test_should_not_remind_again_with_nothing_to_practice() -> None:
     tutor = Tutor(Course([make_exercise(word="warten")]), student_record)
 
     assert tutor.should_remind(timedelta(hours=4)) is False
+
+
+def test_the_streak_reminder_counts_from_the_last_finished_lesson() -> None:
+    # The last answer was 2 hours ago, in a lesson that isn't finished. The
+    # last finished lesson was 24 hours ago, so the streak breaks in 12
+    student_record = _reminded_record(timedelta(hours=2), timedelta(hours=20))
+    finished_at = datetime.now(UTC) - timedelta(hours=24, minutes=30)
+    student_record["last_lesson_finished_at"] = finished_at.isoformat()
+    student_record["streak"]["counted_at"] = finished_at.isoformat()
+
+    assert _should_remind_with_4h_interval(student_record) is True
+
+
+def test_the_streak_reminder_comes_before_any_usual_reminder() -> None:
+    student_record = _reminded_record(timedelta(hours=2), timedelta(hours=20))
+    del student_record["last_reminded_at"]
+    finished_at = datetime.now(UTC) - timedelta(hours=24, minutes=30)
+    student_record["last_lesson_finished_at"] = finished_at.isoformat()
+    student_record["streak"]["counted_at"] = finished_at.isoformat()
+
+    assert _should_remind_with_4h_interval(student_record) is True
