@@ -67,7 +67,7 @@ class UserState(StatesGroup):
     recalling = State()
 
 
-# Lasting chat state living in FSM data alongside per-exercise state — it
+# Lasting chat state living in FSM data alongside exercise state — it
 # must outlive the state.clear() that ends each exercise, or e.g. AI mode
 # silently reverts to off after one answer.
 _LASTING_CHAT_STATE_KEYS: Final = (
