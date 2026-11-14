@@ -55,7 +55,7 @@ The abstract stores have no close step. Only the Redis implementations hold a co
 The rest of a Telegram chat's state is in aiogram's FSM storage. This is a plain [`RedisStorage`](https://docs.aiogram.dev/en/latest/dispatcher/finite_state_machine/storages.html), used without changes. This page calls all of this data the chat state. The data is of two kinds. They differ in how long the data lives:
 
 - **Lasting chat state** lives longer than one exercise. Today these are the chat settings `language`, `ai_mode`, `topic_groups` and `remind_after_hours` (see [Chat settings](bot.md#chat-settings)), and the current `lesson` (see [Lessons](repetition-schedule.md#lessons)).
-- **Exercise state** is everything else. It lives for one exercise. Examples are the FSM state (`answering`, `recalling`), the exercise and recall that the learner is answering (`shown_exercise`, `shown_recall`) and how the bot showed the exercise (`shown_is_ai_generated`, `shown_hint_word`), and the message with active inline buttons (`last_buttoned_message_id`).
+- **Exercise state** is everything else. It lives for one exercise. Examples are the FSM state (`answering`, `recalling`), the exercise and recall that the learner is answering (`shown_exercise`, `shown_recall`), and the message with active inline buttons (`last_buttoned_message_id`). With `shown_exercise`, the bot keeps how it showed the exercise (`shown_is_ai_generated`, `shown_hint_word`).
 
 When an exercise ends, the bot clears the exercise state and keeps the lasting chat state. `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists the keys of the lasting chat state. If data must live longer than one exercise, add its key to this tuple. Otherwise the end of each exercise removes the data.
 

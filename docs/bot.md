@@ -9,7 +9,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 | Command | Module | What it does |
 |---|---|---|
 | `/start` | `start` | greets the learner, with a "Next exercise" button. A deep link with a language (`t.me/<bot>?start=en`) sets the language of a new chat, a chat that has no FSM data yet (see [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md)) |
-| `/wiederholen` | `wiederholen` | shows the next exercise. The same module handles answers, recalls and the "next" and "study more" buttons |
+| `/wiederholen` | `wiederholen` | shows the next exercise, or the current one again if it has no answer yet. The same module handles answers, recalls and the "next" and "study more" buttons |
 | `/progress` | `progress` | shows today's counts (due, new, answered), how many words the learner is learning or has mastered and, if there is one, the streak (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
 | `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
@@ -34,7 +34,16 @@ The bot sends the message with `parse_mode="HTML"`, so **every piece of authored
 
 If the topic has illustrations and the question has one, the bot sends the question as a photo with the text as its caption. If the text is longer than Telegram's caption limit of 1024 characters, the bot sends it as plain text. If the lookup fails, the bot logs the error and sends the question as plain text, so a storage problem never stops practice.
 
-If the learner sends `/wiederholen` while the bot waits for an answer, the bot shows the same exercise again and doesn't call `Tutor`. Otherwise the learner could skip the exercises of a lesson and finish it without answers (see [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)). The bot keeps the `🤖` mark and the hint in `shown_is_ai_generated` and `shown_hint_word`, so the question looks the same. Only the order of the options and the `word_bank` chunks can change. An AI-generated question isn't generated again. The bot shows the next exercise instead in two cases. The first is a recall. The second is an exercise whose topic the learner deselected in `/topics` after the bot showed it.
+### /wiederholen while an exercise waits for an answer
+
+If the learner sends `/wiederholen` while the bot waits for an answer, the bot shows the same exercise again. Otherwise, with lessons of several exercises, a learner could skip all exercises of a lesson and get a streak day without answers (see [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
+
+The bot shows the next exercise instead in these cases:
+
+- The learner answers a recall.
+- The learner deselected the topic of the shown exercise in `/topics` after the bot showed it.
+
+The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate an AI question again. With `shown_exercise`, the bot keeps the `🤖` mark in `shown_is_ai_generated` and the hint from grammar classes in `shown_hint_word` (see [Hints from grammar classes](#hints-from-grammar-classes)). So the question looks the same. Only the order of the options and of the `word_bank` chunks can change.
 
 ## Answering
 

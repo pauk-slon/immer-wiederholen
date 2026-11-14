@@ -54,6 +54,7 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 - `_format_question()` sends HTML: every piece of authored text goes through `html.escape()`.
 - A new chat setting, or any FSM key that must outlive one exercise, goes into `_LASTING_CHAT_STATE_KEYS`, or it's lost after every exercise.
 - The reminder decision stays in `Tutor.should_remind()` (pure); `record_reminder_sent()` only after Telegram accepted the message.
+- `/wiederholen` during `answering` shows the shown exercise again (unless `/topics` deselected its topic), never the next one: otherwise a lesson can be finished without answers.
 - Topic selection narrows what's *shown* (`/wiederholen`, next/study-more buttons, reminders), never `/progress` or answer checking.
 - `bot_blocked` is set from both `my_chat_member` and a 403 on send; the reminder skips such chats before touching the record.
 - Feature flags stay in the bot layer; `wiederholen.school` never sees a chat id or flag name.
