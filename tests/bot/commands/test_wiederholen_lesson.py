@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
 from aiogram.fsm.context import FSMContext
@@ -17,7 +17,8 @@ async def test_showing_an_exercise_saves_the_lesson(
     await feed_message("/wiederholen", course=Course([exercise]))
 
     lesson = (await state.get_data())["lesson"]
-    assert lesson["date"] == datetime.now(UTC).date().isoformat()
+    active_at = datetime.fromisoformat(lesson["active_at"])
+    assert datetime.now(UTC) - active_at < timedelta(minutes=1)
     assert lesson["exercise_keys"] == []
 
 

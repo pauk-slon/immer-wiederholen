@@ -105,7 +105,9 @@ class Tutor:
         self._course = course
         self._today = datetime.now(UTC).date()
         self._student_record = StudentRecord(student_record, today=self._today)
-        self._lesson = Lesson(lesson if lesson is not None else {}, today=self._today)
+        self._lesson = Lesson(
+            lesson if lesson is not None else {}, now=datetime.now(UTC)
+        )
         self._lesson_size = lesson_size
 
     @cached_property
