@@ -69,6 +69,7 @@ class LessonStarted:
 class LessonFinished:
     # Reported by the answer to the lesson's last exercise
     size: int
+    correct: int
 
 
 TutoringEvent = (

@@ -24,7 +24,13 @@ from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
 from wiederholen.bot.feature_flags import has_feature
-from wiederholen.bot.l10n import LOCALES, Locale, append_streak_line, get_language
+from wiederholen.bot.l10n import (
+    LOCALES,
+    Locale,
+    append_streak_line,
+    format_count,
+    get_language,
+)
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     forget_buttoned_message,
@@ -37,6 +43,7 @@ from wiederholen.school import (
     CueStore,
     Exercise,
     Language,
+    Mark,
     Recall,
     RecallMode,
     StudentIdentityStore,
@@ -60,6 +67,11 @@ STUDY_MORE: Final = "__study_more__"
 # _format_question()) falls back to a plain text message instead of a
 # truncated caption; see _answer_with_optional_cue().
 _PHOTO_CAPTION_LIMIT: Final = 1024
+
+# The lesson size for chats with the lessons flag (#325). Other chats and
+# the web app keep Tutor.LESSON_SIZE, so only these chats get lessons of
+# more than one exercise, with a counter and a summary
+_FLAGGED_LESSON_SIZE: Final = 5
 
 
 class UserState(StatesGroup):
@@ -98,12 +110,12 @@ def _make_reply_keyboard(exercise: Exercise, course: Course) -> ReplyKeyboardMar
     )
 
 
-def make_next_button(locale: Locale) -> InlineKeyboardMarkup:
+def make_next_button(locale: Locale, label: str | None = None) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=locale.cmd_wiederholen,
+                    text=label or locale.cmd_wiederholen,
                     callback_data=NEXT_EXERCISE,
                 )
             ]
@@ -131,18 +143,73 @@ def _format_nothing_due(tutor: Tutor, language: Language) -> str:
     )
 
 
-def _make_recall_buttons(locale: Locale, label: str) -> InlineKeyboardMarkup:
+def _make_recall_buttons(
+    locale: Locale, label: str, next_label: str | None = None
+) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(text=label, callback_data=RECALL),
                 InlineKeyboardButton(
-                    text=locale.cmd_wiederholen,
+                    text=next_label or locale.cmd_wiederholen,
                     callback_data=NEXT_EXERCISE,
                 ),
             ]
         ]
     )
+
+
+def _lesson_size(feature_flags: dict[str, frozenset[int]] | None, chat_id: int) -> int:
+    if has_feature(feature_flags or {}, "lessons", chat_id):
+        return _FLAGGED_LESSON_SIZE
+    return Tutor.LESSON_SIZE
+
+
+def _get_lesson_counter(tutor: Tutor) -> list[int] | None:
+    # [position, size] for the question's "3/5", only in a lesson of
+    # several exercises
+    progress = tutor.lesson_progress()
+    if progress is None or progress.size < 2:
+        return None
+    return [progress.position, progress.size]
+
+
+def _get_finished_lesson(tutor: Tutor, mark: Mark) -> dict | None:
+    # Kept as exercise state until the "N more" button comes, which can be
+    # after a recall. Only a lesson of several exercises gets a summary
+    finished_lesson = mark.finished_lesson
+    if finished_lesson is None or finished_lesson.size < 2:
+        return None
+    streak = tutor.streak() if finished_lesson.extends_streak else None
+    return {
+        "size": finished_lesson.size,
+        "correct": finished_lesson.correct,
+        "streak_days": streak.days if streak is not None else None,
+    }
+
+
+def _append_lesson_summary(
+    text: str, finished_lesson: dict | None, language: Language
+) -> str:
+    if finished_lesson is None:
+        return text
+    locale = LOCALES[language]
+    summary = locale.lesson_summary.format(
+        correct=finished_lesson["correct"], size=finished_lesson["size"]
+    )
+    if finished_lesson["streak_days"] is not None:
+        days = format_count(finished_lesson["streak_days"], "days", language)
+        summary += "\n" + locale.streak_text.format(days=days)
+    return f"{text}\n\n{summary}"
+
+
+def _get_next_label(finished_lesson: dict | None, language: Language) -> str | None:
+    # After a lesson, the "Next" button starts the next lesson. Only a
+    # flagged chat has a finished_lesson, so its size is the flagged one
+    if finished_lesson is None:
+        return None
+    count = format_count(_FLAGGED_LESSON_SIZE, "exercises", language)
+    return LOCALES[language].btn_more_exercises.format(count=count)
 
 
 async def _start_recall(
@@ -179,8 +246,12 @@ def _format_question(
     *,
     is_ai_generated: bool = False,
     hint_word: str | None = None,
+    lesson_counter: list[int] | None = None,
 ) -> str:
     prefix = "🤖 " if is_ai_generated else ""
+    if lesson_counter is not None:
+        position, size = lesson_counter
+        prefix = f"{position}/{size} {prefix}"
     text = f"{prefix}❓ {html.escape(exercise.question)}"
     if exercise.word_bank:
         # Reconstructs exactly the shape question's own hand-written
@@ -268,6 +339,7 @@ async def _send_question(
     *,
     is_ai_generated: bool,
     hint_word: str | None,
+    lesson_counter: list[int] | None,
 ) -> None:
     question_text = _format_question(
         exercise,
@@ -275,6 +347,7 @@ async def _send_question(
         course,
         is_ai_generated=is_ai_generated,
         hint_word=hint_word,
+        lesson_counter=lesson_counter,
     )
     await _answer_with_optional_cue(
         target,
@@ -284,6 +357,41 @@ async def _send_question(
         cue_store,
         parse_mode="HTML",
         **_show_exercise_kwargs(exercise, course),
+    )
+
+
+async def _get_pending_exercise(
+    state: FSMContext, data: dict, course: Course
+) -> Exercise | None:
+    # The shown exercise if it still waits for an answer. /wiederholen and
+    # the "Next" button show it again, not the next one: otherwise a
+    # learner could skip every exercise of a lesson and still finish it.
+    # Unless /topics has deselected its topic since, which a lesson skips too
+    if await state.get_state() != UserState.answering:
+        return None
+    shown_exercise = Exercise.from_dict(data["shown_exercise"])
+    if not any(e.topic == shown_exercise.topic for e in course.exercises):
+        return None
+    return shown_exercise
+
+
+async def _send_pending_question(
+    target: Message,
+    exercise: Exercise,
+    data: dict,
+    language: Language,
+    course: Course,
+    cue_store: CueStore | None,
+) -> None:
+    await _send_question(
+        target,
+        exercise,
+        language,
+        course,
+        cue_store,
+        is_ai_generated=data.get("shown_is_ai_generated", False),
+        hint_word=data.get("shown_hint_word"),
+        lesson_counter=data.get("shown_lesson_counter"),
     )
 
 
@@ -372,22 +480,12 @@ async def command_wiederholen(
     language = get_language(data)
     locale = LOCALES[language]
     course = restrict_to_selected_groups(course, data)
-    if await state.get_state() == UserState.answering:
-        shown_exercise = Exercise.from_dict(data["shown_exercise"])
-        # The shown exercise again, not the next one: otherwise a learner
-        # could skip every exercise of a lesson and still finish it. Unless
-        # /topics has deselected its topic since, which a lesson skips too
-        if any(e.topic == shown_exercise.topic for e in course.exercises):
-            await _send_question(
-                message,
-                shown_exercise,
-                language,
-                course,
-                cue_store,
-                is_ai_generated=data.get("shown_is_ai_generated", False),
-                hint_word=data.get("shown_hint_word"),
-            )
-            return
+    pending_exercise = await _get_pending_exercise(state, data, course)
+    if pending_exercise is not None:
+        await _send_pending_question(
+            message, pending_exercise, data, language, course, cue_store
+        )
+        return
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(message.chat.id)
     )
@@ -395,7 +493,12 @@ async def command_wiederholen(
     # request takes the same exercise from the lesson again
     lesson = dict(data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
-        tutor = Tutor(course, student_record, lesson=lesson)
+        tutor = Tutor(
+            course,
+            student_record,
+            lesson=lesson,
+            lesson_size=_lesson_size(feature_flags, message.chat.id),
+        )
         exercise = tutor.next_exercise()
         if exercise is None:
             sent = await message.answer(
@@ -428,11 +531,13 @@ async def command_wiederholen(
             await message.answer(locale.ai_generation_failed)
             return
         hint_word = tutor.get_hint(exercise)
+        lesson_counter = _get_lesson_counter(tutor)
         await state.set_state(UserState.answering)
         await state.update_data(
             shown_exercise=exercise.to_dict(),
             shown_is_ai_generated=ai_mode,
             shown_hint_word=hint_word,
+            shown_lesson_counter=lesson_counter,
             lesson=lesson,
         )
         await _send_question(
@@ -443,6 +548,7 @@ async def command_wiederholen(
             cue_store,
             is_ai_generated=ai_mode,
             hint_word=hint_word,
+            lesson_counter=lesson_counter,
         )
 
 
@@ -467,18 +573,24 @@ async def handle_answer(
     async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record, lesson=lesson)
         mark = tutor.check_answer(shown_exercise, message.text or "")
-        await state.update_data(lesson=lesson)
+        finished_lesson = _get_finished_lesson(tutor, mark)
+        await state.update_data(lesson=lesson, finished_lesson=finished_lesson)
+        next_label = _get_next_label(finished_lesson, language)
         result_line = (
             locale.correct
             if mark.is_correct
             else locale.wrong.format(answer=course.shown_answer_text(shown_exercise))
         )
         if mark.recall == RecallMode.optional:
-            reply_markup = _make_recall_buttons(locale, locale.btn_recall)
+            reply_markup = _make_recall_buttons(locale, locale.btn_recall, next_label)
         elif mark.recall == RecallMode.none:
-            reply_markup = make_next_button(locale)
+            reply_markup = make_next_button(locale, next_label)
         else:
             reply_markup = None
+        # The summary comes with the "Next" button, so after a required
+        # recall it comes after the recall
+        if reply_markup is not None:
+            explanation = _append_lesson_summary(explanation, finished_lesson, language)
         first_reply_markup = (
             ReplyKeyboardRemove() if shown_exercise.distractors else None
         )
@@ -513,10 +625,13 @@ async def handle_recall(
     await _clear_exercise_state(state, state_data)
     language = get_language(state_data)
     shown_recall = Recall.from_dict(state_data["shown_recall"])
+    finished_lesson = state_data.get("finished_lesson")
     await state.update_data(
         shown_exercise=state_data["shown_exercise"],
         shown_recall=state_data["shown_recall"],
+        finished_lesson=finished_lesson,
     )
+    next_label = _get_next_label(finished_lesson, language)
     locale = LOCALES[language]
     # check_recall() is pure (never mutates student_record), unlike request_recall()
     # in _start_recall() above — open() detects that nothing changed and
@@ -528,14 +643,22 @@ async def handle_recall(
         tutor = Tutor(course, student_record)
         if tutor.check_recall(shown_recall, message.text or ""):
             sent = await message.answer(
-                locale.recall_correct,
-                reply_markup=make_next_button(locale),
+                _append_lesson_summary(
+                    locale.recall_correct, finished_lesson, language
+                ),
+                reply_markup=make_next_button(locale, next_label),
             )
         else:
             correct_answer = _highlight_diff(message.text or "", shown_recall.answer[0])
             sent = await message.answer(
-                locale.recall_wrong.format(answer=correct_answer),
-                reply_markup=_make_recall_buttons(locale, locale.btn_recall_retry),
+                _append_lesson_summary(
+                    locale.recall_wrong.format(answer=correct_answer),
+                    finished_lesson,
+                    language,
+                ),
+                reply_markup=_make_recall_buttons(
+                    locale, locale.btn_recall_retry, next_label
+                ),
                 parse_mode="HTML",
             )
     await remember_buttoned_message(state, sent)
@@ -594,12 +717,14 @@ async def _respond_with_next_exercise(
         await callback.answer()
         return
     hint_word = tutor.get_hint(exercise)
+    lesson_counter = _get_lesson_counter(tutor)
     await state.set_state(UserState.answering)
     # Saved only after AI generation succeeded, as in command_wiederholen
     await state.update_data(
         shown_exercise=exercise.to_dict(),
         shown_is_ai_generated=ai_mode,
         shown_hint_word=hint_word,
+        shown_lesson_counter=lesson_counter,
         lesson=lesson,
     )
     if isinstance(callback.message, Message):
@@ -613,8 +738,32 @@ async def _respond_with_next_exercise(
             cue_store,
             is_ai_generated=ai_mode,
             hint_word=hint_word,
+            lesson_counter=lesson_counter,
         )
     await callback.answer()
+
+
+async def _respond_with_pending_exercise(
+    callback: CallbackQuery,
+    state: FSMContext,
+    state_data: dict,
+    course: Course,
+    language: Language,
+    cue_store: CueStore | None,
+) -> bool:
+    # A "Next" button that comes while an exercise waits for an answer, such
+    # as the reminder's, shows that exercise again, as /wiederholen does
+    pending_exercise = await _get_pending_exercise(state, state_data, course)
+    if pending_exercise is None:
+        return False
+    if isinstance(callback.message, Message):
+        await callback.message.edit_reply_markup(reply_markup=None)
+        await forget_buttoned_message(state)
+        await _send_pending_question(
+            callback.message, pending_exercise, state_data, language, course, cue_store
+        )
+    await callback.answer()
+    return True
 
 
 @router.callback_query(F.data == NEXT_EXERCISE)
@@ -624,6 +773,7 @@ async def handle_next_exercise(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
+    feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
@@ -635,9 +785,18 @@ async def handle_next_exercise(
         "telegram", str(callback.from_user.id)
     )
     course = restrict_to_selected_groups(course, state_data)
+    if await _respond_with_pending_exercise(
+        callback, state, state_data, course, language, cue_store
+    ):
+        return
     lesson = dict(state_data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
-        tutor = Tutor(course, student_record, lesson=lesson)
+        tutor = Tutor(
+            course,
+            student_record,
+            lesson=lesson,
+            lesson_size=_lesson_size(feature_flags, callback.from_user.id),
+        )
         await _respond_with_next_exercise(
             callback,
             state,
@@ -660,6 +819,7 @@ async def handle_study_more(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
+    feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
@@ -671,9 +831,18 @@ async def handle_study_more(
         "telegram", str(callback.from_user.id)
     )
     course = restrict_to_selected_groups(course, state_data)
+    if await _respond_with_pending_exercise(
+        callback, state, state_data, course, language, cue_store
+    ):
+        return
     lesson = dict(state_data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
-        tutor = Tutor(course, student_record, lesson=lesson)
+        tutor = Tutor(
+            course,
+            student_record,
+            lesson=lesson,
+            lesson_size=_lesson_size(feature_flags, callback.from_user.id),
+        )
         tutor.grant_new_word_budget()
         await _respond_with_next_exercise(
             callback,
