@@ -23,9 +23,26 @@ from wiederholen.school.tutoring.student_record import StudentRecord
 
 
 @dataclass(frozen=True)
+class FinishedLesson:
+    size: int
+    correct: int
+    # This lesson added a day to the streak or started a new one
+    extends_streak: bool
+
+
+@dataclass(frozen=True)
 class Mark:
     is_correct: bool
     recall: RecallMode
+    # Set when this answer finished a lesson
+    finished_lesson: FinishedLesson | None = None
+
+
+@dataclass(frozen=True)
+class LessonProgress:
+    # The shown exercise is the position-th of size
+    position: int
+    size: int
 
 
 @dataclass(frozen=True)
@@ -173,7 +190,7 @@ class Tutor:
 
     def _update_streak(
         self, previous_practiced_at: datetime | None, practiced_at: datetime
-    ) -> None:
+    ) -> bool:
         # Without the learner's time zone, a day is counted when a lesson is
         # finished at least STREAK_DAY_AFTER after the lesson that counted
         # the previous day. So two sessions a day, such as 8:00 and 20:00,
@@ -188,11 +205,13 @@ class Tutor:
                 emit(StreakBroken(days=stored_streak[0]))
             self._student_record.set_streak(1, practiced_at)
             emit(StreakExtended(days=1))
-            return
+            return True
         days, counted_at = stored_streak
-        if practiced_at - counted_at >= self.STREAK_DAY_AFTER:
-            self._student_record.set_streak(days + 1, practiced_at)
-            emit(StreakExtended(days=days + 1))
+        if practiced_at - counted_at < self.STREAK_DAY_AFTER:
+            return False
+        self._student_record.set_streak(days + 1, practiced_at)
+        emit(StreakExtended(days=days + 1))
+        return True
 
     def _get_last_pair(self) -> tuple[str, str] | None:
         last_exercise = self._student_record.get_last_exercise()
@@ -256,14 +275,12 @@ class Tutor:
         return selected
 
     def _take_lesson_exercise(self) -> Exercise | None:
-        while (exercise_key := self._lesson.take_exercise_key()) is not None:
-            # A key that the course doesn't have is skipped: the exercise was
-            # edited or removed, or its topic is no longer selected
-            if (
-                exercise := self._exercises_by_content_key.get(exercise_key)
-            ) is not None:
-                return exercise
-        return None
+        # A key that the course doesn't have is skipped: the exercise was
+        # edited or removed, or its topic is no longer selected
+        self._lesson.retain_exercise_keys(self._exercises_by_content_key)
+        if (exercise_key := self._lesson.take_exercise_key()) is None:
+            return None
+        return self._exercises_by_content_key[exercise_key]
 
     def next_exercise(self) -> Exercise | None:
         exercise = self._take_lesson_exercise()
@@ -415,11 +432,27 @@ class Tutor:
             )
         )
         self._expedite_chained_topics(exercise)
-        if self._lesson.finish():
-            emit(LessonFinished(size=self._lesson.size))
-            self._student_record.last_lesson_finished_at = answered_at
-            self._update_streak(previous_practiced_at, answered_at)
-        return Mark(is_correct=is_correct, recall=recall_mode)
+        self._lesson.record_answer(is_correct=is_correct)
+        if not self._lesson.finish():
+            return Mark(is_correct=is_correct, recall=recall_mode)
+        emit(LessonFinished(size=self._lesson.size, correct=self._lesson.correct))
+        self._student_record.last_lesson_finished_at = answered_at
+        extends_streak = self._update_streak(previous_practiced_at, answered_at)
+        return Mark(
+            is_correct=is_correct,
+            recall=recall_mode,
+            finished_lesson=FinishedLesson(
+                size=self._lesson.size,
+                correct=self._lesson.correct,
+                extends_streak=extends_streak,
+            ),
+        )
+
+    def lesson_progress(self) -> LessonProgress | None:
+        # Where the exercise that next_exercise() gave last is in its lesson
+        if not self._lesson.is_current() or self._lesson.size == 0:
+            return None
+        return LessonProgress(position=self._lesson.given, size=self._lesson.size)
 
     def check_recall(self, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:

@@ -79,7 +79,12 @@ You enable each integration with its variables. There is no separate flag. Witho
 
 For chats outside the flag, `/ai` does nothing. If `ANTHROPIC_API_KEY` is missing, a flagged chat with `/ai` on gets an error message each time an AI exercise is due. Exercises of other topics appear as usual.
 
-`BOT_FEATURE_FLAGS` can hold several flags, separated by `;`, such as `ai_exercises:123,456;other_flag:789`. Currently `ai_exercises` is the only flag. After you change the variable, restart the bot.
+`BOT_FEATURE_FLAGS` can hold several flags, separated by `;`, such as `ai_exercises:123,456;lessons:789`. These are the flags:
+
+- `ai_exercises` turns on `/ai`.
+- `lessons` turns on lessons of 5 exercises, with a counter and a summary (see [Telegram bot](bot.md#lessons)). It needs no other variable.
+
+After you change the variable, restart the bot.
 
 ### Illustrations
 

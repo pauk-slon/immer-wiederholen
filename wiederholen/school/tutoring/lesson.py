@@ -1,3 +1,4 @@
+from collections.abc import Container
 from datetime import date
 from typing import Final
 
@@ -14,12 +15,13 @@ class Lesson:
     _SIZE_KEY: Final = "size"
     _EXERCISE_KEYS_KEY: Final = "exercise_keys"
     _FINISHED_KEY: Final = "finished"
+    _CORRECT_KEY: Final = "correct"
 
     def __init__(self, data: dict, *, today: date) -> None:
         self._data = data
         self._today = today
 
-    def _is_current(self) -> bool:
+    def is_current(self) -> bool:
         # A lesson from an earlier day is dropped, not continued: its pairs
         # come back as due reviews anyway
         return self._data.get(self._DATE_KEY) == self._today.isoformat()
@@ -35,6 +37,36 @@ class Lesson:
         size = self._data.get(self._SIZE_KEY)
         return size if isinstance(size, int) else 0
 
+    @property
+    def given(self) -> int:
+        # The exercises that the lesson gave, the shown one included
+        return max(self.size - len(self._get_exercise_keys()), 0)
+
+    @property
+    def correct(self) -> int:
+        correct = self._data.get(self._CORRECT_KEY)
+        return correct if isinstance(correct, int) else 0
+
+    def retain_exercise_keys(self, known_keys: Container[str]) -> None:
+        # Drops the keys that the caller can't give, all at once, so the size
+        # counts only the exercises that the lesson gives, and "3/5" and the
+        # summary stay true from the next exercise on
+        exercise_keys = self._get_exercise_keys()
+        retained = [key for key in exercise_keys if key in known_keys]
+        if len(retained) == len(exercise_keys):
+            return
+        # A new list, as in take_exercise_key()
+        self._data[self._EXERCISE_KEYS_KEY] = retained
+        self._data[self._SIZE_KEY] = max(
+            self.size - (len(exercise_keys) - len(retained)), 0
+        )
+
+    def record_answer(self, *, is_correct: bool) -> None:
+        if self._DATE_KEY not in self._data or self._data.get(self._FINISHED_KEY):
+            return
+        if is_correct:
+            self._data[self._CORRECT_KEY] = self.correct + 1
+
     def start(self, exercise_keys: list[str]) -> None:
         self._data.clear()
         self._data.update(
@@ -46,7 +78,7 @@ class Lesson:
         )
 
     def take_exercise_key(self) -> str | None:
-        if not self._is_current():
+        if not self.is_current():
             return None
         exercise_keys = self._get_exercise_keys()
         if not exercise_keys:

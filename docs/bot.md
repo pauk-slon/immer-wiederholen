@@ -34,16 +34,16 @@ The bot sends the message with `parse_mode="HTML"`, so **every piece of authored
 
 If the topic has illustrations and the question has one, the bot sends the question as a photo with the text as its caption. If the text is longer than Telegram's caption limit of 1024 characters, the bot sends it as plain text. If the lookup fails, the bot logs the error and sends the question as plain text, so a storage problem never stops practice.
 
-### /wiederholen while an exercise waits for an answer
+### Showing a waiting exercise again
 
-If the learner sends `/wiederholen` while the bot waits for an answer, the bot shows the same exercise again. Otherwise, with lessons of several exercises, a learner could skip all exercises of a lesson and get a streak day without answers (see [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
+If the learner sends `/wiederholen` while the bot waits for an answer, the bot shows the same exercise again. The "Next exercise" and "Study more" buttons do the same. Otherwise, with lessons of several exercises, a learner could skip all exercises of a lesson and get a streak day without answers (see [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)). Such a button can come while the bot waits for an answer, for example in a reminder.
 
 The bot shows the next exercise instead in these cases:
 
 - The learner answers a recall.
 - The learner deselected the topic of the shown exercise in `/topics` after the bot showed it.
 
-The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate an AI question again. With `shown_exercise`, the bot keeps the `🤖` mark in `shown_is_ai_generated` and the hint from grammar classes in `shown_hint_word` (see [Hints from grammar classes](#hints-from-grammar-classes)). So the question looks the same. Only the order of the options and of the `word_bank` chunks can change.
+The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate an AI question again. With `shown_exercise`, the bot keeps the `🤖` mark in `shown_is_ai_generated`, the hint from grammar classes in `shown_hint_word` (see [Hints from grammar classes](#hints-from-grammar-classes)) and the lesson counter in `shown_lesson_counter`. So the question looks the same. Only the order of the options and of the `word_bank` chunks can change.
 
 ## Answering
 
@@ -55,6 +55,21 @@ The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate
 3. After a right recall answer, the bot says "correct" and shows a "Next exercise" button. After a wrong one, the bot shows the correct sentence and underlines the parts that differ from the learner's answer. It also shows "Try again" ("Попробовать ещё раз") and "Next exercise".
 
 When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
+
+## Lessons
+
+Chats with the `lessons` flag get lessons of 5 exercises (`_FLAGGED_LESSON_SIZE`). Other chats and the web app keep lessons of one exercise, so they see no counter and no summary (see [Lessons](repetition-schedule.md#lessons) and [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)). The bot gives the size to `Tutor` as `lesson_size`, so `wiederholen.school` never sees the flag.
+
+In a lesson of several exercises, the learner sees these things:
+
+- **A counter.** The question starts with the position of the exercise in the lesson, for example "3/5".
+- **A summary.** After the last answer, the message with the "Next exercise" button also says "✅ Готово! Верно: 4 из 5" ("✅ Done! Correct: 4 of 5"). If the lesson added a day to the streak, the summary also shows the streak. The message depends on the recalls of the last exercise:
+    - **No recalls.** The summary comes with the explanation.
+    - **A required recall.** The summary comes with the recall result.
+    - **An optional recall.** The summary comes with the explanation, and again with the recall result if the learner chooses the recall.
+- **A "5 more" button.** After the summary, the "Next exercise" button says "Ещё 5 заданий" ("5 more exercises") and starts the next lesson. If nothing is left for today, the reply says that the day is done, as before.
+
+A lesson of one exercise gets no counter and no summary, also in a flagged chat.
 
 ## Chat settings
 
@@ -147,7 +162,7 @@ When you edit the text of a message, pass `reply_markup=` explicitly, with a new
 
 [`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) enables a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#ai-generated-questions) describes its format.
 
-At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, "ai_exercises", chat_id)`. The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
+At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, "ai_exercises", chat_id)`. The flags are `ai_exercises` (see [Configuration](configuration.md#ai-generated-questions)) and `lessons` (see [Lessons](#lessons)). The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
 
 The flags have no storage and no admin command. To change a flag, edit the variable and restart the bot. This is enough for a few test chats. The flags stay in the bot layer, and `wiederholen.school` never sees a chat id or a flag name.
 

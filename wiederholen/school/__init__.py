@@ -25,6 +25,8 @@ from wiederholen.school.student_record_book import (
     StudentRecordBook,
 )
 from wiederholen.school.tutoring import (
+    FinishedLesson,
+    LessonProgress,
     Mark,
     Progress,
     RecallMode,
@@ -41,8 +43,10 @@ __all__ = [
     "Course",
     "CueStore",
     "Exercise",
+    "FinishedLesson",
     "IdentityAlreadyLinkedError",
     "Language",
+    "LessonProgress",
     "Mark",
     "Progress",
     "R2CueStore",

@@ -9,7 +9,7 @@ from opentelemetry.trace import Tracer
 
 from tests.plugins.curriculum import make_exercise
 from wiederholen.school.curriculum import Course, Exercise
-from wiederholen.school.tutoring import Tutor
+from wiederholen.school.tutoring import FinishedLesson, LessonProgress, Tutor
 from wiederholen.school.tutoring.lesson import Lesson
 
 
@@ -191,7 +191,7 @@ def test_the_answer_to_the_last_exercise_finishes_the_lesson_once(
 
     first_span, last_span, again_span = exporter.get_finished_spans()
     assert _lesson_events(first_span) == [("LessonStarted", {"size": 2})]
-    assert _lesson_events(last_span) == [("LessonFinished", {"size": 2})]
+    assert _lesson_events(last_span) == [("LessonFinished", {"size": 2, "correct": 2})]
     assert _lesson_events(again_span) == []
 
 
@@ -210,7 +210,7 @@ def test_the_answer_to_the_last_exercise_of_an_earlier_days_lesson_finishes_it(
         )
 
     span = exporter.get_finished_spans()[0]
-    assert _lesson_events(span) == [("LessonFinished", {"size": 1})]
+    assert _lesson_events(span) == [("LessonFinished", {"size": 1, "correct": 1})]
 
 
 def test_an_answer_without_a_lesson_finishes_nothing(
@@ -251,3 +251,80 @@ def test_content_key_tells_apart_exercises_with_the_same_question() -> None:
 def test_a_lesson_size_below_one_is_rejected() -> None:
     with pytest.raises(ValueError, match="lesson_size"):
         Tutor(Course([make_exercise()]), {}, lesson_size=0)
+
+
+def test_a_finished_lesson_reports_its_correct_answers_and_the_streak_day() -> None:
+    course = Course(
+        [
+            make_exercise(word="warten", answer="auf"),
+            make_exercise(word="hoffen", answer="auf"),
+        ]
+    )
+    student_record: dict = {}
+    lesson: dict = {}
+    marks = []
+    for answer in ("auf", "nonsense"):
+        tutor = Tutor(course, student_record, lesson=lesson, lesson_size=2)
+        marks.append(tutor.check_answer(_next(tutor), answer))
+
+    assert marks[0].finished_lesson is None
+    assert marks[1].finished_lesson == FinishedLesson(
+        size=2, correct=1, extends_streak=True
+    )
+
+
+def test_a_lesson_on_the_same_day_as_the_last_one_adds_no_streak_day() -> None:
+    course = Course([make_exercise(word="warten"), make_exercise(word="hoffen")])
+    student_record: dict = {}
+    lesson: dict = {}
+    marks = []
+    for _ in range(2):
+        tutor = Tutor(course, student_record, lesson=lesson)
+        exercise = _next(tutor)
+        marks.append(tutor.check_answer(exercise, exercise.answer[0]))
+
+    assert marks[1].finished_lesson == FinishedLesson(
+        size=1, correct=1, extends_streak=False
+    )
+
+
+def test_lesson_progress_is_the_position_of_the_shown_exercise() -> None:
+    course = Course([make_exercise(word=word) for word in ("warten", "hoffen")])
+    lesson: dict = {}
+    tutor = Tutor(course, {}, lesson=lesson, lesson_size=2)
+
+    assert tutor.lesson_progress() is None
+    _next(tutor)
+    assert tutor.lesson_progress() == LessonProgress(position=1, size=2)
+    _next(tutor)
+    assert tutor.lesson_progress() == LessonProgress(position=2, size=2)
+
+
+def test_a_skipped_exercise_leaves_the_lesson_size(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    warten, hoffen, denken = (
+        make_exercise(word=word) for word in ("warten", "hoffen", "denken")
+    )
+    lesson = _started_lesson(warten, hoffen, denken)
+    course = Course([warten, denken])
+    student_record: dict = {}
+    progress = []
+
+    with tracer.start_as_current_span("test-span"):
+        for _ in range(2):
+            tutor = Tutor(course, student_record, lesson=lesson)
+            exercise = _next(tutor)
+            progress.append(tutor.lesson_progress())
+            mark = tutor.check_answer(exercise, exercise.answer[0])
+
+    assert progress == [
+        LessonProgress(position=1, size=2),
+        LessonProgress(position=2, size=2),
+    ]
+    assert mark.finished_lesson == FinishedLesson(
+        size=2, correct=2, extends_streak=True
+    )
+    span = exporter.get_finished_spans()[0]
+    assert _lesson_events(span) == [("LessonFinished", {"size": 2, "correct": 2})]
