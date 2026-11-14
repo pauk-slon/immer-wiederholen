@@ -31,7 +31,7 @@ Spaced-repetition scheduling — `Tutor`/`StudentRecord`, `SelectablePairs` word
 
 - Every handler opens exactly one `async with student_record_book.check_out(student_id) as student_record:` per request and does its replies inside it; `check_out()` saves only if the record changed, in a `finally`, so there's no explicit save anywhere.
 - Every bot handler gets its `student_id` from `student_identity_store.resolve_or_create_student_id("telegram", str(chat_id))` (callback handlers: `str(callback.from_user.id)`, the same value in a private chat).
-- The student record holds only learning state; chat settings and conversation state stay in FSM data. A new chat-level setting belongs in `_CHAT_SETTINGS_KEYS`.
+- The student record holds only learning state; lasting chat state (such as settings) and exercise state stay in FSM data. Anything in FSM data that must outlive one exercise belongs in `_LASTING_CHAT_STATE_KEYS`.
 - `Tutor` never touches a store — it gets a plain `dict`.
 - `check_out()` isn't atomic across concurrent updates for the same student: last write wins (#249). Don't rely on two handlers for one student seeing each other's changes.
 
@@ -51,7 +51,7 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 
 - Every message sent with an inline keyboard is followed by `remember_buttoned_message()`; a callback handler that removes its own buttons and attaches none calls `forget_buttoned_message()`; every typed command calls `clear_stale_buttons()` first. When editing a message's text, pass `reply_markup=` explicitly.
 - `_format_question()` sends HTML: every piece of authored text goes through `html.escape()`.
-- A new chat-level setting goes into `_CHAT_SETTINGS_KEYS`, or it's lost after every exercise.
+- A new chat setting, or any FSM key that must outlive one exercise, goes into `_LASTING_CHAT_STATE_KEYS`, or it's lost after every exercise.
 - The reminder decision stays in `Tutor.should_remind()` (pure); `record_reminder_sent()` only after Telegram accepted the message.
 - Topic selection narrows what's *shown* (`/wiederholen`, next/study-more buttons, reminders), never `/progress` or answer checking.
 - `bot_blocked` is set from both `my_chat_member` and a 403 on send; the reminder skips such chats before touching the record.

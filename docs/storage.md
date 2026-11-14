@@ -52,12 +52,14 @@ The abstract stores have no close step. Only the Redis implementations hold a co
 
 ## Chat state
 
-The rest of a Telegram chat's state is in aiogram's FSM storage. This is a plain [`RedisStorage`](https://docs.aiogram.dev/en/latest/dispatcher/finite_state_machine/storages.html), used without changes. It has two kinds of data:
+The rest of a Telegram chat's state is in aiogram's FSM storage. This is a plain [`RedisStorage`](https://docs.aiogram.dev/en/latest/dispatcher/finite_state_machine/storages.html), used without changes. This page calls all of this data the chat state. The data is of two kinds. They differ in how long the data lives:
 
-- **Chat settings.** These are `language`, `ai_mode`, `topic_groups` and `remind_after_hours`, and the `bot_blocked` flag that the bot sets when the learner blocks it (see [Blocked chats](bot.md#blocked-chats)).
-- **The current conversation.** This is the FSM state (`answering`, `recalling`), the exercise and recall that the learner is answering (`shown_exercise`, `shown_recall`), and the message with active inline buttons (`last_buttoned_message_id`).
+- **Lasting chat state** lives longer than one exercise. Today these are the chat settings `language`, `ai_mode`, `topic_groups` and `remind_after_hours` (see [Chat settings](bot.md#chat-settings)).
+- **Exercise state** is everything else. It lives for one exercise. Examples are the FSM state (`answering`, `recalling`), the exercise and recall that the learner is answering (`shown_exercise`, `shown_recall`), and the message with active inline buttons (`last_buttoned_message_id`).
 
-When an exercise ends, the bot clears the conversation but keeps the settings. `_CHAT_SETTINGS_KEYS` in `commands/wiederholen.py` lists the settings. Add a new chat-level setting to it, or the setting is lost after every exercise.
+When an exercise ends, the bot clears the exercise state and keeps the lasting chat state. `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists the keys of the lasting chat state. If data must live longer than one exercise, add its key to this tuple. Otherwise the end of each exercise removes the data.
+
+The bot sets the `bot_blocked` flag when the learner blocks it. The flag isn't in this tuple, so the end of an exercise removes it like exercise state. This is safe (see [Blocked chats](bot.md#blocked-chats)).
 
 None of this data is part of the student record, because it is about one Telegram chat and not about what the learner knows. For this reason `/reset`, which deletes the record, doesn't change the chat state. The web app has its own store for the same purpose (`WebSessionStore`, see [Web frontend](web-frontend.md)).
 
