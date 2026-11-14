@@ -257,9 +257,7 @@ def test_the_streak_breaks_36_hours_after_the_last_finished_lesson() -> None:
     assert streak.breaks_at == finished_at + Tutor.STREAK_BREAKS_AFTER
 
 
-def test_a_gap_over_36_hours_since_the_last_finished_lesson_starts_a_new_streak() -> (
-    None
-):
+def test_36_hours_after_the_last_finished_lesson_start_a_new_streak() -> None:
     student_record = _record(answered_ago=timedelta(hours=1), days=10)
     student_record["last_lesson_finished_at"] = (
         datetime.now(UTC) - timedelta(hours=36, minutes=1)
