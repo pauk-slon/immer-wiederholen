@@ -83,6 +83,8 @@ class Tutor:
         # lesson is the frontend's own dict, changed in place like
         # student_record. Without one, a lesson lasts only as long as this
         # Tutor, which is enough for callers that never show exercises
+        if lesson_size < 1:
+            raise ValueError(f"lesson_size must be at least 1, got {lesson_size}")
         self._course = course
         self._today = datetime.now(UTC).date()
         self._student_record = StudentRecord(student_record, today=self._today)

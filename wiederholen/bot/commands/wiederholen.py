@@ -347,8 +347,8 @@ async def command_wiederholen(
         "telegram", str(message.chat.id)
     )
     course = restrict_to_selected_groups(course, data)
-    # A copy, saved only after the exercise is shown: if AI generation
-    # fails, the next request takes the same exercise from the lesson again
+    # A copy, saved only after AI generation succeeds: if it fails, the next
+    # request takes the same exercise from the lesson again
     lesson = dict(data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record, lesson=lesson)
@@ -549,7 +549,7 @@ async def _respond_with_next_exercise(
         return
     hint_word = tutor.get_hint(exercise)
     await state.set_state(UserState.answering)
-    # Saved only now, as in command_wiederholen
+    # Saved only after AI generation succeeded, as in command_wiederholen
     await state.update_data(shown_exercise=exercise.to_dict(), lesson=lesson)
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)

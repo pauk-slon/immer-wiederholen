@@ -2,6 +2,7 @@ import dataclasses
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Tracer
@@ -227,3 +228,8 @@ def test_content_key_tells_apart_exercises_with_the_same_question() -> None:
         with_bruder.content_key
         == make_exercise(word="für", answer="meinen Bruder").content_key
     )
+
+
+def test_a_lesson_size_below_one_is_rejected() -> None:
+    with pytest.raises(ValueError, match="lesson_size"):
+        Tutor(Course([make_exercise()]), {}, lesson_size=0)

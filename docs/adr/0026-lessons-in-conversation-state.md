@@ -16,7 +16,7 @@ A lesson is conversation state. Each frontend keeps its own lesson next to the e
 
 A lesson refers to an exercise by `Exercise.content_key`, a SHA-256 hash of all fields of the exercise. When `Tutor` takes the next exercise from a lesson, it skips a key that the course doesn't have. A lesson is valid only on the day when `Tutor` started it.
 
-The bot saves the lesson only after it shows the exercise. If AI generation fails, the next request takes the same exercise from the lesson again.
+The bot saves the lesson only after AI generation succeeds, together with `shown_exercise`. If generation fails, the next request takes the same exercise from the lesson again.
 
 ## Alternatives considered
 

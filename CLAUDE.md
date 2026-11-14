@@ -33,7 +33,7 @@ Spaced-repetition scheduling — `Tutor`/`StudentRecord`/`Lesson`, `SelectablePa
 - Every handler opens exactly one `async with student_record_book.check_out(student_id) as student_record:` per request and does its replies inside it; `check_out()` saves only if the record changed, in a `finally`, so there's no explicit save anywhere.
 - Every bot handler gets its `student_id` from `student_identity_store.resolve_or_create_student_id("telegram", str(chat_id))` (callback handlers: `str(callback.from_user.id)`, the same value in a private chat).
 - The student record holds only learning state; lasting chat state (such as settings) and exercise state stay in FSM data. Anything in FSM data that must outlive one exercise belongs in `_LASTING_CHAT_STATE_KEYS`.
-- `Tutor` never touches a store — it gets a plain `dict` for the record and another for the lesson. The lesson is conversation state, not learning state: the bot keeps it in FSM data (`lesson` in `_LASTING_CHAT_STATE_KEYS`), the web app in `WebSessionStore`, each its own (ADR 0026). The bot saves it only after the exercise is shown, so a failed AI generation retries the same exercise.
+- `Tutor` never touches a store — it gets a plain `dict` for the record and another for the lesson. The lesson is conversation state, not learning state: the bot keeps it in FSM data (`lesson` in `_LASTING_CHAT_STATE_KEYS`), the web app in `WebSessionStore`, each its own (ADR 0026). The bot saves it only after AI generation succeeds, so a failed generation retries the same exercise.
 - `check_out()` isn't atomic across concurrent updates for the same student: last write wins (#249). Don't rely on two handlers for one student seeing each other's changes.
 
 ## Tracing and tutoring events
