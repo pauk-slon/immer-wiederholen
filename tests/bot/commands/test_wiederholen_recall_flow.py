@@ -140,6 +140,43 @@ async def test_recall_prompt_sent_after_answering(
     assert "<i>die Rede — речь</i>" in recall_message.text
 
 
+async def test_recall_prompt_escapes_question_and_hint(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        recalls=[
+            {
+                "question": "Ich ___ <b>Tom & Jerry</b>.",
+                "hint": {"ru": "a < b & c", "en": "a < b & c"},
+            }
+        ],
+    )
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict())
+
+    requests = await feed_message(exercise.distractors[0], course=Course([exercise]))
+    recall_message = requests[2]
+
+    assert "Ich ___ &lt;b&gt;Tom &amp; Jerry&lt;/b&gt;." in recall_message.text
+    assert "<i>a &lt; b &amp; c</i>" in recall_message.text
+
+
+async def test_recall_prompt_without_hint_escapes_question(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(recalls=[{"question": "Ich ___ Tom & Jerry."}])
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict())
+
+    requests = await feed_message(exercise.distractors[0], course=Course([exercise]))
+    recall_message = requests[2]
+
+    assert "Ich ___ Tom &amp; Jerry." in recall_message.text
+    assert "<i>" not in recall_message.text
+
+
 async def test_recall_accepted_after_answering(
     state: FSMContext,
     feed_message: FeedMessage,
