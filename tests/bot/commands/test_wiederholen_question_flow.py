@@ -451,3 +451,67 @@ async def test_shows_the_streak_when_the_day_is_done(
     assert len(requests) == 1
     streak_line = RU.streak_text.format(days=format_count(5, "days", "ru"))
     assert requests[0].text == f"{RU.nothing_due_text}\n\n{streak_line}"
+
+
+async def test_shows_the_same_exercise_again_while_waiting_for_an_answer(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    course = Course([make_exercise(word="warten"), make_exercise(word="hoffen")])
+    first = await feed_message("/wiederholen", course=course)
+    data_after_first = await state.get_data()
+
+    again = await feed_message("/wiederholen", course=course)
+
+    assert len(again) == 1
+    assert again[0].text == first[0].text
+    assert isinstance(again[0].reply_markup, ReplyKeyboardMarkup)
+    assert await state.get_data() == data_after_first
+    assert await state.get_state() == UserState.answering
+
+
+async def test_shows_the_same_grammar_class_hint_again(
+    feed_message: FeedMessage,
+    seed_student_record: SeedStudentRecord,
+    student_id: StudentID,
+) -> None:
+    exercise = make_exercise(
+        word="singen", topic="praeteritum", grammar_classes=["i-a-u"]
+    )
+    candidate = make_exercise(
+        word="finden", topic="praeteritum", grammar_classes=["i-a-u"]
+    )
+    today = datetime.now(UTC).date()
+    await seed_student_record(
+        student_id,
+        {
+            "word_schedule": {
+                "finden": {
+                    "praeteritum": {
+                        "repetition_interval": 5,
+                        "due_date": (today + timedelta(days=30)).isoformat(),
+                    }
+                }
+            }
+        },
+    )
+    course = Course([exercise, candidate])
+    await feed_message("/wiederholen", course=course)
+
+    again = await feed_message("/wiederholen", course=course)
+
+    hint_text = RU.grammar_class_hint.format(word="finden")
+    assert f"<tg-spoiler>{hint_text}</tg-spoiler>" in again[0].text
+
+
+async def test_shows_the_next_exercise_after_the_answer(
+    feed_message: FeedMessage,
+) -> None:
+    warten = make_exercise(word="warten", answer="auf")
+    course = Course([warten, make_exercise(word="hoffen")])
+    await feed_message("/wiederholen", course=course)
+    await feed_message("auf", course=course)
+
+    requests = await feed_message("/wiederholen", course=course)
+
+    assert warten.question not in requests[-1].text

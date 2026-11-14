@@ -326,3 +326,26 @@ async def test_ai_mode_survives_completing_a_recall(
 
     data = await state.get_data()
     assert data["ai_mode"] is True
+
+
+async def test_shows_the_same_ai_generated_question_again_without_generating(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise()
+    shadow = _shadow_of(exercise)
+    await state.update_data(ai_mode=True)
+    generate = AsyncMock(return_value=shadow)
+
+    with patch(
+        "wiederholen.bot.commands.wiederholen.generate_shadow_exercise", generate
+    ):
+        course = _ai_course(exercise)
+        await feed_message("/wiederholen", course=course, anthropic_client=Mock())
+        again = await feed_message(
+            "/wiederholen", course=course, anthropic_client=Mock()
+        )
+
+    assert generate.await_count == 1
+    assert again[0].text.startswith("🤖")
+    assert shadow.question in again[0].text

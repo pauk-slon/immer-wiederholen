@@ -34,6 +34,8 @@ The bot sends the message with `parse_mode="HTML"`, so **every piece of authored
 
 If the topic has illustrations and the question has one, the bot sends the question as a photo with the text as its caption. If the text is longer than Telegram's caption limit of 1024 characters, the bot sends it as plain text. If the lookup fails, the bot logs the error and sends the question as plain text, so a storage problem never stops practice.
 
+If the learner sends `/wiederholen` while the bot waits for an answer, the bot shows the same exercise again and doesn't call `Tutor`. Otherwise the learner could skip the exercises of a lesson and finish it without answers (see [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)). The bot keeps the `🤖` mark and the hint in `shown_is_ai_generated` and `shown_hint_word`, so the question looks the same. Only the order of the options and the `word_bank` chunks can change. An AI-generated question isn't generated again. During a recall, `/wiederholen` shows the next exercise.
+
 ## Answering
 
 1. The learner answers with a tap on an option or with typed text. The bot says whether the answer was right and shows the correct answers if it wasn't. In a topic with `show_primary_answer_only`, the bot shows only the primary answer (see [Course format](course-format.md#several-correct-answers)). Then the bot removes the options keyboard and sends the `explanation`.
