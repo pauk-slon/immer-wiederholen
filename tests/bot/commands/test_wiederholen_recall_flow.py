@@ -162,7 +162,7 @@ async def test_recall_prompt_escapes_question_and_hint(
     assert "<i>a &lt; b &amp; c</i>" in recall_message.text
 
 
-async def test_recall_prompt_without_hint_is_plain_text(
+async def test_recall_prompt_without_hint_escapes_question(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
@@ -173,8 +173,8 @@ async def test_recall_prompt_without_hint_is_plain_text(
     requests = await feed_message(exercise.distractors[0], course=Course([exercise]))
     recall_message = requests[2]
 
-    assert "Ich ___ Tom & Jerry." in recall_message.text
-    assert recall_message.parse_mode != "HTML"
+    assert "Ich ___ Tom &amp; Jerry." in recall_message.text
+    assert "<i>" not in recall_message.text
 
 
 async def test_recall_accepted_after_answering(

@@ -162,14 +162,11 @@ async def _start_recall(
         shown_exercise=shown_exercise_dict,
         shown_recall=recall.to_dict(),
     )
+    text = locale.recall_prompt.format(recall=html.escape(recall.question))
     hint = recall.hint.get(language) if recall.hint else None
     if hint:
-        recall_text = locale.recall_prompt.format(recall=html.escape(recall.question))
-        await message.answer(
-            f"{recall_text}\n<i>{html.escape(hint)}</i>", parse_mode="HTML"
-        )
-    else:
-        await message.answer(locale.recall_prompt.format(recall=recall.question))
+        text += f"\n<i>{html.escape(hint)}</i>"
+    await message.answer(text, parse_mode="HTML")
 
 
 def _format_question(
