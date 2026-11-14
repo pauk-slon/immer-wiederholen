@@ -507,11 +507,15 @@ async def test_shows_the_same_grammar_class_hint_again(
 async def test_shows_the_next_exercise_after_the_answer(
     feed_message: FeedMessage,
 ) -> None:
-    warten = make_exercise(word="warten", answer="auf")
-    course = Course([warten, make_exercise(word="hoffen")])
-    await feed_message("/wiederholen", course=course)
+    course = Course(
+        [
+            make_exercise(word="warten", answer="auf"),
+            make_exercise(word="hoffen", answer="auf"),
+        ]
+    )
+    first = await feed_message("/wiederholen", course=course)
     await feed_message("auf", course=course)
 
     requests = await feed_message("/wiederholen", course=course)
 
-    assert warten.question not in requests[-1].text
+    assert requests[-1].text != first[0].text

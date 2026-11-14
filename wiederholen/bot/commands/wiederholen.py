@@ -371,23 +371,26 @@ async def command_wiederholen(
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
+    course = restrict_to_selected_groups(course, data)
     if await state.get_state() == UserState.answering:
+        shown_exercise = Exercise.from_dict(data["shown_exercise"])
         # The shown exercise again, not the next one: otherwise a learner
-        # could skip every exercise of a lesson and still finish it
-        await _send_question(
-            message,
-            Exercise.from_dict(data["shown_exercise"]),
-            language,
-            course,
-            cue_store,
-            is_ai_generated=data.get("shown_is_ai_generated", False),
-            hint_word=data.get("shown_hint_word"),
-        )
-        return
+        # could skip every exercise of a lesson and still finish it. Unless
+        # /topics has deselected its topic since, which a lesson skips too
+        if any(e.topic == shown_exercise.topic for e in course.exercises):
+            await _send_question(
+                message,
+                shown_exercise,
+                language,
+                course,
+                cue_store,
+                is_ai_generated=data.get("shown_is_ai_generated", False),
+                hint_word=data.get("shown_hint_word"),
+            )
+            return
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(message.chat.id)
     )
-    course = restrict_to_selected_groups(course, data)
     # A copy, saved only after AI generation succeeds: if it fails, the next
     # request takes the same exercise from the lesson again
     lesson = dict(data.get("lesson") or {})
