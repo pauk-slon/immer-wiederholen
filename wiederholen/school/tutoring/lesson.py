@@ -1,5 +1,5 @@
 from collections.abc import Container
-from datetime import date
+from datetime import datetime, timedelta
 from typing import Final
 
 
@@ -11,20 +11,41 @@ class Lesson:
     # The dict holds Exercise.content_key values, not exercises, so an
     # exercise that is no longer in the (possibly restricted) course is
     # skipped instead of shown in an outdated form.
-    _DATE_KEY: Final = "date"
+    _ACTIVE_AT_KEY: Final = "active_at"
+    # A lesson saved before ADR 0028 has a date instead of active_at
+    _LEGACY_DATE_KEY: Final = "date"
     _SIZE_KEY: Final = "size"
     _EXERCISE_KEYS_KEY: Final = "exercise_keys"
     _FINISHED_KEY: Final = "finished"
     _CORRECT_KEY: Final = "correct"
+    # A lesson that nobody used for this long is dropped, not continued: its
+    # pairs come back as due reviews anyway. A time since the last activity,
+    # not a calendar day, which the bot can't know without a time zone (see
+    # ADR 0028)
+    EXPIRES_AFTER: Final = timedelta(hours=2)
 
-    def __init__(self, data: dict, *, today: date) -> None:
+    def __init__(self, data: dict, *, now: datetime) -> None:
         self._data = data
-        self._today = today
+        self._now = now
+
+    def _is_started(self) -> bool:
+        # A lesson in the old format is started but expired: it gives no
+        # more exercises, but the answer to the one that it gave still
+        # finishes it, so that answer still counts for the streak
+        return self._ACTIVE_AT_KEY in self._data or self._LEGACY_DATE_KEY in self._data
+
+    def _touch(self) -> None:
+        self._data[self._ACTIVE_AT_KEY] = self._now.isoformat()
 
     def is_current(self) -> bool:
-        # A lesson from an earlier day is dropped, not continued: its pairs
-        # come back as due reviews anyway
-        return self._data.get(self._DATE_KEY) == self._today.isoformat()
+        active_at = self._data.get(self._ACTIVE_AT_KEY)
+        if not isinstance(active_at, str):
+            return False
+        try:
+            return self._now - datetime.fromisoformat(active_at) <= self.EXPIRES_AFTER
+        except ValueError, TypeError:
+            # TypeError for a time without a time zone
+            return False
 
     def _get_exercise_keys(self) -> list[str]:
         exercise_keys = self._data.get(self._EXERCISE_KEYS_KEY)
@@ -62,8 +83,11 @@ class Lesson:
         )
 
     def record_answer(self, *, is_correct: bool) -> None:
-        if self._DATE_KEY not in self._data or self._data.get(self._FINISHED_KEY):
+        # An answer is activity too, so an answer to an exercise that waited
+        # longer than EXPIRES_AFTER lets the lesson continue
+        if not self._is_started() or self._data.get(self._FINISHED_KEY):
             return
+        self._touch()
         if is_correct:
             self._data[self._CORRECT_KEY] = self.correct + 1
 
@@ -71,7 +95,7 @@ class Lesson:
         self._data.clear()
         self._data.update(
             {
-                self._DATE_KEY: self._today.isoformat(),
+                self._ACTIVE_AT_KEY: self._now.isoformat(),
                 self._SIZE_KEY: len(exercise_keys),
                 self._EXERCISE_KEYS_KEY: list(exercise_keys),
             }
@@ -87,14 +111,15 @@ class Lesson:
         # its stored dict, and the stored list must change only when the
         # frontend saves the lesson
         self._data[self._EXERCISE_KEYS_KEY] = exercise_keys[1:]
+        self._touch()
         return exercise_keys[0]
 
     def finish(self) -> bool:
         # True only once per lesson, for the answer to its last exercise.
-        # Also for a lesson from an earlier day: it gives no more exercises,
-        # but the learner can still answer the one that it gave last
+        # Also for an expired lesson: it gives no more exercises, but the
+        # learner can still answer the one that it gave last
         if (
-            self._DATE_KEY not in self._data
+            not self._is_started()
             or self._get_exercise_keys()
             or self._data.get(self._FINISHED_KEY)
         ):

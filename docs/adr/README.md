@@ -47,6 +47,7 @@ The date is the day of the decision.
 | [0022](0022-several-equal-answers.md) | An exercise can have several equal answers | 2026-10-25 | Amended by [0024](0024-primary-answer-per-topic.md) |
 | [0024](0024-primary-answer-per-topic.md) | A topic can show only the primary answer | 2026-10-29 | Accepted |
 | [0027](0027-streaks-count-finished-lessons.md) | Streaks count finished lessons, not answers | 2026-11-14 | Accepted |
+| [0028](0028-lessons-expire-after-two-idle-hours.md) | A lesson expires after two hours without activity, not at the end of a day | 2026-11-14 | Accepted |
 
 ### Storage and identity
 
@@ -56,7 +57,7 @@ The date is the day of the decision.
 | [0007](0007-save-records-only-when-changed.md) | Save a student record only when it changes | 2026-08-23 | Accepted |
 | [0008](0008-student-record-separate-from-chat-state.md) | Keep the student record separate from chat state | 2026-08-23 | Accepted |
 | [0009](0009-one-environment-variable-per-store.md) | One environment variable per store | 2026-08-23 | Accepted |
-| [0026](0026-lessons-in-conversation-state.md) | Lessons are conversation state and refer to exercises by a content hash | 2026-11-14 | Amended by [0027](0027-streaks-count-finished-lessons.md) |
+| [0026](0026-lessons-in-conversation-state.md) | Lessons are conversation state and refer to exercises by a content hash | 2026-11-14 | Amended by [0027](0027-streaks-count-finished-lessons.md) and [0028](0028-lessons-expire-after-two-idle-hours.md) |
 
 ### Telegram bot
 

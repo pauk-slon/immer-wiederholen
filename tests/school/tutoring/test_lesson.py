@@ -29,7 +29,7 @@ def _lesson_events(span: ReadableSpan) -> list[tuple[str, dict[str, Any]]]:
 
 def _started_lesson(*exercises: Exercise) -> dict:
     lesson: dict = {}
-    Lesson(lesson, today=datetime.now(UTC).date()).start(
+    Lesson(lesson, now=datetime.now(UTC)).start(
         [exercise.content_key for exercise in exercises]
     )
     return lesson
@@ -123,7 +123,11 @@ def test_new_words_of_a_lesson_use_the_daily_limit() -> None:
     assert lesson["size"] == Tutor.NEW_WORDS_PER_DAY
 
 
-def test_a_lesson_from_an_earlier_day_is_replaced() -> None:
+def _idle(lesson: dict, idle_for: timedelta) -> None:
+    lesson["active_at"] = (datetime.now(UTC) - idle_for).isoformat()
+
+
+def test_a_lesson_idle_for_longer_than_two_hours_is_replaced() -> None:
     warten = make_exercise(word="warten")
     hoffen = make_exercise(word="hoffen")
     today = datetime.now(UTC).date()
@@ -139,12 +143,48 @@ def test_a_lesson_from_an_earlier_day_is_replaced() -> None:
         }
     }
     lesson = _started_lesson(hoffen)
-    lesson["date"] = (today - timedelta(days=1)).isoformat()
+    _idle(lesson, Lesson.EXPIRES_AFTER + timedelta(minutes=1))
 
     exercise = _next(Tutor(Course([warten, hoffen]), student_record, lesson=lesson))
 
     assert exercise == warten
-    assert lesson["date"] == today.isoformat()
+    assert lesson["exercise_keys"] == []
+
+
+def test_a_lesson_idle_for_less_than_two_hours_continues() -> None:
+    warten = make_exercise(word="warten")
+    hoffen = make_exercise(word="hoffen")
+    lesson = _started_lesson(hoffen)
+    _idle(lesson, Lesson.EXPIRES_AFTER - timedelta(minutes=1))
+
+    exercise = _next(Tutor(Course([warten, hoffen]), {}, lesson=lesson))
+
+    assert exercise == hoffen
+
+
+def test_a_lesson_continues_after_midnight() -> None:
+    # The UTC day is no limit: only the time since the last activity counts
+    before_midnight = datetime(2026, 11, 14, 23, 50, tzinfo=UTC)
+    lesson: dict = {}
+    Lesson(lesson, now=before_midnight).start(["x"])
+
+    after_midnight = Lesson(lesson, now=before_midnight + timedelta(minutes=20))
+
+    assert after_midnight.is_current()
+    assert after_midnight.take_exercise_key() == "x"
+
+
+def test_an_answer_keeps_the_lesson_alive() -> None:
+    course = Course([make_exercise(word=word) for word in ("warten", "hoffen")])
+    lesson: dict = {}
+    first = _next(Tutor(course, {}, lesson=lesson, lesson_size=2))
+    _idle(lesson, Lesson.EXPIRES_AFTER + timedelta(minutes=1))
+
+    Tutor(course, {}, lesson=lesson).check_answer(first, first.answer[0])
+    second = _next(Tutor(course, {}, lesson=lesson, lesson_size=2))
+
+    assert {first.word, second.word} == {"warten", "hoffen"}
+    assert lesson["size"] == 2
 
 
 def test_a_lesson_skips_an_exercise_that_the_course_no_longer_has() -> None:
@@ -195,14 +235,14 @@ def test_the_answer_to_the_last_exercise_finishes_the_lesson_once(
     assert _lesson_events(again_span) == []
 
 
-def test_the_answer_to_the_last_exercise_of_an_earlier_days_lesson_finishes_it(
+def test_the_answer_to_the_last_exercise_of_an_expired_lesson_finishes_it(
     tracer: Tracer,
     exporter: InMemorySpanExporter,
 ) -> None:
     exercise = make_exercise()
     lesson: dict = {}
     _next(Tutor(Course([exercise]), {}, lesson=lesson))
-    lesson["date"] = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+    _idle(lesson, timedelta(days=1))
 
     with tracer.start_as_current_span("test-span"):
         Tutor(Course([exercise]), {}, lesson=lesson).check_answer(
@@ -226,14 +266,31 @@ def test_an_answer_without_a_lesson_finishes_nothing(
 
 
 def test_a_malformed_lesson_counts_as_empty() -> None:
-    today = datetime.now(UTC).date()
+    now = datetime.now(UTC)
     lesson = Lesson(
-        {"date": today.isoformat(), "size": "five", "exercise_keys": "not a list"},
-        today=today,
+        {"active_at": now.isoformat(), "size": "five", "exercise_keys": "not a list"},
+        now=now,
     )
 
     assert lesson.size == 0
     assert lesson.take_exercise_key() is None
+
+
+def test_a_lesson_with_a_malformed_time_is_not_current() -> None:
+    now = datetime.now(UTC)
+
+    assert not Lesson({"active_at": "yesterday"}, now=now).is_current()
+    assert not Lesson({"active_at": 0}, now=now).is_current()
+    naive = now.replace(tzinfo=None).isoformat()
+    assert not Lesson({"active_at": naive}, now=now).is_current()
+
+
+def test_a_lesson_from_before_the_ttl_is_not_current() -> None:
+    # A lesson saved with a date, before ADR 0028, starts again
+    now = datetime.now(UTC)
+    lesson = {"date": now.date().isoformat(), "size": 1, "exercise_keys": ["x"]}
+
+    assert not Lesson(lesson, now=now).is_current()
 
 
 def test_content_key_tells_apart_exercises_with_the_same_question() -> None:
@@ -328,3 +385,19 @@ def test_a_skipped_exercise_leaves_the_lesson_size(
     )
     span = exporter.get_finished_spans()[0]
     assert _lesson_events(span) == [("LessonFinished", {"size": 2, "correct": 2})]
+
+
+def test_the_last_answer_finishes_a_lesson_from_before_the_ttl() -> None:
+    # Shown before the deployment, answered after it: the answer still
+    # finishes the lesson and counts for the streak
+    exercise = make_exercise()
+    lesson = {"date": "2026-11-14", "size": 1, "exercise_keys": []}
+    student_record: dict = {}
+
+    mark = Tutor(Course([exercise]), student_record, lesson=lesson).check_answer(
+        exercise, exercise.answer[0]
+    )
+
+    assert mark.finished_lesson == FinishedLesson(
+        size=1, correct=1, extends_streak=True
+    )

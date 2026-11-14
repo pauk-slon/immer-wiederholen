@@ -1,6 +1,6 @@
 # 0026. Lessons are conversation state and refer to exercises by a content hash
 
-**Status:** Accepted, 2026-11-14 ([#328](https://github.com/pauk-slon/immer-wiederholen/pull/328)). Amended by [0027](0027-streaks-count-finished-lessons.md).
+**Status:** Accepted, 2026-11-14 ([#328](https://github.com/pauk-slon/immer-wiederholen/pull/328)). Amended by [0027](0027-streaks-count-finished-lessons.md) and [0028](0028-lessons-expire-after-two-idle-hours.md).
 
 ## Context
 
