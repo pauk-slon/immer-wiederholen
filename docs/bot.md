@@ -34,9 +34,9 @@ The bot sends the message with `parse_mode="HTML"`, so **every piece of authored
 
 If the topic has illustrations and the question has one, the bot sends the question as a photo with the text as its caption. If the text is longer than Telegram's caption limit of 1024 characters, the bot sends it as plain text. If the lookup fails, the bot logs the error and sends the question as plain text, so a storage problem never stops practice.
 
-### /wiederholen while an exercise waits for an answer
+### Showing a waiting exercise again
 
-If the learner sends `/wiederholen` while the bot waits for an answer, the bot shows the same exercise again. The "Next exercise" and "Study more" buttons do the same. Such a button can come while the bot waits for an answer, for example in a reminder. Otherwise, with lessons of several exercises, a learner could skip all exercises of a lesson and get a streak day without answers (see [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
+If the learner sends `/wiederholen` while the bot waits for an answer, the bot shows the same exercise again. The "Next exercise" and "Study more" buttons do the same. Otherwise, with lessons of several exercises, a learner could skip all exercises of a lesson and get a streak day without answers (see [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)). Such a button can come while the bot waits for an answer, for example in a reminder.
 
 The bot shows the next exercise instead in these cases:
 
@@ -63,10 +63,13 @@ Chats with the `lessons` flag get lessons of 5 exercises (`_FLAGGED_LESSON_SIZE`
 In a lesson of several exercises, the learner sees these things:
 
 - **A counter.** The question starts with the position of the exercise in the lesson, for example "3/5".
-- **A summary.** After the last answer, the message with the "Next exercise" button also says "✅ Готово! Верно: 4 из 5" ("✅ Done! Correct: 4 of 5"). If the lesson added a day to the streak, the summary also shows the streak. After a required recall, the summary comes with the recall result. After a right answer to an exercise with recalls, it comes with the explanation, and again after the optional recall.
+- **A summary.** After the last answer, the message with the "Next exercise" button also says "✅ Готово! Верно: 4 из 5" ("✅ Done! Correct: 4 of 5"). If the lesson added a day to the streak, the summary also shows the streak. The message depends on the recalls of the last exercise:
+    - **No recalls.** The summary comes with the explanation.
+    - **A required recall.** The summary comes with the recall result.
+    - **An optional recall.** The summary comes with the explanation, and again with the recall result if the learner chooses the recall.
 - **A "5 more" button.** After the summary, the "Next exercise" button says "Ещё 5 заданий" ("5 more exercises") and starts the next lesson. If nothing is left for today, the reply says that the day is done, as before.
 
-A lesson that is shorter than 2 exercises gets no counter and no summary, also in a flagged chat.
+A lesson of one exercise gets no counter and no summary, also in a flagged chat.
 
 ## Chat settings
 

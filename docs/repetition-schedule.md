@@ -102,9 +102,13 @@ A word is free after the learner answers any of its topics. For example, if the 
 - A new word uses today's limit as soon as it is taken, so a lesson never has more new words than the limit allows.
 - The lesson can be shorter than the size, if less material is available. If nothing is available, there's no lesson, and `next_exercise()` returns `None`.
 
-A lesson stores `Exercise.content_key` values, a SHA-256 hash of all fields of each exercise. `next_exercise()` skips a key that the course doesn't have. Such an exercise was edited or removed, or the learner no longer selects its topic. `next_exercise()` removes all such keys before it takes the next one, and the lesson size becomes smaller by their number. So the size counts only the exercises that the learner gets, and "3/5" and the summary stay correct. A lesson gives exercises only on the day when it started. Its pairs that the learner didn't answer come back as due reviews.
+A lesson stores `Exercise.content_key` values, a SHA-256 hash of all fields of each exercise. Before it takes the next key, `next_exercise()` removes the keys that the course doesn't have, and the lesson size becomes smaller by their number. Such an exercise was edited or removed, or the learner no longer selects its topic. So the size counts only the exercises that the learner gets, and "3/5" and the summary stay correct. A lesson gives exercises only on the day when it started. Its pairs that the learner didn't answer come back as due reviews.
 
-The answer to the last exercise of a lesson finishes it, also if the lesson started on an earlier day. `check_answer()` reports this once per lesson. Then its `Mark` has `finished_lesson`, with the size of the lesson, the number of correct answers and whether the lesson added a day to the [streak](#streak). Every finished lesson counts for the streak. `lesson_progress()` returns the position of the exercise that `next_exercise()` gave last, and the size of its lesson. The bot shows them as "3/5". A lesson isn't part of the student record. Each frontend keeps its own lesson next to the exercise that it shows (see [Storage and identity](storage.md#chat-state) and [ADR 0026](adr/0026-lessons-in-conversation-state.md)).
+The answer to the last exercise of a lesson finishes it, also if the lesson started on an earlier day. `check_answer()` reports this once per lesson. It then returns a `Mark` with `finished_lesson`, which has the size of the lesson, the number of correct answers and whether the lesson added a day to the [streak](#streak). Every finished lesson counts as practice for the streak.
+
+`lesson_progress()` returns the position of the exercise that `next_exercise()` gave last, and the size of its lesson. The bot shows them as "3/5".
+
+A lesson isn't part of the student record. Each frontend keeps its own lesson next to the exercise that it shows (see [Storage and identity](storage.md#chat-state) and [ADR 0026](adr/0026-lessons-in-conversation-state.md)).
 
 ```json
 {"date": "2026-11-14", "size": 5, "exercise_keys": ["3f9a…", "b21c…"], "correct": 2}
@@ -115,7 +119,7 @@ The answer to the last exercise of a lesson finishes it, also if the lesson star
 | `date` | the day when the lesson started |
 | `size` | the number of exercises in the lesson |
 | `exercise_keys` | the keys of the exercises that the lesson hasn't given yet |
-| `correct` | the number of correct answers in the lesson. It is absent before the first one |
+| `correct` | the number of correct answers in the lesson. It is absent before the first correct answer |
 | `finished` | `true` after the answer to the last exercise. It is absent before |
 
 ### The daily limit on new words
