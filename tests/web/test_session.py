@@ -118,3 +118,25 @@ async def test_different_topics_scopes_are_addressed_independently(
         await web_session_store.get_shown_exercise(student_id, ["partizip_ii"])
         == exercise_b
     )
+
+
+async def test_get_lesson_is_empty_for_an_unknown_student(
+    web_session_store: WebSessionStore,
+) -> None:
+    student_id = WebStudentID.generate()
+    assert await web_session_store.get_lesson(student_id, ["government"]) == {}
+
+
+async def test_a_lesson_outlives_a_new_shown_exercise(
+    web_session_store: WebSessionStore,
+) -> None:
+    student_id = WebStudentID.generate()
+    lesson = {"date": "2026-11-14", "size": 1, "exercise_keys": []}
+
+    await web_session_store.set_lesson(student_id, ["government"], lesson)
+    await web_session_store.set_shown_exercise(
+        student_id, ["government"], make_exercise()
+    )
+
+    assert await web_session_store.get_lesson(student_id, ["government"]) == lesson
+    assert await web_session_store.get_lesson(student_id, ["meaning"]) == {}

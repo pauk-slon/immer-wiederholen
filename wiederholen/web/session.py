@@ -55,6 +55,14 @@ class WebSessionStore:
         scope = ",".join(sorted(topics))
         return f"web_session:{student_id}:{scope}"
 
+    @staticmethod
+    def _lesson_key(student_id: StudentID, topics: Sequence[str]) -> str:
+        # A key of its own, not a field of _SessionState: set_shown_exercise()
+        # replaces that envelope for every exercise, and a lesson lasts for
+        # several. Scoped by topics for the same reason as _key()
+        scope = ",".join(sorted(topics))
+        return f"web_lesson:{student_id}:{scope}"
+
     async def _get_state(
         self, student_id: StudentID, topics: Sequence[str]
     ) -> _SessionState | None:
@@ -105,6 +113,17 @@ class WebSessionStore:
         assert state is not None
         state["recall"] = recall.to_dict()
         await self._save_state(student_id, topics, state)
+
+    async def get_lesson(self, student_id: StudentID, topics: Sequence[str]) -> dict:
+        raw = await self.redis.get(self._lesson_key(student_id, topics))
+        return json.loads(raw) if raw is not None else {}
+
+    async def set_lesson(
+        self, student_id: StudentID, topics: Sequence[str], lesson: dict
+    ) -> None:
+        await self.redis.set(
+            self._lesson_key(student_id, topics), json.dumps(lesson), ex=_TTL_SECONDS
+        )
 
     async def _close(self) -> None:
         await self.redis.aclose(close_connection_pool=True)

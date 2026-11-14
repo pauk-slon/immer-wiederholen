@@ -1,4 +1,5 @@
 import hashlib
+import json
 import random
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
@@ -163,6 +164,17 @@ class Exercise:
         # wording — safe (never a mismatched cue), just means a re-run of
         # the worker is needed after a content edit that touches wording.
         return hashlib.sha256(self.question.encode()).hexdigest()
+
+    @property
+    def content_key(self) -> str:
+        # A hash of every field, so a lesson can refer to an exercise in the
+        # course (see wiederholen.school.tutoring.lesson). Not cue_key: a
+        # question can repeat across topics (a bare verb in partizip_ii and
+        # in praeteritum) and even within one pair with different answers.
+        # Any edit to the exercise changes the key, and a lesson then skips
+        # the exercise rather than show an outdated version.
+        content = json.dumps(self.to_dict(), sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(content.encode()).hexdigest()
 
 
 _SHUFFLE_ATTEMPTS: Final = 100

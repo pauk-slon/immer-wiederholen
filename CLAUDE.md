@@ -16,13 +16,14 @@ The package map, the dependency rules between `wiederholen.school`, `wiederholen
 
 ## Repetition schedule
 
-Spaced-repetition scheduling — `Tutor`/`StudentRecord`, `SelectablePairs` word/topic selection, repeat-avoidance, the daily new-word cap, chains/gates in `topics.yaml`, `/progress`'s six numbers and the streak — is documented in full in `docs/repetition-schedule.md`. Read it before touching `wiederholen.school.tutoring.session`/`selection`/`student_record` or `wiederholen.school.curriculum.Course`'s chain/gate loading. The rules that matter most:
+Spaced-repetition scheduling — `Tutor`/`StudentRecord`/`Lesson`, `SelectablePairs` word/topic selection, lessons, repeat-avoidance, the daily new-word cap, chains/gates in `topics.yaml`, `/progress`'s six numbers and the streak — is documented in full in `docs/repetition-schedule.md`. Read it before touching `wiederholen.school.tutoring.session`/`selection`/`student_record` or `wiederholen.school.curriculum.Course`'s chain/gate loading. The rules that matter most:
 
 - The schedule is per `(word, topic)` pair; the daily new-word limit is per *word*.
 - A first or wrong answer sets the interval to 0 and makes the pair due again today; don't make it 1.
 - `_expedite_dependent()` only creates entries for pairs that have none — never move an existing entry (mutual chains would loop).
 - `Tutor` never touches a raw schedule entry: read with `get_repetition_interval()`, write with `schedule_pair()`. `StudentRecord` stays course-agnostic.
 - `is_new` and the previous interval come from `record_mark()`'s return value, never a separate lookup after it.
+- `next_exercise()` takes exercises from a lesson (`LESSON_SIZE`, 1 for now, #325); a lesson stores `Exercise.content_key` values (a hash of every field — `question` repeats across topics and even within a pair), skips keys the course doesn't have, and lives only for the day it started (ADR 0026).
 - The streak breaks after 36 h without an answer, not on a calendar day, and an answer adds a day only 18 h or more after the answer that added the previous one (ADR 0021). `check_answer()` reads the previous answer time *before* `record_mark()` replaces it.
 
 ## Persistence and student identity
@@ -32,7 +33,7 @@ Spaced-repetition scheduling — `Tutor`/`StudentRecord`, `SelectablePairs` word
 - Every handler opens exactly one `async with student_record_book.check_out(student_id) as student_record:` per request and does its replies inside it; `check_out()` saves only if the record changed, in a `finally`, so there's no explicit save anywhere.
 - Every bot handler gets its `student_id` from `student_identity_store.resolve_or_create_student_id("telegram", str(chat_id))` (callback handlers: `str(callback.from_user.id)`, the same value in a private chat).
 - The student record holds only learning state; lasting chat state (such as settings) and exercise state stay in FSM data. Anything in FSM data that must outlive one exercise belongs in `_LASTING_CHAT_STATE_KEYS`.
-- `Tutor` never touches a store — it gets a plain `dict`.
+- `Tutor` never touches a store — it gets a plain `dict` for the record and another for the lesson. The lesson is conversation state, not learning state: the bot keeps it in FSM data (`lesson` in `_LASTING_CHAT_STATE_KEYS`), the web app in `WebSessionStore`, each its own (ADR 0026). The bot saves it only after the exercise is shown, so a failed AI generation retries the same exercise.
 - `check_out()` isn't atomic across concurrent updates for the same student: last write wins (#249). Don't rely on two handlers for one student seeing each other's changes.
 
 ## Tracing and tutoring events

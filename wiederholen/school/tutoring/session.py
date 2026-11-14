@@ -8,6 +8,8 @@ from wiederholen.school.curriculum import Course, Exercise, Recall, fold_case
 from wiederholen.school.tutoring.events import (
     ExerciseAnswered,
     ExerciseSelected,
+    LessonFinished,
+    LessonStarted,
     NoExerciseAvailable,
     RecallMode,
     StreakBroken,
@@ -15,6 +17,7 @@ from wiederholen.school.tutoring.events import (
     TopicUnlocked,
     emit,
 )
+from wiederholen.school.tutoring.lesson import Lesson
 from wiederholen.school.tutoring.selection import SelectablePairs
 from wiederholen.school.tutoring.student_record import StudentRecord
 
@@ -67,11 +70,24 @@ class Tutor:
     STREAK_REMIND_WINDOW: Final = timedelta(hours=1)
     STREAK_REMIND_MIN_GAP: Final = timedelta(hours=6)
     STREAK_REMIND_MIN_DAYS: Final = 2
+    LESSON_SIZE: Final = 1
 
-    def __init__(self, course: Course, student_record: dict) -> None:
+    def __init__(
+        self,
+        course: Course,
+        student_record: dict,
+        *,
+        lesson: dict | None = None,
+        lesson_size: int = LESSON_SIZE,
+    ) -> None:
+        # lesson is the frontend's own dict, changed in place like
+        # student_record. Without one, a lesson lasts only as long as this
+        # Tutor, which is enough for callers that never show exercises
         self._course = course
         self._today = datetime.now(UTC).date()
         self._student_record = StudentRecord(student_record, today=self._today)
+        self._lesson = Lesson(lesson if lesson is not None else {}, today=self._today)
+        self._lesson_size = lesson_size
 
     @cached_property
     def _exercises_by_word_topic(self) -> dict[str, dict[str, list[Exercise]]]:
@@ -81,6 +97,10 @@ class Tutor:
                 exercise
             )
         return result
+
+    @cached_property
+    def _exercises_by_content_key(self) -> dict[str, Exercise]:
+        return {exercise.content_key: exercise for exercise in self._course.exercises}
 
     @cached_property
     def _course_pairs(self) -> set[tuple[str, str]]:
@@ -172,47 +192,86 @@ class Tutor:
             return None
         return (word, topic)
 
-    def next_exercise(self) -> Exercise | None:
-        selectable_pairs = SelectablePairs(
-            due_introduced=self._get_due_pairs(is_introduced=True),
-            due_not_introduced=self._get_due_pairs(is_introduced=False),
-            not_scheduled=self._get_available_not_scheduled_pairs(),
-        )
-        if not selectable_pairs:
-            emit(NoExerciseAvailable(reason="nothing_available"))
-            return None
+    def _select_lesson_exercises(self) -> list[Exercise]:
+        # The single-exercise pick, repeated: each exercise counts as the
+        # last answer for the next pick, a pair is taken at most once, and
+        # a new word spends the daily budget as soon as it is taken
+        due_introduced = self._get_due_pairs(is_introduced=True)
+        due_not_introduced = self._get_due_pairs(is_introduced=False)
+        not_scheduled = self._get_available_not_scheduled_pairs()
+        introduced_words = self._student_record.get_words_already_introduced()
         budget = max(
             self._get_effective_cap() - len(self._get_words_introduced_today()),
             0,
         )
         last_pair = self._get_last_pair()
-        selected_word = selectable_pairs.select_word(
-            self._student_record.get_words_already_introduced(),
-            budget,
-            last_pair,
-        )
-        if selected_word is None:
-            emit(NoExerciseAvailable(reason="daily_cap_reached"))
-            return None
-        selected_topic = selectable_pairs.select_topic(selected_word, last_pair)
-        candidates = self._exercises_by_word_topic[selected_word][selected_topic]
         last_exercise = self._student_record.get_last_exercise()
-        if last_exercise is not None and (
-            filtered_exercises := [
+        last_question = last_exercise["question"] if last_exercise is not None else None
+        selected: list[Exercise] = []
+        while len(selected) < self._lesson_size:
+            taken_pairs = {(exercise.word, exercise.topic) for exercise in selected}
+            selectable_pairs = SelectablePairs(
+                due_introduced=due_introduced - taken_pairs,
+                due_not_introduced=due_not_introduced - taken_pairs,
+                not_scheduled=not_scheduled - taken_pairs,
+            )
+            if not selectable_pairs:
+                if not selected:
+                    emit(NoExerciseAvailable(reason="nothing_available"))
+                break
+            selected_word = selectable_pairs.select_word(
+                introduced_words, budget, last_pair
+            )
+            if selected_word is None:
+                if not selected:
+                    emit(NoExerciseAvailable(reason="daily_cap_reached"))
+                break
+            if selected_word not in introduced_words:
+                introduced_words = introduced_words | {selected_word}
+                budget -= 1
+            selected_topic = selectable_pairs.select_topic(selected_word, last_pair)
+            candidates = self._exercises_by_word_topic[selected_word][selected_topic]
+            if filtered_exercises := [
                 exercise
                 for exercise in candidates
-                if exercise.question != last_exercise["question"]
-            ]
-        ):
-            candidates = filtered_exercises
-        exercise = random.choice(candidates)
+                if exercise.question != last_question
+            ]:
+                candidates = filtered_exercises
+            exercise = random.choice(candidates)
+            selected.append(exercise)
+            last_pair = (selected_word, selected_topic)
+            last_question = exercise.question
+        return selected
+
+    def _take_lesson_exercise(self) -> Exercise | None:
+        while (exercise_key := self._lesson.take_exercise_key()) is not None:
+            # A key that the course doesn't have is skipped: the exercise was
+            # edited or removed, or its topic is no longer selected
+            if (
+                exercise := self._exercises_by_content_key.get(exercise_key)
+            ) is not None:
+                return exercise
+        return None
+
+    def next_exercise(self) -> Exercise | None:
+        exercise = self._take_lesson_exercise()
+        if exercise is None:
+            lesson_exercises = self._select_lesson_exercises()
+            if not lesson_exercises:
+                return None
+            self._lesson.start([exercise.content_key for exercise in lesson_exercises])
+            emit(LessonStarted(size=len(lesson_exercises)))
+            exercise = self._take_lesson_exercise()
+            assert exercise is not None
+        introduced_pairs = set(
+            self._student_record.iter_scheduled_pairs(is_introduced=True)
+        )
         emit(
             ExerciseSelected(
-                word=selected_word,
-                topic=selected_topic,
+                word=exercise.word,
+                topic=exercise.topic,
                 question=exercise.question,
-                is_new=(selected_word, selected_topic)
-                in selectable_pairs.not_introduced,
+                is_new=(exercise.word, exercise.topic) not in introduced_pairs,
             )
         )
         return exercise
@@ -344,6 +403,8 @@ class Tutor:
         )
         self._expedite_chained_topics(exercise)
         self._update_streak(previous_answered_at, answered_at)
+        if self._lesson.finish():
+            emit(LessonFinished(size=self._lesson.size))
         return Mark(is_correct=is_correct, recall=recall_mode)
 
     def check_recall(self, recall: Recall, text: str) -> bool:
