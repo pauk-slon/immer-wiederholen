@@ -59,6 +59,18 @@ class StreakBroken:
     days: int
 
 
+@dataclass(frozen=True)
+class LessonStarted:
+    # The number of exercises in the lesson, at most the lesson size
+    size: int
+
+
+@dataclass(frozen=True)
+class LessonFinished:
+    # Reported by the answer to the lesson's last exercise
+    size: int
+
+
 TutoringEvent = (
     ExerciseAnswered
     | ExerciseSelected
@@ -66,6 +78,8 @@ TutoringEvent = (
     | NoExerciseAvailable
     | StreakExtended
     | StreakBroken
+    | LessonStarted
+    | LessonFinished
 )
 
 

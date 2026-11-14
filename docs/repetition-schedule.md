@@ -1,11 +1,12 @@
 # Repetition schedule
 
-This page describes how `wiederholen.school.tutoring` decides what a learner practices and when. It covers the schedule, the growth of intervals, the choice of the next exercise, the daily limit on new words, the scheduling of linked topics, the numbers of `/progress` and the streak. [Course format](course-format.md#linking-topics) describes how to declare links in `topics.yaml`.
+This page describes how `wiederholen.school.tutoring` decides what a learner practices and when. It covers the schedule, the growth of intervals, the choice of the next exercise, lessons, the daily limit on new words, the scheduling of linked topics, the numbers of `/progress` and the streak. [Course format](course-format.md#linking-topics) describes how to declare links in `topics.yaml`.
 
-The repetition engine consists of two classes in [`tutoring/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/tutoring):
+The repetition engine consists of three classes in [`tutoring/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/tutoring):
 
-- **`Tutor`** (`session.py`) makes the decisions with `next_exercise()`, `check_answer()`, `request_recall()`, `check_recall()`, `should_remind()`, `progress()`, `streak()` and `get_hint()`. The frontend creates it for each request as `Tutor(course, student_record)`.
+- **`Tutor`** (`session.py`) makes the decisions with `next_exercise()`, `check_answer()`, `request_recall()`, `check_recall()`, `should_remind()`, `progress()`, `streak()` and `get_hint()`. The frontend creates it for each request as `Tutor(course, student_record, lesson=lesson)`.
 - **`StudentRecord`** (`student_record.py`) reads and writes the learner's record. The record is a plain dict that the frontend loaded from storage (see [Storage and identity](storage.md#student-records)). `StudentRecord` knows nothing about the course.
+- **`Lesson`** (`lesson.py`) reads and writes the learner's current lesson. The lesson is also a plain dict, but it is the frontend's conversation state, not part of the record (see [Lessons](#lessons)).
 
 `SelectablePairs` (`selection.py`) chooses the word and the topic for `next_exercise()`. [Conventions](#conventions) lists the rules for changes to these classes.
 
@@ -88,6 +89,32 @@ A word is free after the learner answers any of its topics. For example, if the 
 `SelectablePairs.select_word()` takes as many queued words as today's remaining limit allows. It fills the rest with a random sample of fresh words. Then it picks with equal chance among the free words and the taken words. The sample of fresh words is limited *before* the pick, so a course with hundreds of untouched words doesn't lower the chance of a few due words.
 
 `select_topic()` then prefers a topic of the chosen word that is **due for review**, which means that the learner answered it before and it is due today. If there is no such topic, it picks among the new topics of the word. These include linked topics that are scheduled for today but not answered yet. A review has a deadline, and new material doesn't.
+
+### Lessons
+
+`Tutor` gives exercises in lessons. A lesson is a short group of exercises that `Tutor` chooses together from the schedule. The learner answers them one after another. A new lesson starts only when the current lesson has no exercises left. `LESSON_SIZE` sets the number of exercises, and the frontend can give another size as `lesson_size`. For now, the size is 1, so a lesson is one exercise and the bot and the web app behave as before ([#325](https://github.com/pauk-slon/immer-wiederholen/issues/325) describes the next steps).
+
+`next_exercise()` takes the next exercise from the lesson. If the lesson has no exercises left, or if it started on an earlier day, `next_exercise()` starts a new lesson first:
+
+- It repeats the pick of one exercise that [Picking the next exercise](#picking-the-next-exercise) describes. Each chosen exercise counts as the last answer for the next pick, so the [exclusions](#avoiding-repeats) space the exercises of one word.
+- A pair is taken at most once.
+- A new word uses today's limit as soon as it is taken, so a lesson never has more new words than the limit allows.
+- The lesson can be shorter than the size, if less material is available. If nothing is available, there's no lesson, and `next_exercise()` returns `None`.
+
+A lesson stores `Exercise.content_key` values, a SHA-256 hash of all fields of each exercise. `next_exercise()` skips a key that the course doesn't have. Such an exercise was edited or removed, or the learner no longer selects its topic. A lesson lives only for the day when it started. Its pairs that the learner didn't answer come back as due reviews.
+
+The answer to the last exercise of a lesson finishes it. `check_answer()` reports this once per lesson. A lesson isn't part of the student record. Each frontend keeps its own lesson next to the exercise that it shows (see [Storage and identity](storage.md#chat-state) and [ADR 0026](adr/0026-lessons-in-conversation-state.md)).
+
+```json
+{"date": "2026-11-14", "size": 5, "exercise_keys": ["3f9a…", "b21c…"]}
+```
+
+| Field | Meaning |
+|---|---|
+| `date` | the day when the lesson started |
+| `size` | the number of exercises in the lesson |
+| `exercise_keys` | the keys of the exercises that the lesson hasn't given yet |
+| `finished` | `true` after the answer to the last exercise. It is absent before |
 
 ### The daily limit on new words
 
@@ -195,6 +222,8 @@ The bot shows the streak in `/progress`, when the day is done and in the reminde
 
 It keeps the rest of the record, which is today's "Study more" grants, `last_exercise`, `last_reminded_at` and `streak`. A reset changes the schedule, not the practice habit, so the streak continues. Because `last_exercise` stays, the reminder still measures inactivity from the last answer before the reset, so a learner can get a reminder soon after a reset (see [#258](https://github.com/pauk-slon/immer-wiederholen/issues/258)).
 
+The current lesson isn't part of the record, so `/reset` doesn't change it either (see [Lessons](#lessons)). The learner finishes the lesson, and its pairs are answered as new pairs.
+
 ## Example: a learner's first day
 
 The [demo course](https://github.com/pauk-slon/immer-wiederholen/tree/main/demo) has these links. `partizip_ii` chains to `perfekt_wortstellung` and gates `partizip_ii_meaning`. A learner's first day goes like this:
@@ -221,3 +250,4 @@ The [demo course](https://github.com/pauk-slon/immer-wiederholen/tree/main/demo)
 - [Topic links only schedule pairs that haven't started](adr/0004-links-only-schedule-unstarted-pairs.md) (ADR 0004)
 - [Gates are declared explicitly](adr/0012-gates-declared-explicitly.md) (ADR 0012)
 - [Streaks count intervals between answers, not calendar days](adr/0021-streaks-from-intervals-between-answers.md) (ADR 0021)
+- [Lessons are conversation state and refer to exercises by a content hash](adr/0026-lessons-in-conversation-state.md) (ADR 0026)

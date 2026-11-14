@@ -33,14 +33,16 @@ When code inside a span raises an exception, OpenTelemetry records it on that sp
 
 | Event | When | Attributes |
 |---|---|---|
-| `ExerciseSelected` | `next_exercise()` picks an exercise | `word`, `topic`, `question` (the question text from the course), `is_new` (the learner never answered this pair) |
+| `ExerciseSelected` | `next_exercise()` takes an exercise from the lesson | `word`, `topic`, `question` (the question text from the course), `is_new` (the learner never answered this pair) |
 | `ExerciseAnswered` | every `check_answer()` | `word`, `topic`, `is_correct`, `is_new`, `recall_mode` (`none`, `optional`, `required`), `prev_repetition_interval` (not set on a pair's first answer), `next_repetition_interval` |
 | `TopicUnlocked` | `Tutor` schedules a linked topic for a word (see [Course format](course-format.md#linking-topics)) | `source_topic`, `dependent_topic`, `via` (`chain` or `gate`) |
 | `NoExerciseAvailable` | `next_exercise()` finds nothing to show | `reason` (`daily_cap_reached` when only new words are left and today's limit is used up, otherwise `nothing_available`) |
 | `StreakExtended` | an answer adds a day to the streak or starts a new one (see [Repetition schedule](repetition-schedule.md#streak)) | `days`, the new length. It is 1 for a new streak |
 | `StreakBroken` | the first answer after a break of more than 36 hours | `days`, the length of the lost streak |
+| `LessonStarted` | `next_exercise()` starts a new lesson (see [Repetition schedule](repetition-schedule.md#lessons)) | `size`, the number of exercises in the lesson |
+| `LessonFinished` | the answer to the last exercise of a lesson | `size`, the number of exercises in the lesson |
 
-`ExerciseSelected` records the exercise that `Tutor` picked, not the message that the learner saw. In `/ai` mode the bot shows a generated question instead, and `question` still holds the original. If generation fails, the learner sees no question at all. To find where a learner stopped, look for their last `ExerciseSelected` without an `ExerciseAnswered` after it.
+`ExerciseSelected` records the exercise that `Tutor` took from the lesson, not the message that the learner saw. In `/ai` mode the bot shows a generated question instead, and `question` still holds the original. If generation fails, the learner sees no question at all, and the next request takes the same exercise from the lesson again, with a new `ExerciseSelected`. To find where a learner stopped, look for their last `ExerciseSelected` without an `ExerciseAnswered` after it.
 
 `request_recall()` and `check_recall()` emit no events.
 

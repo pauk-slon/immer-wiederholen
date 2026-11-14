@@ -329,6 +329,7 @@ def test_next_exercise_reports_a_new_pair_selected(
     assert exercise is not None
     span = exporter.get_finished_spans()[0]
     assert _events(span) == [
+        ("LessonStarted", {"size": 1}),
         (
             "ExerciseSelected",
             {
@@ -337,7 +338,7 @@ def test_next_exercise_reports_a_new_pair_selected(
                 "question": "Ich ___ warten.",
                 "is_new": True,
             },
-        )
+        ),
     ]
 
 
@@ -364,6 +365,7 @@ def test_next_exercise_reports_a_due_review_selected_as_not_new(
 
     span = exporter.get_finished_spans()[0]
     assert _events(span) == [
+        ("LessonStarted", {"size": 1}),
         (
             "ExerciseSelected",
             {
@@ -372,7 +374,7 @@ def test_next_exercise_reports_a_due_review_selected_as_not_new(
                 "question": "Ich ___ warten.",
                 "is_new": False,
             },
-        )
+        ),
     ]
 
 
@@ -399,6 +401,7 @@ def test_next_exercise_reports_a_chain_queued_pair_selected_as_new(
 
     span = exporter.get_finished_spans()[0]
     assert _events(span) == [
+        ("LessonStarted", {"size": 1}),
         (
             "ExerciseSelected",
             {
@@ -407,5 +410,5 @@ def test_next_exercise_reports_a_chain_queued_pair_selected_as_new(
                 "question": "Ich ___ warten.",
                 "is_new": True,
             },
-        )
+        ),
     ]

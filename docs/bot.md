@@ -54,7 +54,7 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 | reminder interval | `remind_after_hours` | `/reminders` | the reminder (see [The /reminders setting](#the-reminders-setting)) |
 | AI mode | `ai_mode` | `/ai` | the choice whether to rewrite a question |
 
-The settings are lasting chat state (see [Storage and identity](storage.md#chat-state)). `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists all four settings. When an exercise ends, the bot clears the exercise state but keeps the keys in this tuple. **Add a new setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored `ai_mode` by hand after each exercise. One of four call sites missed it, and AI mode silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
+The settings are lasting chat state (see [Storage and identity](storage.md#chat-state)). `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists all four settings and the current lesson. When an exercise ends, the bot clears the exercise state but keeps the keys in this tuple. **Add a new setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored `ai_mode` by hand after each exercise. One of four call sites missed it, and AI mode silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
 
 ### Topic selection
 

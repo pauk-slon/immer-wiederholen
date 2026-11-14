@@ -26,6 +26,7 @@ from wiederholen.web.app import (
     telegram_login_callback,
 )
 from wiederholen.web.session import WebSessionStore
+from wiederholen.web.web_student_id import WebStudentID
 
 type WebAppFactory = Callable[[Course], Litestar]
 
@@ -836,3 +837,23 @@ async def test_standalone_app_is_served_at_the_root_path(
 
     assert response.status_code == 200
     assert "german-exercise-widget" in response.text
+
+
+async def test_answering_the_last_exercise_finishes_the_stored_lesson(
+    web_app_factory: WebAppFactory,
+    web_session_store: WebSessionStore,
+) -> None:
+    exercise = make_exercise(word="warten", answer="auf")
+    app = web_app_factory(Course([exercise]))
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        student_id = WebStudentID.validate(client.cookies["wiederholen_student_id"])
+        shown_lesson = await web_session_store.get_lesson(student_id, ["government"])
+        await client.post(
+            "/api/exercise/check", json={"answer": "auf", "topics": ["government"]}
+        )
+
+    assert shown_lesson["exercise_keys"] == []
+    answered_lesson = await web_session_store.get_lesson(student_id, ["government"])
+    assert answered_lesson["finished"] is True

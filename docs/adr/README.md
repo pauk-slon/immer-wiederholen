@@ -55,6 +55,7 @@ The date is the day of the decision.
 | [0007](0007-save-records-only-when-changed.md) | Save a student record only when it changes | 2026-08-23 | Accepted |
 | [0008](0008-student-record-separate-from-chat-state.md) | Keep the student record separate from chat state | 2026-08-23 | Accepted |
 | [0009](0009-one-environment-variable-per-store.md) | One environment variable per store | 2026-08-23 | Accepted |
+| [0026](0026-lessons-in-conversation-state.md) | Lessons are conversation state and refer to exercises by a content hash | 2026-11-14 | Accepted |
 
 ### Telegram bot
 

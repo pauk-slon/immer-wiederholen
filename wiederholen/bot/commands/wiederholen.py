@@ -75,6 +75,9 @@ _LASTING_CHAT_STATE_KEYS: Final = (
     "ai_mode",
     "topic_groups",
     "remind_after_hours",
+    # Not a setting: the lesson lasts for several exercises (see
+    # wiederholen.school.tutoring.lesson)
+    "lesson",
 )
 
 
@@ -344,8 +347,11 @@ async def command_wiederholen(
         "telegram", str(message.chat.id)
     )
     course = restrict_to_selected_groups(course, data)
+    # A copy, saved only after AI generation succeeds: if it fails, the next
+    # request takes the same exercise from the lesson again
+    lesson = dict(data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
-        tutor = Tutor(course, student_record)
+        tutor = Tutor(course, student_record, lesson=lesson)
         exercise = tutor.next_exercise()
         if exercise is None:
             sent = await message.answer(
@@ -379,7 +385,7 @@ async def command_wiederholen(
             return
         hint_word = tutor.get_hint(exercise)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=exercise.to_dict())
+        await state.update_data(shown_exercise=exercise.to_dict(), lesson=lesson)
         question_text = _format_question(
             exercise, language, course, is_ai_generated=ai_mode, hint_word=hint_word
         )
@@ -411,9 +417,11 @@ async def handle_answer(
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(message.chat.id)
     )
+    lesson = dict(state_data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
-        tutor = Tutor(course, student_record)
+        tutor = Tutor(course, student_record, lesson=lesson)
         mark = tutor.check_answer(shown_exercise, message.text or "")
+        await state.update_data(lesson=lesson)
         result_line = (
             locale.correct
             if mark.is_correct
@@ -492,6 +500,7 @@ async def _respond_with_next_exercise(
     state: FSMContext,
     course: Course,
     tutor: Tutor,
+    lesson: dict,
     language: Language,
     locale: Locale,
     *,
@@ -540,7 +549,8 @@ async def _respond_with_next_exercise(
         return
     hint_word = tutor.get_hint(exercise)
     await state.set_state(UserState.answering)
-    await state.update_data(shown_exercise=exercise.to_dict())
+    # Saved only after AI generation succeeded, as in command_wiederholen
+    await state.update_data(shown_exercise=exercise.to_dict(), lesson=lesson)
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
@@ -577,13 +587,15 @@ async def handle_next_exercise(
         "telegram", str(callback.from_user.id)
     )
     course = restrict_to_selected_groups(course, state_data)
+    lesson = dict(state_data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
-        tutor = Tutor(course, student_record)
+        tutor = Tutor(course, student_record, lesson=lesson)
         await _respond_with_next_exercise(
             callback,
             state,
             course,
             tutor,
+            lesson,
             language,
             locale,
             ai_mode=state_data.get("ai_mode", False),
@@ -611,14 +623,16 @@ async def handle_study_more(
         "telegram", str(callback.from_user.id)
     )
     course = restrict_to_selected_groups(course, state_data)
+    lesson = dict(state_data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
-        tutor = Tutor(course, student_record)
+        tutor = Tutor(course, student_record, lesson=lesson)
         tutor.grant_new_word_budget()
         await _respond_with_next_exercise(
             callback,
             state,
             course,
             tutor,
+            lesson,
             language,
             locale,
             ai_mode=state_data.get("ai_mode", False),

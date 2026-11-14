@@ -257,12 +257,16 @@ async def next_exercise(
     # needing to know (or send) every topic name up front, unlike a landing
     # page's embedded widget, which always names its own specific topics.
     restricted_course = course.restricted_to(data.topics) if data.topics else course
+    lesson = await session_store.get_lesson(student_id, data.topics)
     async with student_record_book.check_out(student_id) as student_record:
-        exercise = Tutor(restricted_course, student_record).next_exercise()
+        exercise = Tutor(
+            restricted_course, student_record, lesson=lesson
+        ).next_exercise()
 
     body: ExerciseDTO | None = None
     if exercise is not None:
         await session_store.set_shown_exercise(student_id, data.topics, exercise)
+        await session_store.set_lesson(student_id, data.topics, lesson)
         body = _to_exercise_dto(exercise, course, data.language)
 
     response = Response(body)
@@ -294,8 +298,12 @@ async def check_answer(
             detail="no exercise currently shown for this student",
         )
 
+    lesson = await session_store.get_lesson(student_id, data.topics)
     async with student_record_book.check_out(student_id) as student_record:
-        mark = Tutor(course, student_record).check_answer(shown_exercise, data.answer)
+        mark = Tutor(course, student_record, lesson=lesson).check_answer(
+            shown_exercise, data.answer
+        )
+    await session_store.set_lesson(student_id, data.topics, lesson)
 
     return Response(
         CheckAnswerResponse(
