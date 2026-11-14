@@ -61,7 +61,9 @@ When an exercise ends, the bot clears the exercise state and keeps the lasting c
 
 The bot sets the `bot_blocked` flag when the learner blocks it. The flag isn't in this tuple, so the end of an exercise removes it like exercise state. This is safe (see [Blocked chats](bot.md#blocked-chats)).
 
-None of this data is part of the student record, because it is about one Telegram chat and not about what the learner knows. For this reason `/reset`, which deletes the record, doesn't change the chat state. A lesson is conversation state too, so the bot and the web app each have their own (see [ADR 0026](adr/0026-lessons-in-conversation-state.md)). The web app has its own store for the same purpose (`WebSessionStore`, see [Web frontend](web-frontend.md)).
+None of this data is part of the student record, because it is about one Telegram chat and not about what the learner knows. For this reason `/reset`, which deletes the record, doesn't change the chat state. The web app has its own store for the same purpose (`WebSessionStore`, see [Web frontend](web-frontend.md)).
+
+**Conversation state** is the general name for this kind of data. It is the state that each frontend keeps for itself. In the bot it is the chat state, and in the web app it is the session. The student record is shared by all frontends, but conversation state isn't. A lesson is conversation state, so the bot and the web app each have their own lesson (see [ADR 0026](adr/0026-lessons-in-conversation-state.md)).
 
 `wiederholen.bot` creates its `dispatcher` with aiogram's default in-memory storage, so an import of the package, for example in tests, needs no Redis. At startup, `bootstrap.load_bot_course_and_storage()` builds the real stores. It returns the bot, the course, the `RedisStorage`, the `StudentRecordBook` and the `StudentIdentityStore`. The bot and the reminder both call it. The reminder has no routers, but it still reads the FSM data of each chat for its language and settings.
 

@@ -1,12 +1,12 @@
 # 0026. Lessons are conversation state and refer to exercises by a content hash
 
-**Status:** Accepted, 2026-11-14 ([#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
+**Status:** Accepted, 2026-11-14 ([#328](https://github.com/pauk-slon/immer-wiederholen/pull/328)).
 
 ## Context
 
 [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325) groups exercises into lessons. A lesson is a short group of exercises that `Tutor` chooses from the learner's schedule. The learner answers them one after another, and a new lesson starts only after the current one. A lesson must be stored between requests, and it must refer to the exercises that it contains.
 
-Today the shown exercise is conversation state. The bot keeps it in the chat's FSM data as `shown_exercise`, and the web app keeps it in `WebSessionStore`. The student record holds only learning state (see [ADR 0008](0008-student-record-separate-from-chat-state.md)).
+Today the shown exercise is conversation state, the state that each frontend keeps for itself (see [Storage and identity](../storage.md#chat-state)). The bot keeps it in the chat's FSM data as `shown_exercise`, and the web app keeps it in `WebSessionStore`. The student record holds only learning state (see [ADR 0008](0008-student-record-separate-from-chat-state.md)).
 
 In the real course, a question isn't unique. 79 questions repeat across topics, for example a bare verb in `partizip_ii` and in `praeteritum`. 5 questions repeat within one pair, with different answers.
 

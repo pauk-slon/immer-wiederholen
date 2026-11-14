@@ -42,7 +42,7 @@ When code inside a span raises an exception, OpenTelemetry records it on that sp
 | `LessonStarted` | `next_exercise()` starts a new lesson (see [Repetition schedule](repetition-schedule.md#lessons)) | `size`, the number of exercises in the lesson |
 | `LessonFinished` | the answer to the last exercise of a lesson | `size`, the number of exercises in the lesson |
 
-`ExerciseSelected` records the exercise that `Tutor` picked, not the message that the learner saw. In `/ai` mode the bot shows a generated question instead, and `question` still holds the original. If generation fails, the learner sees no question at all, and the next request takes the same exercise from the lesson again, with a new `ExerciseSelected`. To find where a learner stopped, look for their last `ExerciseSelected` without an `ExerciseAnswered` after it.
+`ExerciseSelected` records the exercise that `Tutor` took from the lesson, not the message that the learner saw. In `/ai` mode the bot shows a generated question instead, and `question` still holds the original. If generation fails, the learner sees no question at all, and the next request takes the same exercise from the lesson again, with a new `ExerciseSelected`. To find where a learner stopped, look for their last `ExerciseSelected` without an `ExerciseAnswered` after it.
 
 `request_recall()` and `check_recall()` emit no events.
 
