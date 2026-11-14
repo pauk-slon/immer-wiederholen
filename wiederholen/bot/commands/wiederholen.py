@@ -259,6 +259,34 @@ async def _answer_with_optional_cue(
         await target.answer(text, **kwargs)
 
 
+async def _send_question(
+    target: Message,
+    exercise: Exercise,
+    language: Language,
+    course: Course,
+    cue_store: CueStore | None,
+    *,
+    is_ai_generated: bool,
+    hint_word: str | None,
+) -> None:
+    question_text = _format_question(
+        exercise,
+        language,
+        course,
+        is_ai_generated=is_ai_generated,
+        hint_word=hint_word,
+    )
+    await _answer_with_optional_cue(
+        target,
+        question_text,
+        exercise,
+        course,
+        cue_store,
+        parse_mode="HTML",
+        **_show_exercise_kwargs(exercise, course),
+    )
+
+
 _TYPING_INTERVAL_SECONDS: Final = 4  # Telegram's own indicator lasts ~5s
 
 
@@ -343,10 +371,26 @@ async def command_wiederholen(
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
+    course = restrict_to_selected_groups(course, data)
+    if await state.get_state() == UserState.answering:
+        shown_exercise = Exercise.from_dict(data["shown_exercise"])
+        # The shown exercise again, not the next one: otherwise a learner
+        # could skip every exercise of a lesson and still finish it. Unless
+        # /topics has deselected its topic since, which a lesson skips too
+        if any(e.topic == shown_exercise.topic for e in course.exercises):
+            await _send_question(
+                message,
+                shown_exercise,
+                language,
+                course,
+                cue_store,
+                is_ai_generated=data.get("shown_is_ai_generated", False),
+                hint_word=data.get("shown_hint_word"),
+            )
+            return
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(message.chat.id)
     )
-    course = restrict_to_selected_groups(course, data)
     # A copy, saved only after AI generation succeeds: if it fails, the next
     # request takes the same exercise from the lesson again
     lesson = dict(data.get("lesson") or {})
@@ -385,18 +429,20 @@ async def command_wiederholen(
             return
         hint_word = tutor.get_hint(exercise)
         await state.set_state(UserState.answering)
-        await state.update_data(shown_exercise=exercise.to_dict(), lesson=lesson)
-        question_text = _format_question(
-            exercise, language, course, is_ai_generated=ai_mode, hint_word=hint_word
+        await state.update_data(
+            shown_exercise=exercise.to_dict(),
+            shown_is_ai_generated=ai_mode,
+            shown_hint_word=hint_word,
+            lesson=lesson,
         )
-        await _answer_with_optional_cue(
+        await _send_question(
             message,
-            question_text,
             exercise,
+            language,
             course,
             cue_store,
-            parse_mode="HTML",
-            **_show_exercise_kwargs(exercise, course),
+            is_ai_generated=ai_mode,
+            hint_word=hint_word,
         )
 
 
@@ -550,21 +596,23 @@ async def _respond_with_next_exercise(
     hint_word = tutor.get_hint(exercise)
     await state.set_state(UserState.answering)
     # Saved only after AI generation succeeded, as in command_wiederholen
-    await state.update_data(shown_exercise=exercise.to_dict(), lesson=lesson)
+    await state.update_data(
+        shown_exercise=exercise.to_dict(),
+        shown_is_ai_generated=ai_mode,
+        shown_hint_word=hint_word,
+        lesson=lesson,
+    )
     if isinstance(callback.message, Message):
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
-        question_text = _format_question(
-            exercise, language, course, is_ai_generated=ai_mode, hint_word=hint_word
-        )
-        await _answer_with_optional_cue(
+        await _send_question(
             callback.message,
-            question_text,
             exercise,
+            language,
             course,
             cue_store,
-            parse_mode="HTML",
-            **_show_exercise_kwargs(exercise, course),
+            is_ai_generated=ai_mode,
+            hint_word=hint_word,
         )
     await callback.answer()
 

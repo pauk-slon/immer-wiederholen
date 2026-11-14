@@ -324,3 +324,22 @@ async def test_requesting_recall_after_correct_answer_halves_the_interval(
     entry = student_record["word_schedule"]["warten"]["government"]
     assert entry["repetition_interval"] == 8
     assert entry["due_date"] == (today + timedelta(days=8)).isoformat()
+
+
+async def test_wiederholen_during_a_recall_shows_the_next_exercise(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(recalls=[{"answer": ["Ich warte auf den Bus."]}])
+    hoffen = make_exercise(word="hoffen")
+    await state.set_state(UserState.recalling)
+    await state.update_data(
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
+    )
+
+    # Only hoffen is left to show, so a repeated recall prompt would fail
+    await feed_message("/wiederholen", course=Course([hoffen]))
+
+    assert await state.get_state() == UserState.answering
+    assert (await state.get_data())["shown_exercise"] == hoffen.to_dict()

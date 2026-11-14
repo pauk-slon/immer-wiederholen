@@ -106,3 +106,16 @@ async def test_selection_survives_a_recall_round_trip(
     await feed_callback_query(RECALL, course=Course([exercise]))
 
     assert (await state.get_data())["topic_groups"] == ["cases"]
+
+
+async def test_wiederholen_skips_the_shown_exercise_of_a_deselected_group(
+    state: FSMContext, feed_message: FeedMessage
+) -> None:
+    course = _course(_PARTIZIP, _CASE)
+    await state.update_data(topic_groups=["verb_forms"])
+    await feed_message("/wiederholen", course=course)
+    await state.update_data(topic_groups=["cases"])
+
+    await feed_message("/wiederholen", course=course)
+
+    assert (await state.get_data())["shown_exercise"] == _CASE.to_dict()
