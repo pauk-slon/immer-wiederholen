@@ -298,3 +298,33 @@ def test_lesson_progress_is_the_position_of_the_shown_exercise() -> None:
     assert tutor.lesson_progress() == LessonProgress(position=1, size=2)
     _next(tutor)
     assert tutor.lesson_progress() == LessonProgress(position=2, size=2)
+
+
+def test_a_skipped_exercise_leaves_the_lesson_size(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    warten, hoffen, denken = (
+        make_exercise(word=word) for word in ("warten", "hoffen", "denken")
+    )
+    lesson = _started_lesson(warten, hoffen, denken)
+    course = Course([warten, denken])
+    student_record: dict = {}
+    progress = []
+
+    with tracer.start_as_current_span("test-span"):
+        for _ in range(2):
+            tutor = Tutor(course, student_record, lesson=lesson)
+            exercise = _next(tutor)
+            progress.append(tutor.lesson_progress())
+            mark = tutor.check_answer(exercise, exercise.answer[0])
+
+    assert progress == [
+        LessonProgress(position=1, size=2),
+        LessonProgress(position=2, size=2),
+    ]
+    assert mark.finished_lesson == FinishedLesson(
+        size=2, correct=2, extends_streak=True
+    )
+    span = exporter.get_finished_spans()[0]
+    assert _lesson_events(span) == [("LessonFinished", {"size": 2, "correct": 2})]

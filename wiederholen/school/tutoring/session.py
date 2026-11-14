@@ -275,14 +275,12 @@ class Tutor:
         return selected
 
     def _take_lesson_exercise(self) -> Exercise | None:
-        while (exercise_key := self._lesson.take_exercise_key()) is not None:
-            # A key that the course doesn't have is skipped: the exercise was
-            # edited or removed, or its topic is no longer selected
-            if (
-                exercise := self._exercises_by_content_key.get(exercise_key)
-            ) is not None:
-                return exercise
-        return None
+        # A key that the course doesn't have is skipped: the exercise was
+        # edited or removed, or its topic is no longer selected
+        self._lesson.retain_exercise_keys(self._exercises_by_content_key)
+        if (exercise_key := self._lesson.take_exercise_key()) is None:
+            return None
+        return self._exercises_by_content_key[exercise_key]
 
     def next_exercise(self) -> Exercise | None:
         exercise = self._take_lesson_exercise()
