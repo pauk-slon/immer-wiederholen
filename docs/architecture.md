@@ -114,7 +114,7 @@ When a learner answers an exercise in Telegram, these steps happen:
 3. The handler opens the learner's record with `StudentRecordBook.check_out()` and creates a `Tutor` for it.
 4. `Tutor.check_answer()` marks the answer, schedules the pair again and schedules linked topics. It records what happened as span events.
 5. The handler replies with the explanation and the next step, a recall or a "next" button.
-6. The handler clears the chat's conversation state but keeps the chat's settings (language, `/ai` mode, selected topics). Clearing all of the FSM data would reset the settings after every exercise.
+6. The handler clears the exercise state but keeps the lasting chat state, such as the language, the `/ai` mode and the selected topics (see [Storage and identity](storage.md#chat-state)). Clearing all of the FSM data would reset the settings after every exercise.
 7. When the `check_out()` block ends, `StudentRecordBook` saves the record, but only if it changed.
 
 The web app follows the same steps, with three differences:

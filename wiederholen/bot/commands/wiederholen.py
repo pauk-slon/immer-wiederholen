@@ -67,10 +67,10 @@ class UserState(StatesGroup):
     recalling = State()
 
 
-# Chat-level settings living in FSM data alongside per-exercise conversation
-# state — they must outlive the state.clear() that ends each exercise, or
-# e.g. AI mode silently reverts to off after one answer.
-_CHAT_SETTINGS_KEYS: Final = (
+# Lasting chat state living in FSM data alongside per-exercise state — it
+# must outlive the state.clear() that ends each exercise, or e.g. AI mode
+# silently reverts to off after one answer.
+_LASTING_CHAT_STATE_KEYS: Final = (
     "language",
     "ai_mode",
     "topic_groups",
@@ -78,10 +78,10 @@ _CHAT_SETTINGS_KEYS: Final = (
 )
 
 
-async def _clear_keeping_chat_settings(state: FSMContext, state_data: dict) -> None:
+async def _clear_exercise_state(state: FSMContext, state_data: dict) -> None:
     await state.clear()
     await state.update_data(
-        {key: state_data[key] for key in _CHAT_SETTINGS_KEYS if key in state_data}
+        {key: state_data[key] for key in _LASTING_CHAT_STATE_KEYS if key in state_data}
     )
 
 
@@ -403,7 +403,7 @@ async def handle_answer(
     student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
-    await _clear_keeping_chat_settings(state, state_data)
+    await _clear_exercise_state(state, state_data)
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
@@ -456,7 +456,7 @@ async def handle_recall(
     student_identity_store: StudentIdentityStore,
 ) -> None:
     state_data = await state.get_data()
-    await _clear_keeping_chat_settings(state, state_data)
+    await _clear_exercise_state(state, state_data)
     language = get_language(state_data)
     shown_recall = Recall.from_dict(state_data["shown_recall"])
     await state.update_data(

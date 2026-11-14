@@ -54,7 +54,7 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 | reminder interval | `remind_after_hours` | `/reminders` | the reminder (see [The /reminders setting](#the-reminders-setting)) |
 | AI mode | `ai_mode` | `/ai` | the choice whether to rewrite a question |
 
-`_CHAT_SETTINGS_KEYS` in `commands/wiederholen.py` lists all four settings. When an exercise ends, the bot clears the chat's state but keeps the keys in this tuple. **Add a new chat-level setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored `ai_mode` by hand after each exercise. One of four call sites missed it, and AI mode silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
+The settings are lasting chat state (see [Storage and identity](storage.md#chat-state)). `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists all four settings. When an exercise ends, the bot clears the exercise state but keeps the keys in this tuple. **Add a new setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored `ai_mode` by hand after each exercise. One of four call sites missed it, and AI mode silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
 
 ### Topic selection
 
@@ -106,7 +106,7 @@ The Bot API can't tell whether a learner has blocked the bot. Telegram reports i
 
 [`chat_membership.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/chat_membership.py) handles the update. It stores `bot_blocked: True` in the chat's FSM data and removes it after an unblock. aiogram subscribes to `my_chat_member` updates automatically when a handler for them exists. The reminder skips chats with the flag before it opens the student record or calls Telegram. A 403 on send also sets the flag. This covers learners who blocked the bot before this handler existed, and learners whose update was lost.
 
-The flag isn't in `_CHAT_SETTINGS_KEYS`, so the end of an exercise would remove it. But a learner who has blocked the bot doesn't answer exercises. If the flag is lost anyway, the worst case is one refused message, and that message sets the flag again.
+The flag isn't in `_LASTING_CHAT_STATE_KEYS`, so the end of an exercise would remove it. But a learner who has blocked the bot doesn't answer exercises. If the flag is lost anyway, the worst case is one refused message, and that message sets the flag again.
 
 ## Pending inline buttons
 
