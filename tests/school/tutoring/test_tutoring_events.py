@@ -533,3 +533,30 @@ def test_a_recall_answer_after_a_recall_for_another_exercise_reports_no_mode(
             },
         ),
     ]
+
+
+def test_a_recall_for_an_exercise_without_its_answer_reports_no_mode(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    # The web app recorded an answer to denken after the bot showed warten
+    warten = make_exercise(word="warten", answer="auf", recalls=True)
+    denken = make_exercise(word="denken", answer="auf", recalls=True)
+    tutor = Tutor(Course([warten, denken]), {})
+    tutor.check_answer(warten, "an")
+    tutor.check_answer(denken, "auf")
+
+    with tracer.start_as_current_span("test-span"):
+        tutor.request_recall(warten)
+
+    span = exporter.get_finished_spans()[0]
+    assert _events(span) == [
+        (
+            "RecallRequested",
+            {
+                "word": "warten",
+                "topic": "government",
+                "question": "Ich ___ (der Bus).",
+            },
+        ),
+    ]

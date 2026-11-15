@@ -1604,11 +1604,35 @@ class TestRequestRecallInterval:
         entry = student_record["word_schedule"]["warten"]["government"]
         assert entry["repetition_interval"] == 8
 
+    def test_a_recall_after_an_answer_to_another_exercise_keeps_the_interval(
+        self,
+    ) -> None:
+        # The bot showed a recall for warten after a wrong answer. Then the
+        # web app recorded a right answer to denken, and the learner tapped
+        # "Try again" in the bot
+        warten = make_exercise(word="warten", recalls=True)
+        denken = make_exercise(word="denken", recalls=True)
+        student_record: dict = {}
+        tutor = Tutor(Course([warten, denken]), student_record)
+        tutor.check_answer(warten, "an")
+        tutor.request_recall(warten)
+        tutor.check_answer(denken, denken.answer[0])
+        last_exercise = dict(student_record["last_exercise"])
+
+        tutor.request_recall(warten)
+
+        entry = student_record["word_schedule"]["warten"]["government"]
+        assert entry["repetition_interval"] == 0
+        assert student_record["last_exercise"] == last_exercise
+
     def test_does_not_halve_when_last_mark_is_required(self) -> None:
         exercise = make_exercise(recalls=True)
         today = datetime.now(UTC).date()
         student_record = {
-            "last_exercise": {"is_recall_optional": False},
+            "last_exercise": {
+                "question": exercise.question,
+                "is_recall_optional": False,
+            },
             "word_schedule": {
                 "warten": {
                     "government": {

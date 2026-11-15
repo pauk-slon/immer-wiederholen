@@ -79,9 +79,10 @@ class RecallRequested:
     # The recall's text from the course, or generated in /ai mode, never
     # what the learner typed
     question: str
-    recall_mode: RecallMode
-    # 1 for the first recall after an answer, 2 and more after "Try again"
-    attempt: int
+    # 1 for the first recall after an answer, 2 and more after "Try again".
+    # None, as in RecallAnswered, when last_exercise belongs to another answer
+    recall_mode: RecallMode | None
+    attempt: int | None
 
 
 @dataclass(frozen=True)

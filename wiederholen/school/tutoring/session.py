@@ -471,14 +471,8 @@ class Tutor:
 
         normalized = normalize(text)
         is_correct = any(normalize(a) == normalized for a in recall.answer)
-        last_exercise = self._student_record.get_last_exercise()
-        # The other frontend can answer another exercise after the recall
-        # was requested, and then last_exercise belongs to that answer
-        if (
-            last_exercise is not None
-            and last_exercise.get("question") == exercise.question
-            and "recall_attempt" in last_exercise
-        ):
+        last_exercise = self._get_last_exercise_of(exercise)
+        if last_exercise is not None and "recall_attempt" in last_exercise:
             recall_mode = _get_recall_mode(last_exercise)
             attempt = last_exercise["recall_attempt"]
         else:
@@ -496,8 +490,21 @@ class Tutor:
         return is_correct
 
     def request_recall(self, exercise: Exercise) -> Recall:
-        last_exercise = self._student_record.get_last_exercise()
-        assert last_exercise is not None
+        last_exercise = self._get_last_exercise_of(exercise)
+        if last_exercise is None:
+            # The recall state belongs to another answer, so the learner gets a
+            # recall, but the schedule and last_exercise stay as they are
+            recall = random.choice(exercise.recalls)
+            emit(
+                RecallRequested(
+                    word=exercise.word,
+                    topic=exercise.topic,
+                    question=recall.question,
+                    recall_mode=None,
+                    attempt=None,
+                )
+            )
+            return recall
         if (
             last_exercise["is_recall_optional"]
             and "recall_question" not in last_exercise
@@ -533,6 +540,14 @@ class Tutor:
             )
         )
         return recall
+
+    def _get_last_exercise_of(self, exercise: Exercise) -> LastExercise | None:
+        # The bot and the web app share last_exercise, so the other frontend
+        # can replace it with an answer to another exercise after this one
+        last_exercise = self._student_record.get_last_exercise()
+        if last_exercise is None or last_exercise["question"] != exercise.question:
+            return None
+        return last_exercise
 
     def get_hint(self, exercise: Exercise) -> str | None:
         if not exercise.grammar_classes:
