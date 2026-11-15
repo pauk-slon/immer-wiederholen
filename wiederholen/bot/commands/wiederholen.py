@@ -267,9 +267,16 @@ def _format_question(
 
 
 def _format_wrong(
-    template: str, extra_letters_template: str, user_text: str, answers: list[str]
+    template: str,
+    extra_letters_template: str,
+    user_text: str,
+    answers: list[str],
+    *,
+    ignore_end_punctuation: bool = False,
 ) -> str:
-    correction = answer_diff.correct(user_text, answers)
+    correction = answer_diff.correct(
+        user_text, answers, ignore_end_punctuation=ignore_end_punctuation
+    )
     if correction.mistake is not None:
         return extra_letters_template.format(
             mistake=correction.mistake, answer=correction.answer
@@ -658,6 +665,7 @@ async def handle_recall(
                         locale.recall_wrong_extra_letters,
                         message.text or "",
                         [shown_recall.answer[0]],
+                        ignore_end_punctuation=True,
                     ),
                     finished_lesson,
                     language,

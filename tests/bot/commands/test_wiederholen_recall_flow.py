@@ -99,6 +99,27 @@ async def test_wrong_input_with_extra_letters_strikes_them_through(
     )
 
 
+async def test_wrong_input_marks_neither_case_nor_end_punctuation(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        recalls=[{"answer": ["Ich warte auf den Bus."]}],
+    )
+    await state.set_state(UserState.recalling)
+    await state.update_data(
+        shown_exercise=exercise.to_dict(),
+        shown_recall=exercise.recalls[0].to_dict(),
+        language="ru",
+    )
+
+    requests = await feed_message("ich warte auf den Bas", course=Course([exercise]))
+
+    assert requests[0].text == (
+        "🔴 Неправильно. Правильный ответ:\nIch warte auf den B<u>u</u>s."
+    )
+
+
 async def test_normalizes_case_and_whitespace(
     state: FSMContext,
     feed_message: FeedMessage,

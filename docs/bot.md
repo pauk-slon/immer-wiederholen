@@ -68,6 +68,8 @@ After a wrong answer to an exercise or a recall, [`answer_diff.py`](https://gith
 | `an` | `nach` | <u>nach</u> |
 | `gegangt` | `gegangen` | gegang<u>en</u> |
 
+The comparison ignores what the answer check ignores. The case of letters never counts, so a capital letter from the phone keyboard isn't marked. For a recall, `.,!?` at the start or end of the text don't count either, because `check_recall()` removes them.
+
 If the exercise shows several answers, the bot marks the answer that is closest to the learner's text, because the learner most likely meant that form.
 
 If the learner only added letters, for example `Kinders` for `Kinder`, the correct answer has nothing to underline. Then the bot shows the learner's answer with the extra letters struck through, and the correct answer after it, for example "🔴 Wrong. Kinder<s>s</s> → Kinder". In all other cases, the bot doesn't show the wrong answer again.

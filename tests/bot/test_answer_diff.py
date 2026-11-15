@@ -13,6 +13,8 @@ from wiederholen.bot.answer_diff import Correction, correct
         ("gegangt", "gegangen", "gegang<u>en</u>"),
         ("auf", "über", "<u>über</u>"),
         ("an", "an den", "an <u>den</u>"),
+        ("Gegangt", "gegangen", "gegang<u>en</u>"),
+        ("Dem Mann", "dem Mann", "dem Mann"),
     ],
 )
 def test_underlines_letters_in_similar_words_and_other_words_as_a_whole(
@@ -27,12 +29,29 @@ def test_underlines_letters_in_similar_words_and_other_words_as_a_whole(
         ("Kinders", "Kinder", "Kinder<s>s</s>"),
         ("gegangenen", "gegangen", "gegangen<s>en</s>"),
         ("an den den", "an den", "an den <s>den</s>"),
+        ("Ja.", "Ja", "Ja<s>.</s>"),
     ],
 )
 def test_strikes_through_extra_letters_when_nothing_is_underlined(
     user_text: str, answer: str, mistake: str
 ) -> None:
     assert correct(user_text, [answer]) == Correction(answer=answer, mistake=mistake)
+
+
+def test_ignores_punctuation_at_the_ends_on_request() -> None:
+    correction = correct(
+        "ich warte auf den Bas", ["Ich warte auf den Bus."], ignore_end_punctuation=True
+    )
+
+    assert correction == Correction(
+        answer="Ich warte auf den B<u>u</u>s.", mistake=None
+    )
+
+
+def test_strikes_through_extra_letters_without_the_ignored_punctuation() -> None:
+    correction = correct("Kinders!", ["Kinder"], ignore_end_punctuation=True)
+
+    assert correction == Correction(answer="Kinder", mistake="Kinder<s>s</s>!")
 
 
 def test_diffs_against_the_closest_of_several_answers() -> None:
