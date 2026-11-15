@@ -7,6 +7,7 @@ import pytest
 from tests.conftest import TmpYamlFile
 from tests.plugins.curriculum import ExerciseData, make_exercise_data
 from wiederholen.school.authoring.cues.__main__ import main, run
+from wiederholen.school.cue_store import R2CueStore
 
 
 @pytest.fixture(autouse=True)
@@ -48,9 +49,8 @@ def exercises() -> list[ExerciseData]:
 
 
 def _mock_store(*, existing_url: str | None = None) -> Mock:
-    store = Mock()
+    store = Mock(spec=R2CueStore)
     store.get_cue_url = AsyncMock(return_value=existing_url)
-    store.upload_cue = AsyncMock()
     return store
 
 

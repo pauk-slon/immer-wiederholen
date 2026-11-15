@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
+import aioboto3
 import pytest
 
 from tests.plugins.curriculum import make_exercise
@@ -92,6 +93,18 @@ def _make_r2_store() -> R2CueStore:
     )
 
 
+def _mock_client() -> Mock:
+    # aiobotocore builds the S3 client class at runtime from the service
+    # description, so there's no class to give as spec
+    return Mock()
+
+
+def _mock_session(mock_client: Mock) -> Mock:
+    mock_session = Mock(spec=aioboto3.Session)
+    mock_session.client = Mock(side_effect=lambda *a, **k: _fake_client(mock_client)())
+    return mock_session
+
+
 def _fake_client(mock_client: Mock):
     @asynccontextmanager
     async def factory(*args, **kwargs):
@@ -103,10 +116,9 @@ def _fake_client(mock_client: Mock):
 async def test_r2_store_returns_a_url_when_the_object_exists() -> None:
     store = _make_r2_store()
     exercise = make_exercise()
-    mock_client = Mock()
+    mock_client = _mock_client()
     mock_client.head_object = AsyncMock(return_value=None)
-    mock_session = Mock()
-    mock_session.client = Mock(side_effect=lambda *a, **k: _fake_client(mock_client)())
+    mock_session = _mock_session(mock_client)
 
     with patch(
         "wiederholen.school.cue_store.aioboto3.Session", return_value=mock_session
@@ -127,11 +139,10 @@ async def test_r2_store_returns_none_when_the_object_is_missing() -> None:
         def __init__(self) -> None:
             self.response = {"ResponseMetadata": {"HTTPStatusCode": 404}}
 
-    mock_client = Mock()
+    mock_client = _mock_client()
     mock_client.exceptions = Mock(ClientError=_ClientError)
     mock_client.head_object = AsyncMock(side_effect=_ClientError())
-    mock_session = Mock()
-    mock_session.client = Mock(side_effect=lambda *a, **k: _fake_client(mock_client)())
+    mock_session = _mock_session(mock_client)
 
     with patch(
         "wiederholen.school.cue_store.aioboto3.Session", return_value=mock_session
@@ -149,11 +160,10 @@ async def test_r2_store_reraises_a_non_404_client_error() -> None:
         def __init__(self) -> None:
             self.response = {"ResponseMetadata": {"HTTPStatusCode": 500}}
 
-    mock_client = Mock()
+    mock_client = _mock_client()
     mock_client.exceptions = Mock(ClientError=_ClientError)
     mock_client.head_object = AsyncMock(side_effect=_ClientError())
-    mock_session = Mock()
-    mock_session.client = Mock(side_effect=lambda *a, **k: _fake_client(mock_client)())
+    mock_session = _mock_session(mock_client)
 
     with (
         patch(
@@ -167,10 +177,9 @@ async def test_r2_store_reraises_a_non_404_client_error() -> None:
 async def test_r2_store_uploads_with_the_image_content_type() -> None:
     store = _make_r2_store()
     exercise = make_exercise()
-    mock_client = Mock()
+    mock_client = _mock_client()
     mock_client.put_object = AsyncMock(return_value=None)
-    mock_session = Mock()
-    mock_session.client = Mock(side_effect=lambda *a, **k: _fake_client(mock_client)())
+    mock_session = _mock_session(mock_client)
 
     with patch(
         "wiederholen.school.cue_store.aioboto3.Session", return_value=mock_session

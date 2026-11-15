@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
 from aiogram.fsm.context import FSMContext
+from anthropic import AsyncAnthropic
 
 from tests.plugins.aiogram import FeedMessage
 from tests.plugins.curriculum import make_exercise
@@ -47,6 +48,8 @@ async def test_a_failed_generation_does_not_save_the_lesson(
         "wiederholen.bot.commands.wiederholen.generate_shadow_exercise",
         AsyncMock(side_effect=AIGenerationError("boom")),
     ):
-        await feed_message("/wiederholen", course=course, anthropic_client=Mock())
+        await feed_message(
+            "/wiederholen", course=course, anthropic_client=Mock(spec=AsyncAnthropic)
+        )
 
     assert "lesson" not in await state.get_data()

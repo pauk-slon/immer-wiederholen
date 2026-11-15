@@ -40,7 +40,7 @@ CI runs `ruff check`, `ty check` and `pytest` on every pull request, and builds 
 
 - **Tests use the real Valkey server from `compose.yaml`** (Redis-compatible), not a fake, so they check real Redis behavior. `docker compose run` starts it automatically. All stores use database 15 during the test run (the `--redis-db-override` option in `pyproject.toml`), so the tests don't touch your local data. Each test starts with an empty database 15.
 - **Keep coverage at 100%.** CI doesn't enforce it and only posts a coverage report on the pull request. `pytest` prints the lines that the tests don't cover.
-- **Create mock objects with `spec=`**, so a test fails when the mocked interface changes. A mock for a single replaced function can be a plain `AsyncMock(return_value=...)`.
+- **Create mock objects with `spec=`**, so a test fails when the mocked interface changes. A mock for a single replaced function can be a plain `AsyncMock(return_value=...)`. If the object has no class to give as spec, such as the S3 client that aiobotocore builds at runtime, use a plain `Mock` with a comment that says why.
 - **Use relative dates.** Fixtures use `date.today()` plus a `timedelta`, so the tests need no library that freezes time.
 - **Put shared fixtures in [`tests/plugins/`](tests/plugins).**
 
