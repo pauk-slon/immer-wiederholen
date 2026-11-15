@@ -232,7 +232,7 @@ The bot shows the streak in `/progress`, when the day is done and in the reminde
 
 `/reset` calls `StudentRecord.reset_progress(student_record)`. It deletes the schedule and today's answer counts. Without the reset of the counts, `/progress` would still show today's answers right after a reset.
 
-It keeps the rest of the record, which is today's "Study more" grants, `last_exercise`, `last_reminded_at`, `last_lesson_finished_at` and `streak`. A reset changes the schedule, not the practice habit, so the streak continues. Because `last_exercise` stays, the reminder still measures inactivity from the last answer before the reset, so a learner can get a reminder soon after a reset (see [#258](https://github.com/pauk-slon/immer-wiederholen/issues/258)).
+It keeps the rest of the record, which is today's "Study more" grants, `last_exercise`, `last_reminded_at`, `last_lesson_finished_at` and `streak`. A reset changes the schedule, not the practice habit, so the streak continues. Because `last_exercise` stays, the reminder still counts from the last answer before the reset. This is intentional, because a reset doesn't undo the practice. A learner who resets and doesn't practice gets one reminder when the interval of `/reminders` has passed since that answer. The streak reminder counts from `last_lesson_finished_at`, which also stays, so the two reminders agree (see [#258](https://github.com/pauk-slon/immer-wiederholen/issues/258)).
 
 The current lesson isn't part of the record, so `/reset` doesn't change it either (see [Lessons](#lessons)). The learner finishes the lesson, and its pairs are answered as new pairs.
 
