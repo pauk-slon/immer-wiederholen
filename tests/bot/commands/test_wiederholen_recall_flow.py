@@ -241,7 +241,14 @@ async def test_clicking_retry_starts_recall_again(
     )
     await seed_student_record(
         student_id,
-        {"last_exercise": {"is_recall_optional": False}},
+        {
+            "last_exercise": {
+                "question": exercise.question,
+                "word": exercise.word,
+                "topic": exercise.topic,
+                "is_recall_optional": False,
+            }
+        },
     )
 
     await feed_message("Es hängt alles in der Situation ab.", course=Course([exercise]))
@@ -280,6 +287,9 @@ async def test_retry_avoids_repeating_last_recall_variant(
         student_id,
         {
             "last_exercise": {
+                "question": exercise.question,
+                "word": exercise.word,
+                "topic": exercise.topic,
                 "is_recall_optional": False,
                 "recall_question": exercise.recalls[0].question,
             }

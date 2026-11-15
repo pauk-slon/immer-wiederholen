@@ -178,6 +178,8 @@ The pairs of a gated topic without an entry aren't "new and available", so they 
 
 An **optional** recall, after a correct answer, halves the interval of the pair, with a minimum of 1. This happens only the first time that the learner asks for a recall after that answer, and the due date changes to match. A required recall after a wrong answer changes nothing, because the interval is already 0.
 
+The bot and the web app share `last_exercise`. After the bot shows a recall, the learner can answer another exercise in the web app, or the other way round. Then `last_exercise` belongs to that answer. A "Try again" would take its mode and could move the failed pair to the next day (see [#339](https://github.com/pauk-slon/immer-wiederholen/issues/339)). So `request_recall()` uses `last_exercise` only if its question, word and topic are those of the exercise. The question alone isn't enough, because it can repeat across topics. Otherwise, `request_recall()` gives a recall but doesn't change the schedule or `last_exercise`.
+
 `check_recall()` only compares the answer. Recall answers don't change the schedule and don't count as activity for reminders.
 
 ## Progress
