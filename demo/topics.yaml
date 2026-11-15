@@ -29,14 +29,14 @@ verbs:
       gates: [partizip_ii_meaning]
       # Shown under every question of this topic.
       instruction:
-        ru: Укажи форму Partizip II
+        ru: Укажите форму Partizip II
         en: Give the Partizip II form
       # After a wrong answer, show only the primary answer, the first item
       # of answer (senden: gesendet), not every form that counts as correct.
       show_primary_answer_only: true
     partizip_ii_meaning:
       instruction:
-        ru: Введи пропущенное слово
+        ru: Напишите пропущенное слово
         en: Enter the missing word
       # The /ai mode may rewrite this topic's questions (needs
       # ANTHROPIC_API_KEY and the ai_exercises feature flag).
@@ -46,7 +46,7 @@ verbs:
       cue_generation: true
     perfekt_wortstellung:
       instruction:
-        ru: Расставь слова в правильном порядке
+        ru: Расставьте слова в правильном порядке
         en: Arrange the words in the correct order
 
 prepositions:
@@ -62,6 +62,6 @@ prepositions:
       ai_generation: true
     preposition_meaning:
       instruction:
-        ru: Введи пропущенное слово
+        ru: Напишите пропущенное слово
         en: Enter the missing word
       cue_generation: true

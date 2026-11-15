@@ -94,11 +94,14 @@ class Locale:
     language_set: str
 
 
+# The texts address the learner as "вы", in lower case as usual in an
+# interface. A button that names an action uses the infinitive ("Попробовать
+# ещё раз")
 RU: Final = Locale(
-    start="Привет! Я буду давать тебе короткие задания и возвращаться к ним, пока ты их не запомнишь.",
+    start="Привет! Я буду давать вам короткие задания и возвращаться к ним, пока вы их не запомните.",
     correct="🟢 Правильно!",
     wrong="🔴 Неправильно. Правильный ответ: {answer}",
-    recall_prompt="Напиши фразу целиком:\n{recall}",
+    recall_prompt="Напишите фразу целиком:\n{recall}",
     recall_correct="🟢 Правильно!",
     recall_wrong="🔴 Неправильно. Правильный ответ:\n{answer}",
     wrong_extra_letters="🔴 Неправильно. {mistake} → {answer}",
@@ -112,7 +115,7 @@ RU: Final = Locale(
     cmd_progress="Прогресс",
     cmd_reset="Сбросить прогресс",
     cmd_topics="Выбрать темы",
-    topics_prompt="Выбери темы для заданий. Если ничего не выбрано — задания будут по всем темам.",
+    topics_prompt="Выберите темы для заданий. Если ничего не выбрано — задания будут по всем темам.",
     topics_unavailable="Выбор тем пока недоступен",
     btn_topics_done="Готово",
     topics_selected="✅ Темы: {topics}",
@@ -131,7 +134,7 @@ RU: Final = Locale(
     reminder_text="🔔 Есть что повторить!",
     reminder_streak_text="🔥 Серия: {days}. Прервётся через {hours} ч",
     progress_text=(
-        "📊 Твой прогресс\n"
+        "📊 Ваш прогресс\n"
         "\n"
         "Сегодня\n"
         "✍️ Ответов: {answered_count} (верно: {correct_today})\n"
@@ -142,13 +145,13 @@ RU: Final = Locale(
         "📈 В процессе: {learning}\n"
         "✅ Выучено: {mastered}"
     ),
-    nothing_due_text="🎉 На сегодня всё! Загляни завтра за новыми заданиями.",
+    nothing_due_text="🎉 На сегодня всё! Загляните завтра за новыми заданиями.",
     streak_text="🔥 Серия: {days}",
     lesson_summary="✅ Готово! Верно: {correct} из {size}",
     btn_more_exercises="Ещё {count}",
     ai_mode_on="🤖 AI-режим включён",
     ai_mode_off="AI-режим выключен",
-    ai_generation_failed="⚠️ Не получилось сгенерировать задание. Попробуй ещё раз или отключи /ai.",
+    ai_generation_failed="⚠️ Не получилось сгенерировать задание. Попробуйте ещё раз или отключите /ai.",
     grammar_class_hint="Так же, как у {word}",
     language_set="🌐 Язык: русский",
 )
