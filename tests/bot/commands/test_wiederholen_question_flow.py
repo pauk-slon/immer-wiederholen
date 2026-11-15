@@ -400,6 +400,24 @@ async def test_falls_back_to_text_when_the_lookup_raises(
     assert any(isinstance(r, SendMessage) for r in requests)
 
 
+async def test_ignores_the_cue_store_when_the_cue_is_turned_off(
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(
+        topic="preposition_meaning", description={"ru": "x", "en": "y"}, cue=False
+    )
+    course = Course(
+        [exercise], cue_generatable_topics=frozenset({"preposition_meaning"})
+    )
+    cue_store = AsyncMock(spec=CueStore)
+    cue_store.get_cue_url.return_value = "https://images.example.com/abc.png"
+
+    requests = await feed_message("/wiederholen", course=course, cue_store=cue_store)
+
+    assert not any(isinstance(r, SendPhoto) for r in requests)
+    cue_store.get_cue_url.assert_not_called()
+
+
 async def test_ignores_the_cue_store_for_a_non_eligible_topic(
     feed_message: FeedMessage,
 ) -> None:

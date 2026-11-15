@@ -5,7 +5,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from functools import cached_property
 from pathlib import Path
-from typing import Final, Self, TypedDict
+from typing import Final, Literal, Self, TypedDict
 
 import yaml
 
@@ -92,6 +92,10 @@ class Exercise:
     description: dict[Language, str] | None = None
     word_bank: list[str] | None = None
     grammar_classes: list[str] | None = None
+    # The illustration (see docs/authoring.md): None for one drawn from
+    # description, a scene in English for one drawn from the scene, or False
+    # for no illustration
+    cue: str | Literal[False] | None = None
 
     def __post_init__(self) -> None:
         _check_answer_type(self.answer)
@@ -129,6 +133,12 @@ class Exercise:
                     )
         if self.grammar_classes is not None and len(self.grammar_classes) == 0:
             raise ValueError("grammar_classes must not be empty if set")
+        if (
+            self.cue is not None
+            and self.cue is not False
+            and (not isinstance(self.cue, str) or not self.cue.strip())
+        ):
+            raise ValueError(f"cue must be a scene or false, got {self.cue!r}")
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -164,6 +174,11 @@ class Exercise:
         # hash, silently orphaning whatever cue was generated for the old
         # wording — safe (never a mismatched cue), just means a re-run of
         # the worker is needed after a content edit that touches wording.
+        # A scene in `cue` is part of the key for the same reason: a new
+        # scene gets a new illustration, and the other cues keep their keys
+        # (ADR 0030).
+        if isinstance(self.cue, str):
+            return hashlib.sha256(f"{self.question}\n{self.cue}".encode()).hexdigest()
         return hashlib.sha256(self.question.encode()).hexdigest()
 
     @cached_property
@@ -176,7 +191,12 @@ class Exercise:
         # the exercise rather than show an outdated version. Cached, because
         # Tutor indexes the whole course by it on every request, and the
         # course and its exercises are loaded once.
-        content = json.dumps(self.to_dict(), sort_keys=True, ensure_ascii=False)
+        # Without an unset cue, so the field, added after lessons, doesn't
+        # change the keys of the lessons that learners have already started
+        fields = self.to_dict()
+        if fields["cue"] is None:
+            del fields["cue"]
+        content = json.dumps(fields, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(content.encode()).hexdigest()
 
 

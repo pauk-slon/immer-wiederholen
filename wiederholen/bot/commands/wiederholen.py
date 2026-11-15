@@ -308,6 +308,7 @@ async def _answer_with_optional_cue(
     if (
         cue_store is not None
         and exercise.topic in course.cue_generatable_topics
+        and exercise.cue is not False
         and len(text) <= _PHOTO_CAPTION_LIMIT
     ):
         try:

@@ -34,11 +34,16 @@ _STYLE_SUFFIX: Final = (
 
 
 def build_cue_prompt(exercise: Exercise) -> str | None:
-    # None (no description) means nothing to build a prompt from — matches
+    # None (cue: false, or no scene and no description) means nothing to
+    # build a prompt from. The no-description case matches
     # Course.cue_generatable_topics being a topic-level opt-in independent
     # of whether a given exercise within it happens to carry one; today the
     # two coincide for every eligible topic (see docs/authoring.md), but this
     # function doesn't assume that stays true.
+    if exercise.cue is False:
+        return None
+    if exercise.cue is not None:
+        return exercise.cue + _STYLE_SUFFIX
     if exercise.description is None:
         return None
     return exercise.description["en"] + _STYLE_SUFFIX

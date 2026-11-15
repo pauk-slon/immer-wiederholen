@@ -111,6 +111,36 @@ async def test_skips_an_exercise_whose_topic_is_not_eligible(
     store.get_cue_url.assert_not_awaited()
 
 
+async def test_skips_an_exercise_whose_cue_is_turned_off(
+    monkeypatch, tmp_yaml_file: TmpYamlFile
+) -> None:
+    exercise = make_exercise_data(
+        word="seit",
+        topic="preposition_meaning",
+        description={"ru": "x", "en": "y"},
+        cue=False,
+    )
+    topics_data = {
+        "prepositions": {
+            "title": {"ru": "Предлоги", "en": "Prepositions"},
+            "topics": {"preposition_meaning": {"cue_generation": True}},
+        }
+    }
+    with (
+        tmp_yaml_file([exercise], filename="exercises.yaml") as path,
+        tmp_yaml_file(topics_data, filename="topics.yaml"),
+    ):
+        monkeypatch.setenv("COURSE_PATH", str(path.parent))
+        store = _mock_store()
+        with patch(
+            "wiederholen.school.authoring.cues.__main__.R2CueStore", return_value=store
+        ):
+            await run()
+
+    store.get_cue_url.assert_not_awaited()
+    store.upload_cue.assert_not_awaited()
+
+
 async def test_skips_when_generation_returns_none(monkeypatch, course_path) -> None:
     monkeypatch.setenv("COURSE_PATH", str(course_path))
     store = _mock_store(existing_url=None)

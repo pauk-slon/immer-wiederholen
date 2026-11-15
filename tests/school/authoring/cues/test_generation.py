@@ -31,6 +31,24 @@ def test_build_cue_prompt_uses_the_english_description() -> None:
     assert prompt.startswith("The train goes through the tunnel.")
 
 
+def test_build_cue_prompt_prefers_the_scene_to_the_description() -> None:
+    exercise = make_exercise(
+        description={"ru": "Она потеряла работу.", "en": "She lost the work."},
+        cue="a woman staring in shock at a blank laptop screen",
+    )
+
+    prompt = build_cue_prompt(exercise)
+
+    assert prompt is not None
+    assert prompt.startswith("a woman staring in shock at a blank laptop screen,")
+
+
+def test_build_cue_prompt_returns_none_when_the_cue_is_turned_off() -> None:
+    exercise = make_exercise(description={"ru": "x", "en": "y"}, cue=False)
+
+    assert build_cue_prompt(exercise) is None
+
+
 def _make_client(
     *, json_body: dict | None = None, side_effect=None, status_error=None
 ) -> Mock:

@@ -52,6 +52,8 @@
 # description: a translation of the sentence, shown with the question so the
 # learner knows which word is meant. Topics with cue_generation in
 # topics.yaml get an illustration generated from description.en.
+# cue: a scene in English to draw instead of description.en, or false for no
+# illustration.
 - word: singen
   topic: partizip_ii_meaning
   question: Auf der Hochzeit hat die ganze Familie bis Mitternacht ___.
@@ -60,6 +62,7 @@
   description:
     ru: На свадьбе вся семья пела до полуночи.
     en: At the wedding, the whole family sang until midnight.
+  cue: a family singing together at a wedding party, a clock showing midnight
   explanation:
     ru: "singen — петь; Partizip II: gesungen (haben)"
     en: "singen — to sing; Partizip II: gesungen (haben)"
@@ -125,3 +128,17 @@
   explanation:
     ru: auf + Dativ — на (где? на поверхности)
     en: auf + Dative — on (where? on a surface)
+
+- word: seit
+  topic: preposition_meaning
+  question: Ich lerne ___ zwei Jahren Deutsch.
+  answer: seit
+  distractors: []
+  description:
+    ru: Я учу немецкий два года.
+    en: I've been learning German for two years.
+  # A duration has no picture that shows it
+  cue: false
+  explanation:
+    ru: seit + Dativ — уже (сколько-то времени), с (какого-то времени)
+    en: seit + Dative — for (a time that still goes on), since

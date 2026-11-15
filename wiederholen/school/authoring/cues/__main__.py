@@ -44,6 +44,7 @@ class _Summary:
     generated: int = 0
     skipped_existing: int = 0
     skipped_no_description: int = 0
+    skipped_turned_off: int = 0
     failed: int = 0
 
 
@@ -56,6 +57,9 @@ async def _process_exercise(
     api_token: str,
     summary: _Summary,
 ) -> None:
+    if exercise.cue is False:
+        summary.skipped_turned_off += 1
+        return
     # Checked first, before spending a Workers AI call, since it's a single
     # cheap HEAD request — re-running this worker after adding a handful of
     # new exercises shouldn't re-generate cues for everything already done.
@@ -109,10 +113,12 @@ async def run() -> None:
                 summary=summary,
             )
     logger.info(
-        "Done: %d generated, %d already had one, %d had no description, %d failed",
+        "Done: %d generated, %d already had one, %d had no description, "
+        "%d turned off, %d failed",
         summary.generated,
         summary.skipped_existing,
         summary.skipped_no_description,
+        summary.skipped_turned_off,
         summary.failed,
     )
 
