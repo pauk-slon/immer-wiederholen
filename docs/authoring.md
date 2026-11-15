@@ -94,8 +94,8 @@ Otherwise it sends plain text. If the lookup fails, the bot logs the error and s
 ## Testing
 
 - **Shadow exercises.** [`tests/school/authoring/test_shadow_exercises.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/tests/school/authoring/test_shadow_exercises.py) mocks the client as `Mock(spec=AsyncAnthropic)`. It builds the model's response from `Mock(spec=Message)` and `Mock(spec=ToolUseBlock, input=...)`, so each failure path, such as no tool call, malformed input or an invalid result, is one fake response.
-- **Cue generation.** `tests/school/authoring/cues/test_generation.py` mocks Workers AI as `Mock(spec=httpx.AsyncClient)` that returns a `Mock(spec=httpx.Response)`. `test_main.py` runs the generator against a mocked store.
-- **Storage.** `tests/school/test_cue_store.py` covers `R2CueStore` and the cache.
+- **Cue generation.** `tests/school/authoring/cues/test_generation.py` mocks Workers AI as `Mock(spec=httpx.AsyncClient)` that returns a `Mock(spec=httpx.Response)`. `test_main.py` runs the generator against a store mocked as `Mock(spec=R2CueStore)`.
+- **Storage.** [`tests/school/test_cue_store.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/tests/school/test_cue_store.py) covers `R2CueStore` and the cache. It mocks the aioboto3 session as `Mock(spec=aioboto3.Session)`. The S3 client is a plain `Mock`, because aiobotocore builds its class at runtime (see the testing rules in [`CONTRIBUTING.md`](https://github.com/pauk-slon/immer-wiederholen/blob/main/CONTRIBUTING.md)).
 - **In the bot.** Handler tests pass a mocked `anthropic_client` or `cue_store` to `feed_message(...)`, the same way they pass the course.
 
 ## Decisions
