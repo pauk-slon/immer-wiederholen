@@ -196,7 +196,7 @@ EN: Final = Locale(
     nothing_due_text="🎉 That's all for today! Come back tomorrow for more.",
     streak_text="🔥 Streak: {days}",
     lesson_summary="✅ Done! Correct: {correct} of {size}",
-    # "Next 5 exercises": "{count} more" would give "5 exercises more"
+    # count is "5 exercises", so the word order must put it last
     btn_more_exercises="Next {count}",
     ai_mode_on="🤖 AI mode is on",
     ai_mode_off="AI mode is off",
