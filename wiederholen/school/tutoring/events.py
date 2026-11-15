@@ -72,6 +72,30 @@ class LessonFinished:
     correct: int
 
 
+@dataclass(frozen=True)
+class RecallRequested:
+    word: str
+    topic: str
+    # The recall's text from the course, or generated in /ai mode, never
+    # what the learner typed
+    question: str
+    recall_mode: RecallMode
+    # 1 for the first recall after an answer, 2 and more after "Try again"
+    attempt: int
+
+
+@dataclass(frozen=True)
+class RecallAnswered:
+    word: str
+    topic: str
+    question: str
+    is_correct: bool
+    # None when last_exercise belongs to another answer, which the other
+    # frontend recorded after the recall was requested
+    recall_mode: RecallMode | None
+    attempt: int | None
+
+
 TutoringEvent = (
     ExerciseAnswered
     | ExerciseSelected
@@ -81,6 +105,8 @@ TutoringEvent = (
     | StreakBroken
     | LessonStarted
     | LessonFinished
+    | RecallRequested
+    | RecallAnswered
 )
 
 

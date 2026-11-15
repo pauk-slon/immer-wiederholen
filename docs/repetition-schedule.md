@@ -38,7 +38,7 @@ The record also has these keys:
 
 | Key | Meaning |
 |---|---|
-| `last_exercise` | the last answered exercise, with its question, word, topic, time and the recall shown for it. `Tutor` uses it to avoid repeats and to decide on reminders |
+| `last_exercise` | the last answered exercise, with its question, word, topic, time, the recall shown for it and the number of recalls. `Tutor` uses it to avoid repeats and to decide on reminders |
 | `today_answers` | today's count of answers and correct answers |
 | `new_word_budget` | the extra new words that "Study more" added today |
 | `last_reminded_at` | the time of the last reminder |
@@ -174,7 +174,7 @@ The pairs of a gated topic without an entry aren't "new and available", so they 
 
 ## Recalls
 
-`request_recall(exercise)` picks one of the exercise's recalls at random. It avoids the recall that the learner saw last for this exercise and stores the chosen recall in `last_exercise`. The next answer replaces `last_exercise`, so nothing needs a reset between exercises.
+`request_recall(exercise)` picks one of the exercise's recalls at random. It avoids the recall that the learner saw last for this exercise and stores the chosen recall in `last_exercise`. It also counts the recalls that it gave since the last answer as `recall_attempt` in `last_exercise`. The recall events report this number as `attempt` (see [Tracing](tracing.md#events-from-the-repetition-engine)). The next answer replaces `last_exercise`, so nothing needs a reset between exercises.
 
 An **optional** recall, after a correct answer, halves the interval of the pair, with a minimum of 1. This happens only the first time that the learner asks for a recall after that answer, and the due date changes to match. A required recall after a wrong answer changes nothing, because the interval is already 0.
 
