@@ -141,7 +141,13 @@ class Exercise:
             raise ValueError(f"cue must be a scene or false, got {self.cue!r}")
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        # Without an unset cue, so an exercise without it keeps its
+        # content_key, and a version before the field can still read the
+        # exercises that the bot and the web app store
+        if d["cue"] is None:
+            del d["cue"]
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
@@ -191,12 +197,7 @@ class Exercise:
         # the exercise rather than show an outdated version. Cached, because
         # Tutor indexes the whole course by it on every request, and the
         # course and its exercises are loaded once.
-        # Without an unset cue, so the field, added after lessons, doesn't
-        # change the keys of the lessons that learners have already started
-        fields = self.to_dict()
-        if fields["cue"] is None:
-            del fields["cue"]
-        content = json.dumps(fields, sort_keys=True, ensure_ascii=False)
+        content = json.dumps(self.to_dict(), sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(content.encode()).hexdigest()
 
 
@@ -363,10 +364,20 @@ class Course:
 
     @classmethod
     def load(cls, path: Path) -> Self:
-        return cls(
-            cls._load_exercises(path / "exercises.yaml"),
-            **cls._load_topics(path / "topics.yaml"),
-        )
+        exercises = cls._load_exercises(path / "exercises.yaml")
+        topics_config = cls._load_topics(path / "topics.yaml")
+        for exercise in exercises:
+            # The generator never looks at such an exercise, so the author
+            # would wait for an illustration that never comes
+            if (
+                exercise.cue is not None
+                and exercise.topic not in topics_config["cue_generatable_topics"]
+            ):
+                raise ValueError(
+                    f"cue is set for {exercise.question!r}, but its topic "
+                    f"{exercise.topic!r} has no cue_generation"
+                )
+        return cls(exercises, **topics_config)
 
     def restricted_to(self, topics: Iterable[Topic]) -> Self:
         # A narrower view of this course, e.g. for a web widget embedded on

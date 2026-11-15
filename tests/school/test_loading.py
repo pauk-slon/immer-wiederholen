@@ -63,6 +63,20 @@ class TestExerciseValidation:
         ):
             Course.load(tmp_path)
 
+    def test_cue_in_a_topic_without_cue_generation_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        with (
+            pytest.raises(ValueError, match="has no cue_generation"),
+            tmp_yaml_file(
+                [make_exercise_data(cue="a man waiting at a bus stop")],
+                filename="exercises.yaml",
+            ),
+        ):
+            Course.load(tmp_path)
+
     def test_matching_word_bank_loads(
         self,
         tmp_path: Path,

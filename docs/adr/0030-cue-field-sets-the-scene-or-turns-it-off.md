@@ -16,7 +16,9 @@ An exercise gets an optional field `cue` with three modes:
 
 A scene is part of the key. `Exercise.cue_key` is the SHA-256 of `question` without a scene, as in ADR 0017, and of `question` and the scene with one. So a new or changed scene gets a new illustration on the next run of the generator, and the other illustrations keep their keys.
 
-`Exercise.content_key` ignores the field when it isn't set. So the field doesn't change the keys of lessons that learners started before it.
+`Exercise.to_dict()` leaves out an unset `cue`. So `Exercise.content_key` doesn't change for an exercise without the field, and lessons that learners started before it keep their keys. A version before the field can also read the exercises that the bot and the web app store, so a rollback is safe.
+
+`Course.load()` fails if an exercise has `cue` in a topic without `cue_generation`, because the generator never looks at such an exercise.
 
 ## Alternatives considered
 

@@ -1,5 +1,5 @@
 import hashlib
-import json
+from typing import Literal
 
 import pytest
 
@@ -114,20 +114,17 @@ def test_cue_must_be_a_scene_or_false(cue: object) -> None:
 
 
 @pytest.mark.parametrize("cue", ["a man waiting at a bus stop", False])
-def test_cue_roundtrips_through_to_dict_and_from_dict(cue: str | bool) -> None:
-    exercise = make_exercise(cue=cue)  # ty: ignore[invalid-argument-type]
+def test_cue_roundtrips_through_to_dict_and_from_dict(
+    cue: str | Literal[False],
+) -> None:
+    exercise = make_exercise(cue=cue)
 
     assert Exercise.from_dict(exercise.to_dict()) == exercise
 
 
-def test_content_key_without_a_cue_ignores_the_field() -> None:
-    # Lessons started before the field existed keep their keys
-    exercise = make_exercise()
-    fields = exercise.to_dict()
-    del fields["cue"]
-    content = json.dumps(fields, sort_keys=True, ensure_ascii=False)
-
-    assert exercise.content_key == hashlib.sha256(content.encode()).hexdigest()
+def test_to_dict_leaves_out_an_unset_cue() -> None:
+    # So content_key stays the same, and an older version reads the dict
+    assert "cue" not in make_exercise().to_dict()
 
 
 def test_content_key_changes_with_the_cue() -> None:
