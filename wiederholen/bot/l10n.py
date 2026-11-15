@@ -51,6 +51,10 @@ class Locale:
     recall_prompt: str
     recall_correct: str
     recall_wrong: str
+    # After a mistake of only extra letters: the learner's text with them
+    # struck through, then the answer
+    wrong_extra_letters: str
+    recall_wrong_extra_letters: str
     cmd_start: str
     cmd_wiederholen: str
     btn_recall: str
@@ -97,6 +101,8 @@ RU: Final = Locale(
     recall_prompt="Напиши фразу целиком:\n{recall}",
     recall_correct="🟢 Правильно!",
     recall_wrong="🔴 Неправильно. Правильный ответ:\n{answer}",
+    wrong_extra_letters="🔴 Неправильно. {mistake} → {answer}",
+    recall_wrong_extra_letters="🔴 Неправильно.\n{mistake} → {answer}",
     cmd_start="Начать",
     cmd_wiederholen="Следующее задание",
     btn_recall="Закрепить",
@@ -154,6 +160,8 @@ EN: Final = Locale(
     recall_prompt="Type the whole sentence:\n{recall}",
     recall_correct="🟢 Correct!",
     recall_wrong="🔴 Wrong. The correct answer is:\n{answer}",
+    wrong_extra_letters="🔴 Wrong. {mistake} → {answer}",
+    recall_wrong_extra_letters="🔴 Wrong.\n{mistake} → {answer}",
     cmd_start="Start",
     cmd_wiederholen="Next exercise",
     btn_recall="Drill",

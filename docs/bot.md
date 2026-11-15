@@ -47,14 +47,37 @@ The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate
 
 ## Answering
 
-1. The learner answers with a tap on an option or with typed text. The bot says whether the answer was right and shows the correct answers if it wasn't. In a topic with `show_primary_answer_only`, the bot shows only the primary answer (see [Course format](course-format.md#several-correct-answers)). Then the bot removes the options keyboard and sends the `explanation`.
+1. The learner answers with a tap on an option or with typed text. The bot says whether the answer was right and shows the correct answers if it wasn't, with the mistake marked (see [Marking a mistake](#marking-a-mistake)). In a topic with `show_primary_answer_only`, the bot shows only the primary answer (see [Course format](course-format.md#several-correct-answers)). Then the bot removes the options keyboard and sends the `explanation`.
 2. The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)):
    - **Wrong answer, the exercise has recalls.** A recall starts at once, and the learner must type the sentence.
    - **Right answer, the exercise has recalls.** The explanation comes with two buttons, "Drill" ("Закрепить") for an optional recall and "Next exercise" ("Следующее задание").
    - **No recalls.** The explanation comes with only a "Next exercise" button.
-3. After a right recall answer, the bot says "correct" and shows a "Next exercise" button. After a wrong one, the bot shows the correct sentence and underlines the parts that differ from the learner's answer. It also shows "Try again" ("Попробовать ещё раз") and "Next exercise".
+3. After a right recall answer, the bot says "correct" and shows a "Next exercise" button. After a wrong one, the bot shows the correct sentence with the mistake marked, in the same way. It also shows "Try again" ("Попробовать ещё раз") and "Next exercise".
 
 When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
+
+### Marking a mistake
+
+After a wrong answer to an exercise or a recall, [`answer_diff.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/answer_diff.py) shows where the answer differs from the correct one (see [#319](https://github.com/pauk-slon/immer-wiederholen/issues/319)). It compares the two texts word by word:
+
+- **Similar words.** In a pair of similar words, only the letters that differ are underlined. In declension, one letter carries the case, so the learner must see that letter. Two words are similar if `difflib.SequenceMatcher.ratio()` is more than 0.5.
+- **Other words.** A word that has little in common with the learner's word is underlined as a whole. A letter diff of unrelated words would mark letters that match by chance.
+
+| Learner | Correct | Shown |
+|---|---|---|
+| `an dem` | `an den` | an de<u>n</u> |
+| `in dem` | `an den` | <u>an</u> de<u>n</u> |
+| `an` | `nach` | <u>nach</u> |
+| `gegangt` | `gegangen` | gegang<u>en</u> |
+| `Gegangt` | `gegangen` | gegang<u>en</u> |
+
+The comparison ignores what the answer check ignores. The case of letters never counts, so a capital letter from the phone keyboard isn't marked. For a recall, `.,!?` at the start or end of the text don't count either, because `check_recall()` removes them. In an answer to an exercise, they count, because its check counts them, so an extra period is struck through.
+
+If the exercise shows several answers, the bot marks the answer that is closest to the learner's text, because the learner most likely meant that form.
+
+If the learner only added letters, for example `Kinders` for `Kinder`, the correct answer has nothing to underline. Then the bot shows the learner's answer with the extra letters struck through, and the correct answer after it, for example "🔴 Wrong. Kinder<s>s</s> → Kinder". In all other cases, the bot doesn't show the wrong answer again.
+
+The message is HTML, so `answer_diff.py` escapes the texts. The web widget has no marks, because the markup is specific to Telegram.
 
 ## Lessons
 

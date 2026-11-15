@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import difflib
 import html
 import logging
 import random
@@ -23,6 +22,7 @@ from aiogram.types import (
 from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
+from wiederholen.bot import answer_diff
 from wiederholen.bot.feature_flags import has_feature
 from wiederholen.bot.l10n import (
     LOCALES,
@@ -266,16 +266,22 @@ def _format_question(
     return text
 
 
-def _highlight_diff(user_text: str, correct_text: str) -> str:
-    matcher = difflib.SequenceMatcher(a=user_text, b=correct_text)
-    correct_parts: list[str] = []
-    for tag, _, _, j1, j2 in matcher.get_opcodes():
-        correct_chunk = html.escape(correct_text[j1:j2])
-        if tag == "equal":
-            correct_parts.append(correct_chunk)
-        elif correct_chunk:
-            correct_parts.append(f"<u>{correct_chunk}</u>")
-    return "".join(correct_parts)
+def _format_wrong(
+    template: str,
+    extra_letters_template: str,
+    user_text: str,
+    answers: list[str],
+    *,
+    ignore_end_punctuation: bool = False,
+) -> str:
+    correction = answer_diff.correct(
+        user_text, answers, ignore_end_punctuation=ignore_end_punctuation
+    )
+    if correction.mistake is not None:
+        return extra_letters_template.format(
+            mistake=correction.mistake, answer=correction.answer
+        )
+    return template.format(answer=correction.answer)
 
 
 def _show_exercise_kwargs(exercise: Exercise, course: Course) -> dict:
@@ -571,7 +577,12 @@ async def handle_answer(
         result_line = (
             locale.correct
             if mark.is_correct
-            else locale.wrong.format(answer=course.shown_answer_text(shown_exercise))
+            else _format_wrong(
+                locale.wrong,
+                locale.wrong_extra_letters,
+                message.text or "",
+                course.shown_answers(shown_exercise),
+            )
         )
         if mark.recall == RecallMode.optional:
             reply_markup = _make_recall_buttons(locale, locale.btn_recall, next_label)
@@ -586,7 +597,9 @@ async def handle_answer(
         first_reply_markup = (
             ReplyKeyboardRemove() if shown_exercise.distractors else None
         )
-        await message.answer(result_line, reply_markup=first_reply_markup)
+        await message.answer(
+            result_line, reply_markup=first_reply_markup, parse_mode="HTML"
+        )
         sent_explanation = await message.answer(explanation, reply_markup=reply_markup)
         if mark.recall == RecallMode.required:
             await _start_recall(
@@ -645,10 +658,15 @@ async def handle_recall(
                 reply_markup=make_next_button(locale, next_label),
             )
         else:
-            correct_answer = _highlight_diff(message.text or "", shown_recall.answer[0])
             sent = await message.answer(
                 _append_lesson_summary(
-                    locale.recall_wrong.format(answer=correct_answer),
+                    _format_wrong(
+                        locale.recall_wrong,
+                        locale.recall_wrong_extra_letters,
+                        message.text or "",
+                        [shown_recall.answer[0]],
+                        ignore_end_punctuation=True,
+                    ),
                     finished_lesson,
                     language,
                 ),

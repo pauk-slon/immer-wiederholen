@@ -114,7 +114,7 @@ class CheckRecallRequest:
 class CheckRecallResponse:
     correct: bool
     # The recall's own canonical answer text — recall.answer[0], the same
-    # index the bot's own _highlight_diff call uses — shown on a wrong
+    # answer the bot's own answer_diff.correct() call gets — shown on a wrong
     # attempt. No diff-highlighting here (that's Telegram-HTML-specific);
     # the widget already shows a plain "correct answer: X" line for the
     # main exercise's own wrong answers, so this matches that precedent.
