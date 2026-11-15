@@ -472,7 +472,13 @@ class Tutor:
         normalized = normalize(text)
         is_correct = any(normalize(a) == normalized for a in recall.answer)
         last_exercise = self._student_record.get_last_exercise()
-        if last_exercise is not None and "recall_attempt" in last_exercise:
+        # The other frontend can answer another exercise after the recall
+        # was requested, and then last_exercise belongs to that answer
+        if (
+            last_exercise is not None
+            and last_exercise.get("question") == exercise.question
+            and "recall_attempt" in last_exercise
+        ):
             recall_mode = _get_recall_mode(last_exercise)
             attempt = last_exercise["recall_attempt"]
         else:

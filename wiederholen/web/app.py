@@ -373,7 +373,7 @@ async def check_recall(
             detail="no recall currently shown for this student",
         )
 
-    # check_recall() is pure (never mutates student_record) — same as the
+    # check_recall() doesn't change student_record — same as the
     # bot's own comment on this — so check_out()'s own change-detection
     # skips the write on its own; no separate read-only path needed here.
     async with student_record_book.check_out(student_id) as student_record:

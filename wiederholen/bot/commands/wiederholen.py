@@ -633,7 +633,7 @@ async def handle_recall(
     )
     next_label = _get_next_label(finished_lesson, language)
     locale = LOCALES[language]
-    # check_recall() is pure (never mutates student_record), unlike request_recall()
+    # check_recall() doesn't change student_record, unlike request_recall()
     # in _start_recall() above — open() detects that nothing changed and
     # skips the write on its own, no separate read-only path needed here.
     student_id = await student_identity_store.resolve_or_create_student_id(

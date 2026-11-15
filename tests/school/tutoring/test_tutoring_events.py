@@ -502,3 +502,34 @@ def test_a_recall_answer_after_a_newer_answer_reports_no_mode_or_attempt(
             },
         ),
     ]
+
+
+def test_a_recall_answer_after_a_recall_for_another_exercise_reports_no_mode(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    # The bot showed a recall for warten. Then the web app took an answer and
+    # gave a recall for another exercise
+    warten = make_exercise(word="warten", answer="auf", recalls=True)
+    denken = make_exercise(word="denken", answer="auf", recalls=True)
+    tutor = Tutor(Course([warten, denken]), {})
+    tutor.check_answer(warten, "an")
+    recall = tutor.request_recall(warten)
+    tutor.check_answer(denken, "an")
+    tutor.request_recall(denken)
+
+    with tracer.start_as_current_span("test-span"):
+        tutor.check_recall(warten, recall, "Ich warte auf den Bus.")
+
+    span = exporter.get_finished_spans()[0]
+    assert _events(span) == [
+        (
+            "RecallAnswered",
+            {
+                "word": "warten",
+                "topic": "government",
+                "question": "Ich ___ (der Bus).",
+                "is_correct": True,
+            },
+        ),
+    ]

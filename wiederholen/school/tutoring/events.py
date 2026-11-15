@@ -90,8 +90,8 @@ class RecallAnswered:
     topic: str
     question: str
     is_correct: bool
-    # None when an answer in the other frontend replaced last_exercise
-    # after the recall was requested
+    # None when last_exercise belongs to another answer, which the other
+    # frontend recorded after the recall was requested
     recall_mode: RecallMode | None
     attempt: int | None
 
