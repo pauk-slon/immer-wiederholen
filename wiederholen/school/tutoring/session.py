@@ -11,7 +11,9 @@ from wiederholen.school.tutoring.events import (
     LessonFinished,
     LessonStarted,
     NoExerciseAvailable,
+    RecallAnswered,
     RecallMode,
+    RecallRequested,
     StreakBroken,
     StreakExtended,
     TopicUnlocked,
@@ -19,7 +21,7 @@ from wiederholen.school.tutoring.events import (
 )
 from wiederholen.school.tutoring.lesson import Lesson
 from wiederholen.school.tutoring.selection import SelectablePairs
-from wiederholen.school.tutoring.student_record import StudentRecord
+from wiederholen.school.tutoring.student_record import LastExercise, StudentRecord
 
 
 @dataclass(frozen=True)
@@ -74,6 +76,13 @@ def _is_answer_correct(exercise: Exercise, answer: str) -> bool:
         return answer.strip() in (correct.strip() for correct in exercise.answer)
     matches = [option for option in options if fold_case(option) == fold_case(answer)]
     return len(matches) == 1 and matches[0] in exercise.answer
+
+
+def _get_recall_mode(last_exercise: LastExercise) -> RecallMode:
+    # A recall follows an answer that has recalls, so the mode is never none
+    if last_exercise["is_recall_optional"]:
+        return RecallMode.optional
+    return RecallMode.required
 
 
 class Tutor:
@@ -456,12 +465,29 @@ class Tutor:
             return None
         return LessonProgress(position=self._lesson.given, size=self._lesson.size)
 
-    def check_recall(self, recall: Recall, text: str) -> bool:
+    def check_recall(self, exercise: Exercise, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:
             return " ".join(s.casefold().strip(".,!?").split())
 
         normalized = normalize(text)
-        return any(normalize(a) == normalized for a in recall.answer)
+        is_correct = any(normalize(a) == normalized for a in recall.answer)
+        last_exercise = self._student_record.get_last_exercise()
+        if last_exercise is not None and "recall_attempt" in last_exercise:
+            recall_mode = _get_recall_mode(last_exercise)
+            attempt = last_exercise["recall_attempt"]
+        else:
+            recall_mode, attempt = None, None
+        emit(
+            RecallAnswered(
+                word=exercise.word,
+                topic=exercise.topic,
+                question=recall.question,
+                is_correct=is_correct,
+                recall_mode=recall_mode,
+                attempt=attempt,
+            )
+        )
+        return is_correct
 
     def request_recall(self, exercise: Exercise) -> Recall:
         last_exercise = self._student_record.get_last_exercise()
@@ -490,6 +516,16 @@ class Tutor:
             candidates = filtered_recalls
         recall = random.choice(candidates)
         last_exercise["recall_question"] = recall.question
+        last_exercise["recall_attempt"] = last_exercise.get("recall_attempt", 0) + 1
+        emit(
+            RecallRequested(
+                word=exercise.word,
+                topic=exercise.topic,
+                question=recall.question,
+                recall_mode=_get_recall_mode(last_exercise),
+                attempt=last_exercise["recall_attempt"],
+            )
+        )
         return recall
 
     def get_hint(self, exercise: Exercise) -> str | None:

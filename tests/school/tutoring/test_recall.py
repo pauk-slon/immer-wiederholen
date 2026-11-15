@@ -12,6 +12,17 @@ def test_request_recall_records_last_recall_question() -> None:
     assert student_record["last_exercise"]["recall_question"] == recall.question
 
 
+def test_request_recall_counts_attempts() -> None:
+    exercise = make_exercise(recalls=True)
+    student_record = {"last_exercise": {"is_recall_optional": False}}
+    tutor = Tutor(Course([exercise]), student_record)
+
+    tutor.request_recall(exercise)
+    tutor.request_recall(exercise)
+
+    assert student_record["last_exercise"]["recall_attempt"] == 2
+
+
 def test_request_recall_avoids_repeating_last_recall_question() -> None:
     exercise = make_exercise(
         recalls=[
@@ -51,7 +62,7 @@ def test_check_recall_accepts_ss_for_eszett() -> None:
     )
 
     is_correct = Tutor(Course([exercise]), {}).check_recall(
-        exercise.recalls[0], "er hat ihn gestossen"
+        exercise, exercise.recalls[0], "er hat ihn gestossen"
     )
 
     assert is_correct is True

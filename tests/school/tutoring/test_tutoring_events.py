@@ -412,3 +412,93 @@ def test_next_exercise_reports_a_chain_queued_pair_selected_as_new(
             },
         ),
     ]
+
+
+def test_a_recall_after_a_wrong_answer_reports_a_required_first_attempt(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    exercise = make_exercise(word="warten", answer="auf", recalls=True)
+    tutor = Tutor(Course([exercise]), {})
+    tutor.check_answer(exercise, "an")
+
+    with tracer.start_as_current_span("test-span"):
+        recall = tutor.request_recall(exercise)
+        tutor.check_recall(exercise, recall, "Ich warte auf den Bus.")
+
+    span = exporter.get_finished_spans()[0]
+    assert _events(span) == [
+        (
+            "RecallRequested",
+            {
+                "word": "warten",
+                "topic": "government",
+                "question": "Ich ___ (der Bus).",
+                "recall_mode": "required",
+                "attempt": 1,
+            },
+        ),
+        (
+            "RecallAnswered",
+            {
+                "word": "warten",
+                "topic": "government",
+                "question": "Ich ___ (der Bus).",
+                "is_correct": True,
+                "recall_mode": "required",
+                "attempt": 1,
+            },
+        ),
+    ]
+
+
+def test_a_recall_after_try_again_reports_the_next_attempt(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    exercise = make_exercise(word="warten", answer="auf", recalls=True)
+    tutor = Tutor(Course([exercise]), {})
+    tutor.check_answer(exercise, "auf")
+    recall = tutor.request_recall(exercise)
+    tutor.check_recall(exercise, recall, "Ich warte.")
+
+    with tracer.start_as_current_span("test-span"):
+        recall = tutor.request_recall(exercise)
+        tutor.check_recall(exercise, recall, "Ich warte.")
+
+    span = exporter.get_finished_spans()[0]
+    assert [
+        (name, attributes["recall_mode"], attributes["attempt"])
+        for name, attributes in _events(span)
+    ] == [
+        ("RecallRequested", "optional", 2),
+        ("RecallAnswered", "optional", 2),
+    ]
+
+
+def test_a_recall_answer_after_a_newer_answer_reports_no_mode_or_attempt(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    # The other frontend answered an exercise after the bot showed the recall
+    exercise = make_exercise(word="warten", answer="auf", recalls=True)
+    tutor = Tutor(Course([exercise]), {})
+    tutor.check_answer(exercise, "an")
+    recall = tutor.request_recall(exercise)
+    tutor.check_answer(exercise, "auf")
+
+    with tracer.start_as_current_span("test-span"):
+        tutor.check_recall(exercise, recall, "Ich warte.")
+
+    span = exporter.get_finished_spans()[0]
+    assert _events(span) == [
+        (
+            "RecallAnswered",
+            {
+                "word": "warten",
+                "topic": "government",
+                "question": "Ich ___ (der Bus).",
+                "is_correct": False,
+            },
+        ),
+    ]

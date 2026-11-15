@@ -174,7 +174,7 @@ The pairs of a gated topic without an entry aren't "new and available", so they 
 
 ## Recalls
 
-`request_recall(exercise)` picks one of the exercise's recalls at random. It avoids the recall that the learner saw last for this exercise and stores the chosen recall in `last_exercise`. The next answer replaces `last_exercise`, so nothing needs a reset between exercises.
+`request_recall(exercise)` picks one of the exercise's recalls at random. It avoids the recall that the learner saw last for this exercise and stores the chosen recall in `last_exercise`. It also counts the recalls for this answer in `last_exercise` as `recall_attempt`, for the recall events (see [Tracing](tracing.md#events-from-the-repetition-engine)). The next answer replaces `last_exercise`, so nothing needs a reset between exercises.
 
 An **optional** recall, after a correct answer, halves the interval of the pair, with a minimum of 1. This happens only the first time that the learner asks for a recall after that answer, and the due date changes to match. A required recall after a wrong answer changes nothing, because the interval is already 0.
 

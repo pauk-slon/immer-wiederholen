@@ -641,7 +641,11 @@ async def handle_recall(
     )
     async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record)
-        if tutor.check_recall(shown_recall, message.text or ""):
+        if tutor.check_recall(
+            Exercise.from_dict(state_data["shown_exercise"]),
+            shown_recall,
+            message.text or "",
+        ):
             sent = await message.answer(
                 _append_lesson_summary(
                     locale.recall_correct, finished_lesson, language

@@ -16,6 +16,8 @@ class LastExercise(TypedDict):
     answered_at: str
     is_recall_optional: bool
     recall_question: NotRequired[str]
+    # How many recalls request_recall() gave for this answer
+    recall_attempt: NotRequired[int]
     # NotRequired so a last_exercise recorded before this field existed stays
     # valid rather than being treated as malformed — next_exercise()'s
     # same-pair exclusion just no-ops until the next answer refreshes it.

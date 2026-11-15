@@ -365,8 +365,9 @@ async def check_recall(
         request, state["student_identity_store"]
     )
 
+    shown_exercise = await session_store.get_shown_exercise(student_id, data.topics)
     shown_recall = await session_store.get_shown_recall(student_id, data.topics)
-    if shown_recall is None:
+    if shown_exercise is None or shown_recall is None:
         raise HTTPException(
             status_code=409,
             detail="no recall currently shown for this student",
@@ -377,7 +378,7 @@ async def check_recall(
     # skips the write on its own; no separate read-only path needed here.
     async with student_record_book.check_out(student_id) as student_record:
         is_correct = Tutor(course, student_record).check_recall(
-            shown_recall, data.answer
+            shown_exercise, shown_recall, data.answer
         )
 
     return Response(
