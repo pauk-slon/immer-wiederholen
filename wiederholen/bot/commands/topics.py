@@ -48,6 +48,18 @@ def _make_topic_buttons(
     )
 
 
+def describe_selected_groups(
+    course: Course, selected: list[str], language: Language
+) -> str:
+    return LOCALES[language].topics_selected.format(
+        topics=", ".join(
+            group.title[language]
+            for group_id, group in course.topic_groups.items()
+            if group_id in selected
+        )
+    )
+
+
 @router.message(Command("topics"))
 async def command_topics(message: Message, state: FSMContext, course: Course) -> None:
     await clear_stale_buttons(message.bot, message.chat.id, state)
@@ -98,13 +110,7 @@ async def handle_topics_done(
     locale = LOCALES[language]
     selected = get_selected_groups(data, course)
     summary = (
-        locale.topics_selected.format(
-            topics=", ".join(
-                group.title[language]
-                for group_id, group in course.topic_groups.items()
-                if group_id in selected
-            )
-        )
+        describe_selected_groups(course, selected, language)
         if selected
         else locale.topics_all_selected
     )

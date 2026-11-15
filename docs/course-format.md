@@ -163,6 +163,8 @@ verbs:                      # group id
     perfekt_wortstellung:   # a topic with no settings
 ```
 
+The group ids are part of the links from the landing site to the bot (see [Topic groups from a link](bot.md#topic-groups-from-a-link)). A group with a new id doesn't break a link, but the link stops selecting the group. A group id must not contain `-`, because `-` separates the groups in a link.
+
 A topic belongs to one group at most. Learners can't choose a topic that isn't in any group, so the bot shows it only to learners who chose no group.
 
 Each topic can have these settings, all optional:
