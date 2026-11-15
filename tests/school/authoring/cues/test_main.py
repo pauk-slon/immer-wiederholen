@@ -49,7 +49,6 @@ def exercises() -> list[ExerciseData]:
 
 
 def _mock_store(*, existing_url: str | None = None) -> Mock:
-    # The generator constructs an R2CueStore, which the tests patch
     store = Mock(spec=R2CueStore)
     store.get_cue_url = AsyncMock(return_value=existing_url)
     store.upload_cue = AsyncMock()
