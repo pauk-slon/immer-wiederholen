@@ -359,6 +359,10 @@ async def generate_shadow_exercise(
         if not isinstance(raw_description, dict):
             raise AIGenerationError("model returned a malformed response")
         changes["description"] = raw_description
+    if isinstance(exercise.cue, str):
+        # The scene shows the original's sentence, like its description, so
+        # the shadow drops it. cue: false still holds for the new sentence.
+        changes["cue"] = None
 
     try:
         return dataclasses.replace(exercise, **changes)

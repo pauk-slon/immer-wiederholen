@@ -16,7 +16,7 @@ An exercise gets an optional field `cue` with three modes:
 
 A scene is part of the key. `Exercise.cue_key` is the SHA-256 of `question` without a scene, as in ADR 0017, and of `question` and the scene with one. So a new or changed scene gets a new illustration on the next run of the generator, and the other illustrations keep their keys.
 
-`Exercise.to_dict()` leaves out an unset `cue`. So `Exercise.content_key` doesn't change for an exercise without the field, and lessons that learners started before it keep their keys. A version before the field can also read the exercises that the bot and the web app store, so a rollback is safe.
+`Exercise.to_dict()` leaves out an unset `cue`. So `Exercise.content_key` doesn't change for an exercise without the field, and lessons that learners started before it keep their keys. A version before the field can also read the exercises that the bot and the web app store, so a rollback is safe while no exercise sets `cue`.
 
 `Course.load()` fails if an exercise has `cue` in a topic without `cue_generation`, because the generator never looks at such an exercise.
 
@@ -35,4 +35,6 @@ A scene is part of the key. `Exercise.cue_key` is the SHA-256 of `question` with
 - An author fixes a bad illustration by adding a scene or `cue: false` to its exercise, then runs the generator.
 - The old illustration of an exercise with a new scene stays in R2 unused, as after an edit of the question (ADR 0017).
 - An illustration of an exercise with `cue: false` also stays in R2, but the bot doesn't show it.
+- Once a course sets `cue`, a version before the field can't load it, because `Exercise.from_dict()` passes every key to the constructor. The same goes for the stored exercises that have the field. After that, rolling back the image also means rolling back the course.
+- A shadow exercise drops a scene of its original, because the scene describes the original's sentence, as its old `description` does. It keeps `cue: false`.
 - This doesn't fix the garbled text in the images. Its cause is still unknown (#349).
