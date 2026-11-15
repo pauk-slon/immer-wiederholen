@@ -47,6 +47,22 @@ class TestHandleAnswer:
         assert exercise.answer[0] in requests[0].text
         assert exercise.explanation["ru"] in requests[1].text
 
+    async def test_wrong_option_underlines_where_it_differs(
+        self,
+        state: FSMContext,
+        feed_message: FeedMessage,
+    ) -> None:
+        exercise = make_exercise(
+            answer="an den", distractors=["an dem", "auf den", "auf dem"]
+        )
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=exercise.to_dict())
+
+        requests = await feed_message("an dem", course=Course([exercise]))
+
+        assert requests[0].text == "🔴 Неправильно. Правильный ответ: an de<u>n</u>"
+        assert requests[0].parse_mode == "HTML"
+
     async def test_typed_answer_that_is_not_an_option_is_correct_with_the_setting(
         self,
         state: FSMContext,

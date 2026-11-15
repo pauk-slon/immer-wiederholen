@@ -46,7 +46,7 @@ async def test_wrong_answer_shows_every_correct_answer(
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
-    assert "Komm / Komme" in requests[0].text
+    assert "<u>Komm</u> / Komme" in requests[0].text
 
 
 async def test_wrong_answer_shows_only_the_primary_answer_with_the_setting(
@@ -60,7 +60,7 @@ async def test_wrong_answer_shows_only_the_primary_answer_with_the_setting(
 
     requests = await feed_message("Stadte", course=course)
 
-    assert "Städte" in requests[0].text
+    assert "St<u>ä</u>dte" in requests[0].text
     assert "die Städte" not in requests[0].text
 
 
@@ -178,3 +178,17 @@ async def test_recall_button_after_correct_answer_with_recall(
         for btn in row
     ]
     assert buttons == [RECALL, NEXT_EXERCISE]
+
+
+async def test_wrong_answer_with_extra_letters_strikes_them_through(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(answer="Kinder", distractors=[])
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict())
+
+    requests = await feed_message("Kinders", course=Course([exercise]))
+
+    assert requests[0].text == "🔴 Неправильно. Kinder<s>s</s> → Kinder"
+    assert requests[0].parse_mode == "HTML"
