@@ -543,9 +543,14 @@ class Tutor:
 
     def _get_last_exercise_of(self, exercise: Exercise) -> LastExercise | None:
         # The bot and the web app share last_exercise, so the other frontend
-        # can replace it with an answer to another exercise after this one
+        # can replace it with an answer to another exercise after this one.
+        # A question alone repeats across topics
         last_exercise = self._student_record.get_last_exercise()
-        if last_exercise is None or last_exercise["question"] != exercise.question:
+        if last_exercise is None or (
+            last_exercise["question"],
+            last_exercise.get("word"),
+            last_exercise.get("topic"),
+        ) != (exercise.question, exercise.word, exercise.topic):
             return None
         return last_exercise
 

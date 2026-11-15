@@ -1625,12 +1625,35 @@ class TestRequestRecallInterval:
         assert entry["repetition_interval"] == 0
         assert student_record["last_exercise"] == last_exercise
 
+    def test_a_recall_after_the_same_question_in_another_topic_keeps_the_interval(
+        self,
+    ) -> None:
+        # A bare verb is the question in two topics
+        partizip = make_exercise(
+            word="machen", topic="partizip_ii", question="machen", recalls=True
+        )
+        praeteritum = make_exercise(
+            word="machen", topic="praeteritum", question="machen", recalls=True
+        )
+        student_record: dict = {}
+        tutor = Tutor(Course([partizip, praeteritum]), student_record)
+        tutor.check_answer(partizip, "an")
+        tutor.request_recall(partizip)
+        tutor.check_answer(praeteritum, praeteritum.answer[0])
+
+        tutor.request_recall(partizip)
+
+        entry = student_record["word_schedule"]["machen"]["partizip_ii"]
+        assert entry["repetition_interval"] == 0
+
     def test_does_not_halve_when_last_mark_is_required(self) -> None:
         exercise = make_exercise(recalls=True)
         today = datetime.now(UTC).date()
         student_record = {
             "last_exercise": {
                 "question": exercise.question,
+                "word": exercise.word,
+                "topic": exercise.topic,
                 "is_recall_optional": False,
             },
             "word_schedule": {

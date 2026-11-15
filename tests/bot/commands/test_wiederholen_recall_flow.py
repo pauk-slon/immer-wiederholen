@@ -244,6 +244,8 @@ async def test_clicking_retry_starts_recall_again(
         {
             "last_exercise": {
                 "question": exercise.question,
+                "word": exercise.word,
+                "topic": exercise.topic,
                 "is_recall_optional": False,
             }
         },
@@ -286,6 +288,8 @@ async def test_retry_avoids_repeating_last_recall_variant(
         {
             "last_exercise": {
                 "question": exercise.question,
+                "word": exercise.word,
+                "topic": exercise.topic,
                 "is_recall_optional": False,
                 "recall_question": exercise.recalls[0].question,
             }

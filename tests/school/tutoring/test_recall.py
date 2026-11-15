@@ -6,7 +6,12 @@ from wiederholen.school.tutoring import Tutor
 def test_request_recall_records_last_recall_question() -> None:
     exercise = make_exercise(recalls=True)
     student_record = {
-        "last_exercise": {"question": exercise.question, "is_recall_optional": True}
+        "last_exercise": {
+            "question": exercise.question,
+            "word": exercise.word,
+            "topic": exercise.topic,
+            "is_recall_optional": True,
+        }
     }
 
     recall = Tutor(Course([exercise]), student_record).request_recall(exercise)
@@ -17,7 +22,12 @@ def test_request_recall_records_last_recall_question() -> None:
 def test_request_recall_counts_attempts() -> None:
     exercise = make_exercise(recalls=True)
     student_record = {
-        "last_exercise": {"question": exercise.question, "is_recall_optional": False}
+        "last_exercise": {
+            "question": exercise.question,
+            "word": exercise.word,
+            "topic": exercise.topic,
+            "is_recall_optional": False,
+        }
     }
     tutor = Tutor(Course([exercise]), student_record)
 
@@ -37,6 +47,8 @@ def test_request_recall_avoids_repeating_last_recall_question() -> None:
     student_record = {
         "last_exercise": {
             "question": exercise.question,
+            "word": exercise.word,
+            "topic": exercise.topic,
             "is_recall_optional": True,
             "recall_question": exercise.recalls[0].question,
         }
@@ -52,6 +64,8 @@ def test_request_recall_repeats_question_when_no_other_variant_is_available() ->
     student_record = {
         "last_exercise": {
             "question": exercise.question,
+            "word": exercise.word,
+            "topic": exercise.topic,
             "is_recall_optional": True,
             "recall_question": exercise.recalls[0].question,
         }
