@@ -19,11 +19,6 @@ from wiederholen.school import Course, Exercise
 _WORDS = ("warten", "hoffen", "denken", "achten", "zählen")
 
 
-@pytest.fixture
-def feature_flags(chat_id: int) -> dict[str, frozenset[int]]:
-    return {"lessons": frozenset({chat_id})}
-
-
 def _course(*words: str, recalls: bool = False) -> Course:
     return Course([make_exercise(word=word, recalls=recalls) for word in words])
 
@@ -43,23 +38,18 @@ async def _shown_exercise(state: FSMContext) -> Exercise:
     return Exercise.from_dict((await state.get_data())["shown_exercise"])
 
 
-async def test_a_flagged_chat_gets_a_lesson_of_five_with_a_counter(
+async def test_a_lesson_has_five_exercises_with_a_counter(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
-    feature_flags: dict[str, frozenset[int]],
 ) -> None:
     course = _course(*_WORDS, "glauben")
     questions = []
     for position in range(1, 6):
         if position == 1:
-            requests = await feed_message(
-                "/wiederholen", course=course, feature_flags=feature_flags
-            )
+            requests = await feed_message("/wiederholen", course=course)
         else:
-            requests = await feed_callback_query(
-                NEXT_EXERCISE, course=course, feature_flags=feature_flags
-            )
+            requests = await feed_callback_query(NEXT_EXERCISE, course=course)
         questions.append(_last_text(requests))
         exercise = await _shown_exercise(state)
         await feed_message(exercise.answer[0], course=course)
@@ -73,10 +63,10 @@ async def test_a_flagged_chat_gets_a_lesson_of_five_with_a_counter(
     ]
 
 
-async def test_a_chat_without_the_flag_gets_no_counter(
+async def test_a_lesson_of_one_exercise_gets_no_counter(
     feed_message: FeedMessage,
 ) -> None:
-    requests = await feed_message("/wiederholen", course=_course(*_WORDS))
+    requests = await feed_message("/wiederholen", course=_course("warten"))
 
     assert requests[-1].text.startswith("❓")
 
@@ -85,12 +75,11 @@ async def test_the_last_answer_of_a_lesson_shows_the_summary(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
-    feature_flags: dict[str, frozenset[int]],
 ) -> None:
     course = _course("warten", "hoffen")
-    await feed_message("/wiederholen", course=course, feature_flags=feature_flags)
+    await feed_message("/wiederholen", course=course)
     first = await feed_message("auf", course=course)
-    await feed_callback_query(NEXT_EXERCISE, course=course, feature_flags=feature_flags)
+    await feed_callback_query(NEXT_EXERCISE, course=course)
 
     last = await feed_message("an", course=course)
 
@@ -108,17 +97,14 @@ async def test_a_lesson_that_adds_no_streak_day_shows_no_streak_line(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
-    feature_flags: dict[str, frozenset[int]],
 ) -> None:
     # The first lesson gives both new words. Their answers make them due
     # again today, so the second lesson reviews them on the same day
     course = _course("warten", "hoffen")
-    await feed_message("/wiederholen", course=course, feature_flags=feature_flags)
+    await feed_message("/wiederholen", course=course)
     for _ in range(3):
         await feed_message("auf", course=course)
-        await feed_callback_query(
-            NEXT_EXERCISE, course=course, feature_flags=feature_flags
-        )
+        await feed_callback_query(NEXT_EXERCISE, course=course)
 
     last = await feed_message("auf", course=course)
 
@@ -129,13 +115,12 @@ async def test_after_a_required_recall_the_summary_comes_with_the_recall_result(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
-    feature_flags: dict[str, frozenset[int]],
 ) -> None:
     course = _course("warten", "hoffen", recalls=True)
-    await feed_message("/wiederholen", course=course, feature_flags=feature_flags)
+    await feed_message("/wiederholen", course=course)
     await feed_message("an", course=course)
     await feed_message("Ich warte auf den Bus.", course=course)
-    await feed_callback_query(NEXT_EXERCISE, course=course, feature_flags=feature_flags)
+    await feed_callback_query(NEXT_EXERCISE, course=course)
 
     answer = await feed_message("an", course=course)
     assert await state.get_state() == UserState.recalling
@@ -152,12 +137,11 @@ async def test_after_a_required_recall_the_summary_comes_with_the_recall_result(
 async def test_after_an_optional_recall_the_summary_comes_with_the_explanation(
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
-    feature_flags: dict[str, frozenset[int]],
 ) -> None:
     course = _course("warten", "hoffen", recalls=True)
-    await feed_message("/wiederholen", course=course, feature_flags=feature_flags)
+    await feed_message("/wiederholen", course=course)
     await feed_message("auf", course=course)
-    await feed_callback_query(NEXT_EXERCISE, course=course, feature_flags=feature_flags)
+    await feed_callback_query(NEXT_EXERCISE, course=course)
 
     last = await feed_message("auf", course=course)
     await feed_callback_query(RECALL, course=course)
@@ -174,17 +158,12 @@ async def test_a_next_button_shows_the_exercise_that_waits_for_an_answer(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
-    feature_flags: dict[str, frozenset[int]],
 ) -> None:
     course = _course(*_WORDS)
-    first = await feed_message(
-        "/wiederholen", course=course, feature_flags=feature_flags
-    )
+    first = await feed_message("/wiederholen", course=course)
     data = await state.get_data()
 
-    again = await feed_callback_query(
-        button, course=course, feature_flags=feature_flags
-    )
+    again = await feed_callback_query(button, course=course)
 
     assert again[-2].text == first[-1].text
     assert first[-1].text.startswith("1/5")

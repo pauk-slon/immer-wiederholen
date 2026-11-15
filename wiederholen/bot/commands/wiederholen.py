@@ -68,10 +68,9 @@ STUDY_MORE: Final = "__study_more__"
 # truncated caption; see _answer_with_optional_cue().
 _PHOTO_CAPTION_LIMIT: Final = 1024
 
-# The lesson size for chats with the lessons flag (#325). Other chats and
-# the web app keep Tutor.LESSON_SIZE, so only these chats get lessons of
-# more than one exercise, with a counter and a summary
-_FLAGGED_LESSON_SIZE: Final = 5
+# The bot's lessons have 5 exercises (#325). The web app keeps
+# Tutor.LESSON_SIZE of 1, so it has no counter and no summary
+_LESSON_SIZE: Final = 5
 
 
 class UserState(StatesGroup):
@@ -159,12 +158,6 @@ def _make_recall_buttons(
     )
 
 
-def _lesson_size(feature_flags: dict[str, frozenset[int]] | None, chat_id: int) -> int:
-    if has_feature(feature_flags or {}, "lessons", chat_id):
-        return _FLAGGED_LESSON_SIZE
-    return Tutor.LESSON_SIZE
-
-
 def _get_lesson_counter(tutor: Tutor) -> list[int] | None:
     # [position, size] for the question's "3/5", only in a lesson of
     # several exercises
@@ -204,11 +197,10 @@ def _append_lesson_summary(
 
 
 def _get_next_label(finished_lesson: dict | None, language: Language) -> str | None:
-    # After a lesson, the "Next" button starts the next lesson. Only a
-    # flagged chat has a finished_lesson, so its size is the flagged one
+    # After a lesson, the "Next" button starts the next lesson
     if finished_lesson is None:
         return None
-    count = format_count(_FLAGGED_LESSON_SIZE, "exercises", language)
+    count = format_count(_LESSON_SIZE, "exercises", language)
     return LOCALES[language].btn_more_exercises.format(count=count)
 
 
@@ -497,7 +489,7 @@ async def command_wiederholen(
             course,
             student_record,
             lesson=lesson,
-            lesson_size=_lesson_size(feature_flags, message.chat.id),
+            lesson_size=_LESSON_SIZE,
         )
         exercise = tutor.next_exercise()
         if exercise is None:
@@ -777,7 +769,6 @@ async def handle_next_exercise(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
-    feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
@@ -799,7 +790,7 @@ async def handle_next_exercise(
             course,
             student_record,
             lesson=lesson,
-            lesson_size=_lesson_size(feature_flags, callback.from_user.id),
+            lesson_size=_LESSON_SIZE,
         )
         await _respond_with_next_exercise(
             callback,
@@ -823,7 +814,6 @@ async def handle_study_more(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
-    feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
     authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
@@ -845,7 +835,7 @@ async def handle_study_more(
             course,
             student_record,
             lesson=lesson,
-            lesson_size=_lesson_size(feature_flags, callback.from_user.id),
+            lesson_size=_LESSON_SIZE,
         )
         tutor.grant_new_word_budget()
         await _respond_with_next_exercise(

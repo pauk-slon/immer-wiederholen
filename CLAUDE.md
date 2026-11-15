@@ -23,7 +23,7 @@ Spaced-repetition scheduling — `Tutor`/`StudentRecord`/`Lesson`, `SelectablePa
 - `_expedite_dependent()` only creates entries for pairs that have none — never move an existing entry (mutual chains would loop).
 - `Tutor` never touches a raw schedule entry: read with `get_repetition_interval()`, write with `schedule_pair()`. `StudentRecord` stays course-agnostic.
 - `is_new` and the previous interval come from `record_mark()`'s return value, never a separate lookup after it.
-- `next_exercise()` takes exercises from a lesson (`LESSON_SIZE` 1, or 5 for chats with the `lessons` flag, #325); a lesson stores `Exercise.content_key` values (a hash of every field — `question` repeats across topics and even within a pair), skips keys the course doesn't have, and expires 2 h after its last activity — start, a given exercise or an answer — not at a day boundary (ADR 0026, ADR 0028).
+- `next_exercise()` takes exercises from a lesson (`LESSON_SIZE` 1 for the web app, 5 for the bot, #325); a lesson stores `Exercise.content_key` values (a hash of every field — `question` repeats across topics and even within a pair), skips keys the course doesn't have, and expires 2 h after its last activity — start, a given exercise or an answer — not at a day boundary (ADR 0026, ADR 0028).
 - The streak counts finished lessons, not answers (ADR 0027): it breaks after 36 h without a finished lesson, not on a calendar day, and a lesson adds a day only 18 h or more after the lesson that added the previous one. `check_answer()` reads the previous practice time (`last_lesson_finished_at`, or the last answer for an older record) *before* `record_mark()` replaces it. The streak reminder counts from the last finished lesson, the usual reminder from the last answer.
 
 ## Persistence and student identity
@@ -55,7 +55,7 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 - A new chat setting, or any FSM key that must outlive one exercise, goes into `_LASTING_CHAT_STATE_KEYS`, or it's lost after every exercise.
 - The reminder decision stays in `Tutor.should_remind()` (pure); `record_reminder_sent()` only after Telegram accepted the message.
 - `/wiederholen` and the "Next exercise"/"Study more" buttons during `answering` show the shown exercise again (unless `/topics` deselected its topic), never the next one: otherwise a lesson can be finished without answers.
-- The `lessons` flag gives a chat `lesson_size=5` (`_FLAGGED_LESSON_SIZE`); the counter and the summary appear only for lessons of 2 or more, so other chats and the web app (size 1) look as before.
+- The bot gives `Tutor` `lesson_size=5` (`_LESSON_SIZE`); the counter and the summary appear only for lessons of 2 or more, so the web app (size 1) shows neither.
 - Topic selection narrows what's *shown* (`/wiederholen`, next/study-more buttons, reminders), never `/progress` or answer checking.
 - `bot_blocked` is set from both `my_chat_member` and a 403 on send; the reminder skips such chats before touching the record.
 - Feature flags stay in the bot layer; `wiederholen.school` never sees a chat id or flag name.
