@@ -10,7 +10,7 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 
 | Span | Process | Attributes |
 |---|---|---|
-| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/` |
+| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/`. For `/start`, also `telegram.start.new_chat` and, if a link selected groups, `telegram.start.topic_groups` (see below) |
 | `telegram.callback_query` | bot | `telegram.callback_data`, `telegram.handled`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns |
 | `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
 | `telegram.update` | bot | `telegram.handled` only (any other kind of update) |
@@ -24,6 +24,8 @@ The web widget reports its own failures to `POST /api/client-error`. It sends th
 The traces never contain text that a learner typed. A message span records only the command. Callback data is always a value that the bot made itself. It is a button id, sometimes with a topic group id or a reminder interval after it (`__topic_group__:verbs`, `__remind_after__:8`). The traces can contain text from the course. `ExerciseSelected` records the question text.
 
 When code inside a span raises an exception, OpenTelemetry records it on that span. In the reminder, an error in one chat is recorded on that chat's `reminder.check_chat` span. The sweep then logs the error and continues with the next chat.
+
+`telegram.start.topic_groups` has only group ids that the course has. The bot never records the payload itself, because a learner can type any text after `/start`. With `telegram.start.new_chat`, the two attributes show how many new chats came from a page with groups.
 
 `telegram.handled` is `false` when no handler matched the update. For a new message or a button press, this means that the learner got no reply. Some updates need no reply, but they also get `false`. An edited message is one example. It gets a `telegram.message` span too, so the span name doesn't separate the two cases. A handler that raises an exception leaves the attribute unset.
 

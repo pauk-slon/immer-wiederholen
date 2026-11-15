@@ -69,6 +69,8 @@ class Locale:
     btn_topics_done: str
     topics_selected: str
     topics_all_selected: str
+    # After the greeting, when a link selected topic groups (#345)
+    topics_change_hint: str
     cmd_reminders: str
     reminders_prompt: str
     btn_remind_after: str
@@ -120,6 +122,7 @@ RU: Final = Locale(
     btn_topics_done="Готово",
     topics_selected="✅ Темы: {topics}",
     topics_all_selected="✅ Задания будут по всем темам",
+    topics_change_hint="Выбрать другие темы: /topics",
     cmd_reminders="Напоминания",
     reminders_prompt="Через сколько после последнего занятия напомнить позаниматься?",
     btn_remind_after="{hours} ч",
@@ -179,6 +182,7 @@ EN: Final = Locale(
     btn_topics_done="Done",
     topics_selected="✅ Topics: {topics}",
     topics_all_selected="✅ Exercises will cover all topics",
+    topics_change_hint="Choose other topics: /topics",
     cmd_reminders="Reminders",
     reminders_prompt="How long after your last session should I remind you to practice?",
     btn_remind_after="{hours} h",
