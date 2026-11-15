@@ -168,3 +168,19 @@ async def test_a_next_button_shows_the_exercise_that_waits_for_an_answer(
     assert again[-2].text == first[-1].text
     assert first[-1].text.startswith("1/5")
     assert await state.get_data() == data | {"last_buttoned_message_id": None}
+
+
+async def test_the_next_lesson_button_reads_naturally_in_english(
+    state: FSMContext,
+    feed_message: FeedMessage,
+    feed_callback_query: FeedCallbackQuery,
+) -> None:
+    course = _course("warten", "hoffen")
+    await state.update_data(language="en")
+    await feed_message("/wiederholen", course=course)
+    await feed_message("auf", course=course)
+    await feed_callback_query(NEXT_EXERCISE, course=course)
+
+    last = await feed_message("auf", course=course)
+
+    assert _button_texts(last[-1]) == ["Next 5 exercises"]

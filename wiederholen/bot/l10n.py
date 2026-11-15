@@ -196,7 +196,8 @@ EN: Final = Locale(
     nothing_due_text="🎉 That's all for today! Come back tomorrow for more.",
     streak_text="🔥 Streak: {days}",
     lesson_summary="✅ Done! Correct: {correct} of {size}",
-    btn_more_exercises="{count} more",
+    # "Next 5 exercises": "{count} more" would give "5 exercises more"
+    btn_more_exercises="Next {count}",
     ai_mode_on="🤖 AI mode is on",
     ai_mode_off="AI mode is off",
     ai_generation_failed="⚠️ Couldn't generate the exercise. Try again, or turn off /ai.",
