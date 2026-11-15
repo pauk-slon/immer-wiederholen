@@ -214,7 +214,7 @@ async def test_shows_both_description_and_topic_instruction_independently(
         description={"ru": "Поезд едет через туннель.", "en": "..."},
     )
     topic_instructions: dict[str, dict[Language, str]] = {
-        "preposition_meaning": {"ru": "Введи пропущенное слово.", "en": "..."},
+        "preposition_meaning": {"ru": "Введите пропущенное слово.", "en": "..."},
     }
     requests = await feed_message(
         "/wiederholen",
@@ -223,7 +223,7 @@ async def test_shows_both_description_and_topic_instruction_independently(
 
     assert len(requests) == 1
     assert "💭 Поезд едет через туннель." in requests[0].text
-    assert "ℹ️ Введи пропущенное слово." in requests[0].text
+    assert "ℹ️ Введите пропущенное слово." in requests[0].text
 
 
 async def test_avoids_repeating_previously_shown_question(
