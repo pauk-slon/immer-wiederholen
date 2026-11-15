@@ -1,6 +1,6 @@
 # 0029. A /start payload can also select the topic groups of a new chat
 
-**Status:** Accepted, 2026-11-15 ([#345](https://github.com/pauk-slon/immer-wiederholen/issues/345)). Amends [ADR 0019](0019-start-payload-sets-only-a-new-language.md).
+**Status:** Accepted, 2026-11-15 ([#346](https://github.com/pauk-slon/immer-wiederholen/pull/346)). Amends [ADR 0019](0019-start-payload-sets-only-a-new-language.md). The feature is discussed in [#345](https://github.com/pauk-slon/immer-wiederholen/issues/345).
 
 ## Context
 
@@ -31,5 +31,5 @@ The selection stays until the learner changes it with `/topics`.
 ## Consequences
 
 - The group ids in `topics.yaml` are part of public links. A group with a new id doesn't break a link, but the link stops selecting the group. A group id must not contain `-`.
-- A link with groups sent to a bot without this change loses the language too, because the old bot compares the whole payload with a language. So the landing site changes its links only after the bot is in production.
+- The bot before this change doesn't understand a link with groups, and it loses the language of such a link too, because it compares the whole payload with a language. So the landing site changes its links only after this change is in production.
 - The `telegram.message` span of `/start` records if the chat is new and which known groups the payload selected. So the share of new chats from a page that finish a lesson can be measured.

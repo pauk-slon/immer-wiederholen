@@ -8,7 +8,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 | Command | Module | What it does |
 |---|---|---|
-| `/start` | `start` | greets the learner, with a "Next exercise" button. A deep link sets up a new chat, a chat that has no FSM data yet. The link can carry a language (`t.me/<bot>?start=en`, see [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md)) and topic groups (see [Topic groups from a link](#topic-groups-from-a-link)) |
+| `/start` | `start` | greets the learner, with a "Next exercise" button. A deep link can set the language and the topic groups of a new chat, a chat that has no FSM data yet. See [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md) for the language (`t.me/<bot>?start=en`) and [Topic groups from a link](#topic-groups-from-a-link) for the groups |
 | `/wiederholen` | `wiederholen` | shows the next exercise, or the current one again if it has no answer yet. The same module handles answers, recalls and the "next" and "study more" buttons |
 | `/progress` | `progress` | shows today's counts (due, new, answered), how many words the learner is learning or has mastered and, if there is one, the streak (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
@@ -122,7 +122,7 @@ The daily limit on new words counts all topics, selected or not.
 
 The landing site links to the bot from each grammar page, so that the learner continues with the topics of the page (see [#345](https://github.com/pauk-slon/immer-wiederholen/issues/345) and [ADR 0029](adr/0029-start-payload-selects-topic-groups.md)). The payload of the link is the language, then group ids, separated by `-`. For example, `t.me/<bot>?start=ru-verb_government-prepositions` selects two groups.
 
-`/start` applies the payload only to a new chat, as with the language. It saves the groups as `topic_groups`, so `/topics` shows them and the learner can change them. The bot skips a group id that the course doesn't have. If no group is left, the learner gets a usual start in the language of the link. A payload without a known language at the start gives a usual start.
+`/start` applies the payload only to a new chat, as with the language. It saves the groups as `topic_groups`, so `/topics` shows them and the learner can change them. The bot skips a group id that the course doesn't have. If the course has none of the groups, the learner gets a usual start in the language of the link. A payload without a known language at the start gives a usual start.
 
 After groups from a link, the greeting also shows the summary of `/topics` ("✅ Topics: Verb government") and the line "Choose other topics: /topics" ("Выбрать другие темы: /topics"). Without these lines, a learner could think that the bot has no other exercises.
 
