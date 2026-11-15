@@ -58,7 +58,7 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 
 ## Lessons
 
-The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tutor` as `lesson_size`. The web app keeps lessons of one exercise, so it shows no counter and no summary (see [Lessons](repetition-schedule.md#lessons) and [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
+The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tutor` as `lesson_size`. The web app keeps lessons of one exercise, so it shows no counter and no summary (see [Lessons](repetition-schedule.md#lessons) and [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)). A day of the streak needs a finished lesson (see [Repetition schedule](repetition-schedule.md#streak)).
 
 In a lesson of several exercises, the learner sees these things:
 
@@ -69,7 +69,7 @@ In a lesson of several exercises, the learner sees these things:
     - **An optional recall.** The summary comes with the explanation, and again with the recall result if the learner chooses the recall.
 - **A "5 more" button.** After the summary, the "Next exercise" button says "Ещё 5 заданий" ("5 more exercises") and starts the next lesson. If nothing is left for today, the reply says that the day is done, as before.
 
-A lesson of one exercise gets no counter and no summary. This happens when only one exercise is available.
+A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
 
 ## Chat settings
 
