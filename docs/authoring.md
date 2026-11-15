@@ -62,18 +62,18 @@ A **cue** is an illustration of an exercise's sentence. The bot shows it with th
 
 [`cues/__init__.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/authoring/cues/__init__.py) has two functions:
 
-- **`build_cue_prompt(exercise)`** returns `description.en` with a fixed style suffix, `", simple clear illustration, single scene, no text or letters in the image"`. It returns `None` if the exercise has no description. The suffix keeps the illustrations visually consistent. It also asks for no text in the image, because image models often distort letters, and the picture shouldn't show wrong German.
+- **`build_cue_prompt(exercise)`** returns the scene in `cue`, or else `description.en`, with a fixed style suffix, `", simple clear illustration, single scene, no text or letters in the image"`. It returns `None` for `cue: false` and for an exercise with neither a scene nor a description. The suffix keeps the illustrations visually consistent. It also asks for no text in the image, because image models often distort letters, and the picture shouldn't show wrong German.
 - **`generate_exercise_cue(client, exercise, *, account_id, api_token)`** sends the prompt to Cloudflare Workers AI (`@cf/black-forest-labs/flux-1-schnell`) and returns the image bytes (JPEG). It raises `httpx.HTTPError` on failure. The response has the base64 image either as `{"result": {"image": ...}}` or as `{"image": ...}`, and the function accepts both.
 
-[`cues/__main__.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/authoring/cues/__main__.py) is the generator. You run it after content changes (`python -m wiederholen.school.authoring.cues`). For each exercise of a topic with `cue_generation`, it checks with a cheap `HEAD` request whether a cue exists. If not, it generates a cue and uploads it. At the end it logs one summary line with four counts: generated, already had one, no description, failed. There's no review step before the upload. The person who runs the generator reads the summary and checks samples of the result.
+[`cues/__main__.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/authoring/cues/__main__.py) is the generator. You run it after content changes (`python -m wiederholen.school.authoring.cues`). For each exercise of a topic with `cue_generation`, it checks with a cheap `HEAD` request whether a cue exists. If not, it generates a cue and uploads it. It skips an exercise with `cue: false` without a request. At the end it logs one summary line with five counts: generated, already had one, no description, turned off, failed. There's no review step before the upload. The person who runs the generator reads the summary and checks samples of the result.
 
 The generator is a one-off command, not a service, because exercises change rarely, at authoring time. It is next to the code that it uses, not next to `bot` and `web`, because it is an authoring tool and not a frontend. It is the `__main__` of a package, not a `cues.py` with `if __name__ == "__main__"`. The reason is that `authoring/__init__.py` imports `cues`, and `python -m` on a module that is already imported runs it a second time (runpy's "found in sys.modules" warning). It is the one module under `wiederholen.school` that reads environment variables. This is acceptable, because no module imports it.
 
 ### Keys
 
-Cues are stored under `Exercise.cue_key`, the SHA-256 of the exercise's `question`. The key is computed in one place, so the generator and the bot always agree. The key comes from the question and not from the word and topic, because several exercises of a topic can share a word, each with its own sentence and picture.
+Cues are stored under `Exercise.cue_key`, the SHA-256 of the exercise's `question`, or of `question` and the scene if `cue` has one (see [ADR 0030](adr/0030-cue-field-sets-the-scene-or-turns-it-off.md)). The key is computed in one place, so the generator and the bot always agree. The key comes from the question and not from the word and topic, because several exercises of a topic can share a word, each with its own sentence and picture.
 
-If you edit the text of a question, its key changes, and its old cue is no longer used. The bot never shows that cue for the wrong sentence. But the question has no picture until the generator runs again.
+If you edit the text of a question or its scene, its key changes, and its old cue is no longer used. The bot never shows that cue for the wrong sentence. But the question has no picture until the generator runs again. So a course author fixes a bad cue with a scene in `cue`, and the next run of the generator draws the scene.
 
 ### Storing and showing
 
@@ -86,6 +86,7 @@ If you edit the text of a question, its key changes, and its old cue is no longe
 In the bot, `bootstrap.load_cue_store()` builds the cached store. It returns `None` if R2 isn't configured. `_answer_with_optional_cue()` sends a question as a photo with the text as its caption if all of these are true:
 
 - the topic has cues
+- the exercise doesn't have `cue: false`
 - a cue exists for the question
 - the text fits Telegram's caption limit of 1024 characters
 

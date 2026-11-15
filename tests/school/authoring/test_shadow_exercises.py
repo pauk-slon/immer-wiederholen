@@ -338,6 +338,24 @@ async def test_replaces_the_description_with_the_generated_one() -> None:
     assert shadow.description == new_description
 
 
+async def test_drops_the_scene_of_the_original() -> None:
+    exercise = make_exercise(cue="a man waiting at a bus stop")
+    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+
+    shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+    assert shadow.cue is None
+
+
+async def test_keeps_cue_false() -> None:
+    exercise = make_exercise(cue=False)
+    client = _make_client(_make_response(_make_tool_use(_VALID_INPUT)))
+
+    shadow = await generate_shadow_exercise(client, exercise, Course([exercise]))
+
+    assert shadow.cue is False
+
+
 async def test_rejects_a_missing_description_when_the_original_has_one() -> None:
     exercise = make_exercise(
         topic="preposition_meaning",

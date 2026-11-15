@@ -25,6 +25,8 @@ def test_demo_course_uses_every_exercise_field(demo_course: Course) -> None:
     assert any(exercise.description for exercise in exercises)
     assert any(exercise.word_bank for exercise in exercises)
     assert any(exercise.grammar_classes for exercise in exercises)
+    assert any(isinstance(exercise.cue, str) for exercise in exercises)
+    assert any(exercise.cue is False for exercise in exercises)
 
 
 def test_demo_course_uses_every_topics_setting(demo_course: Course) -> None:

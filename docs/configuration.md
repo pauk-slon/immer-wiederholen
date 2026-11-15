@@ -109,7 +109,7 @@ After you change the variable, restart the bot.
 | `CLOUDFLARE_ACCOUNT_ID` | the Cloudflare account id |
 | `CLOUDFLARE_API_TOKEN` | the Workers AI token |
 
-The generator skips exercises that already have an illustration and logs a summary at the end. The free tier of Workers AI covers about 90 images a day. After that limit, the generator doesn't stop. Every remaining exercise fails, and the summary shows them as failed. This is expected. Run the generator again the next day, and it continues from the point where the quota stopped it.
+The generator skips exercises that already have an illustration or have `cue: false`, and logs a summary at the end. The free tier of Workers AI covers about 90 images a day. After that limit, the generator doesn't stop. Every remaining exercise fails, and the summary shows them as failed. This is expected. Run the generator again the next day, and it continues from the point where the quota stopped it.
 
 The bot caches each lookup for 12 hours, including "no illustration yet", so a new image can take up to 12 hours to appear. A restart of the bot clears the cache.
 

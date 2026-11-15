@@ -5,7 +5,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from functools import cached_property
 from pathlib import Path
-from typing import Final, Self, TypedDict
+from typing import Final, Literal, Self, TypedDict
 
 import yaml
 
@@ -92,6 +92,10 @@ class Exercise:
     description: dict[Language, str] | None = None
     word_bank: list[str] | None = None
     grammar_classes: list[str] | None = None
+    # The illustration (see docs/authoring.md): None for one drawn from
+    # description, a scene in English for one drawn from the scene, or False
+    # for no illustration
+    cue: str | Literal[False] | None = None
 
     def __post_init__(self) -> None:
         _check_answer_type(self.answer)
@@ -129,9 +133,21 @@ class Exercise:
                     )
         if self.grammar_classes is not None and len(self.grammar_classes) == 0:
             raise ValueError("grammar_classes must not be empty if set")
+        if (
+            self.cue is not None
+            and self.cue is not False
+            and (not isinstance(self.cue, str) or not self.cue.strip())
+        ):
+            raise ValueError(f"cue must be a scene or false, got {self.cue!r}")
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        # Without an unset cue, so an exercise without it keeps its
+        # content_key, and a version before the field can still read the
+        # exercises that the bot and the web app store
+        if d["cue"] is None:
+            del d["cue"]
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
@@ -164,6 +180,11 @@ class Exercise:
         # hash, silently orphaning whatever cue was generated for the old
         # wording — safe (never a mismatched cue), just means a re-run of
         # the worker is needed after a content edit that touches wording.
+        # A scene in `cue` is part of the key for the same reason: a new
+        # scene gets a new illustration, and the other cues keep their keys
+        # (ADR 0030).
+        if isinstance(self.cue, str):
+            return hashlib.sha256(f"{self.question}\n{self.cue}".encode()).hexdigest()
         return hashlib.sha256(self.question.encode()).hexdigest()
 
     @cached_property
@@ -343,10 +364,20 @@ class Course:
 
     @classmethod
     def load(cls, path: Path) -> Self:
-        return cls(
-            cls._load_exercises(path / "exercises.yaml"),
-            **cls._load_topics(path / "topics.yaml"),
-        )
+        exercises = cls._load_exercises(path / "exercises.yaml")
+        topics_config = cls._load_topics(path / "topics.yaml")
+        for exercise in exercises:
+            # The generator never looks at such an exercise, so the author
+            # would wait for an illustration that never comes
+            if (
+                exercise.cue is not None
+                and exercise.topic not in topics_config["cue_generatable_topics"]
+            ):
+                raise ValueError(
+                    f"cue is set for {exercise.question!r}, but its topic "
+                    f"{exercise.topic!r} has no cue_generation"
+                )
+        return cls(exercises, **topics_config)
 
     def restricted_to(self, topics: Iterable[Topic]) -> Self:
         # A narrower view of this course, e.g. for a web widget embedded on

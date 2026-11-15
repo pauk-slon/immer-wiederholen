@@ -32,7 +32,7 @@ The bot marks an AI-generated question with `🤖`. A multiple-choice exercise s
 
 The bot sends the message with `parse_mode="HTML"`, so **every piece of authored text goes through `html.escape()`**. Without it, a `<`, `>` or `&` in a question would break the markup.
 
-If the topic has illustrations and the question has one, the bot sends the question as a photo with the text as its caption. If the text is longer than Telegram's caption limit of 1024 characters, the bot sends it as plain text. If the lookup fails, the bot logs the error and sends the question as plain text, so a storage problem never stops practice.
+If the topic has illustrations, the exercise doesn't have `cue: false` and the question has an illustration, the bot sends the question as a photo with the text as its caption. If the text is longer than Telegram's caption limit of 1024 characters, the bot sends it as plain text. If the lookup fails, the bot logs the error and sends the question as plain text, so a storage problem never stops practice.
 
 ### Showing a waiting exercise again
 

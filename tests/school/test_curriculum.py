@@ -1,3 +1,6 @@
+import hashlib
+from typing import Literal
+
 import pytest
 
 from tests.plugins.curriculum import make_exercise
@@ -88,6 +91,44 @@ def test_cue_key_differs_for_a_different_question() -> None:
     b = make_exercise(word="sprechen")
 
     assert a.cue_key != b.cue_key
+
+
+def test_cue_key_without_a_scene_is_the_hash_of_the_question() -> None:
+    exercise = make_exercise(cue=False)
+
+    assert exercise.cue_key == hashlib.sha256(exercise.question.encode()).hexdigest()
+
+
+def test_cue_key_changes_with_the_scene() -> None:
+    without_scene = make_exercise()
+    with_scene = make_exercise(cue="a man waiting at a bus stop")
+    other_scene = make_exercise(cue="a man looking at his watch")
+
+    assert len({without_scene.cue_key, with_scene.cue_key, other_scene.cue_key}) == 3
+
+
+@pytest.mark.parametrize("cue", [True, "", "  ", 1])
+def test_cue_must_be_a_scene_or_false(cue: object) -> None:
+    with pytest.raises(ValueError, match="cue must be a scene or false"):
+        Exercise.from_dict({**make_exercise().to_dict(), "cue": cue})
+
+
+@pytest.mark.parametrize("cue", ["a man waiting at a bus stop", False])
+def test_cue_roundtrips_through_to_dict_and_from_dict(
+    cue: str | Literal[False],
+) -> None:
+    exercise = make_exercise(cue=cue)
+
+    assert Exercise.from_dict(exercise.to_dict()) == exercise
+
+
+def test_to_dict_leaves_out_an_unset_cue() -> None:
+    # So content_key stays the same, and an older version reads the dict
+    assert "cue" not in make_exercise().to_dict()
+
+
+def test_content_key_changes_with_the_cue() -> None:
+    assert make_exercise().content_key != make_exercise(cue=False).content_key
 
 
 def test_shuffle_word_bank_returns_a_permutation_of_the_input() -> None:

@@ -67,7 +67,7 @@ Shadow exercises (the `/ai` mode, `wiederholen.school.authoring.shadow_exercises
 
 - A shadow keeps `word`, `topic` and `answer` (and `word_bank`, `grammar_classes`) from the picked exercise; the model generates `question`, `distractors`, `explanation`, `recalls`, and `description` when the original has one. Never let it choose the answer.
 - `AIGenerationError` surfaces as an error message, never a silent fallback to the authored exercise. `_apply_ai_mode()` is the single decision point; per-exercise eligibility is `ai_mode and exercise.topic in course.ai_generatable_topics`.
-- `Exercise.cue_key` (SHA-256 of `question`) is the only place a cue's key is derived. Cue lookups in the bot are best-effort: any exception falls back to a text question.
+- `Exercise.cue_key` (SHA-256 of `question`, plus the scene if the exercise's `cue` has one) is the only place a cue's key is derived. `cue: false` means no cue: the generator skips it and the bot doesn't look it up (ADR 0030). Cue lookups in the bot are best-effort: any exception falls back to a text question.
 - `authoring` depends only on `curriculum`; `tutoring` never imports it. The cue generator's `__main__` is the one module under `school` allowed to read env vars.
 
 ## Web frontend

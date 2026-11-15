@@ -23,6 +23,7 @@ class ExerciseData(TypedDict):
     description: NotRequired[dict[Language, str]]
     word_bank: NotRequired[list[str]]
     grammar_classes: NotRequired[list[str]]
+    cue: NotRequired[str | Literal[False]]
 
 
 class RecallKwargs(TypedDict, total=False):
@@ -40,6 +41,7 @@ class ExerciseDataKwargs(TypedDict, total=False):
     description: dict[Language, str]
     word_bank: list[str]
     grammar_classes: list[str]
+    cue: str | Literal[False]
 
 
 def _make_recall_data(recall_kwargs: RecallKwargs) -> RecallData:
@@ -71,6 +73,8 @@ def make_exercise_data(**kwargs: Unpack[ExerciseDataKwargs]) -> ExerciseData:
         exercise_data["word_bank"] = kwargs.pop("word_bank")
     if "grammar_classes" in kwargs:
         exercise_data["grammar_classes"] = kwargs.pop("grammar_classes")
+    if "cue" in kwargs:
+        exercise_data["cue"] = kwargs.pop("cue")
     return exercise_data
 
 
