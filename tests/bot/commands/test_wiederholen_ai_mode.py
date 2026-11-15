@@ -198,7 +198,7 @@ async def test_clicking_next_exercise_uses_ai_mode_too(
     send_message = next(
         r for r in requests if hasattr(r, "text") and shadow.question in r.text
     )
-    assert send_message.text.startswith("🤖")
+    assert send_message.text.startswith("1/2 🤖")
 
 
 async def test_clicking_next_exercise_shows_an_error_when_generation_fails(

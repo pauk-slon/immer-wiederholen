@@ -58,7 +58,7 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 
 ## Lessons
 
-Chats with the `lessons` flag get lessons of 5 exercises (`_FLAGGED_LESSON_SIZE`). Other chats and the web app keep lessons of one exercise, so they see no counter and no summary (see [Lessons](repetition-schedule.md#lessons) and [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)). The bot gives the size to `Tutor` as `lesson_size`, so `wiederholen.school` never sees the flag.
+The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tutor` as `lesson_size`. The web app keeps lessons of one exercise, so it shows no counter and no summary (see [Lessons](repetition-schedule.md#lessons) and [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
 
 In a lesson of several exercises, the learner sees these things:
 
@@ -69,7 +69,7 @@ In a lesson of several exercises, the learner sees these things:
     - **An optional recall.** The summary comes with the explanation, and again with the recall result if the learner chooses the recall.
 - **A "5 more" button.** After the summary, the "Next exercise" button says "Ещё 5 заданий" ("5 more exercises") and starts the next lesson. If nothing is left for today, the reply says that the day is done, as before.
 
-A lesson of one exercise gets no counter and no summary, also in a flagged chat.
+A lesson of one exercise gets no counter and no summary. This happens when only one exercise is available.
 
 ## Chat settings
 
@@ -162,7 +162,7 @@ When you edit the text of a message, pass `reply_markup=` explicitly, with a new
 
 [`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) enables a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#ai-generated-questions) describes its format.
 
-At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, "ai_exercises", chat_id)`. The flags are `ai_exercises` (see [Configuration](configuration.md#ai-generated-questions)) and `lessons` (see [Lessons](#lessons)). The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
+At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, "ai_exercises", chat_id)`. The only flag is `ai_exercises` (see [Configuration](configuration.md#ai-generated-questions)). The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
 
 The flags have no storage and no admin command. To change a flag, edit the variable and restart the bot. This is enough for a few test chats. The flags stay in the bot layer, and `wiederholen.school` never sees a chat id or a flag name.
 

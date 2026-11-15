@@ -93,7 +93,7 @@ A word is free after the learner answers any of its topics. For example, if the 
 
 ### Lessons
 
-`Tutor` gives exercises in lessons. A lesson is a short group of exercises that `Tutor` chooses together from the schedule. The learner answers them one after another. A new lesson starts only when the current lesson has no exercises left. `LESSON_SIZE` sets the number of exercises, and the frontend can give another size as `lesson_size`. For now, the size is 1. Only bot chats with the `lessons` flag get lessons of 5 exercises (see [Telegram bot](bot.md#lessons) and [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
+`Tutor` gives exercises in lessons. A lesson is a short group of exercises that `Tutor` chooses together from the schedule. The learner answers them one after another. A new lesson starts only when the current lesson has no exercises left. `LESSON_SIZE` sets the number of exercises, and the frontend can give another size as `lesson_size`. `LESSON_SIZE` is 1, and the web app uses it. The bot gives lessons of 5 exercises (see [Telegram bot](bot.md#lessons) and [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
 
 `next_exercise()` takes the next exercise from the lesson. If the lesson has no exercises left, or if it expired, `next_exercise()` starts a new lesson first:
 
