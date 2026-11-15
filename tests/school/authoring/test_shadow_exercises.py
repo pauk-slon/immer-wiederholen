@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 import yaml
 from anthropic import AnthropicError, AsyncAnthropic
+from anthropic.resources.messages import AsyncMessages
 from anthropic.types import Message, TextBlock, ToolUseBlock
 
 from tests.plugins.curriculum import RecallKwargs, make_exercise
@@ -25,7 +26,7 @@ def _make_response(*blocks) -> Message:
 
 def _make_client(response=None, side_effect=None) -> Mock:
     client = Mock(spec=AsyncAnthropic)
-    client.messages = Mock()
+    client.messages = Mock(spec=AsyncMessages)
     client.messages.create = AsyncMock(return_value=response, side_effect=side_effect)
     return client
 

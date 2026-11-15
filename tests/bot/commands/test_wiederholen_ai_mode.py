@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from aiogram.fsm.context import FSMContext
 from aiogram.methods import SendChatAction
+from anthropic import AsyncAnthropic
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.curriculum import make_exercise
@@ -53,7 +54,9 @@ async def test_shows_the_ai_generated_question_when_ai_mode_is_on(
         AsyncMock(return_value=shadow),
     ):
         requests = await feed_message(
-            "/wiederholen", course=_ai_course(exercise), anthropic_client=Mock()
+            "/wiederholen",
+            course=_ai_course(exercise),
+            anthropic_client=Mock(spec=AsyncAnthropic),
         )
 
     assert len(requests) == 1
@@ -77,7 +80,9 @@ async def test_shows_typing_while_generating(
         AsyncMock(side_effect=_slow_shadow_of),
     ):
         requests = await feed_message(
-            "/wiederholen", course=_ai_course(exercise), anthropic_client=Mock()
+            "/wiederholen",
+            course=_ai_course(exercise),
+            anthropic_client=Mock(spec=AsyncAnthropic),
         )
 
     typing_requests = [r for r in requests if isinstance(r, SendChatAction)]
@@ -113,7 +118,7 @@ async def test_clicking_next_exercise_shows_typing_while_generating(
         requests = await feed_callback_query(
             NEXT_EXERCISE,
             course=_ai_course(first, second),
-            anthropic_client=Mock(),
+            anthropic_client=Mock(spec=AsyncAnthropic),
         )
 
     typing_requests = [r for r in requests if isinstance(r, SendChatAction)]
@@ -133,7 +138,9 @@ async def test_does_not_generate_when_ai_mode_is_off(
         AsyncMock(),
     ) as mock_generate:
         requests = await feed_message(
-            "/wiederholen", course=Course([exercise]), anthropic_client=Mock()
+            "/wiederholen",
+            course=Course([exercise]),
+            anthropic_client=Mock(spec=AsyncAnthropic),
         )
 
     mock_generate.assert_not_awaited()
@@ -153,7 +160,9 @@ async def test_shows_an_error_when_generation_fails(
         AsyncMock(side_effect=AIGenerationError("boom")),
     ):
         requests = await feed_message(
-            "/wiederholen", course=_ai_course(exercise), anthropic_client=Mock()
+            "/wiederholen",
+            course=_ai_course(exercise),
+            anthropic_client=Mock(spec=AsyncAnthropic),
         )
 
     assert len(requests) == 1
@@ -192,7 +201,7 @@ async def test_clicking_next_exercise_uses_ai_mode_too(
         requests = await feed_callback_query(
             NEXT_EXERCISE,
             course=_ai_course(first, second),
-            anthropic_client=Mock(),
+            anthropic_client=Mock(spec=AsyncAnthropic),
         )
 
     send_message = next(
@@ -213,7 +222,9 @@ async def test_clicking_next_exercise_shows_an_error_when_generation_fails(
         AsyncMock(side_effect=AIGenerationError("boom")),
     ):
         requests = await feed_callback_query(
-            NEXT_EXERCISE, course=_ai_course(exercise), anthropic_client=Mock()
+            NEXT_EXERCISE,
+            course=_ai_course(exercise),
+            anthropic_client=Mock(spec=AsyncAnthropic),
         )
 
     assert any(
@@ -235,7 +246,9 @@ async def test_does_not_generate_for_a_topic_not_opted_in(
     ) as mock_generate:
         # Course([exercise]) — no ai_generatable_topics, unlike _ai_course().
         requests = await feed_message(
-            "/wiederholen", course=Course([exercise]), anthropic_client=Mock()
+            "/wiederholen",
+            course=Course([exercise]),
+            anthropic_client=Mock(spec=AsyncAnthropic),
         )
 
     mock_generate.assert_not_awaited()
@@ -255,7 +268,9 @@ async def test_clicking_next_exercise_does_not_generate_for_an_unlisted_topic(
         AsyncMock(),
     ) as mock_generate:
         requests = await feed_callback_query(
-            NEXT_EXERCISE, course=Course([exercise]), anthropic_client=Mock()
+            NEXT_EXERCISE,
+            course=Course([exercise]),
+            anthropic_client=Mock(spec=AsyncAnthropic),
         )
 
     mock_generate.assert_not_awaited()
@@ -341,9 +356,11 @@ async def test_shows_the_same_ai_generated_question_again_without_generating(
         "wiederholen.bot.commands.wiederholen.generate_shadow_exercise", generate
     ):
         course = _ai_course(exercise)
-        await feed_message("/wiederholen", course=course, anthropic_client=Mock())
+        await feed_message(
+            "/wiederholen", course=course, anthropic_client=Mock(spec=AsyncAnthropic)
+        )
         again = await feed_message(
-            "/wiederholen", course=course, anthropic_client=Mock()
+            "/wiederholen", course=course, anthropic_client=Mock(spec=AsyncAnthropic)
         )
 
     assert generate.await_count == 1
