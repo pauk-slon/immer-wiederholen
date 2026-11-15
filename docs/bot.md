@@ -63,11 +63,11 @@ The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tut
 In a lesson of several exercises, the learner sees these things:
 
 - **A counter.** The question starts with the position of the exercise in the lesson, for example "3/5".
-- **A summary.** After the last answer, the message with the "Next exercise" button also says "✅ Готово! Верно: 4 из 5" ("✅ Done! Correct: 4 of 5"). If the lesson added a day to the streak, the summary also shows the streak. The message depends on the recalls of the last exercise:
+- **A summary.** After the last answer, the message with the "Next exercise" button also says "✅ Done! Correct: 4 of 5" ("✅ Готово! Верно: 4 из 5"). If the lesson added a day to the streak, the summary also shows the streak. The message depends on the recalls of the last exercise:
     - **No recalls.** The summary comes with the explanation.
     - **A required recall.** The summary comes with the recall result.
     - **An optional recall.** The summary comes with the explanation, and again with the recall result if the learner chooses the recall.
-- **A "Next 5 exercises" button.** After the summary, the "Next exercise" button says "Ещё 5 заданий" ("Next 5 exercises") and starts the next lesson. If nothing is left for today, the reply says that the day is done, as before.
+- **A "Next 5 exercises" button.** After the summary, the "Next exercise" button says "Next 5 exercises" ("Ещё 5 заданий") and starts the next lesson. If nothing is left for today, the reply says that the day is done, as after any other exercise.
 
 A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
 
