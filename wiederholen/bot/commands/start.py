@@ -25,13 +25,11 @@ def _parse_payload(
     if payload is None:
         return None
     language, *group_ids = payload.split("-")
-    for known in LANGUAGES:
-        if language == known:
-            groups = [
-                group_id for group_id in course.topic_groups if group_id in group_ids
-            ]
-            return known, groups
-    return None
+    if language not in LANGUAGES:
+        return None
+    return language, [
+        group_id for group_id in course.topic_groups if group_id in group_ids
+    ]
 
 
 @router.message(Command("start"))
@@ -56,11 +54,12 @@ async def command_start(
         language, groups = get_language(data), []
     else:
         language, groups = parsed
-        await state.update_data(language=language)
-    if groups:
-        await state.update_data(topic_groups=groups)
-        # Only ids that the course has, never text from the link itself
-        span.set_attribute("telegram.start.topic_groups", groups)
+        if groups:
+            await state.update_data(language=language, topic_groups=groups)
+            # Only ids that the course has, never text from the link itself
+            span.set_attribute("telegram.start.topic_groups", groups)
+        else:
+            await state.update_data(language=language)
     await clear_stale_buttons(message.bot, message.chat.id, state)
     locale = LOCALES[language]
     text = locale.start
