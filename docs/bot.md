@@ -54,6 +54,8 @@ The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate
    - **No recalls.** The explanation comes with only a "Next exercise" button.
 3. After a right recall answer, the bot says "correct" and shows a "Next exercise" button. After a wrong one, the bot shows the correct sentence with the mistake marked, in the same way. It also shows "Try again" ("Попробовать ещё раз") and "Next exercise".
 
+When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
+
 ### Marking a mistake
 
 After a wrong answer to an exercise or a recall, [`answer_diff.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/answer_diff.py) shows where the answer differs from the correct one (see [#319](https://github.com/pauk-slon/immer-wiederholen/issues/319)). It compares the two texts word by word:
@@ -67,16 +69,15 @@ After a wrong answer to an exercise or a recall, [`answer_diff.py`](https://gith
 | `in dem` | `an den` | <u>an</u> de<u>n</u> |
 | `an` | `nach` | <u>nach</u> |
 | `gegangt` | `gegangen` | gegang<u>en</u> |
+| `Gegangt` | `gegangen` | gegang<u>en</u> |
 
-The comparison ignores what the answer check ignores. The case of letters never counts, so a capital letter from the phone keyboard isn't marked. For a recall, `.,!?` at the start or end of the text don't count either, because `check_recall()` removes them.
+The comparison ignores what the answer check ignores. The case of letters never counts, so a capital letter from the phone keyboard isn't marked. For a recall, `.,!?` at the start or end of the text don't count either, because `check_recall()` removes them. In an answer to an exercise, they count, because its check counts them, so an extra period is struck through.
 
 If the exercise shows several answers, the bot marks the answer that is closest to the learner's text, because the learner most likely meant that form.
 
 If the learner only added letters, for example `Kinders` for `Kinder`, the correct answer has nothing to underline. Then the bot shows the learner's answer with the extra letters struck through, and the correct answer after it, for example "🔴 Wrong. Kinder<s>s</s> → Kinder". In all other cases, the bot doesn't show the wrong answer again.
 
 The message is HTML, so `answer_diff.py` escapes the texts. The web widget has no marks, because the markup is specific to Telegram.
-
-When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
 
 ## Lessons
 

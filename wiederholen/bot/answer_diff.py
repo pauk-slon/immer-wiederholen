@@ -2,7 +2,7 @@
 
 The texts are compared word by word. Inside a pair of similar words, only the
 letters that differ are marked, because in declension one letter carries the
-case (`den`/`dem`). A word that has nothing in common with the learner's word
+case (`den`/`dem`). A word that has little in common with the learner's word
 is marked as a whole, because a letter diff of unrelated words is noise.
 
 Answer checks ignore case, and a recall check also ignores `.,!?` at the ends
