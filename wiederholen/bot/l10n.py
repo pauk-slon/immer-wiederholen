@@ -95,7 +95,8 @@ class Locale:
 
 
 # The texts address the learner as "вы", in lower case as usual in an
-# interface. Buttons use the infinitive ("Попробовать ещё раз")
+# interface. A button that names an action uses the infinitive ("Попробовать
+# ещё раз")
 RU: Final = Locale(
     start="Привет! Я буду давать вам короткие задания и возвращаться к ним, пока вы их не запомните.",
     correct="🟢 Правильно!",

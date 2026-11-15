@@ -172,7 +172,7 @@ Each topic can have these settings, all optional:
 | `chains` | topics to schedule for today, for the same word, after the learner answers this topic |
 | `gates` | topics to keep hidden for a word until the learner answers this topic for that word |
 | `chains_by_answer` | like `chains`, but for the word that is this exercise's primary answer |
-| `instruction` | `{ru, en}`, shown under every question of this topic, such as "Enter the missing word". The Russian text addresses the learner as "вы", as the rest of the interface does, for example "Введите пропущенное слово" |
+| `instruction` | `{ru, en}`, shown under every question of this topic, such as "Enter the missing word". The Russian text addresses the learner as "вы", as the rest of the interface does. For typed text, it says "напишите", as the recall prompt does, for example "Напишите пропущенное слово" |
 | `ai_generation` | **bot only.** `true` lets the `/ai` mode rewrite this topic's exercises with an LLM (see below) |
 | `cue_generation` | **bot only.** `true` gives this topic's questions illustrations (see below) |
 | `show_primary_answer_only` | `true` shows only the primary answer after a wrong answer and makes it the only correct option. Every answer still counts as correct (see [Several correct answers](#several-correct-answers)) |
