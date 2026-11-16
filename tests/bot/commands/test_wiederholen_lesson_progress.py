@@ -90,7 +90,7 @@ async def test_the_last_answer_of_a_lesson_shows_the_summary(
         + "\n"
         + RU.streak_text.format(days="1 день")
     )
-    assert _button_texts(last[-1]) == ["Ещё 5 заданий"]
+    assert _button_texts(last[-1]) == ["Продолжить"]
 
 
 async def test_a_lesson_that_adds_no_streak_day_shows_no_streak_line(
@@ -130,7 +130,7 @@ async def test_after_a_required_recall_the_summary_comes_with_the_recall_result(
     assert RU.lesson_summary.format(correct=0, size=2) in recall_result[-1].text
     assert _button_texts(recall_result[-1]) == [
         RU.btn_recall_retry,
-        "Ещё 5 заданий",
+        "Продолжить",
     ]
 
 
@@ -148,8 +148,8 @@ async def test_after_an_optional_recall_the_summary_comes_with_the_explanation(
     recall_result = await feed_message("Ich warte auf den Bus.", course=course)
 
     assert RU.lesson_summary.format(correct=2, size=2) in last[-1].text
-    assert _button_texts(last[-1]) == [RU.btn_recall, "Ещё 5 заданий"]
-    assert _button_texts(recall_result[-1]) == ["Ещё 5 заданий"]
+    assert _button_texts(last[-1]) == [RU.btn_recall, "Продолжить"]
+    assert _button_texts(recall_result[-1]) == ["Продолжить"]
 
 
 @pytest.mark.parametrize("button", [NEXT_EXERCISE, STUDY_MORE])
@@ -170,7 +170,7 @@ async def test_a_next_button_shows_the_exercise_that_waits_for_an_answer(
     assert await state.get_data() == data | {"last_buttoned_message_id": None}
 
 
-async def test_the_next_lesson_button_reads_naturally_in_english(
+async def test_the_next_lesson_button_is_in_the_chat_language(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
@@ -183,4 +183,4 @@ async def test_the_next_lesson_button_reads_naturally_in_english(
 
     last = await feed_message("auf", course=course)
 
-    assert _button_texts(last[-1]) == ["Next 5 exercises"]
+    assert _button_texts(last[-1]) == ["Continue"]

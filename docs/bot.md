@@ -90,7 +90,7 @@ In a lesson of several exercises, the learner sees these things:
     - **No recalls.** The summary comes with the explanation.
     - **A required recall.** The summary comes with the recall result.
     - **An optional recall.** The summary comes with the explanation, and again with the recall result if the learner chooses the recall.
-- **A "Next 5 exercises" button.** After the summary, the "Next exercise" button says "Next 5 exercises" ("Ещё 5 заданий") and starts the next lesson. If nothing is left for today, the reply says that the day is done, as after any other exercise.
+- **A "Continue" button.** After the summary, the "Next exercise" button says "Continue" ("Продолжить") and starts the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
 
 A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
 

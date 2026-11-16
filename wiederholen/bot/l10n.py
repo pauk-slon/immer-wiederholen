@@ -88,7 +88,8 @@ class Locale:
     nothing_due_text: str
     streak_text: str
     lesson_summary: str
-    btn_more_exercises: str
+    # After a lesson, on the "Next exercise" button
+    btn_continue: str
     ai_mode_on: str
     ai_mode_off: str
     ai_generation_failed: str
@@ -151,7 +152,7 @@ RU: Final = Locale(
     nothing_due_text="🎉 На сегодня всё! Загляните завтра за новыми заданиями.",
     streak_text="🔥 Серия: {days}",
     lesson_summary="✅ Готово! Верно: {correct} из {size}",
-    btn_more_exercises="Ещё {count}",
+    btn_continue="Продолжить",
     ai_mode_on="🤖 AI-режим включён",
     ai_mode_off="AI-режим выключен",
     ai_generation_failed="⚠️ Не получилось сгенерировать задание. Попробуйте ещё раз или отключите /ai.",
@@ -211,8 +212,7 @@ EN: Final = Locale(
     nothing_due_text="🎉 That's all for today! Come back tomorrow for more.",
     streak_text="🔥 Streak: {days}",
     lesson_summary="✅ Done! Correct: {correct} of {size}",
-    # count is "5 exercises", so the word order must put it last
-    btn_more_exercises="Next {count}",
+    btn_continue="Continue",
     ai_mode_on="🤖 AI mode is on",
     ai_mode_off="AI mode is off",
     ai_generation_failed="⚠️ Couldn't generate the exercise. Try again, or turn off /ai.",

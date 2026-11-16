@@ -200,8 +200,7 @@ def _get_next_label(finished_lesson: dict | None, language: Language) -> str | N
     # After a lesson, the "Next" button starts the next lesson
     if finished_lesson is None:
         return None
-    count = format_count(_LESSON_SIZE, "exercises", language)
-    return LOCALES[language].btn_more_exercises.format(count=count)
+    return LOCALES[language].btn_continue
 
 
 async def _start_recall(
