@@ -40,7 +40,7 @@ def test_strikes_through_extra_letters_when_nothing_is_underlined(
 
 def test_ignores_punctuation_at_the_ends_on_request() -> None:
     correction = correct(
-        "ich warte auf den Bas", ["Ich warte auf den Bus."], ignore_end_punctuation=True
+        "ich warte auf den Bas", ["Ich warte auf den Bus."], ignore_punctuation=True
     )
 
     assert correction == Correction(
@@ -49,9 +49,54 @@ def test_ignores_punctuation_at_the_ends_on_request() -> None:
 
 
 def test_strikes_through_extra_letters_without_the_ignored_punctuation() -> None:
-    correction = correct("Kinders!", ["Kinder"], ignore_end_punctuation=True)
+    correction = correct("Kinders!", ["Kinder"], ignore_punctuation=True)
 
     assert correction == Correction(answer="Kinder", mistake="Kinder<s>s</s>!")
+
+
+@pytest.mark.parametrize(
+    ("user_text", "shown"),
+    [
+        (
+            "Wenn ich Zeit hätte kann ich dir helfen",
+            "Wenn ich Zeit hätte, k<u>ö</u>nn<u>te</u> ich dir helfen.",
+        ),
+        (
+            "Wenn ich Zeit hätte , kann ich dir helfen",
+            "Wenn ich Zeit hätte, k<u>ö</u>nn<u>te</u> ich dir helfen.",
+        ),
+        (
+            "Wenn ich Zeit hätte,kann ich dir helfen",
+            "Wenn ich Zeit hätte, k<u>ö</u>nn<u>te</u> ich dir helfen.",
+        ),
+        (
+            "Wenn ich Zeit hat,könnte ich dir helfen",
+            "Wenn ich Zeit h<u>ä</u>t<u>te</u>, könnte ich dir helfen.",
+        ),
+    ],
+)
+def test_shows_the_comma_inside_without_marking_it_on_request(
+    user_text: str, shown: str
+) -> None:
+    correction = correct(
+        user_text,
+        ["Wenn ich Zeit hätte, könnte ich dir helfen."],
+        ignore_punctuation=True,
+    )
+
+    assert correction == Correction(answer=shown, mistake=None)
+
+
+def test_doesnt_strike_through_an_extra_comma_on_request() -> None:
+    correction = correct("Kinders, ja", ["Kinder ja"], ignore_punctuation=True)
+
+    assert correction == Correction(answer="Kinder ja", mistake="Kinder<s>s</s>, ja")
+
+
+def test_marks_a_missing_comma_without_the_request() -> None:
+    correction = correct("hätte könnte", ["hätte, könnte"])
+
+    assert correction == Correction(answer="hätte<u>,</u> könnte", mistake=None)
 
 
 def test_diffs_against_the_closest_of_several_answers() -> None:

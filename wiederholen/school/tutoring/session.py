@@ -467,7 +467,9 @@ class Tutor:
 
     def check_recall(self, exercise: Exercise, recall: Recall, text: str) -> bool:
         def normalize(s: str) -> str:
-            return " ".join(s.casefold().strip(".,!?").split())
+            # A recall tests a form or the word order, never commas (#355). A
+            # comma becomes a space, so "hätte,könnte" still has two words
+            return " ".join(s.casefold().replace(",", " ").strip(".!? ").split())
 
         normalized = normalize(text)
         is_correct = any(normalize(a) == normalized for a in recall.answer)
