@@ -37,6 +37,16 @@ def test_load_anthropic_client_builds_a_client_when_configured(monkeypatch) -> N
     assert isinstance(client, AsyncAnthropic)
 
 
+def test_load_anthropic_client_limits_the_wait_for_a_generation(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    client = load_anthropic_client()
+
+    assert client is not None
+    assert client.timeout == 60.0
+    assert client.max_retries == 1
+
+
 def test_load_cue_store_is_none_when_unset(monkeypatch) -> None:
     monkeypatch.delenv("R2_ACCOUNT_ID", raising=False)
 

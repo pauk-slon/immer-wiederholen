@@ -77,7 +77,7 @@ You enable each integration with its variables. There is no separate flag. Witho
 | `BOT_FEATURE_FLAGS` | the chats that get `/ai`, in the form `ai_exercises:<chat id>,<chat id>`. For a private chat, the chat id is the user's Telegram id |
 | `AUTHORING_GUIDE_PATH` | optional. A Markdown file with guidelines for writing exercises, which the bot sends to the model with each request. The part from a `## Deploying` heading to the end of the file isn't sent, so the file can keep deployment notes for people |
 
-For chats outside the flag, `/ai` does nothing. If `ANTHROPIC_API_KEY` is missing, a flagged chat with `/ai` on gets an error message each time an AI exercise is due. Exercises of other topics appear as usual.
+For chats outside the flag, `/ai` does nothing. If `ANTHROPIC_API_KEY` is missing, a flagged chat with `/ai` on gets an error message each time an AI exercise is due. A request to Anthropic times out after 60 seconds and is retried once, so the learner waits at most about two minutes for the error message. Exercises of other topics appear as usual.
 
 `BOT_FEATURE_FLAGS` holds flags separated by `;`, such as `ai_exercises:123,456`. The only flag is `ai_exercises`, which turns on `/ai`. The bot ignores a flag that it doesn't know. For example, `lessons` from an older configuration has no effect, because all bot chats have lessons (see [Telegram bot](bot.md#lessons)).
 
