@@ -74,8 +74,9 @@ def load_anthropic_client() -> AsyncAnthropic | None:
         return None
     # The learner waits for the generation with a typing indicator. The SDK's
     # defaults (10 minutes, 2 retries) could keep it there for half an hour
-    # before the error message. Even a full answer of 3072 tokens from Haiku
-    # takes well under a minute
+    # before the error message. Even a full answer of _MAX_TOKENS from the
+    # MODEL in school/authoring/shadow_exercises.py takes well under a
+    # minute. Check the timeout when either of them changes
     return AsyncAnthropic(
         api_key=api_key,
         timeout=_ANTHROPIC_TIMEOUT_SECONDS,
