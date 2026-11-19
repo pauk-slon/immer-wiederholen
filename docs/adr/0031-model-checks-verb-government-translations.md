@@ -4,7 +4,7 @@
 
 ## Context
 
-The course practices verb government in topics such as `verb_preposition` and `verb_preposition_case`. These topics belong to the course, not to the format. Each exercise asks for one word in a gap, the preposition or the article. A learner who fills in `warten auf + Akkusativ` in a gap can still fail to use it in a sentence of their own. A translation from the learner's language tests this. But a phrase has many correct translations, and a list of accepted answers can't hold them all. The current answer check compares the answer with such a list (see [Course format](../course-format.md#exercisesyaml)).
+A course can practice verb government with gaps, such as `Wir warten ___ den Zug.` Each exercise asks for one word, the preposition or the article. A learner who fills in `warten auf + Akkusativ` in a gap can still fail to use it in a sentence of their own. A translation from the learner's language tests this. But a phrase has many correct translations, and a list of accepted answers can't hold them all. The current answer check compares the answer with such a list (see [Course format](../course-format.md#exercisesyaml)).
 
 Until now, a model never decided whether an answer is correct. The `/ai` mode writes exercises around a fixed answer ([ADR 0005](0005-shadow-exercises-keep-the-answer.md)), and the answer check still compares the answer with a list.
 
@@ -16,24 +16,22 @@ The experiment in #352 tested the check, not the phrases, because a review by th
 
 ## Decision
 
-A new topic asks the learner to translate a phrase into German. A model checks every answer that doesn't match a reference translation.
+A topic can ask the learner to translate a phrase into German. A model checks every answer that doesn't match a reference translation. The check is for verb government, with a preposition (`warten auf + Akkusativ`) or without one (`helfen + Dativ`).
+
+This ADR decides what the engine does. The course decides which topics use the check, how they link to other topics, and how to write good phrases.
 
 ### The exercise
 
-- **A phrase in Russian and in English.** A course author writes both variants of each phrase ahead of time and reviews them. Both variants describe the same situation, so they share the reference translations and `explanation`. Each phrase is an exercise of its own.
+- **A phrase in Russian and in English.** A course author writes both variants of each phrase ahead of time and reviews them. Both variants describe the same situation, so they share the reference translations and `explanation`. Each phrase is an exercise of its own. The phrase points to one construction, and the author checks that no translation around it is correct, such as one with `darum` or a `dass` clause.
 - **`question` as a string or `{ru, en}`.** As `answer` can be a string or a list, `question` can be a string for every language or `{ru, en}` with a variant for each language. A dictionary must have both keys, as `description` does, so every learner gets the exercise in their language. A dictionary isn't allowed in a topic with `cue_generation` or `ai_generation`. An illustration is keyed by the hash of `question`, and a shadow exercise rewrites `question`, so neither works with two variants.
-- **Its own trap in each language.** A good phrase invites the typical mistake that comes from the learner's own language. A Russian speaker writes `interessieren mit` or `Angst von`. An English speaker writes `warten für` (wait for) or `abhängen auf` (depend on). A natural variant in each language usually carries its own trap. The author checks that each variant does, and that no variant gives away the preposition.
-- **One construction.** The situation in the phrase points to one construction. No clause, infinitive or pronominal adverb (`worauf`, `darum`) gives a correct translation around it. The words are typical for A1 to B1.
-- **A visible case.** After the preposition, the phrase needs a noun phrase or a pronoun whose form differs between Akkusativ and Dativ. Examples are `den`/`dem`, `die`/`der`, `das`/`dem` and `mich`/`mir`. A phrase such as `für Sport` has no such form. There, the learner can't make a case mistake, and the exercise tests only the preposition, as `verb_preposition` already does.
-- **The verb as the hint.** Each variant ends with the exercise's `word` in parentheses, such as `Мы уже час ждём пиццу. (warten)`, as the course writes hints in other topics. The bot doesn't show `word`, so the hint must be in `question`. The learner must recall the preposition and the case. Two constructions of one verb, such as `sich freuen auf` and `sich freuen über`, share the hint, and the situation in the phrase decides. They are one pair `(word, topic)`, as in `verb_preposition`, so the schedule doesn't keep them apart.
-- **The place in the course.** `verb_preposition_case` gates the topic for the same `word`. The learner first fills in the preposition and the case, and then uses the construction in a sentence of their own.
+- **The verb as the hint.** Each variant ends with the exercise's `word` in parentheses, such as `Мы уже час ждём пиццу. (warten)`, as the course writes hints in other topics. The bot doesn't show `word`, so the hint must be in `question`. The learner must recall the preposition, if there is one, and the case. Two constructions of one verb, such as `sich freuen auf` and `sich freuen über`, share the hint, and the situation in the phrase decides. They are one pair `(word, topic)`, so the schedule doesn't keep them apart.
 - **Reference translations.** The exercise's answers are the reference translations.
-- **The rule of the construction.** The author writes it once, as `explanation`, in the style of `verb_preposition_case`. An example is `sich freuen auf + Akkusativ — радоваться предстоящему событию`. Where two constructions compete, the explanation compares them.
+- **The rule of the construction.** The author writes it once, as `explanation`, such as `sich freuen auf + Akkusativ — радоваться предстоящему событию`. The model gets it as the target construction, so the exercise needs no field for it.
 
 ### The check
 
 - **References first.** An answer that matches a reference translation is correct, and no model is called. The comparison follows the rules of a [recall](../course-format.md#recalls). So case, extra spaces, commas and a final `.`, `!` or `?` don't matter.
-- **A model for every other answer.** The model is Claude Haiku 5.5. It gets the variant of the phrase in the learner's language, the verb, the target construction, the reference translations and the answer. It returns a verdict, a comment and a corrected sentence.
+- **A model for every other answer.** The model is Claude Haiku 5.5. It gets the variant of the phrase in the learner's language, `word`, `explanation` as the target construction, the reference translations and the answer. It returns a verdict, a comment and a corrected sentence.
 - **A timeout of 15 seconds, without a retry.** The learner waits for the verdict. The client of the `/ai` mode waits up to about two minutes ([#359](https://github.com/pauk-slon/immer-wiederholen/pull/359)), so the check uses its own settings.
 
 ### The verdict
@@ -42,8 +40,8 @@ The answer is correct if the construction is correct. These are its parts:
 
 - The verb from the hint, in any form.
 - The reflexive pronoun in the right case, if the verb has one.
-- The target preposition. A contraction such as `am` or `aufs` counts.
-- The target case after the preposition.
+- The target preposition, if the construction has one. A contraction such as `am` or `aufs` counts.
+- The target case of the object, after the preposition or after the verb.
 
 Other mistakes don't change the verdict. The comment names them.
 
@@ -94,7 +92,6 @@ These answers are correct, and the comment names the mistake:
 
 - **Generate the phrases during practice.** Not chosen. A generated phrase can't be reviewed. In the first draft of the phrases for the experiment, many phrases had a correct translation without the construction, such as `Vergiss den Schlüssel nicht` or a `dass` clause. A review ahead of time removes such phrases.
 - **Only the reference translations, without a model.** Not chosen. A correct free translation, such as one with another word order or another subject, would count as wrong. The learner would learn to copy the reference translation.
-- **A hint with the preposition, such as `warten + auf`.** Not chosen, because the exercise would then test only the case.
 - **Accept a synonym of the verb.** Not chosen. The pair `(word, topic)` practices the verb from the hint, and a synonym doesn't practice it.
 - **A free model on Workers AI.** gemma-4-26b was as accurate as Haiku in the first run, but 9 times slower, and the learner waits for the verdict. It stays an option if the cost of Haiku becomes a problem. The other free models rejected correct answers, once with an invented reason.
 - **Show a reference translation after a wrong answer.** Not chosen. The reference translation can differ from the learner's sentence in word order and words, so the learner would have to find the mistake.
@@ -113,6 +110,7 @@ For learners:
 - The recall comes from the model. If the model corrects the sentence wrongly, the learner must type a wrong sentence. The verdict and the corrected sentence come in one reply, and the prompt asks for the smallest changes. This makes a wrong correction less likely.
 - About one comment in 15 still has a flaw of language or logic. Before the topic reaches learners, the author reviews the comments on a larger set.
 - The prompt contains the rules for edge cases, and the answers were labeled by the same rules. So the experiment tested mostly how well the model follows them. Real answers of learners can show new cases.
+- The experiment had only constructions with a preposition. Constructions without one, such as `helfen + Dativ` or `gefallen`, need a run before a course uses them.
 
 For the code and the deployment:
 
