@@ -123,7 +123,7 @@ A recall asks the learner to type a whole sentence with the word they just answe
 
 After a wrong answer, the learner must complete a recall before the next exercise. After a correct answer, the recall is optional, and the learner sees a "Drill" button ("Закрепить" in Russian). Each time, one of the exercise's recalls is picked at random. If the learner answers a recall wrong and asks for another one, a different recall is picked when possible. After a wrong answer to a recall, the bot and the web widget show the recall's first accepted sentence.
 
-The recall check ignores case, extra spaces and a final `.`, `,`, `!` or `?`. It compares by Unicode case folding too.
+The recall check ignores case, extra spaces, a final `.`, `!` or `?`, and every comma. A recall tests a form or the word order, not commas. It compares by Unicode case folding too.
 
 ### Hints from grammar classes
 

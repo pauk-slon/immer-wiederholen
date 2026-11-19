@@ -1,3 +1,5 @@
+import pytest
+
 from tests.plugins.curriculum import make_exercise
 from wiederholen.school.curriculum import Course
 from wiederholen.school.tutoring import Tutor
@@ -86,3 +88,45 @@ def test_check_recall_accepts_ss_for_eszett() -> None:
     )
 
     assert is_correct is True
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Wenn ich Zeit hätte könnte ich dir helfen",
+        "Wenn ich Zeit hätte,könnte ich dir helfen",
+        "Wenn ich Zeit hätte , könnte ich dir helfen.",
+    ],
+)
+def test_check_recall_ignores_commas_inside_the_sentence(text: str) -> None:
+    exercise = make_exercise(
+        recalls=[
+            {
+                "question": "Wenn ich Zeit (haben), (können) ich dir helfen.",
+                "answer": ["Wenn ich Zeit hätte, könnte ich dir helfen."],
+            }
+        ],
+    )
+
+    is_correct = Tutor(Course([exercise]), {}).check_recall(
+        exercise, exercise.recalls[0], text
+    )
+
+    assert is_correct is True
+
+
+def test_check_recall_still_rejects_a_wrong_form_without_the_comma() -> None:
+    exercise = make_exercise(
+        recalls=[
+            {
+                "question": "Wenn ich Zeit (haben), (können) ich dir helfen.",
+                "answer": ["Wenn ich Zeit hätte, könnte ich dir helfen."],
+            }
+        ],
+    )
+
+    is_correct = Tutor(Course([exercise]), {}).check_recall(
+        exercise, exercise.recalls[0], "Wenn ich Zeit hätte kann ich dir helfen"
+    )
+
+    assert is_correct is False
