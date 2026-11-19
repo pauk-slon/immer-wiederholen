@@ -6,12 +6,14 @@ case (`den`/`dem`). A word that has little in common with the learner's word
 is marked as a whole, because a letter diff of unrelated words is noise.
 
 Answer checks ignore case, and a recall check also ignores `.,!?` at the ends
-of the text. So the diff ignores what the check ignores, or a capital letter
-from the phone's keyboard would show as a mistake.
+of the text and commas inside it. So the diff ignores what the check ignores,
+or a capital letter from the phone's keyboard would show as a mistake.
 """
 
 import difflib
 import html
+import itertools
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
@@ -20,8 +22,10 @@ from typing import Final
 # an/nach (0.33) aren't
 _SIMILAR_WORDS_RATIO: Final = 0.5
 
-# The same characters as in Tutor.check_recall()
+# What Tutor.check_recall() ignores: these characters at the ends, and commas
+# anywhere
 _END_PUNCTUATION: Final = ".,!?"
+_INNER_PUNCTUATION: Final = ","
 
 # A piece of a word and whether it differs from the other text
 _Segment = tuple[str, bool]
@@ -40,13 +44,15 @@ class Correction:
 
 
 def correct(
-    user_text: str, answers: Sequence[str], *, ignore_end_punctuation: bool = False
+    user_text: str, answers: Sequence[str], *, ignore_punctuation: bool = False
 ) -> Correction:
     closest = max(range(len(answers)), key=lambda i: _ratio(user_text, answers[i]))
-    ignored = " " + (_END_PUNCTUATION if ignore_end_punctuation else "")
+    ignored = " " + (_END_PUNCTUATION if ignore_punctuation else "")
     user_lead, user_core, user_trail = _split_ends(user_text, ignored)
     lead, core, trail = _split_ends(answers[closest], ignored)
-    user_words, correct_words = _diff_words(user_core, core)
+    # The expected comma is still shown, but not marked
+    inner_ignored = _INNER_PUNCTUATION if ignore_punctuation else ""
+    user_words, correct_words = _diff_words(user_core, core, inner_ignored)
     rendered = [
         html.escape(lead) + _render(correct_words, "u") + html.escape(trail)
         if i == closest
@@ -82,16 +88,20 @@ def _letters(word: str) -> list[str]:
 
 
 def _diff_words(
-    user_text: str, correct_text: str
+    user_text: str, correct_text: str, ignored: str
 ) -> tuple[list[list[_Segment]], list[list[_Segment]]]:
-    user_words = user_text.split()
-    correct_words = correct_text.split()
+    user_words = _split_words(user_text, ignored)
+    correct_words = _split_words(correct_text, ignored)
     user_result: list[list[_Segment]] = []
     correct_result: list[list[_Segment]] = []
+
+    def key(word: str) -> str:
+        return "".join(c for c in word.lower() if c not in ignored and not c.isspace())
+
     matcher = difflib.SequenceMatcher(
         None,
-        [word.lower() for word in user_words],
-        [word.lower() for word in correct_words],
+        [key(word) for word in user_words],
+        [key(word) for word in correct_words],
         autojunk=False,
     )
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
@@ -109,19 +119,31 @@ def _diff_words(
                 and correct_word is not None
                 and _ratio(user_word, correct_word) > _SIMILAR_WORDS_RATIO
             ):
-                user_segments, correct_segments = _diff_letters(user_word, correct_word)
+                user_segments, correct_segments = _diff_letters(
+                    user_word, correct_word, ignored
+                )
                 user_result.append(user_segments)
                 correct_result.append(correct_segments)
                 continue
             if user_word is not None:
-                user_result.append([(user_word, True)])
+                user_result.append(_segments(user_word, True, ignored))
             if correct_word is not None:
-                correct_result.append([(correct_word, True)])
+                correct_result.append(_segments(correct_word, True, ignored))
     return user_result, correct_result
 
 
+def _split_words(text: str, ignored: str) -> list[str]:
+    # The check splits words at an ignored comma too, so "hat,könnte" is two
+    # words. A comma stays with the word before it, even after a space
+    # ("hätte ,"), so that no word is only a comma
+    if not ignored:
+        return text.split()
+    chars = re.escape(ignored)
+    return re.findall(rf"[^\s{chars}]+(?:\s*[{chars}])*", text)
+
+
 def _diff_letters(
-    user_word: str, correct_word: str
+    user_word: str, correct_word: str, ignored: str
 ) -> tuple[list[_Segment], list[_Segment]]:
     user_segments: list[_Segment] = []
     correct_segments: list[_Segment] = []
@@ -131,10 +153,25 @@ def _diff_letters(
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         is_different = tag != "equal"
         if i2 > i1:
-            user_segments.append((user_word[i1:i2], is_different))
+            user_segments.extend(_segments(user_word[i1:i2], is_different, ignored))
         if j2 > j1:
-            correct_segments.append((correct_word[j1:j2], is_different))
+            correct_segments.extend(
+                _segments(correct_word[j1:j2], is_different, ignored)
+            )
     return user_segments, correct_segments
+
+
+def _segments(text: str, is_different: bool, ignored: str) -> list[_Segment]:
+    # The ignored characters in a difference, and the spaces before them,
+    # aren't marked
+    if not is_different or not ignored:
+        return [(text, is_different)]
+    return [
+        ("".join(run), not is_ignored)
+        for is_ignored, run in itertools.groupby(
+            text, lambda c: c in ignored or c.isspace()
+        )
+    ]
 
 
 def _is_marked(words: list[list[_Segment]]) -> bool:
