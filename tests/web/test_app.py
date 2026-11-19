@@ -433,6 +433,32 @@ async def test_request_recall_respects_the_requested_language(
     assert response.json()["hint"] == "hint"
 
 
+async def test_request_recall_returns_the_topic_instruction(
+    web_app_factory: WebAppFactory,
+) -> None:
+    exercise = make_exercise(word="warten", recalls=True)
+    app = web_app_factory(
+        Course(
+            [exercise],
+            topic_instructions={
+                exercise.topic: {"ru": "Напишите предлог", "en": "Type the preposition"}
+            },
+        )
+    )
+
+    async with AsyncTestClient(app=app, base_url="https://testserver.local") as client:
+        await client.post("/api/exercise/next", json={"topics": ["government"]})
+        await client.post(
+            "/api/exercise/check", json={"answer": "auf", "topics": ["government"]}
+        )
+        response = await client.post(
+            "/api/exercise/recall",
+            json={"language": "en", "topics": ["government"]},
+        )
+
+    assert response.json()["instruction"] == "Type the preposition"
+
+
 async def test_request_recall_without_a_shown_exercise_is_a_conflict(
     web_app_factory: WebAppFactory,
 ) -> None:

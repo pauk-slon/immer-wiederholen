@@ -9,7 +9,7 @@ from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
-from wiederholen.school import Course, StudentID
+from wiederholen.school import Course, Language, StudentID
 
 
 def _strip_tags(text: str) -> str:
@@ -217,6 +217,40 @@ async def test_recall_prompt_without_hint_escapes_question(
 
     assert "Ich ___ Tom &amp; Jerry." in recall_message.text
     assert "<i>" not in recall_message.text
+
+
+async def test_recall_prompt_shows_topic_instruction_in_current_language(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(recalls=True)
+    topic_instructions: dict[str, dict[Language, str]] = {
+        exercise.topic: {"ru": "Дайте форму <Konj. II>", "en": "Give the form"}
+    }
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict(), language="ru")
+
+    requests = await feed_message(
+        exercise.distractors[0],
+        course=Course([exercise], topic_instructions=topic_instructions),
+    )
+    recall_message = requests[2]
+
+    assert recall_message.text.endswith("\nℹ️ Дайте форму &lt;Konj. II&gt;")
+
+
+async def test_recall_prompt_omits_instruction_when_topic_has_none(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = make_exercise(recalls=True)
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict())
+
+    requests = await feed_message(exercise.distractors[0], course=Course([exercise]))
+    recall_message = requests[2]
+
+    assert "ℹ️" not in recall_message.text
 
 
 async def test_recall_accepted_after_answering(

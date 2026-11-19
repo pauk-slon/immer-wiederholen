@@ -227,6 +227,11 @@ async def _start_recall(
     hint = recall.hint.get(language) if recall.hint else None
     if hint:
         text += f"\n<i>{html.escape(hint)}</i>"
+    # As under the question: without it, some recalls have a second correct
+    # answer, such as "kann" for a Konjunktiv II form (#354)
+    instruction = course.topic_instructions.get(shown_exercise.topic, {}).get(language)
+    if instruction:
+        text += f"\nℹ️ {html.escape(instruction)}"
     await message.answer(text, parse_mode="HTML")
 
 

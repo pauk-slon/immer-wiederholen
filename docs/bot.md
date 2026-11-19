@@ -52,6 +52,7 @@ The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate
    - **Wrong answer, the exercise has recalls.** A recall starts at once, and the learner must type the sentence.
    - **Right answer, the exercise has recalls.** The explanation comes with two buttons, "Drill" ("Закрепить") for an optional recall and "Next exercise" ("Следующее задание").
    - **No recalls.** The explanation comes with only a "Next exercise" button.
+   The recall prompt has the recall question, its `hint` in italics and the topic's `instruction` (`ℹ️`), as under the question. Without the instruction, some recalls have a second correct answer. For example, `kann` is also correct for `Ich (können) dir helfen.` without "Give the verb's Konjunktiv II form".
 3. After a right recall answer, the bot says "correct" and shows a "Next exercise" button. After a wrong one, the bot shows the correct sentence with the mistake marked, in the same way. It also shows "Try again" ("Попробовать ещё раз") and "Next exercise".
 
 When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
@@ -71,7 +72,7 @@ After a wrong answer to an exercise or a recall, [`answer_diff.py`](https://gith
 | `gegangt` | `gegangen` | gegang<u>en</u> |
 | `Gegangt` | `gegangen` | gegang<u>en</u> |
 
-The comparison ignores what the answer check ignores. The case of letters never counts, so a capital letter from the phone keyboard isn't marked. For a recall, `.,!?` at the start or end of the text don't count either, because `check_recall()` removes them. In an answer to an exercise, they count, because its check counts them, so an extra period is struck through.
+The comparison ignores what the answer check ignores. The case of letters never counts, so a capital letter from the phone keyboard isn't marked. For a recall, `.,!?` at the start or end of the text and commas inside it don't count either, because `check_recall()` ignores them. A comma also separates words, as in the check, so `hat,könnte` is two words. In an answer to an exercise, they count, because its check counts them, so an extra period is struck through.
 
 If the exercise shows several answers, the bot marks the answer that is closest to the learner's text, because the learner most likely meant that form.
 

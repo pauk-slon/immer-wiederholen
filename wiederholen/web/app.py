@@ -101,6 +101,7 @@ class RecallRequest:
 class RecallDTO:
     question: str
     hint: str | None
+    instruction: str | None
 
 
 @dataclass
@@ -350,6 +351,9 @@ async def request_recall(
         RecallDTO(
             question=recall.question,
             hint=recall.hint.get(data.language) if recall.hint else None,
+            instruction=course.topic_instructions.get(shown_exercise.topic, {}).get(
+                data.language
+            ),
         )
     )
 

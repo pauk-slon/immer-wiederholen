@@ -1010,9 +1010,15 @@ class GermanExerciseWidget extends HTMLElement {
       const hint = recall.hint
         ? `<p class="description">💡 ${escapeHtml(recall.hint)}</p>`
         : "";
+      // The topic's instruction, as on the question card: without it, some
+      // recalls have a second correct answer (#354)
+      const topicInstruction = recall.instruction
+        ? `<p class="instruction">ℹ️ ${escapeHtml(recall.instruction)}</p>`
+        : "";
       this._addCard(
         `<div class="card"><div class="body">` +
           `<p class="instruction">ℹ️ ${escapeHtml(this._strings.recallInstruction)}</p>` +
+          topicInstruction +
           `<div class="centered-pair"><p class="question">❓ ${escapeHtml(recall.question)}</p>${hint}</div>` +
           `</div><div class="toolbar">` +
           `<form data-recall-form><input type="text" autocomplete="off" />` +

@@ -15,7 +15,7 @@ All exercise endpoints take a JSON body and identify the learner by the session 
 |---|---|---|
 | `POST /api/exercise/next` | `topics`, `language` | the next exercise, or `null` if nothing is left today |
 | `POST /api/exercise/check` | `answer`, `topics`, `language` | `correct`, `answer` (the correct answers that the topic shows, separated by ` / `), `explanation`, `recall` (`none`, `optional`, `required`) |
-| `POST /api/exercise/recall` | `topics`, `language` | a recall with `question` and `hint` |
+| `POST /api/exercise/recall` | `topics`, `language` | a recall with `question`, `hint` and the topic's `instruction` |
 | `POST /api/exercise/recall/check` | `answer`, `topics`, but no `language`, because the expected sentence is German | `correct`, `answer` |
 | `POST /api/client-error` | `step`, `status` | nothing (204, see [Error reports](#error-reports)) |
 | `GET /api/auth/telegram/callback` | Telegram's query parameters | a redirect (see [Telegram login](#telegram-login)) |
@@ -134,7 +134,7 @@ After an answer, the result card shows the verdict and the explanation. Its butt
 - **`optional`** (right answer). The card shows "Drill" and "Next".
 - **`required`** (wrong answer). The card shows only "Drill". The recall starts with a button, not at once, so the learner has time to read the explanation that the recall builds on.
 
-A recall card tells the learner what to do ("Type the whole sentence"). It shows the recall question and the hint and takes a typed answer. After a wrong attempt, it shows "Try again" and "Next". "Try again" gets a recall again, usually a different one.
+A recall card tells the learner what to do ("Type the whole sentence"). Under this line, it shows the topic's instruction, as the question card does. It shows the recall question and the hint and takes a typed answer. After a wrong attempt, it shows "Try again" and "Next". "Try again" gets a recall again, usually a different one.
 
 The widget doesn't underline the differences in a wrong recall like the bot. It shows the expected sentence.
 
