@@ -54,16 +54,37 @@ def test_strikes_through_extra_letters_without_the_ignored_punctuation() -> None
     assert correction == Correction(answer="Kinder", mistake="Kinder<s>s</s>!")
 
 
-def test_shows_the_comma_inside_without_marking_it_on_request() -> None:
+@pytest.mark.parametrize(
+    ("user_text", "shown"),
+    [
+        (
+            "Wenn ich Zeit hätte kann ich dir helfen",
+            "Wenn ich Zeit hätte, k<u>ö</u>nn<u>te</u> ich dir helfen.",
+        ),
+        (
+            "Wenn ich Zeit hätte , kann ich dir helfen",
+            "Wenn ich Zeit hätte, k<u>ö</u>nn<u>te</u> ich dir helfen.",
+        ),
+        (
+            "Wenn ich Zeit hätte,kann ich dir helfen",
+            "Wenn ich Zeit hätte, k<u>ö</u>nn<u>te</u> ich dir helfen.",
+        ),
+        (
+            "Wenn ich Zeit hat,könnte ich dir helfen",
+            "Wenn ich Zeit h<u>ä</u>t<u>te</u>, könnte ich dir helfen.",
+        ),
+    ],
+)
+def test_shows_the_comma_inside_without_marking_it_on_request(
+    user_text: str, shown: str
+) -> None:
     correction = correct(
-        "Wenn ich Zeit hätte kann ich dir helfen",
+        user_text,
         ["Wenn ich Zeit hätte, könnte ich dir helfen."],
         ignore_punctuation=True,
     )
 
-    assert correction == Correction(
-        answer="Wenn ich Zeit hätte, k<u>ö</u>nn<u>te</u> ich dir helfen.", mistake=None
-    )
+    assert correction == Correction(answer=shown, mistake=None)
 
 
 def test_doesnt_strike_through_an_extra_comma_on_request() -> None:

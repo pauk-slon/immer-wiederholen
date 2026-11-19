@@ -13,6 +13,7 @@ or a capital letter from the phone's keyboard would show as a mistake.
 import difflib
 import html
 import itertools
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
@@ -89,13 +90,13 @@ def _letters(word: str) -> list[str]:
 def _diff_words(
     user_text: str, correct_text: str, ignored: str
 ) -> tuple[list[list[_Segment]], list[list[_Segment]]]:
-    user_words = user_text.split()
-    correct_words = correct_text.split()
+    user_words = _split_words(user_text, ignored)
+    correct_words = _split_words(correct_text, ignored)
     user_result: list[list[_Segment]] = []
     correct_result: list[list[_Segment]] = []
 
     def key(word: str) -> str:
-        return "".join(c for c in word.lower() if c not in ignored)
+        return "".join(c for c in word.lower() if c not in ignored and not c.isspace())
 
     matcher = difflib.SequenceMatcher(
         None,
@@ -131,6 +132,16 @@ def _diff_words(
     return user_result, correct_result
 
 
+def _split_words(text: str, ignored: str) -> list[str]:
+    # The check splits words at an ignored comma too, so "hat,könnte" is two
+    # words. A comma stays with the word before it, even after a space
+    # ("hätte ,"), so that no word is only a comma
+    if not ignored:
+        return text.split()
+    chars = re.escape(ignored)
+    return re.findall(rf"[^\s{chars}]+(?:\s*[{chars}])*", text)
+
+
 def _diff_letters(
     user_word: str, correct_word: str, ignored: str
 ) -> tuple[list[_Segment], list[_Segment]]:
@@ -151,12 +162,15 @@ def _diff_letters(
 
 
 def _segments(text: str, is_different: bool, ignored: str) -> list[_Segment]:
-    # The ignored characters in a difference aren't marked
+    # The ignored characters in a difference, and the spaces before them,
+    # aren't marked
     if not is_different or not ignored:
         return [(text, is_different)]
     return [
         ("".join(run), not is_ignored)
-        for is_ignored, run in itertools.groupby(text, lambda c: c in ignored)
+        for is_ignored, run in itertools.groupby(
+            text, lambda c: c in ignored or c.isspace()
+        )
     ]
 
 
