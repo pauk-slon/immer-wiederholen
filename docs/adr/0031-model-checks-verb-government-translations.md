@@ -1,6 +1,6 @@
 # 0031. A model checks translations that practice verb government
 
-**Status:** Accepted, 2026-11-19. The problem and the experiment are described in [#352](https://github.com/pauk-slon/immer-wiederholen/issues/352).
+**Status:** Accepted, 2026-11-19 ([#361](https://github.com/pauk-slon/immer-wiederholen/pull/361)). The problem and the experiment are described in [#352](https://github.com/pauk-slon/immer-wiederholen/issues/352).
 
 ## Context
 
