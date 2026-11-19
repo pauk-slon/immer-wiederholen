@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
 import yaml
 from aiogram import Bot
@@ -20,6 +21,9 @@ from wiederholen.school import (
 )
 
 from .feature_flags import parse_feature_flags
+
+_ANTHROPIC_TIMEOUT_SECONDS: Final = 60.0
+_ANTHROPIC_MAX_RETRIES: Final = 1
 
 
 @dataclass(frozen=True)
@@ -68,7 +72,16 @@ def load_anthropic_client() -> AsyncAnthropic | None:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return None
-    return AsyncAnthropic(api_key=api_key)
+    # The learner waits for the generation with a typing indicator. The SDK's
+    # defaults (10 minutes, 2 retries) could keep it there for half an hour
+    # before the error message. Even a full answer of _MAX_TOKENS from the
+    # MODEL in school/authoring/shadow_exercises.py takes well under a
+    # minute. Check the timeout when either of them changes
+    return AsyncAnthropic(
+        api_key=api_key,
+        timeout=_ANTHROPIC_TIMEOUT_SECONDS,
+        max_retries=_ANTHROPIC_MAX_RETRIES,
+    )
 
 
 def load_authoring_guide() -> str | None:
