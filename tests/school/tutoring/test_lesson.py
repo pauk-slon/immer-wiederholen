@@ -331,7 +331,7 @@ def test_a_finished_lesson_reports_its_correct_answers_and_the_streak_day() -> N
         size=2,
         correct=1,
         extends_streak=True,
-        exercise_keys=(shown[0].content_key, shown[1].content_key),
+        given_exercise_keys=(shown[0].content_key, shown[1].content_key),
         wrong_exercise_keys=(shown[1].content_key,),
     )
 
@@ -350,7 +350,7 @@ def test_a_lesson_on_the_same_day_as_the_last_one_adds_no_streak_day() -> None:
         size=1,
         correct=1,
         extends_streak=False,
-        exercise_keys=(exercise.content_key,),
+        given_exercise_keys=(exercise.content_key,),
         wrong_exercise_keys=(),
     )
 
@@ -394,7 +394,7 @@ def test_a_skipped_exercise_leaves_the_lesson_size(
         size=2,
         correct=2,
         extends_streak=True,
-        exercise_keys=(warten.content_key, denken.content_key),
+        given_exercise_keys=(warten.content_key, denken.content_key),
         wrong_exercise_keys=(),
     )
     span = exporter.get_finished_spans()[0]
@@ -416,7 +416,7 @@ def test_the_last_answer_finishes_a_lesson_from_before_the_ttl() -> None:
         size=1,
         correct=1,
         extends_streak=True,
-        exercise_keys=(),
+        given_exercise_keys=(),
         wrong_exercise_keys=(),
     )
 
@@ -438,22 +438,22 @@ def test_a_lesson_started_before_the_given_keys_reports_none() -> None:
 
     finished_lesson = marks[1].finished_lesson
     assert finished_lesson is not None
-    assert finished_lesson.exercise_keys == ()
+    assert finished_lesson.given_exercise_keys == ()
     assert finished_lesson.wrong_exercise_keys == ()
 
 
-def test_a_wrong_answer_to_an_exercise_outside_the_lesson_is_not_kept() -> None:
+def test_a_wrong_answer_to_a_shadow_exercise_marks_the_authored_one() -> None:
+    # /ai shows a shadow exercise with another question, so another
+    # content_key. The lesson still marks the exercise that it gave
     warten = make_exercise(word="warten")
-    hoffen = make_exercise(word="hoffen")
     lesson = _started_lesson(warten)
-    course = Course([warten, hoffen])
-    tutor = Tutor(course, {}, lesson=lesson)
-    _next(tutor)
+    tutor = Tutor(Course([warten]), {}, lesson=lesson)
+    shadow = dataclasses.replace(_next(tutor), question="Ich warte ___ den Bus.")
 
-    mark = tutor.check_answer(hoffen, "nonsense")
+    mark = tutor.check_answer(shadow, "nonsense")
 
     assert mark.finished_lesson is not None
-    assert mark.finished_lesson.wrong_exercise_keys == ()
+    assert mark.finished_lesson.wrong_exercise_keys == (warten.content_key,)
 
 
 def test_a_lesson_keeps_the_given_and_wrong_keys_after_taking_them() -> None:
@@ -463,9 +463,9 @@ def test_a_lesson_keeps_the_given_and_wrong_keys_after_taking_them() -> None:
     lesson.start(["a", "b", "c"])
 
     lesson.take_exercise_key()
-    lesson.record_answer("a", is_correct=False)
+    lesson.record_answer(is_correct=False)
     lesson.take_exercise_key()
-    lesson.record_answer("b", is_correct=True)
+    lesson.record_answer(is_correct=True)
 
     assert data["exercise_keys"] == ["c"]
     assert lesson.given_exercise_keys == ["a", "b"]

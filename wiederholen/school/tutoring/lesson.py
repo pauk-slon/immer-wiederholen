@@ -74,7 +74,9 @@ class Lesson:
 
     @property
     def given_exercise_keys(self) -> list[str]:
-        # In the order that the lesson gave them, the shown one included
+        # In the order that the lesson gave them, the shown one included. A
+        # given exercise can have no answer: the bot gives the next one when
+        # /topics deselected the topic of the shown one
         return self._get_keys(self._GIVEN_EXERCISE_KEYS_KEY)
 
     @property
@@ -110,7 +112,7 @@ class Lesson:
             self.size - (len(exercise_keys) - len(retained)), 0
         )
 
-    def record_answer(self, exercise_key: str, *, is_correct: bool) -> None:
+    def record_answer(self, *, is_correct: bool) -> None:
         # An answer is activity too, so an answer to an exercise that waited
         # longer than EXPIRES_AFTER lets the lesson continue
         if not self._is_started() or self._data.get(self._FINISHED_KEY):
@@ -118,9 +120,12 @@ class Lesson:
         self._touch()
         if is_correct:
             self._data[self._CORRECT_KEY] = self.correct + 1
-        elif exercise_key in self.given_exercise_keys:
-            # Only an exercise of this lesson
-            self._append_key(self._WRONG_EXERCISE_KEYS_KEY, exercise_key)
+        elif given_exercise_keys := self.given_exercise_keys:
+            # The answer is to the exercise that the lesson gave last: each
+            # frontend keeps the lesson next to the exercise that it shows.
+            # Not the key of the answered exercise, which for a shadow
+            # exercise of /ai differs from the key of the authored one
+            self._append_key(self._WRONG_EXERCISE_KEYS_KEY, given_exercise_keys[-1])
 
     def start(self, exercise_keys: list[str]) -> None:
         self._data.clear()
