@@ -40,6 +40,10 @@ def test_demo_course_uses_every_topics_setting(demo_course: Course) -> None:
     assert demo_course.primary_answer_only_topics
 
 
+def test_demo_course_has_a_lesson_recall_guide(demo_course: Course) -> None:
+    assert demo_course.lesson_recall_guide
+
+
 def test_demo_course_has_bot_info(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COURSE_PATH", str(DEMO_PATH))
     bot_info = load_bot_info()

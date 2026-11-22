@@ -1,12 +1,13 @@
 # Course format
 
-A course is a directory of YAML files. The bot and the web app load it once at startup from the directory in the `COURSE_PATH` environment variable, which defaults to `data`.
+A course is a directory of YAML files and one optional Markdown file. The bot and the web app load it once at startup from the directory in the `COURSE_PATH` environment variable, which defaults to `data`.
 
 | File | Required | What it holds |
 |---|---|---|
 | `exercises.yaml` | yes | the exercises |
 | `topics.yaml` | no | topic groups, links between topics, per-topic settings |
 | `bot.yaml` | no | the bot's Telegram name and descriptions |
+| `lesson_recall.md` | no | the guide for a lesson recall |
 
 [`demo/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/demo) is a small working course that uses every field and setting below. Locally, `docker compose up` runs it by default.
 
@@ -228,9 +229,25 @@ info:
 
 The bot applies the file to its Telegram profile on every start. It ignores language keys other than `ru` and `en`. If the file is missing, the bot doesn't change its profile.
 
+## lesson_recall.md
+
+**Bot only.** `lesson_recall.md` is the course's guide for a lesson recall. A lesson recall is a short task after a lesson. In the first version, the learner translates sentences from their language into the language of the course. A model writes the sentences from the exercises of the lesson and checks each translation (see [ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md)).
+
+The model gets the whole file as text, so write it for the model, in English. The guide holds the method of the course:
+
+- how to write the task, such as the number of sentences and how many exercises one sentence uses
+- what each topic practices, so the model knows which form a sentence must contain
+- when a translation is correct
+- what the explanation of a wrong translation says, and in which form it addresses the learner
+
+The engine adds the rest. It gives the model the exercises of the lesson, which of them the learner answered wrong, and the learner's language. It also sets the structure of the reply, and it checks only this structure. So the guide doesn't describe the reply or say which language the learner speaks.
+
+The guide refers to the topics of the course, so it changes with them. A course without the file has no lesson recall. The course fails to load if the file is empty. The demo course has a [simple guide](https://github.com/pauk-slon/immer-wiederholen/blob/main/demo/lesson_recall.md).
+
 ## Decisions
 
 - [Gates are declared explicitly](adr/0012-gates-declared-explicitly.md) (ADR 0012)
 - [Word banks are data, not text in the question](adr/0013-word-bank-as-data.md) (ADR 0013)
 - [Illustrations are generated ahead of time](adr/0014-cues-generated-ahead.md) (ADR 0014)
 - [Illustrations are keyed by the question's hash](adr/0017-cues-keyed-by-question-hash.md) (ADR 0017)
+- [A model writes a lesson recall and checks the translations](adr/0031-model-writes-and-checks-a-lesson-recall.md) (ADR 0031)

@@ -278,6 +278,10 @@ class Course:
     primary_answer_only_topics: frozenset[str] = field(
         default_factory=frozenset, kw_only=True
     )
+    # The course's guide for a lesson recall: how to write the task and how
+    # to check a translation (ADR 0031). None if the course has no
+    # lesson_recall.md
+    lesson_recall_guide: str | None = field(default=None, kw_only=True)
 
     @staticmethod
     def _load_exercises(path: Path) -> list[Exercise]:
@@ -362,6 +366,16 @@ class Course:
             primary_answer_only_topics=frozenset(primary_answer_only_topics),
         )
 
+    @staticmethod
+    def _load_lesson_recall_guide(path: Path) -> str | None:
+        if not path.exists():
+            return None
+        guide = path.read_text(encoding="utf-8").strip()
+        # An empty guide would reach the model as no method at all
+        if not guide:
+            raise ValueError(f"{path.name} is empty")
+        return guide
+
     @classmethod
     def load(cls, path: Path) -> Self:
         exercises = cls._load_exercises(path / "exercises.yaml")
@@ -377,7 +391,13 @@ class Course:
                     f"cue is set for {exercise.question!r}, but its topic "
                     f"{exercise.topic!r} has no cue_generation"
                 )
-        return cls(exercises, **topics_config)
+        return cls(
+            exercises,
+            **topics_config,
+            lesson_recall_guide=cls._load_lesson_recall_guide(
+                path / "lesson_recall.md"
+            ),
+        )
 
     def restricted_to(self, topics: Iterable[Topic]) -> Self:
         # A narrower view of this course, e.g. for a web widget embedded on
@@ -394,7 +414,8 @@ class Course:
         # no exercises" as a no-op, the same case a topic with genuinely no
         # exercises in the full course hits), and the rest are inert,
         # unused data for a topic that can never appear in this view's
-        # exercises anyway.
+        # exercises anyway. lesson_recall_guide stays too: it describes the
+        # whole course, and a lesson recall gets only the lesson's exercises.
         allowed = frozenset(topics)
         return replace(
             self,
