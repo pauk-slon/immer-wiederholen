@@ -40,8 +40,13 @@ def test_demo_course_uses_every_topics_setting(demo_course: Course) -> None:
     assert demo_course.primary_answer_only_topics
 
 
-def test_demo_course_has_a_lesson_recall_guide(demo_course: Course) -> None:
-    assert demo_course.lesson_recall_guide
+def test_demo_lesson_recall_guide_names_every_topic(demo_course: Course) -> None:
+    # The guide says what each topic practices, so a new topic in the demo
+    # needs a line in it too
+    guide = demo_course.lesson_recall_guide
+    assert guide is not None
+    for topic in {exercise.topic for exercise in demo_course.exercises}:
+        assert f"`{topic}`" in guide, topic
 
 
 def test_demo_course_has_bot_info(monkeypatch: pytest.MonkeyPatch) -> None:

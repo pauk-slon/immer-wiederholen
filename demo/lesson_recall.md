@@ -12,8 +12,7 @@ The learner translates sentences from their language into German.
 
 ## The topics
 
-- `partizip_ii`: the Partizip II of a verb. A sentence in the Perfekt with this verb.
-- `partizip_ii_meaning`: the Partizip II in a sentence. A sentence in the Perfekt with this verb.
+- `partizip_ii`, `partizip_ii_meaning`: the Partizip II of a verb. A sentence in the Perfekt with this verb.
 - `perfekt_wortstellung`: the word order of the Perfekt. A sentence that starts with a time or a place, so the subject comes after the auxiliary verb.
 - `verb_preposition`: a verb with its preposition and case, such as `warten auf` + Akkusativ.
 - `preposition_meaning`: the meaning of a preposition, such as `auf` + Dativ for a place or `seit` for a duration.

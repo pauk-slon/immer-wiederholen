@@ -242,7 +242,7 @@ The model gets the whole file as text, so write it for the model, in English. Th
 
 The engine adds the rest. It gives the model the exercises of the lesson, which of them the learner answered wrong, and the learner's language. It also sets the structure of the reply, and it checks only this structure. So the guide doesn't describe the reply or say which language the learner speaks.
 
-The guide refers to the topics of the course, so it changes with them. A course without the file has no lesson recall. The course fails to load if the file is empty. The demo course has a [simple guide](https://github.com/pauk-slon/immer-wiederholen/blob/main/demo/lesson_recall.md).
+The guide refers to the topics of the course, so it changes with them. A course without the file has no lesson recall. If the `lesson_recall` feature flag has a chat, the bot doesn't start without the file. The course fails to load if the file is empty. The demo course has a [simple guide](https://github.com/pauk-slon/immer-wiederholen/blob/main/demo/lesson_recall.md).
 
 ## Decisions
 
