@@ -1,6 +1,6 @@
 # 0031. A model writes and checks a translation task after a lesson
 
-**Status:** Accepted, 2026-11-22 ([#PR](https://github.com/pauk-slon/immer-wiederholen/pull/PR)). The feature is described in [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367).
+**Status:** Accepted, 2026-11-22 ([#368](https://github.com/pauk-slon/immer-wiederholen/pull/368)). The feature is described in [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367).
 
 ## Context
 
