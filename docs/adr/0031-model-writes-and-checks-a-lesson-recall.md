@@ -25,9 +25,9 @@ The name says what the feature does, not its format. Translation is the format o
 
 ### The flow
 
-1. The lesson recall starts after the answer that finishes the lesson. The lesson is already finished, so the lesson recall doesn't delay the streak. How the learner starts it, whether the learner can skip it or a sentence in it, and the labels are decided in the implementation.
+1. The lesson recall starts after the answer that finishes the lesson. The lesson is already finished, so the lesson recall doesn't delay the streak. How the learner starts it, whether the learner can skip the whole lesson recall, and the labels are decided in the implementation.
 2. The model gets the exercises of the lesson (`topic`, `word`, `question`, `answer`, `explanation` in the interface language) and the course's guide. It writes one short sentence in the learner's language for each exercise, with a reference translation and the numbers of the exercises that the sentence uses. Two exercises share a sentence only if it stays natural. An exercise that no natural sentence can use is skipped with a reason.
-3. The bot shows the sentences one at a time. The learner types a translation.
+3. The bot shows the sentences one at a time. The learner types a translation, or skips the sentence with a button. A skip shows the reference translation and goes to the next sentence, with no model call. The reference can have a mistake, but after a skip it is a hint, not a verdict.
 4. The model gets the sentence, its exercises, the reference translation, the guide and the answer. It returns a verdict, a comment, a corrected sentence, and for each exercise of the sentence whether the learner used its form right, wrong or not at all.
 5. The bot shows the verdict, the comment, and the corrected sentence with the changes marked by `answer_diff`, as after a wrong recall. Then comes the next sentence, or the button to the next lesson after the last one.
 
@@ -74,7 +74,7 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 - **`FinishedLesson` gets the keys of the lesson's exercises.** `Tutor` returns it in `Mark` when an answer finishes a lesson, and the bot already keeps it with the summary. To fill it, `Lesson` keeps the keys of the exercises that it gave, because `take_exercise_key()` removes them from the list of exercises to give.
 - **The lesson recall is exercise state in FSM data.** It holds the sentences with their references and a copy of their exercises, so a deploy with a changed course during a lesson recall doesn't break it. It isn't in `_LASTING_CHAT_STATE_KEYS`.
 - **Both calls use a tool for the result,** with `tool_choice` set to `auto`, as `shadow_exercises` does, so Haiku can think before it calls the tool. The model's output is untrusted text. The bot escapes it, and the module validates its structure.
-- **The bot creates two spans around the calls, `lesson_recall.generate` and `lesson_recall.check`.** They record the duration, the failure type, the number of sentences and of skipped exercises, the verdict, and the topics of the exercises used right, wrong or not at all. Topic names come from the course, not from the learner. They never record a sentence, an answer, a comment or a corrected sentence. `school` stays without tracing code.
+- **The bot creates two spans around the calls, `lesson_recall.generate` and `lesson_recall.check`.** They record the duration, the failure type, the number of sentences and of skipped exercises, the verdict, and the topics of the exercises used right, wrong or not at all. Topic names come from the course, not from the learner. A skip makes no call, so the span of its Telegram update gets an attribute instead, with the topics of the skipped sentence. Many skips show that the sentences are too hard. The spans never record a sentence, an answer, a comment or a corrected sentence. `school` stays without tracing code.
 
 ## Alternatives considered
 
