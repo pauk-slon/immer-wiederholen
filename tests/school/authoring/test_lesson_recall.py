@@ -32,7 +32,7 @@ LESSON = [WARTEN, HOFFEN]
 
 def _tool_use(name: str, tool_input: Any) -> ToolUseBlock:
     block = Mock(spec=ToolUseBlock, input=tool_input)
-    # Mock(name=...) names the mock itself, so the attribute is set after
+    # Mock(name=...) would name the mock itself
     block.name = name
     return block
 
@@ -42,13 +42,13 @@ def _response(*blocks: Any, stop_reason: str = "tool_use") -> Message:
 
 
 def _make_client(response: Message | None = None, side_effect=None) -> Mock:
-    # with_options() returns a copy of the client with the per-request
-    # settings, so the copy has the messages that the module calls
-    copy = Mock(spec=AsyncAnthropic)
-    copy.messages = Mock(spec=AsyncMessages)
-    copy.messages.create = AsyncMock(return_value=response, side_effect=side_effect)
+    client_with_options = Mock(spec=AsyncAnthropic)
+    client_with_options.messages = Mock(spec=AsyncMessages)
+    client_with_options.messages.create = AsyncMock(
+        return_value=response, side_effect=side_effect
+    )
     client = Mock(spec=AsyncAnthropic)
-    client.with_options = Mock(return_value=copy)
+    client.with_options = Mock(return_value=client_with_options)
     return client
 
 
@@ -133,7 +133,6 @@ async def test_generation_sends_the_rules_the_guide_and_the_exercises() -> None:
         in prompt
     )
     assert f"explanation: {WARTEN.explanation['ru']}" in prompt
-    # Only the second exercise is marked
     assert prompt.count("answered wrong in the lesson: yes") == 1
     assert prompt.rstrip().endswith("answered wrong in the lesson: yes")
 
@@ -311,7 +310,6 @@ async def test_a_check_sends_the_sentence_its_exercises_and_the_answer() -> None
     prompt = request["messages"][0]["content"]
     assert "The sentence:\nНадеюсь на хорошую погоду." in prompt
     assert "word: hoffen" in prompt
-    # Only the exercises of the sentence, numbered for the check
     assert "word: warten" not in prompt
     assert "Exercise 1\ntopic: verb_preposition\nword: hoffen" in prompt
     assert "The reference translation:\nIch hoffe auf gutes Wetter." in prompt
