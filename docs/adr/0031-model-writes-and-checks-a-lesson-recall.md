@@ -10,13 +10,13 @@ Every exercise checks one form in a sentence that the author wrote. Nothing make
 
 ## Decision
 
-A lesson recall is a short task after a lesson. In the first version it is a translation from the learner's language into the language of the course. After a lesson of two or more exercises, the bot offers a lesson recall. Claude Haiku 5.5 writes the task from the exercises of the lesson, the learner's results in them, and the course's guide. The learner translates, and the model checks each translation by the same guide. The check gives a verdict, correct or wrong, and an optional explanation. Only the bot gets lesson recalls in this version, because the lessons of the web app have one exercise ([#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
+A lesson recall is a short task after a lesson. In the first version it is a translation from the learner's language into the language of the course. It comes after a lesson of two or more exercises. Claude Haiku 5.5 writes the task from the exercises of the lesson, the learner's results in them, and the course's guide. The learner translates, and the model checks each translation by the same guide. The check gives a verdict, correct or wrong, and an optional explanation. Only the bot gets lesson recalls in this version, because the lessons of the web app have one exercise ([#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
 
 - **The course owns the method.** The guide is `lesson_recall.md` in the course directory. It says how to write the task and how to check it, such as the language, the number of sentences, and when a translation is correct. The engine's prompts in `wiederholen.school.authoring.lesson_recall` have only the steps of a lesson recall and the structure of the replies, and the engine checks only that structure. The demo course gets a simple example of a guide.
 - **A lesson recall doesn't change the learning state.** The schedule, `/progress` and the streak stay the same, and `tutoring` doesn't import the module.
-- **A failure is visible** ([ADR 0006](0006-ai-generation-fails-visibly.md)). The learner gets an error message and can try again.
+- **A failure is visible** ([ADR 0006](0006-ai-generation-fails-visibly.md)). The engine raises `AIGenerationError`, and the bot shows it to the learner.
 - **A model call doesn't block the chat.** The lesson recall is state in the FSM data with its own id. After a call, the handler writes only its own keys, and only if the same lesson recall is still there. A lost update stays possible in the milliseconds of the write, as in [#249](https://github.com/pauk-slon/immer-wiederholen/issues/249).
-- **A feature flag, `lesson_recall`, turns it on.** If the flag has a chat but `ANTHROPIC_API_KEY` or the guide is missing, the bot fails at startup. A chat in the flag doesn't get the optional recall after a correct answer, because two kinds of recall would confuse the learner.
+- **A feature flag, `lesson_recall`, turns it on.** If the flag has a chat but `ANTHROPIC_API_KEY` or the guide is missing, the bot fails at startup.
 
 ## Alternatives considered
 
@@ -30,7 +30,7 @@ A lesson recall is a short task after a lesson. In the first version it is a tra
 ## Consequences
 
 - The learner practices whole sentences after a lesson with no new exercises in the course. The course adds one guide.
-- The quality of the tasks depends on the guide. The engine doesn't check the language or the content of a sentence, so a bad sentence costs the learner a skip.
+- The quality of the tasks depends on the guide. The engine doesn't check the language or the content of a sentence, so a bad sentence reaches the learner.
 - The learner's text goes to Anthropic, never to traces.
 - A lesson recall costs one generation call and one call for each sentence. The learner waits about 8 s for the task.
 - If lesson recalls work, they can replace the recalls of single exercises and `/ai`. Each replacement, and a verdict that changes the schedule, needs its own ADR.

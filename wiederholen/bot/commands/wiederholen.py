@@ -608,7 +608,7 @@ async def handle_answer(
             feature_flags or {}, LESSON_RECALL_FLAG, message.chat.id
         )
         recall_mode = mark.recall
-        # Two kinds of recall would confuse the learner (ADR 0031)
+        # Two kinds of recall would confuse the learner
         if in_lesson_recall_flag and recall_mode == RecallMode.optional:
             recall_mode = RecallMode.none
         result_line = (
