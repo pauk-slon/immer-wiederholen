@@ -108,12 +108,14 @@ A lesson expires after 2 hours without activity (`Lesson.EXPIRES_AFTER`). Activi
 
 The answer to the last exercise of a lesson finishes it, also if the lesson expired. `check_answer()` reports this once per lesson. It then returns a `Mark` with `finished_lesson`, which has the size of the lesson, the number of correct answers and whether the lesson added a day to the [streak](#streak). Every finished lesson counts as practice for the streak.
 
+`finished_lesson` also has the keys of the exercises that the lesson gave, in their order, and the keys of the exercises with a wrong answer. A lesson recall uses them ([ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md)). `take_exercise_key()` removes each key that it gives from `exercise_keys`, so the lesson keeps the keys in two more lists. `start()` creates these lists, and a lesson started before them never gets them. So such a lesson reports no keys, not only the keys that it gave after the deployment.
+
 `lesson_progress()` returns the position of the exercise that `next_exercise()` gave last, and the size of its lesson. The bot shows them as "3/5".
 
 A lesson isn't part of the student record. Each frontend keeps its own lesson next to the exercise that it shows (see [Storage and identity](storage.md#chat-state) and [ADR 0026](adr/0026-lessons-in-conversation-state.md)).
 
 ```json
-{"active_at": "2026-11-14T18:05:12+00:00", "size": 5, "exercise_keys": ["3f9a…", "b21c…"], "correct": 2}
+{"active_at": "2026-11-14T18:05:12+00:00", "size": 5, "exercise_keys": ["3f9a…", "b21c…"], "given_exercise_keys": ["07de…", "5c18…", "e4a2…"], "wrong_exercise_keys": ["5c18…"], "correct": 2}
 ```
 
 | Field | Meaning |
@@ -121,6 +123,8 @@ A lesson isn't part of the student record. Each frontend keeps its own lesson ne
 | `active_at` | the time of the last activity of the lesson |
 | `size` | the number of exercises in the lesson |
 | `exercise_keys` | the keys of the exercises that the lesson hasn't given yet |
+| `given_exercise_keys` | the keys of the exercises that the lesson gave, the shown one included. It is absent in a lesson started before it |
+| `wrong_exercise_keys` | the keys of the given exercises with a wrong answer. It is absent in a lesson started before it |
 | `correct` | the number of correct answers in the lesson. It is absent before the first correct answer |
 | `finished` | `true` after the answer to the last exercise. It is absent before |
 

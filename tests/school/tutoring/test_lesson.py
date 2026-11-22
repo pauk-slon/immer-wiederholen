@@ -319,14 +319,20 @@ def test_a_finished_lesson_reports_its_correct_answers_and_the_streak_day() -> N
     )
     student_record: dict = {}
     lesson: dict = {}
+    shown = []
     marks = []
     for answer in ("auf", "nonsense"):
         tutor = Tutor(course, student_record, lesson=lesson, lesson_size=2)
-        marks.append(tutor.check_answer(_next(tutor), answer))
+        shown.append(_next(tutor))
+        marks.append(tutor.check_answer(shown[-1], answer))
 
     assert marks[0].finished_lesson is None
     assert marks[1].finished_lesson == FinishedLesson(
-        size=2, correct=1, extends_streak=True
+        size=2,
+        correct=1,
+        extends_streak=True,
+        exercise_keys=(shown[0].content_key, shown[1].content_key),
+        wrong_exercise_keys=(shown[1].content_key,),
     )
 
 
@@ -341,7 +347,11 @@ def test_a_lesson_on_the_same_day_as_the_last_one_adds_no_streak_day() -> None:
         marks.append(tutor.check_answer(exercise, exercise.answer[0]))
 
     assert marks[1].finished_lesson == FinishedLesson(
-        size=1, correct=1, extends_streak=False
+        size=1,
+        correct=1,
+        extends_streak=False,
+        exercise_keys=(exercise.content_key,),
+        wrong_exercise_keys=(),
     )
 
 
@@ -381,7 +391,11 @@ def test_a_skipped_exercise_leaves_the_lesson_size(
         LessonProgress(position=2, size=2),
     ]
     assert mark.finished_lesson == FinishedLesson(
-        size=2, correct=2, extends_streak=True
+        size=2,
+        correct=2,
+        extends_streak=True,
+        exercise_keys=(warten.content_key, denken.content_key),
+        wrong_exercise_keys=(),
     )
     span = exporter.get_finished_spans()[0]
     assert _lesson_events(span) == [("LessonFinished", {"size": 2, "correct": 2})]
@@ -399,5 +413,78 @@ def test_the_last_answer_finishes_a_lesson_from_before_the_ttl() -> None:
     )
 
     assert mark.finished_lesson == FinishedLesson(
-        size=1, correct=1, extends_streak=True
+        size=1,
+        correct=1,
+        extends_streak=True,
+        exercise_keys=(),
+        wrong_exercise_keys=(),
     )
+
+
+def test_a_lesson_started_before_the_given_keys_reports_none() -> None:
+    # Started before the deployment, finished after it: the lesson has no
+    # list of the keys that it gave before, so it reports no keys at all
+    # rather than only the last ones
+    warten = make_exercise(word="warten")
+    hoffen = make_exercise(word="hoffen")
+    lesson = _started_lesson(warten, hoffen)
+    del lesson["given_exercise_keys"], lesson["wrong_exercise_keys"]
+    course = Course([warten, hoffen])
+    student_record: dict = {}
+    marks = []
+    for _ in range(2):
+        tutor = Tutor(course, student_record, lesson=lesson)
+        marks.append(tutor.check_answer(_next(tutor), "nonsense"))
+
+    finished_lesson = marks[1].finished_lesson
+    assert finished_lesson is not None
+    assert finished_lesson.exercise_keys == ()
+    assert finished_lesson.wrong_exercise_keys == ()
+
+
+def test_a_wrong_answer_to_an_exercise_outside_the_lesson_is_not_kept() -> None:
+    warten = make_exercise(word="warten")
+    hoffen = make_exercise(word="hoffen")
+    lesson = _started_lesson(warten)
+    course = Course([warten, hoffen])
+    tutor = Tutor(course, {}, lesson=lesson)
+    _next(tutor)
+
+    mark = tutor.check_answer(hoffen, "nonsense")
+
+    assert mark.finished_lesson is not None
+    assert mark.finished_lesson.wrong_exercise_keys == ()
+
+
+def test_a_lesson_keeps_the_given_and_wrong_keys_after_taking_them() -> None:
+    now = datetime.now(UTC)
+    data: dict = {}
+    lesson = Lesson(data, now=now)
+    lesson.start(["a", "b", "c"])
+
+    lesson.take_exercise_key()
+    lesson.record_answer("a", is_correct=False)
+    lesson.take_exercise_key()
+    lesson.record_answer("b", is_correct=True)
+
+    assert data["exercise_keys"] == ["c"]
+    assert lesson.given_exercise_keys == ["a", "b"]
+    assert lesson.wrong_exercise_keys == ["a"]
+
+
+def test_a_malformed_list_of_given_keys_counts_as_empty() -> None:
+    now = datetime.now(UTC)
+    lesson = Lesson(
+        {
+            "active_at": now.isoformat(),
+            "size": 1,
+            "exercise_keys": ["a"],
+            "given_exercise_keys": "not a list",
+            "wrong_exercise_keys": [1, None],
+        },
+        now=now,
+    )
+
+    assert lesson.take_exercise_key() == "a"
+    assert lesson.given_exercise_keys == []
+    assert lesson.wrong_exercise_keys == []
