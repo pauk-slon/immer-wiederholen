@@ -1,7 +1,12 @@
 from wiederholen.school.authoring import (
     AIGenerationError,
+    LessonRecall,
+    LessonRecallSentence,
+    TranslationCheck,
     build_cue_prompt,
+    check_translation,
     generate_exercise_cue,
+    generate_lesson_recall,
     generate_shadow_exercise,
 )
 from wiederholen.school.cue_store import CachedCueStore, CueStore, R2CueStore
@@ -47,6 +52,8 @@ __all__ = [
     "IdentityAlreadyLinkedError",
     "Language",
     "LessonProgress",
+    "LessonRecall",
+    "LessonRecallSentence",
     "Mark",
     "Progress",
     "R2CueStore",
@@ -60,9 +67,12 @@ __all__ = [
     "StudentRecord",
     "StudentRecordBook",
     "Topic",
+    "TranslationCheck",
     "Tutor",
     "build_cue_prompt",
+    "check_translation",
     "generate_exercise_cue",
+    "generate_lesson_recall",
     "generate_shadow_exercise",
     "shuffle_word_bank",
 ]
