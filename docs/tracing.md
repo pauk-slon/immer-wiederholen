@@ -14,6 +14,8 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 | `telegram.callback_query` | bot | `telegram.callback_data`, `telegram.handled`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns |
 | `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
 | `telegram.update` | bot | `telegram.handled` only (any other kind of update) |
+| `lesson_recall.generate` | bot (child of `telegram.callback_query`) | `lesson_recall.exercises`, `lesson_recall.wrong_exercises`, and `lesson_recall.sentences` or `lesson_recall.failure`. Also the tokens of the model call (see below) |
+| `lesson_recall.check` | bot (child of the update's span) | `lesson_recall.verdict` (`correct` or `wrong`) or `lesson_recall.failure`. Also the tokens of the model call |
 | `reminder.tick` | reminder | none (one sweep over all chats) |
 | `reminder.check_chat` | reminder (child of `reminder.tick`) | `telegram.chat_id`, `reminder.sent` (the reminder went out), `reminder.bot_blocked` (the learner had blocked the bot, or Telegram refused the message for that reason) |
 | an HTTP server span per request | web | the standard HTTP attributes from Litestar's OpenTelemetry plugin, and `client.error.step` and `client.error.status` for `POST /api/client-error` |
@@ -26,6 +28,8 @@ The traces never contain text that a learner typed. A message span records only 
 When code inside a span raises an exception, OpenTelemetry records it on that span. In the reminder, an error in one chat is recorded on that chat's `reminder.check_chat` span. The sweep then logs the error and continues with the next chat.
 
 `telegram.start.topic_groups` has only group ids that the course has. The bot never records the payload itself, because a learner can type any text after `/start`. With `telegram.start.new_chat`, the two attributes show how many new chats came from a page with groups.
+
+The two `lesson_recall.*` spans never contain a sentence, a translation or an explanation. `lesson_recall.failure` is the message of `AIGenerationError`, a fixed text from the code. The model call adds `lesson_recall.input_tokens`, `lesson_recall.output_tokens`, `lesson_recall.cache_read_input_tokens` and `lesson_recall.cache_creation_input_tokens` to the current span, so the span shows what a lesson recall costs and whether the prompt cache works. A "Skip" sets `lesson_recall.skipped` on the update's span.
 
 `telegram.handled` is `false` when no handler matched the update. For a new message or a button press, this means that the learner got no reply. Some updates need no reply, but they also get `false`. An edited message is one example. It gets a `telegram.message` span too, so the span name doesn't separate the two cases. A handler that raises an exception leaves the attribute unset.
 
@@ -57,7 +61,7 @@ The recall events give two measures:
 
 ### What isn't traced
 
-- **Outgoing HTTP calls.** The instrumentation covers only Redis and incoming web requests. Calls to the Telegram Bot API, Anthropic, R2 and Workers AI have no spans. The time spent in them appears as a gap inside the parent span.
+- **Outgoing HTTP calls.** The instrumentation covers only Redis and incoming web requests. Calls to the Telegram Bot API, Anthropic, R2 and Workers AI have no spans of their own. The lesson recall's spans wrap its Anthropic calls. The time spent in them appears as a gap inside the parent span.
 - **The cue generator.** It doesn't call `configure_tracing()`.
 - **Bot startup.** The bot sets its commands and profile before polling starts, outside any span.
 

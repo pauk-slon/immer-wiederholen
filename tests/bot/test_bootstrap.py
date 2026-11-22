@@ -1,14 +1,18 @@
 from pathlib import Path
+from unittest.mock import Mock
 
+import pytest
 from anthropic import AsyncAnthropic
 
+from tests.plugins.curriculum import make_exercise
 from wiederholen.bot.bootstrap import (
+    check_lesson_recall_config,
     load_anthropic_client,
     load_authoring_guide,
     load_cue_store,
     load_feature_flags,
 )
-from wiederholen.school import CachedCueStore
+from wiederholen.school import CachedCueStore, Course
 
 
 def test_load_feature_flags_defaults_to_empty_when_unset(monkeypatch) -> None:
@@ -99,3 +103,33 @@ def test_load_authoring_guide_cuts_off_the_deploying_section(
     assert "some rules" in guide
     assert "compose.yaml" not in guide
     assert "Landing page" not in guide
+
+
+_WITH_GUIDE = Course([make_exercise()], lesson_recall_guide="Guide")
+
+
+def test_lesson_recall_config_needs_nothing_without_the_flag() -> None:
+    check_lesson_recall_config({}, None, Course([make_exercise()]))
+    check_lesson_recall_config(
+        {"lesson_recall": frozenset()}, None, Course([make_exercise()])
+    )
+
+
+def test_lesson_recall_config_passes_with_a_client_and_a_guide() -> None:
+    check_lesson_recall_config(
+        {"lesson_recall": frozenset({1})}, Mock(spec=AsyncAnthropic), _WITH_GUIDE
+    )
+
+
+def test_lesson_recall_flag_without_an_api_key_fails() -> None:
+    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+        check_lesson_recall_config({"lesson_recall": frozenset({1})}, None, _WITH_GUIDE)
+
+
+def test_lesson_recall_flag_without_a_guide_fails() -> None:
+    with pytest.raises(RuntimeError, match="lesson_recall.md"):
+        check_lesson_recall_config(
+            {"lesson_recall": frozenset({1})},
+            Mock(spec=AsyncAnthropic),
+            Course([make_exercise()]),
+        )

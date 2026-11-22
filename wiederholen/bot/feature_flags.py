@@ -10,6 +10,10 @@ the learning-domain model, so a chat_id/flag never reaches
 wiederholen.school.
 """
 
+from typing import Final
+
+LESSON_RECALL_FLAG: Final = "lesson_recall"
+
 
 def parse_feature_flags(raw: str) -> dict[str, frozenset[int]]:
     flags: dict[str, frozenset[int]] = {}
