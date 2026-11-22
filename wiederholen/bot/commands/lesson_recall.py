@@ -223,6 +223,7 @@ async def handle_start(
             cue_store=cue_store,
         )
         return
+    assert finished_lesson is not None
     client, guide = _require_setup(anthropic_client, course)
     language = get_language(data)
     locale = LOCALES[language]
@@ -232,7 +233,6 @@ async def handle_start(
     lesson_recall_id = uuid.uuid4().hex
     await state.update_data({_ID_KEY: lesson_recall_id})
     await _start_waiting(state, LessonRecallState.generating)
-    assert finished_lesson is not None
     wrong_exercise_keys = frozenset(finished_lesson.get("wrong_exercise_keys", []))
     with default_tracer.start_as_current_span(
         "lesson_recall.generate",
