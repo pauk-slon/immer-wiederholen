@@ -40,6 +40,7 @@ import yaml
 from anthropic import AnthropicError, AsyncAnthropic
 from anthropic.types import MessageParam, TextBlockParam, ToolParam, ToolUseBlock
 
+from wiederholen.school.authoring.errors import AIGenerationError
 from wiederholen.school.curriculum import Course, Exercise, Recall
 
 MODEL: Final = "claude-haiku-4-5-20251001"
@@ -124,11 +125,6 @@ _TOOL: Final[ToolParam] = {
         "required": ["question", "distractors", "explanation", "recalls"],
     },
 }
-
-
-class AIGenerationError(Exception):
-    """Generating a shadow exercise failed — the API call itself, or a
-    malformed/incomplete tool response."""
 
 
 def _few_shot_examples(course: Course, exercise: Exercise) -> list[Exercise]:

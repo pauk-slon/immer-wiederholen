@@ -63,11 +63,12 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 
 ## AI-generated content
 
-Shadow exercises (the `/ai` mode, `wiederholen.school.authoring.shadow_exercises`) and cues (illustrations, `wiederholen.school.authoring.cues`, `wiederholen.school.cue_store`, the generator at `python -m wiederholen.school.authoring.cues`) are documented in `docs/authoring.md` — read it before touching either. The rules that matter most:
+Shadow exercises (the `/ai` mode, `wiederholen.school.authoring.shadow_exercises`), lesson recalls (`wiederholen.school.authoring.lesson_recall`, ADR 0031) and cues (illustrations, `wiederholen.school.authoring.cues`, `wiederholen.school.cue_store`, the generator at `python -m wiederholen.school.authoring.cues`) are documented in `docs/authoring.md` — read it before touching either. The rules that matter most:
 
 - A shadow keeps `word`, `topic` and `answer` (and `word_bank`, `grammar_classes`) from the picked exercise; the model generates `question`, `distractors`, `explanation`, `recalls`, and `description` when the original has one. Never let it choose the answer.
 - `AIGenerationError` surfaces as an error message, never a silent fallback to the authored exercise. `_apply_ai_mode()` is the single decision point; per-exercise eligibility is `ai_mode and exercise.topic in course.ai_generatable_topics`.
 - `Exercise.cue_key` (SHA-256 of `question`, plus the scene if the exercise's `cue` has one) is the only place a cue's key is derived. `cue: false` means no cue: the generator skips it and the bot doesn't look it up (ADR 0030). Cue lookups in the bot are best-effort: any exception falls back to a text question.
+- A lesson recall's method lives in the course's `lesson_recall.md`; the engine's prompts hold only the steps and the reply structure, and the module validates only that structure.
 - `authoring` depends only on `curriculum`; `tutoring` never imports it. The cue generator's `__main__` is the one module under `school` allowed to read env vars.
 
 ## Web frontend
