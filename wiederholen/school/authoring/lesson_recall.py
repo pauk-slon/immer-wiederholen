@@ -27,21 +27,18 @@ _CHECK_TOOL_NAME: Final = "submit_check"
 
 _GENERATION_RULES: Final = f"""\
 You write a lesson recall: a short translation task for a learner who has
-just finished a lesson of exercises. The course's guide below says which
-language the learner translates into, how many sentences to write, and
-what each topic practices.
+just finished a lesson of exercises. The course's guide below says how to
+write it.
 
-Rules for any course:
-- Each sentence uses at least one exercise of the lesson. Never more
-  sentences than exercises.
-- The sentences are in the learner's language, natural and everyday. A
-  native speaker must say them this way, and they must make sense.
-- Never reuse or rephrase an exercise sentence. Write a new situation.
-- No words of the target language and no hints in the sentences.
-- "reference" is the full translation of the sentence, with nothing added
-  or left out.
-- List the exercises that each sentence uses. Leave out an exercise that
-  doesn't fit, with a short reason.
+Each sentence of the task has:
+- "text": the sentence in the learner's language. The learner translates it.
+- "reference": the same sentence in the language that the learner
+  translates into, with nothing added or left out.
+- "exercises": the numbers of the exercises that the sentence uses, at
+  least one.
+
+Never more sentences than exercises. List each exercise that no sentence
+uses in "left_out", with a short reason.
 
 Call {_GENERATION_TOOL_NAME} once."""
 
@@ -75,7 +72,8 @@ _GENERATION_TOOL: Final[ToolParam] = {
                         },
                         "reference": {
                             "type": "string",
-                            "description": "The full translation of the sentence.",
+                            "description": "The same sentence in the language "
+                            "that the learner translates into.",
                         },
                         "exercises": {
                             "type": "array",

@@ -7,7 +7,8 @@ The learner translates sentences from their language into German.
 - Write two or three sentences. Use one exercise in each sentence. Use two exercises in one sentence only if they fit one situation by themselves.
 - A natural sentence matters more than using every exercise. Leave out an exercise that doesn't fit an everyday sentence.
 - Use first the exercises that the learner answered wrong in the lesson.
-- Write the sentences in the learner's language, never in German.
+- Choose a new situation for each sentence. Never copy or rephrase an exercise sentence.
+- Write the sentences in the learner's language, never in German. Use no German words and no hints.
 - The reference translation is correct, standard German. It uses the form that the exercise practices.
 
 ## The topics
