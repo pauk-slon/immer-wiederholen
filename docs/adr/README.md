@@ -85,3 +85,4 @@ The date is the day of the decision.
 | [0014](0014-cues-generated-ahead.md) | Illustrations are generated ahead of time | 2026-10-17 | Accepted |
 | [0017](0017-cues-keyed-by-question-hash.md) | Illustrations are keyed by the question's hash | 2026-10-17 | Amended by [0030](0030-cue-field-sets-the-scene-or-turns-it-off.md) |
 | [0030](0030-cue-field-sets-the-scene-or-turns-it-off.md) | An exercise's `cue` field sets the scene of its illustration or turns it off | 2026-11-15 | Accepted |
+| [0031](0031-model-writes-and-checks-a-lesson-recall.md) | A model writes a lesson recall and checks the translations | 2026-11-22 | Accepted |
