@@ -122,6 +122,7 @@ A chat in the flag doesn't get the optional recall after a correct answer. A les
 - `docs/configuration.md` says that a learner waits at most about two minutes for an Anthropic error. With the limits for each request this stays true only for `/ai`, and the text must say so.
 - A skip shows the reference translation without a check. A wrong reference can teach the learner a mistake. In the experiment Haiku made few such mistakes.
 - A lesson recall right after the lesson tests memory that is minutes old. It consolidates the lesson more than it tests recall. A lesson recall of an earlier lesson, or of pairs from several days ago, would test memory better. This is a direction for a later version.
+- A lesson recall covers the variety that `/ai` brings to exercises, but once for each lesson instead of a wait at each exercise. If lesson recalls work, `/ai` may be dropped. A lesson recall then keeps `AIGenerationError` and the shared Anthropic client.
 - The verdict stays outside the schedule. A later decision to let it change the schedule, or to replace the recalls of single exercises with a lesson recall, needs its own ADR.
 
 Open questions:
