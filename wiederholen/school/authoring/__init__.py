@@ -1,6 +1,7 @@
 from wiederholen.school.authoring.cues import build_cue_prompt, generate_exercise_cue
 from wiederholen.school.authoring.errors import AIGenerationError
 from wiederholen.school.authoring.lesson_recall import (
+    LessonRecall,
     LessonRecallSentence,
     TranslationCheck,
     check_translation,
@@ -10,6 +11,7 @@ from wiederholen.school.authoring.shadow_exercises import generate_shadow_exerci
 
 __all__ = [
     "AIGenerationError",
+    "LessonRecall",
     "LessonRecallSentence",
     "TranslationCheck",
     "build_cue_prompt",

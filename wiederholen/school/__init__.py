@@ -1,5 +1,6 @@
 from wiederholen.school.authoring import (
     AIGenerationError,
+    LessonRecall,
     LessonRecallSentence,
     TranslationCheck,
     build_cue_prompt,
@@ -51,6 +52,7 @@ __all__ = [
     "IdentityAlreadyLinkedError",
     "Language",
     "LessonProgress",
+    "LessonRecall",
     "LessonRecallSentence",
     "Mark",
     "Progress",

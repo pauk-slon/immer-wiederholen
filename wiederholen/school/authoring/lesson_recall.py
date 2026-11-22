@@ -31,8 +31,8 @@ MODEL: Final = "claude-haiku-5-5"
 _GENERATION_MAX_TOKENS: Final = 8192
 _CHECK_MAX_TOKENS: Final = 4096
 # Set per request, so the shared client keeps its settings for /ai. No
-# retry: a learner waits for the reply, and a failure shows an error message
-# with a way to try again
+# retry, also not for 429 or 529 (overloaded): a learner waits for the
+# reply, and a failure shows an error message with a way to try again
 _GENERATION_TIMEOUT: Final = 30.0
 _CHECK_TIMEOUT: Final = 15.0
 
@@ -149,9 +149,21 @@ class LessonRecallSentence:
     text: str
     # The model's translation. Only a guide for the check: it can be wrong
     reference: str
-    # Positions in the exercises that generate_lesson_recall() got, in the
-    # order that the model listed them
+    # Positions in LessonRecall.exercises, in the order that the model listed
+    # them
     exercise_indexes: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class LessonRecall:
+    # The sentences refer to the exercises by position, so the two travel
+    # together: a check always sees the exercises that the task came from,
+    # even if the course changed since. The language is the learner's
+    # language at the start, so a change of the interface language doesn't
+    # change the check
+    exercises: tuple[Exercise, ...]
+    sentences: tuple[LessonRecallSentence, ...]
+    language: Language
 
 
 @dataclass(frozen=True)
@@ -163,7 +175,8 @@ class TranslationCheck:
 
 def _system(rules: str, guide: str) -> list[TextBlockParam]:
     # The rules and the guide are the same for every request of a course,
-    # so the cache breakpoint after the guide covers both. The guide is a
+    # so the cache breakpoint after the guide can cover both, if the prefix
+    # reaches the model's minimum length for the cache. The guide is a
     # separate block, so the engine's part and the course's part stay apart
     return [
         {"type": "text", "text": rules},
@@ -193,6 +206,12 @@ def _describe_exercise(
 
 def _learner_language(language: Language) -> str:
     return f"The learner's language is {_LANGUAGE_NAMES[language]}."
+
+
+def _quote_answer(answer: str) -> str:
+    # The answer is the learner's free text. Without angle brackets it
+    # can't close the <answer> tag and put text outside it
+    return answer.replace("<", "‹").replace(">", "›")
 
 
 async def _call_tool(
@@ -280,7 +299,7 @@ async def generate_lesson_recall(
     wrong_exercise_keys: Collection[str],
     guide: str,
     language: Language,
-) -> list[LessonRecallSentence]:
+) -> LessonRecall:
     if not exercises:
         raise ValueError("a lesson recall needs the exercises of a lesson")
     prompt = "\n\n".join(
@@ -317,22 +336,25 @@ async def generate_lesson_recall(
     ]
     if not sentences:
         raise AIGenerationError("model returned no usable sentence")
-    # Never more sentences than exercises, as the rules say
-    return sentences[: len(exercises)]
+    return LessonRecall(
+        exercises=tuple(exercises),
+        # Never more sentences than exercises, as the rules say
+        sentences=tuple(sentences[: len(exercises)]),
+        language=language,
+    )
 
 
 async def check_translation(
     client: AsyncAnthropic,
-    sentence: LessonRecallSentence,
-    exercises: Sequence[Exercise],
+    lesson_recall: LessonRecall,
+    sentence_index: int,
     answer: str,
     *,
     guide: str,
-    language: Language,
 ) -> TranslationCheck:
-    # exercises are the ones that generate_lesson_recall() got: the
-    # sentence refers to them by position
-    practiced = [exercises[index] for index in sentence.exercise_indexes]
+    sentence = lesson_recall.sentences[sentence_index]
+    language = lesson_recall.language
+    practiced = [lesson_recall.exercises[index] for index in sentence.exercise_indexes]
     prompt = "\n\n".join(
         [
             _learner_language(language),
@@ -343,7 +365,7 @@ async def check_translation(
                 for number, exercise in enumerate(practiced, start=1)
             ),
             f"The reference translation:\n{sentence.reference}",
-            f"The learner's answer:\n<answer>\n{answer}\n</answer>",
+            f"The learner's answer:\n<answer>\n{_quote_answer(answer)}\n</answer>",
         ]
     )
     tool_input = await _call_tool(
