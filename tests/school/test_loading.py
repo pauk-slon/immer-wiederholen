@@ -594,3 +594,42 @@ class TestRecallValidation:
             ),
         ):
             Course.load(tmp_path)
+
+
+class TestLessonRecallGuideLoading:
+    def test_missing_file_gives_no_guide(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        with tmp_yaml_file([], filename="exercises.yaml"):
+            course = Course.load(tmp_path)
+        assert course.lesson_recall_guide is None
+
+    def test_loads_the_guide_without_surrounding_whitespace(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        (tmp_path / "lesson_recall.md").write_text(
+            "\n# Guide\n\nWrite two sentences.\n\n", encoding="utf-8"
+        )
+        with tmp_yaml_file([], filename="exercises.yaml"):
+            course = Course.load(tmp_path)
+        assert course.lesson_recall_guide == "# Guide\n\nWrite two sentences."
+
+    def test_empty_file_raises(
+        self,
+        tmp_path: Path,
+        tmp_yaml_file: TmpYamlFile,
+    ) -> None:
+        (tmp_path / "lesson_recall.md").write_text(" \n", encoding="utf-8")
+        with (
+            pytest.raises(ValueError, match="lesson_recall.md is empty"),
+            tmp_yaml_file([], filename="exercises.yaml"),
+        ):
+            Course.load(tmp_path)
+
+    def test_a_restricted_course_keeps_the_guide(self) -> None:
+        course = Course([make_exercise()], lesson_recall_guide="Guide")
+        assert course.restricted_to([]).lesson_recall_guide == "Guide"
