@@ -25,7 +25,7 @@ The name says what the feature does, not its format. Translation is the format o
 
 ### The flow
 
-1. The lesson recall starts after the answer that finishes the lesson. The lesson is already finished, so the lesson recall doesn't delay the streak. How the learner starts it, whether the learner can skip the whole lesson recall, and the labels are decided in the implementation.
+1. The lesson recall starts after the answer that finishes the lesson. The lesson is already finished, so the lesson recall doesn't delay the streak. How the learner starts it and the labels are decided in the implementation. There is no button that skips the whole lesson recall. It has at most one sentence for each exercise, so the learner skips them one by one, and a command ends it at once.
 2. The model gets the exercises of the lesson (`topic`, `word`, `question`, `answer`, `explanation` in the interface language) and the course's guide. It writes one short sentence in the learner's language for each exercise, with a reference translation and the numbers of the exercises that the sentence uses. Two exercises share a sentence only if it stays natural. An exercise that no natural sentence can use is skipped with a reason.
 3. The bot shows the sentences one at a time. The learner types a translation, or skips the sentence with a button. A skip shows the reference translation and goes to the next sentence, with no model call. The reference can have a mistake, but after a skip it is a hint, not a verdict.
 4. The model gets the sentence, its exercises, the reference translation, the guide and the answer. It returns a verdict, a comment, a corrected sentence, and for each exercise of the sentence whether the learner used its form right, wrong or not at all.
