@@ -16,6 +16,13 @@ class Lesson:
     _LEGACY_DATE_KEY: Final = "date"
     _SIZE_KEY: Final = "size"
     _EXERCISE_KEYS_KEY: Final = "exercise_keys"
+    # The keys that the lesson gave and the keys of the wrong answers, for a
+    # lesson recall (ADR 0031). take_exercise_key() removes the keys that it
+    # gives from exercise_keys, so the lesson keeps them here. A lesson
+    # started without these lists, before they existed, never gets them, so
+    # it doesn't report a part of its exercises as all of them
+    _GIVEN_EXERCISE_KEYS_KEY: Final = "given_exercise_keys"
+    _WRONG_EXERCISE_KEYS_KEY: Final = "wrong_exercise_keys"
     _FINISHED_KEY: Final = "finished"
     _CORRECT_KEY: Final = "correct"
     # A lesson that nobody used for this long is dropped, not continued: its
@@ -47,11 +54,34 @@ class Lesson:
             # TypeError for a time without a time zone
             return False
 
-    def _get_exercise_keys(self) -> list[str]:
-        exercise_keys = self._data.get(self._EXERCISE_KEYS_KEY)
-        if not isinstance(exercise_keys, list):
+    def _get_keys(self, data_key: str) -> list[str]:
+        keys = self._data.get(data_key)
+        if not isinstance(keys, list):
             return []
-        return [key for key in exercise_keys if isinstance(key, str)]
+        return [key for key in keys if isinstance(key, str)]
+
+    def _get_exercise_keys(self) -> list[str]:
+        return self._get_keys(self._EXERCISE_KEYS_KEY)
+
+    def _append_key(self, data_key: str, key: str) -> None:
+        # Only to a list that start() created. A new list, as in
+        # take_exercise_key()
+        if not isinstance(self._data.get(data_key), list):
+            return
+        keys = self._get_keys(data_key)
+        if key not in keys:
+            self._data[data_key] = [*keys, key]
+
+    @property
+    def given_exercise_keys(self) -> list[str]:
+        # In the order that the lesson gave them, the shown one included. A
+        # given exercise can have no answer: the bot gives the next one when
+        # /topics deselected the topic of the shown one
+        return self._get_keys(self._GIVEN_EXERCISE_KEYS_KEY)
+
+    @property
+    def wrong_exercise_keys(self) -> list[str]:
+        return self._get_keys(self._WRONG_EXERCISE_KEYS_KEY)
 
     @property
     def size(self) -> int:
@@ -90,6 +120,12 @@ class Lesson:
         self._touch()
         if is_correct:
             self._data[self._CORRECT_KEY] = self.correct + 1
+        elif given_exercise_keys := self.given_exercise_keys:
+            # The answer is to the exercise that the lesson gave last: each
+            # frontend keeps the lesson next to the exercise that it shows.
+            # Not the key of the answered exercise, which for a shadow
+            # exercise of /ai differs from the key of the authored one
+            self._append_key(self._WRONG_EXERCISE_KEYS_KEY, given_exercise_keys[-1])
 
     def start(self, exercise_keys: list[str]) -> None:
         self._data.clear()
@@ -98,6 +134,8 @@ class Lesson:
                 self._ACTIVE_AT_KEY: self._now.isoformat(),
                 self._SIZE_KEY: len(exercise_keys),
                 self._EXERCISE_KEYS_KEY: list(exercise_keys),
+                self._GIVEN_EXERCISE_KEYS_KEY: [],
+                self._WRONG_EXERCISE_KEYS_KEY: [],
             }
         )
 
@@ -111,6 +149,7 @@ class Lesson:
         # its stored dict, and the stored list must change only when the
         # frontend saves the lesson
         self._data[self._EXERCISE_KEYS_KEY] = exercise_keys[1:]
+        self._append_key(self._GIVEN_EXERCISE_KEYS_KEY, exercise_keys[0])
         self._touch()
         return exercise_keys[0]
 

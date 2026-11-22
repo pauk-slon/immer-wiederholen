@@ -30,6 +30,11 @@ class FinishedLesson:
     correct: int
     # This lesson added a day to the streak or started a new one
     extends_streak: bool
+    # The Exercise.content_key values of the exercises that the lesson gave,
+    # in their order, and of those answered wrong, for a lesson recall (ADR
+    # 0031). Both are empty for a lesson started before they were kept
+    given_exercise_keys: tuple[str, ...]
+    wrong_exercise_keys: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -456,6 +461,8 @@ class Tutor:
                 size=self._lesson.size,
                 correct=self._lesson.correct,
                 extends_streak=extends_streak,
+                given_exercise_keys=tuple(self._lesson.given_exercise_keys),
+                wrong_exercise_keys=tuple(self._lesson.wrong_exercise_keys),
             ),
         )
 
