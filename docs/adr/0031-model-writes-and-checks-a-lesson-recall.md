@@ -57,9 +57,9 @@ A failure shows an error message, as ADR 0006 requires. After a failed generatio
 
 A model call takes up to 30 s. During it, the learner can tap another button or type a command, and another handler changes the FSM data. A handler that wrote back the data it read before the call would undo that change. For example, it would bring back the finished lesson after the learner started the next one. So:
 
-- A tap on the button first removes the buttons of the summary message. Then the bot sets a state for the generation and stores an id for this lesson recall.
+- A tap on the button first answers the callback, removes the buttons of the summary message and shows "typing". Then the bot sets a state for the generation and stores an id for this lesson recall. Otherwise the button in Telegram would spin for the whole call.
 - Each lesson recall has its own states: generation, waiting for a translation, and the check. A message during the generation or the check gets a short reply and isn't checked.
-- After a model call, the handler reads the FSM data again. It writes the result only if the same lesson recall id is there in the expected state. Otherwise it drops the result. It writes only the keys of the lesson recall, never data that it read before the call.
+- After a model call, the handler reads the FSM data again right before it writes. It writes the result only if the same lesson recall id is there in the expected state. Otherwise it drops the result. It changes only the keys of the lesson recall in that fresh copy, never data that it read before the call. aiogram's `update_data()` still reads and writes the whole data, so an update of the same chat between the two steps can be lost. This makes the window milliseconds instead of the duration of the call, with the same rule of the last write as in #249.
 - A command or a button that leads to an exercise ends the lesson recall. A result that comes later finds another state and is dropped.
 
 These handlers don't open `check_out()`, because a lesson recall doesn't touch the student record. So the long calls don't make the window of #249 larger.
@@ -70,11 +70,11 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 
 ### In the code
 
-- **A new module `wiederholen.school.authoring.lesson_recall`.** It has the two model calls, the prompts and the validation, and it raises `AIGenerationError` on a failure. AI calls stay in `authoring` (see [Architecture](../architecture.md)), and `tutoring` never imports it, because a lesson recall doesn't change the schedule.
+- **A new module `wiederholen.school.authoring.lesson_recall`.** It has the two model calls, the prompts and the validation, and it raises `AIGenerationError` on a failure of either call. A failed check follows ADR 0006 as a failed generation does, so the bot handles both in one way. AI calls stay in `authoring` (see [Architecture](../architecture.md)), and `tutoring` never imports it, because a lesson recall doesn't change the schedule.
 - **`FinishedLesson` gets the keys of the lesson's exercises.** `Tutor` returns it in `Mark` when an answer finishes a lesson, and the bot already keeps it with the summary. To fill it, `Lesson` keeps the keys of the exercises that it gave, because `take_exercise_key()` removes them from the list of exercises to give.
-- **The lesson recall is exercise state in FSM data.** It holds the sentences with their references and a copy of their exercises, so a course reload during a lesson recall doesn't break it. It isn't in `_LASTING_CHAT_STATE_KEYS`.
+- **The lesson recall is exercise state in FSM data.** It holds the sentences with their references and a copy of their exercises, so a deploy with a changed course during a lesson recall doesn't break it. It isn't in `_LASTING_CHAT_STATE_KEYS`.
 - **Both calls use a tool for the result,** with `tool_choice` set to `auto`, as `shadow_exercises` does, so Haiku can think before it calls the tool. The model's output is untrusted text. The bot escapes it, and the module validates its structure.
-- **The bot creates two spans around the calls, `lesson_recall.generate` and `lesson_recall.check`.** They record the duration, the failure type, the number of sentences and of skipped exercises, the verdict, and the counts of exercises used right, wrong or not at all. They never record a sentence, an answer, a comment or a corrected sentence. `school` stays without tracing code.
+- **The bot creates two spans around the calls, `lesson_recall.generate` and `lesson_recall.check`.** They record the duration, the failure type, the number of sentences and of skipped exercises, the verdict, and the topics of the exercises used right, wrong or not at all. Topic names come from the course, not from the learner. They never record a sentence, an answer, a comment or a corrected sentence. `school` stays without tracing code.
 
 ## Alternatives considered
 
@@ -85,6 +85,7 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 - **Separate guides for generation and the check.** Not chosen. Both need to know what each topic practices, and two files would drift apart.
 - **A lesson recall that changes the schedule.** A pair that the learner translated wrong would be due again today. Not chosen for now. A model verdict would then decide the schedule, and a debatable verdict or a prompt injection in the answer would change it. The spans record the result for each exercise, so this decision can use real data later.
 - **Sonnet 5.5 for generation.** It is about 3 s instead of about 8 s. Not chosen, because it left wrong German and draft sentences in the experiment. A learner who sees a mistake in the task stops trusting the check.
+- **Event isolation for each chat** (aiogram's `RedisEventIsolation`). The handlers of one chat would then run one at a time, and the writes to the FSM data would be safe. Not chosen, because a model call of up to 30 s would then block every other update of the chat, `/wiederholen` too.
 - **Generation in the background while the learner answers the last exercise,** so the sentences are ready at the summary. Not chosen for now. It costs a call for every lesson, used or not, and it needs the same protection of the FSM data as above, but without a state that the learner started.
 - **A lesson recall after every lesson without a button.** Not chosen, because a lesson then takes longer, and a learner who has no time would break the habit of finishing lessons.
 - **A comparison with the reference translation before the model check,** as in #352. Not chosen. The reference can be wrong, and an exact match is rare for a whole sentence, so it saves little.
@@ -98,7 +99,7 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 - A comment can repeat a wrong generalization from an exercise's `explanation`, and about 1 sentence in 20 is unnatural. The author fixes the first in the course and the second in the guide.
 - The learner's text goes to Anthropic. It never goes to traces. The bot doesn't tell the learner about Anthropic yet. This is an open question before the flag is opened to everyone.
 - Only Russian was tested. An English interface needs a run before the flag opens to English chats.
-- A lesson recall costs one generation call (about 1,800 input and 2,000 output tokens with Haiku, plus the guide, which is cached) and one call for each sentence.
+- A lesson recall costs one generation call (about 1,800 input and 2,000 output tokens with Haiku, plus the guide, which is cached when it is long enough for the prompt cache) and one call for each sentence.
 - The learner waits about 8 s for the sentences. If this is too long, the next step is Haiku without thinking, or background generation.
 - A lesson that a learner started before the release has no exercise keys, so its summary has no lesson recall. The new key in the lesson's data is safe for a rollback, because older code reads only the keys that it knows.
 - `docs/configuration.md` says that a learner waits at most about two minutes for an Anthropic error. With the per-request limits this stays true only for `/ai`, and the text must say so.
