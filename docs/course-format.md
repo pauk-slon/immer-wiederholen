@@ -235,14 +235,15 @@ The bot applies the file to its Telegram profile on every start. It ignores lang
 
 The model gets the whole file as text, so write it for the model, in English. The guide holds the method of the course:
 
-- the language that the learner translates into
+- the language of the course, which the learner translates into
 - how to write the task, such as the number of sentences and how many exercises one sentence uses
-- how to write a sentence, such as whether to start from the sentence in the language of the course. Also that a sentence is new, never a copy of an exercise sentence, natural in the learner's language, and without words of the course's language or hints
+- how to write a sentence, for example whether to start from the sentence in the language of the course
+- what a sentence must be: new, never a copy of an exercise sentence, natural in the learner's language, without words of the language of the course and without hints
 - what each topic practices, so the model knows which form a sentence must contain
 - when a translation is correct
 - what the explanation of a wrong translation says, and in which form it addresses the learner
 
-The engine adds the rest. It gives the model the exercises of the lesson, which of them the learner answered wrong, and the learner's language. It also sets the structure of the reply, and it checks only this structure. So the guide doesn't describe the reply or say which language the learner speaks. The engine has no rule about the content of a sentence, so a guide without these rules gets sentences that copy the exercises.
+The engine adds the rest. It gives the model the exercises of the lesson, which of them the learner answered wrong, and the learner's language. It also sets the structure of the reply, and it checks only this structure. So the guide doesn't describe the reply or say which language the learner speaks. The engine has no rule about the content of a sentence. So a guide without a rule against copies can get sentences that copy the exercises.
 
 The guide refers to the topics of the course, so it changes with them. A course without the file has no lesson recall. If the `lesson_recall` feature flag has a chat, the bot doesn't start without the file. The course fails to load if the file is empty. The demo course has a [simple guide](https://github.com/pauk-slon/immer-wiederholen/blob/main/demo/lesson_recall.md).
 
