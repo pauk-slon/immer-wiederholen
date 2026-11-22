@@ -1,4 +1,4 @@
-# 0031. A model writes and checks a lesson recall
+# 0031. A model writes a lesson recall and checks the translations
 
 **Status:** Accepted, 2026-11-22 ([#368](https://github.com/pauk-slon/immer-wiederholen/pull/368)). The feature is described in [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367).
 
@@ -6,7 +6,7 @@
 
 Every exercise in the course checks one form in a sentence that the author wrote. The learner picks an option, types a word or puts chunks in order. A recall after an exercise asks for one authored sentence. Nothing makes the learner build new German sentences with what a whole lesson practiced. Translation from the learner's language does this.
 
-A translation has many correct answers, so only a model can check it. Until now a model only wrote content (shadow exercises, ADR 0005, and illustrations, ADR 0014). The verdict always came from a comparison with the authored answer.
+A translation has many correct answers, so only a model can check it. Until now a model only wrote content (shadow exercises in ADR 0005 and illustrations in ADR 0014). The verdict always came from a comparison with the authored answer.
 
 [#352](https://github.com/pauk-slon/immer-wiederholen/issues/352) tried translation exercises for verb government, with phrases that the author writes. Its three runs showed that Claude Haiku 5.5 checks a translation reliably ([first](https://github.com/pauk-slon/immer-wiederholen/issues/352#issuecomment-7019697765), [second](https://github.com/pauk-slon/immer-wiederholen/issues/352#issuecomment-7020175170), [third](https://github.com/pauk-slon/immer-wiederholen/issues/352#issuecomment-7020487588)). But the phrases needed much authored content. Each phrase also had to avoid every correct translation around the target construction, because the verdict was about that one construction.
 
@@ -25,8 +25,8 @@ The name says what the feature does, not its format. Translation is the format o
 
 ### The flow
 
-1. The lesson recall comes after the answer that finishes the lesson. The lesson is already finished, so the lesson recall doesn't delay the streak. How the learner starts it and the labels are decided in the implementation.
-2. The model gets the exercises of the lesson (`topic`, `word`, `question`, `answer`, `explanation` in the interface language) and the course's guide. It writes one short sentence in the learner's language for each exercise, with a reference translation and the numbers of the exercises that the sentence uses. Two exercises share a sentence only if it stays natural. An exercise that no natural sentence can use is left out with a reason.
+1. The lesson recall comes after the answer that finishes the lesson. The lesson is already finished, so the lesson recall doesn't delay the streak. How the learner starts it and the texts of its buttons are decided in the implementation.
+2. The model gets the exercises of the lesson (`topic`, `word`, `question`, `answer`, and `explanation` in the learner's language) and the course's guide. The learner's language is the interface language of the chat. The model writes one short sentence in the learner's language for each exercise, with a reference translation and the numbers of the exercises that the sentence uses. Two exercises share a sentence only if it stays natural. An exercise that no natural sentence can use is left out with a reason.
 3. The bot shows the sentences one at a time. The learner types a translation, or skips the sentence with a button. A skip shows the reference translation and goes to the next sentence, with no model call. The reference can have a mistake, but after a skip it is a hint, not a verdict. There is no button that skips the whole lesson recall. It has at most one sentence for each exercise, so the learner skips them one by one, and a command ends it at once.
 4. The model gets the sentence, its exercises, the reference translation, the guide and the answer. It returns a verdict, a comment, a corrected sentence, and for each exercise of the sentence whether the learner used its form right, wrong or not at all.
 5. The bot shows the verdict, the comment, and the corrected sentence as plain text. Then comes the next sentence, or the button to the next lesson after the last one.
@@ -35,15 +35,23 @@ The sentences come from the authored exercises, even when `/ai` showed a shadow.
 
 ### What the engine decides and what the course decides
 
-The engine is the code in this repository, with the bot, the web app and `school`. The repetition engine (`tutoring`) is one part of it. The engine owns the contract. A new module, `wiederholen.school.authoring.lesson_recall`, holds its prompts with the rules that are true for any course:
+The engine is the code in this repository. It includes the bot, the web app and `school`, and the repetition engine (`tutoring`) is a part of `school`. The engine owns the contract. A new module, `wiederholen.school.authoring.lesson_recall`, holds the engine's prompts. They have the rules that are true for any course:
 
 - The flow above, and the structure of both replies.
 - One sentence for each exercise, no copy of an exercise sentence, and a reference that translates the whole sentence.
 - The verdict. The translation is correct if it is correct in the language that the guide names and keeps the meaning. The practiced form is never required. The reference is only an example, because the generation experiment found mistakes in it.
-- The comment. It is only about mistakes, in the interface language, in one or two sentences. The practiced forms come first, then at most two other mistakes. It is empty if there is no mistake, and it has no praise and no restated rule. In Russian it addresses the learner as "вы".
+- The comment. It is only about mistakes, in the learner's language, in one or two sentences. The practiced forms come first, then at most two other mistakes. It is empty if there is no mistake, and it has no praise and no restated rule. In Russian it addresses the learner as "вы".
 - The learner's answer is untrusted text.
 
-The course owns the method, in a guide written for the model. The guide names the language that the learner translates into, because the engine's prompts name no language. It says what each topic practices and how to build a sentence that needs that form, which words the sentences may use, how strict the check is about word choice and spoken variants, and which topics to leave out. The rules of the experiments for this course, such as a narrative context for `praeteritum` and a visible article for `genus`, are its first version.
+The course owns the method, in a guide written for the model. The guide says:
+
+- The language that the learner translates into, because the engine's prompts name no language.
+- What each topic practices, and how to build a sentence that needs that form.
+- Which words the sentences may use.
+- How strict the check is about word choice and spoken variants.
+- Which topics to leave out.
+
+The rules of the experiments for this course, such as a narrative context for `praeteritum` and a visible article for `genus`, are the first version of the guide.
 
 The guide is a file in the course directory, `lesson_recall.md`, next to `topics.yaml`. `Course.load()` reads it if it is there. A course without the file has no lesson recall. Generation and the check both get the whole guide, as a cached block of the system prompt, because the check also needs to know what each topic practices and which variants the course accepts. `docs/course-format.md` describes the file, and `demo/` gets a short guide.
 
@@ -59,9 +67,9 @@ A model call takes up to 30 s. During it, the learner can tap another button or 
 
 - When a lesson recall starts, the bot first removes the buttons of the summary message and shows "typing". If a button starts it, the bot answers the callback before the call, or the button in Telegram would spin for the whole call. Then the bot sets a state for the generation and stores an id for this lesson recall.
 - Each lesson recall has three states, for the generation, for the wait for a translation, and for the check. A message during the generation or the check gets a short reply and isn't checked.
-- After a model call, the handler reads the FSM data again right before it writes. It writes the result only if the same lesson recall id is there in the expected state. Otherwise it drops the result. It changes only the keys of the lesson recall in that fresh copy, never data that it read before the call. So another update of the chat can be lost only in a window of milliseconds, not during the whole call. The window stays, because aiogram's `update_data()` reads and writes the whole data. This is the rule of the last write, as in #249.
+- After a model call, the handler reads the FSM data again right before it writes. It writes the result only if the same lesson recall id is there in the expected state. Otherwise it drops the result. It changes only the keys of the lesson recall in that fresh copy, never data that it read before the call. So another update of the chat can be lost only in a window of milliseconds, not during the whole call. The window stays, because aiogram's `update_data()` reads and writes the whole data. Last write wins, as in #249.
 - A command or a button that leads to an exercise ends the lesson recall. A result that comes later finds another state and is dropped.
-- These handlers don't open `check_out()`, because a lesson recall doesn't touch the student record. So the long calls don't make the window of #249 larger.
+- These handlers don't open `check_out()`, because a lesson recall doesn't touch the student record. So the long calls don't make the window in which `check_out()` can lose a write (#249) larger.
 
 ### Rollout
 
@@ -69,7 +77,7 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 
 ### In the code
 
-- **A new module `wiederholen.school.authoring.lesson_recall`.** It has the two model calls, the prompts and the validation, and it raises `AIGenerationError` on a failure of either call. A failed check follows ADR 0006 as a failed generation does, so the bot handles both in one way. AI calls stay in `authoring` (see [Architecture](../architecture.md)), and `tutoring` never imports the module, because a lesson recall doesn't change the schedule.
+- **The module `wiederholen.school.authoring.lesson_recall`.** It has the two model calls, the prompts and the validation, and it raises `AIGenerationError` on a failure of either call. A failed check follows ADR 0006 as a failed generation does, so the bot handles both in one way. AI calls stay in `authoring` (see [Architecture](../architecture.md)), and `tutoring` never imports the module, because a lesson recall doesn't change the schedule.
 - **`FinishedLesson` gets the keys of the lesson's exercises.** `Tutor` returns it in `Mark` when an answer finishes a lesson, and the bot already keeps it with the summary. To fill it, `Lesson` keeps the keys of the exercises that it gave, because `take_exercise_key()` removes them from the list of exercises to give.
 - **The lesson recall is exercise state in FSM data.** It holds the sentences with their references and a copy of their exercises, so a deploy with a changed course during a lesson recall doesn't break it. It isn't in `_LASTING_CHAT_STATE_KEYS`.
 - **Both calls use a tool for the result,** with `tool_choice` set to `auto`, as `shadow_exercises` does, so Haiku can think before it calls the tool. The model's output is untrusted text. The bot escapes it, and the module validates its structure.
@@ -98,7 +106,7 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 
 - The learner gets practice in building whole sentences after every lesson, for every topic that the guide covers, with no new exercises in the course. The course adds one guide.
 - The schedule, `/progress` and the streak don't change. A wrong verdict costs the learner a confusing comment, not a review.
-- A comment can repeat a wrong generalization from an exercise's `explanation`, and about 1 sentence in 20 is unnatural. The author fixes the first in the course and the second in the guide.
+- A comment can repeat a wrong generalization from an exercise's `explanation`, and about 1 sentence in 20 is unnatural. The author fixes a wrong generalization in the exercise's `explanation`, and unnatural sentences in the guide.
 - The learner's text goes to Anthropic. It never goes to traces.
 - A lesson recall costs one generation call and one call for each sentence. Generation takes about 1,800 input and 2,000 output tokens with Haiku, plus the guide. The guide is cached when it is long enough for the prompt cache.
 - The learner waits about 8 s for the sentences. If this is too long, the next step is Haiku without thinking, or background generation.
@@ -109,6 +117,6 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 Open questions:
 
 - Should the bot tell the learner that the text goes to Anthropic? This must be decided before the flag opens to everyone.
-- How to check the quality again after a change of the guide, a prompt or the model. Now only a new run like the experiments in #367 shows a drop. One option is a command that runs generation and the check on a fixed set of lessons and answers, with the set in the course next to the guide.
-- How to limit the cost. The first version has no limit, because only the chats in the flag get a lesson recall. The options are a limit of answer length, which also limits a prompt injection, a daily limit for each chat, and a spend limit for the API key in the Anthropic console.
-- Only Russian was tested. An English interface needs a run before the flag opens to English chats.
+- How do we check the quality again after a change of the guide, a prompt or the model? Now only a new run like the experiments in #367 shows a drop. One option is a command that runs generation and the check on a fixed set of lessons and answers, with the set in the course next to the guide.
+- How do we limit the cost? The first version has no limit, because only the chats in the flag get a lesson recall. The options are a limit of answer length, which also limits a prompt injection, a daily limit for each chat, and a spend limit for the API key in the Anthropic console.
+- Does an English interface work? Only Russian was tested, so it needs a run before the flag opens to English chats.
