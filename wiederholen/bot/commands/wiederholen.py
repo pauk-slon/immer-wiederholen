@@ -72,6 +72,8 @@ _PHOTO_CAPTION_LIMIT: Final = 1024
 # The bot's lessons have 5 exercises (#325). The web app keeps
 # Tutor.LESSON_SIZE of 1, so it has no counter and no summary
 _LESSON_SIZE: Final = 5
+# A smaller lesson gives too few sentences for the wait of a generation
+_MIN_LESSON_RECALL_SIZE: Final = 4
 
 
 class UserState(StatesGroup):
@@ -184,7 +186,19 @@ def _get_finished_lesson(tutor: Tutor, mark: Mark) -> dict | None:
     }
 
 
-def _offers_lesson_recall(
+def _has_lesson_recall(
+    feature_flags: dict[str, frozenset[int]] | None,
+    chat_id: int,
+    lesson_size: int | None,
+) -> bool:
+    return (
+        lesson_size is not None
+        and lesson_size >= _MIN_LESSON_RECALL_SIZE
+        and has_feature(feature_flags or {}, LESSON_RECALL_FLAG, chat_id)
+    )
+
+
+def offers_lesson_recall(
     feature_flags: dict[str, frozenset[int]] | None,
     chat_id: int,
     finished_lesson: dict | None,
@@ -192,7 +206,7 @@ def _offers_lesson_recall(
     return (
         finished_lesson is not None
         and bool(finished_lesson.get("exercise_keys"))
-        and has_feature(feature_flags or {}, LESSON_RECALL_FLAG, chat_id)
+        and _has_lesson_recall(feature_flags, chat_id, finished_lesson["size"])
     )
 
 
@@ -604,12 +618,15 @@ async def handle_answer(
         finished_lesson = _get_finished_lesson(tutor, mark)
         await state.update_data(lesson=lesson, finished_lesson=finished_lesson)
         next_label = _get_next_label(finished_lesson, language)
-        in_lesson_recall_flag = has_feature(
-            feature_flags or {}, LESSON_RECALL_FLAG, message.chat.id
+        lesson_counter = state_data.get("shown_lesson_counter")
+        has_lesson_recall = _has_lesson_recall(
+            feature_flags,
+            message.chat.id,
+            lesson_counter[1] if lesson_counter else None,
         )
         recall_mode = mark.recall
         # Two kinds of recall would confuse the learner
-        if in_lesson_recall_flag and recall_mode == RecallMode.optional:
+        if has_lesson_recall and recall_mode == RecallMode.optional:
             recall_mode = RecallMode.none
         result_line = (
             locale.correct
@@ -631,7 +648,7 @@ async def handle_answer(
         # recall it comes after the recall
         if reply_markup is not None:
             explanation = _append_lesson_summary(explanation, finished_lesson, language)
-            if _offers_lesson_recall(feature_flags, message.chat.id, finished_lesson):
+            if offers_lesson_recall(feature_flags, message.chat.id, finished_lesson):
                 reply_markup = _continue_to_lesson_recall(reply_markup)
         first_reply_markup = (
             ReplyKeyboardRemove() if shown_exercise.distractors else None
@@ -678,7 +695,7 @@ async def handle_recall(
     )
     next_label = _get_next_label(finished_lesson, language)
     locale = LOCALES[language]
-    offers_lesson_recall = _offers_lesson_recall(
+    continues_to_lesson_recall = offers_lesson_recall(
         feature_flags, message.chat.id, finished_lesson
     )
     # check_recall() doesn't change student_record, unlike request_recall()
@@ -695,7 +712,7 @@ async def handle_recall(
             message.text or "",
         ):
             reply_markup = make_next_button(locale, next_label)
-            if offers_lesson_recall:
+            if continues_to_lesson_recall:
                 reply_markup = _continue_to_lesson_recall(reply_markup)
             sent = await message.answer(
                 _append_lesson_summary(
@@ -707,7 +724,7 @@ async def handle_recall(
             reply_markup = _make_recall_buttons(
                 locale, locale.btn_recall_retry, next_label
             )
-            if offers_lesson_recall:
+            if continues_to_lesson_recall:
                 reply_markup = _continue_to_lesson_recall(reply_markup)
             sent = await message.answer(
                 _append_lesson_summary(

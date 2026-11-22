@@ -19,9 +19,9 @@ from wiederholen.bot.commands.wiederholen import (
     NEXT_EXERCISE,
     clear_exercise_state,
     handle_next_exercise,
+    offers_lesson_recall,
     show_typing_while,
 )
-from wiederholen.bot.feature_flags import LESSON_RECALL_FLAG, has_feature
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
@@ -198,18 +198,18 @@ async def handle_start(
     cue_store: CueStore | None = None,
 ) -> None:
     data = await state.get_data()
-    finished_lesson = data.get("finished_lesson") or {}
+    finished_lesson = data.get("finished_lesson")
     exercises_by_key = {exercise.content_key: exercise for exercise in course.exercises}
     exercises = [
         exercises_by_key[key]
-        for key in finished_lesson.get("exercise_keys", [])
+        for key in (finished_lesson or {}).get("exercise_keys", [])
         if key in exercises_by_key
     ]
     message = callback.message
     # The button says "Continue", so without a lesson recall it continues
     if (
         not isinstance(message, Message)
-        or not has_feature(feature_flags or {}, LESSON_RECALL_FLAG, message.chat.id)
+        or not offers_lesson_recall(feature_flags, message.chat.id, finished_lesson)
         or not exercises
     ):
         await handle_next_exercise(
@@ -232,6 +232,7 @@ async def handle_start(
     lesson_recall_id = uuid.uuid4().hex
     await state.update_data({_ID_KEY: lesson_recall_id})
     await _start_waiting(state, LessonRecallState.generating)
+    assert finished_lesson is not None
     wrong_exercise_keys = frozenset(finished_lesson.get("wrong_exercise_keys", []))
     with default_tracer.start_as_current_span(
         "lesson_recall.generate",

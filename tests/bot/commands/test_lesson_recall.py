@@ -30,7 +30,10 @@ from wiederholen.school import (
 GUIDE = "Write two sentences."
 WARTEN = make_exercise(word="warten", answer="auf")
 HOFFEN = make_exercise(word="hoffen", answer="auf")
-COURSE = Course([WARTEN, HOFFEN], lesson_recall_guide=GUIDE)
+DENKEN = make_exercise(word="denken", answer="an", distractors=["auf", "für", "um"])
+ACHTEN = make_exercise(word="achten", answer="auf")
+COURSE = Course([WARTEN, HOFFEN, DENKEN, ACHTEN], lesson_recall_guide=GUIDE)
+WORDS = ("warten", "hoffen", "denken", "achten")
 
 
 def _lesson_recall(*texts: str, language: Any = "ru") -> LessonRecall:
@@ -98,16 +101,30 @@ async def _shown_exercise(state: FSMContext) -> Exercise:
     return Exercise.from_dict((await state.get_data())["shown_exercise"])
 
 
-async def _finish_lesson(send: Any, state: FSMContext, **kwargs) -> list[Any]:
-    # The first answer is wrong, the second is right
+async def _answer_lesson(
+    send: Any, state: FSMContext, rights: list[bool], **kwargs
+) -> list[Any]:
     await send.message("/wiederholen", **kwargs)
-    first = await _shown_exercise(state)
-    await send.message("falsch", **kwargs)
-    await send.callback(NEXT_EXERCISE, **kwargs)
-    second = await _shown_exercise(state)
-    requests = await send.message(second.answer[0], **kwargs)
-    assert {first.word, second.word} == {"warten", "hoffen"}
+    requests: list[Any] = []
+    for index, right in enumerate(rights):
+        if index > 0:
+            await send.callback(NEXT_EXERCISE, **kwargs)
+        exercise = await _shown_exercise(state)
+        requests = await send.message(
+            exercise.answer[0] if right else "falsch", **kwargs
+        )
     return requests
+
+
+async def _finish_lesson(send: Any, state: FSMContext, **kwargs) -> list[Any]:
+    return await _answer_lesson(send, state, [False, True, True, True], **kwargs)
+
+
+def _course_with_recalls(words: tuple[str, ...] = WORDS) -> Course:
+    return Course(
+        [make_exercise(word=word, recalls=True) for word in words],
+        lesson_recall_guide=GUIDE,
+    )
 
 
 def _sent(requests: list[Any]) -> list[SendMessage]:
@@ -134,7 +151,7 @@ async def test_continue_after_the_summary_starts_a_lesson_recall(
     requests = await _finish_lesson(send, state)
 
     summary = _sent(requests)[-1]
-    assert summary.text is not None and "Верно: 1 из 2" in summary.text
+    assert summary.text is not None and "Верно: 3 из 4" in summary.text
     assert _buttons(summary) == [(RU.btn_continue, LESSON_RECALL)]
 
 
@@ -149,25 +166,31 @@ async def test_a_chat_outside_the_flag_gets_no_lesson_recall(
 async def test_a_chat_in_the_flag_gets_no_optional_recall(
     send: Any, state: FSMContext
 ) -> None:
-    exercise = make_exercise(recalls=True)
+    requests = await _answer_lesson(send, state, [True], course=_course_with_recalls())
 
-    await send.message("/wiederholen", course=Course([exercise]))
-    requests = await send.message(exercise.answer[0], course=Course([exercise]))
+    assert _buttons(_sent(requests)[-1]) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
 
-    assert RECALL not in [data for _, data in _buttons(_sent(requests)[-1])]
+
+async def test_a_lesson_of_three_exercises_has_no_lesson_recall(
+    send: Any, state: FSMContext
+) -> None:
+    course = _course_with_recalls(WORDS[:3])
+
+    first = await _answer_lesson(send, state, [True], course=course)
+    await send.callback(NEXT_EXERCISE, course=course)
+    await send.message((await _shown_exercise(state)).answer[0], course=course)
+    await send.callback(NEXT_EXERCISE, course=course)
+    last = await send.message((await _shown_exercise(state)).answer[0], course=course)
+
+    assert RECALL in [data for _, data in _buttons(_sent(first)[-1])]
+    assert (RU.btn_continue, NEXT_EXERCISE) in _buttons(_sent(last)[-1])
 
 
 async def test_continue_after_a_wrong_required_recall_starts_a_lesson_recall(
     send: Any, state: FSMContext
 ) -> None:
-    course = Course(
-        [make_exercise(word=word, recalls=True) for word in ("warten", "hoffen")],
-        lesson_recall_guide=GUIDE,
-    )
-    await send.message("/wiederholen", course=course)
-    await send.message((await _shown_exercise(state)).answer[0], course=course)
-    await send.callback(NEXT_EXERCISE, course=course)
-    await send.message("falsch", course=course)
+    course = _course_with_recalls()
+    await _answer_lesson(send, state, [True, True, True, False], course=course)
 
     requests = await send.message("falsch", course=course)
 
@@ -180,14 +203,8 @@ async def test_continue_after_a_wrong_required_recall_starts_a_lesson_recall(
 async def test_continue_after_a_right_required_recall_starts_a_lesson_recall(
     send: Any, state: FSMContext
 ) -> None:
-    course = Course(
-        [make_exercise(word=word, recalls=True) for word in ("warten", "hoffen")],
-        lesson_recall_guide=GUIDE,
-    )
-    await send.message("/wiederholen", course=course)
-    await send.message((await _shown_exercise(state)).answer[0], course=course)
-    await send.callback(NEXT_EXERCISE, course=course)
-    await send.message("falsch", course=course)
+    course = _course_with_recalls()
+    await _answer_lesson(send, state, [True, True, True, False], course=course)
     recall = (await state.get_data())["shown_recall"]
 
     requests = await send.message(recall["answer"][0], course=course)
@@ -608,7 +625,7 @@ async def test_the_spans_record_the_generation_and_the_check(
     generation, verdict, failure = exporter.get_finished_spans()
     assert generation.name == "lesson_recall.generate"
     assert dict(generation.attributes or {}) == {
-        "lesson_recall.exercises": 2,
+        "lesson_recall.exercises": 4,
         "lesson_recall.wrong_exercises": 1,
         "lesson_recall.sentences": 2,
     }
