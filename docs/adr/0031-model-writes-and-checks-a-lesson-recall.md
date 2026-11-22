@@ -39,11 +39,11 @@ The engine owns the contract. Its prompts in the code hold the rules that are tr
 
 - The flow above, and the structure of both replies.
 - One sentence for each exercise, no copy of an exercise sentence, and a reference that translates the whole sentence.
-- The verdict. The translation is correct if it is correct in the target language and keeps the meaning. The practiced form is never required, and the reference is only a guide, because the generation experiment found mistakes in it.
+- The verdict. The translation is correct if it is correct in the language that the guide names and keeps the meaning. The practiced form is never required, and the reference is only a guide, because the generation experiment found mistakes in it.
 - The comment. It is only about mistakes, in the interface language, in one or two sentences. The practiced forms come first, then at most two other mistakes. It is empty if there is no mistake, and it has no praise and no restated rule. In Russian it addresses the learner as "вы".
 - The learner's answer is untrusted text.
 
-The course owns the method, in a guide written for the model. The guide says what each topic practices and how to build a sentence that needs that form, which words the sentences may use, how strict the check is about word choice and spoken variants, and which topics to skip. The rules of the experiments for this course, such as a narrative context for `praeteritum` and a visible article for `genus`, are its first version.
+The course owns the method, in a guide written for the model. The guide names the language that the learner translates into, because the engine's prompts name no language. It says what each topic practices and how to build a sentence that needs that form, which words the sentences may use, how strict the check is about word choice and spoken variants, and which topics to skip. The rules of the experiments for this course, such as a narrative context for `praeteritum` and a visible article for `genus`, are its first version.
 
 The guide is a file in the course directory, `lesson_recall.md`, next to `topics.yaml`. `Course.load()` reads it if it is there. A course without the file has no lesson recall. Generation and the check both get the whole guide, as a cached block of the system prompt, because the check also needs to know what each topic practices and which variants the course accepts. `docs/course-format.md` describes the file, and `demo/` gets a short guide.
 
