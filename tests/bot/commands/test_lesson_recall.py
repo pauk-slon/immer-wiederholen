@@ -158,7 +158,7 @@ async def test_a_chat_in_the_flag_gets_no_optional_recall(
     assert RECALL not in [data for _, data in _buttons(_sent(requests)[-1])]
 
 
-async def test_the_summary_after_a_required_recall_offers_a_lesson_recall(
+async def test_the_summary_after_a_wrong_required_recall_offers_a_lesson_recall(
     send: Any, state: FSMContext
 ) -> None:
     course = Course(
@@ -173,6 +173,27 @@ async def test_the_summary_after_a_required_recall_offers_a_lesson_recall(
     requests = await send.message("falsch", course=course)
 
     assert (RU.btn_lesson_recall, LESSON_RECALL) in _buttons(_sent(requests)[-1])
+
+
+async def test_a_right_required_recall_offers_a_lesson_recall(
+    send: Any, state: FSMContext
+) -> None:
+    course = Course(
+        [make_exercise(word=word, recalls=True) for word in ("warten", "hoffen")],
+        lesson_recall_guide=GUIDE,
+    )
+    await send.message("/wiederholen", course=course)
+    await send.message((await _shown_exercise(state)).answer[0], course=course)
+    await send.callback(NEXT_EXERCISE, course=course)
+    await send.message("falsch", course=course)
+    recall = (await state.get_data())["shown_recall"]
+
+    requests = await send.message(recall["answer"][0], course=course)
+
+    assert _buttons(_sent(requests)[-1]) == [
+        (RU.btn_lesson_recall, LESSON_RECALL),
+        (RU.btn_continue, NEXT_EXERCISE),
+    ]
 
 
 async def test_the_start_sends_the_lesson_and_shows_the_first_sentence(
@@ -351,12 +372,39 @@ async def test_a_skip_shows_the_reference_without_a_model_call(
     assert sentence.text == "2/2 ✍️ Переведите:\nВторая фраза."
 
 
+async def test_a_skip_on_an_inaccessible_message_does_nothing(
+    send: Any,
+    state: FSMContext,
+    generate: AsyncMock,
+    feed_raw_update: FeedRawUpdate,
+    telegram_user_id: int,
+) -> None:
+    await _start(send, state)
+
+    requests = await feed_raw_update(
+        {
+            "update_id": 4,
+            "callback_query": {
+                "id": "x",
+                "from": {"id": telegram_user_id, "is_bot": False, "first_name": "T"},
+                "chat_instance": "1",
+                "data": SKIP,
+            },
+        },
+        course=COURSE,
+    )
+
+    assert _sent(requests) == []
+    assert (await state.get_data())["lesson_recall_position"] == 0
+
+
 @pytest.mark.parametrize(
     "waiting", [LessonRecallState.generating, LessonRecallState.checking]
 )
 async def test_a_message_while_the_model_works_gets_a_short_reply(
-    send: Any, state: FSMContext, check: AsyncMock, waiting: Any
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock, waiting: Any
 ) -> None:
+    await _start(send, state)
     await state.set_state(waiting)
     await state.update_data(lesson_recall_waiting_since=time.time() - 10)
 
@@ -411,6 +459,22 @@ async def test_a_check_result_is_dropped_if_the_sentence_changed(
         return TranslationCheck(is_correct=True, explanation=None)
 
     check.side_effect = second_message_moves_on
+
+    requests = await send.message("Wir warten.")
+
+    assert _sent(requests) == []
+
+
+async def test_a_check_result_is_dropped_if_the_chat_moved_on(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+
+    async def move_on(*args, **kwargs) -> TranslationCheck:
+        await state.set_state(None)
+        return TranslationCheck(is_correct=True, explanation=None)
+
+    check.side_effect = move_on
 
     requests = await send.message("Wir warten.")
 
@@ -486,6 +550,19 @@ async def test_wiederholen_ends_the_lesson_recall(
     assert await state.get_state() == "UserState:answering"
 
 
+async def test_a_wait_reply_uses_the_language_of_the_start(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    generate.return_value = _lesson_recall("Sentence one.", "Two.", language="en")
+    await _start(send, state)
+    await state.set_state(LessonRecallState.checking)
+    await state.update_data(lesson_recall_waiting_since=time.time() - 10)
+
+    requests = await send.message("Hallo?")
+
+    assert [r.text for r in _sent(requests)] == ["⏳ One moment, I'm still thinking…"]
+
+
 async def test_the_check_uses_the_language_of_the_start(
     send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
 ) -> None:
@@ -539,66 +616,3 @@ async def test_a_skip_is_recorded_on_the_update_span(
     mock_trace.get_current_span.return_value.set_attribute.assert_called_once_with(
         "lesson_recall.skipped", True
     )
-
-
-async def test_a_check_result_is_dropped_if_the_chat_moved_on(
-    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
-) -> None:
-    await _start(send, state)
-
-    async def move_on(*args, **kwargs) -> TranslationCheck:
-        await state.set_state(None)
-        return TranslationCheck(is_correct=True, explanation=None)
-
-    check.side_effect = move_on
-
-    requests = await send.message("Wir warten.")
-
-    assert _sent(requests) == []
-
-
-async def test_a_skip_on_an_inaccessible_message_does_nothing(
-    send: Any,
-    state: FSMContext,
-    generate: AsyncMock,
-    feed_raw_update: FeedRawUpdate,
-    telegram_user_id: int,
-) -> None:
-    await _start(send, state)
-
-    requests = await feed_raw_update(
-        {
-            "update_id": 4,
-            "callback_query": {
-                "id": "x",
-                "from": {"id": telegram_user_id, "is_bot": False, "first_name": "T"},
-                "chat_instance": "1",
-                "data": SKIP,
-            },
-        },
-        course=COURSE,
-    )
-
-    assert _sent(requests) == []
-    assert (await state.get_data())["lesson_recall_position"] == 0
-
-
-async def test_a_right_required_recall_offers_a_lesson_recall(
-    send: Any, state: FSMContext
-) -> None:
-    course = Course(
-        [make_exercise(word=word, recalls=True) for word in ("warten", "hoffen")],
-        lesson_recall_guide=GUIDE,
-    )
-    await send.message("/wiederholen", course=course)
-    await send.message((await _shown_exercise(state)).answer[0], course=course)
-    await send.callback(NEXT_EXERCISE, course=course)
-    await send.message("falsch", course=course)
-    recall = (await state.get_data())["shown_recall"]
-
-    requests = await send.message(recall["answer"][0], course=course)
-
-    assert _buttons(_sent(requests)[-1]) == [
-        (RU.btn_lesson_recall, LESSON_RECALL),
-        (RU.btn_continue, NEXT_EXERCISE),
-    ]

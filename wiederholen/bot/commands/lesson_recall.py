@@ -84,6 +84,10 @@ def _require_setup(
     return anthropic_client, course.lesson_recall_guide
 
 
+def _lesson_recall_locale(data: dict) -> Locale:
+    return LOCALES[LessonRecall.from_dict(data[_LESSON_RECALL_KEY]).language]
+
+
 async def _start_waiting(state: FSMContext, waiting: State) -> None:
     await state.set_state(waiting)
     await state.update_data({_WAITING_SINCE_KEY: time.time()})
@@ -166,8 +170,8 @@ async def _go_to_next_sentence(
     lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
     position = data[_POSITION_KEY] + 1
     if position < len(lesson_recall.sentences):
-        await state.set_state(LessonRecallState.translating)
         await state.update_data({_POSITION_KEY: position, _ANSWER_KEY: None})
+        await state.set_state(LessonRecallState.translating)
         await _send_sentence(message, state, locale)
         return
     await clear_exercise_state(state, data)
@@ -242,10 +246,10 @@ async def handle_start(
     if lesson_recall is None:
         await _offer_generation_retry(message, state, locale)
         return
-    await state.set_state(LessonRecallState.translating)
     await state.update_data(
         {_LESSON_RECALL_KEY: lesson_recall.to_dict(), _POSITION_KEY: 0}
     )
+    await state.set_state(LessonRecallState.translating)
     await _send_sentence(message, state, locale)
 
 
@@ -335,7 +339,7 @@ async def handle_skip(callback: CallbackQuery, state: FSMContext) -> None:
     trace.get_current_span().set_attribute("lesson_recall.skipped", True)
     data = await state.get_data()
     lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
-    locale = LOCALES[lesson_recall.language]
+    locale = _lesson_recall_locale(data)
     reference = lesson_recall.sentences[data[_POSITION_KEY]].reference
     await message.edit_reply_markup(reply_markup=None)
     await forget_buttoned_message(state)
@@ -347,16 +351,14 @@ async def handle_skip(callback: CallbackQuery, state: FSMContext) -> None:
 @router.message(LessonRecallState.translating, ~F.text.startswith("/"))
 async def handle_not_text(message: Message, state: FSMContext) -> None:
     await clear_stale_buttons(message.bot, message.chat.id, state)
-    data = await state.get_data()
-    locale = LOCALES[LessonRecall.from_dict(data[_LESSON_RECALL_KEY]).language]
-    await _send_sentence(message, state, locale)
+    await _send_sentence(message, state, _lesson_recall_locale(await state.get_data()))
 
 
 @router.callback_query(LessonRecallState.checking, F.data.in_({SKIP, RESEND}))
 async def handle_button_while_checking(
     callback: CallbackQuery, state: FSMContext
 ) -> None:
-    locale = LOCALES[get_language(await state.get_data())]
+    locale = _lesson_recall_locale(await state.get_data())
     await callback.answer(locale.lesson_recall_wait)
 
 
@@ -369,12 +371,14 @@ async def handle_old_button(callback: CallbackQuery) -> None:
 @router.message(LessonRecallState.checking, ~F.text.startswith("/"))
 async def handle_while_waiting(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
-    waiting_since = data.get(_WAITING_SINCE_KEY, 0.0)
-    if time.time() - waiting_since < _LOST_WAIT_SECONDS:
-        await message.answer(LOCALES[get_language(data)].lesson_recall_wait)
-        return
-    if await state.get_state() == LessonRecallState.generating.state:
-        await _offer_generation_retry(message, state, LOCALES[get_language(data)])
-        return
-    lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
-    await _offer_check_retry(message, state, LOCALES[lesson_recall.language])
+    is_generating = await state.get_state() == LessonRecallState.generating.state
+    # There is no lesson recall yet to take the language from
+    locale = (
+        LOCALES[get_language(data)] if is_generating else _lesson_recall_locale(data)
+    )
+    if time.time() - data.get(_WAITING_SINCE_KEY, 0.0) < _LOST_WAIT_SECONDS:
+        await message.answer(locale.lesson_recall_wait)
+    elif is_generating:
+        await _offer_generation_retry(message, state, locale)
+    else:
+        await _offer_check_retry(message, state, locale)
