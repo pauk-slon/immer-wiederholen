@@ -9,13 +9,15 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 | Command | Module | What it does |
 |---|---|---|
 | `/start` | `start` | greets the learner, with a "Next exercise" button. A deep link can set the language and the topic groups of a new chat, a chat that has no FSM data yet. See [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md) for the language (`t.me/<bot>?start=en`) and [Topic groups from a link](#topic-groups-from-a-link) for the groups |
-| `/wiederholen` | `wiederholen` | shows the next exercise, or the current one again if it has no answer yet. The same module handles answers, recalls and the "next" and "study more" buttons. `lesson_recall` handles the [lesson recall](#lesson-recall) after a lesson |
+| `/wiederholen` | `wiederholen` | shows the next exercise, or the current one again if it has no answer yet. The same module handles answers, recalls and the "next" and "study more" buttons |
 | `/progress` | `progress` | shows today's counts (due, new, answered), how many words the learner is learning or has mastered and, if there is one, the streak (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
 | `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
 | `/language` | `language` | switches between Russian and English and confirms the new language |
 | `/reset` | `reset` | deletes the learner's schedule and today's answer counts after a confirmation. The streak stays |
 | `/ai` | `ai` | switches the chat to exercises that an LLM rewrites, for topics with `ai_generation`. Only chats with the `ai_exercises` [feature flag](#feature-flags) have it (see [AI-generated content](authoring.md#shadow-exercises)) |
+
+`lesson_recall` has no command. It handles the [lesson recall](#lesson-recall) after a lesson.
 
 [`l10n.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/l10n.py) has the bot's texts in both languages.
 
@@ -96,13 +98,17 @@ A lesson is shorter when fewer exercises are available, for example at the end o
 
 ## Lesson recall
 
-A lesson recall is a short translation task after a lesson (see [ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md) and [AI-generated content](authoring.md#lesson-recalls)). Only chats with the `lesson_recall` [feature flag](#feature-flags) get it. The handlers are in [`commands/lesson_recall.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/commands/lesson_recall.py).
+A lesson recall is a short translation task after a lesson (see [ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md)). [AI-generated content](authoring.md#lesson-recalls) describes the model calls. Only chats with the `lesson_recall` [feature flag](#feature-flags) get it. The handlers are in [`commands/lesson_recall.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/commands/lesson_recall.py).
 
-**The start.** The lesson summary gets a "Translate sentences" ("Перевести фразы") button above "Continue". The summary comes after the last answer, or after the recall result when the last answer needed a recall, so both places can have the button. `finished_lesson` keeps the keys of the exercises of the lesson and of the wrong answers. The button needs these keys, so a lesson that started before them gets no button. A chat in the flag gets no optional recall after a right answer, because two kinds of recall would confuse the learner. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
+### The start
 
-A tap removes the summary buttons and starts the generation with a typing indicator. The bot takes the exercises from the course by their keys, so it uses the authored exercises, also after `/ai` showed shadows. It skips keys that the course no longer has, and without keys the button does nothing. The language of the lesson recall is the interface language at the start. It is stored with the sentences, so `/language` doesn't change the check.
+The lesson summary gets a "Translate sentences" button above "Continue". The summary comes after the last answer, or after the recall result when the last answer needed a recall, so both places can have the button. A chat in the flag gets no optional recall after a right answer, because two kinds of recall would confuse the learner. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
-**The states.** `LessonRecallState` has three states:
+A tap removes the summary buttons and starts the generation with a typing indicator. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys, so it uses the authored exercises, also after `/ai` showed shadows. It skips keys that the course no longer has, and without keys the button does nothing. The sentences are in the interface language at the start.
+
+### The states
+
+`LessonRecallState` has three states:
 
 | State | What happens | A message from the learner |
 |---|---|---|
@@ -110,15 +116,35 @@ A tap removes the summary buttons and starts the generation with a typing indica
 | `translating` | the bot shows a sentence, "1/3 ✍️ Translate: …", with a "Skip" button | is the translation. A message without text shows the sentence again |
 | `checking` | the model checks the translation | gets "One moment, I'm still thinking…" |
 
-After a check, the bot shows the verdict and the explanation, and after a wrong translation also the reference. Then the next sentence comes. "Skip" shows the reference and goes on without a model call. After the last sentence, the bot clears the exercise state and shows "Continue". There is no skip for the whole lesson recall. A command ends it, for example `/wiederholen`, or a button that leads to an exercise, because these change the FSM state. The model's texts go out as plain text, without `parse_mode`.
+After a check, the bot shows the verdict and the explanation, and after a wrong translation also the reference. Then the next sentence comes. "Skip" shows the reference and goes on without a model call. After the last sentence, the bot clears the exercise state and shows "Continue".
 
-**The data.** The keys are exercise state, so the end of an exercise removes them. `lesson_recall_id` is a new id for each start, `lesson_recall` is `LessonRecall.to_dict()`, `lesson_recall_position` is the current sentence, `lesson_recall_answer` is the last translation, and `lesson_recall_waiting_since` is the start of the current model call. The handlers don't open `check_out()`, because a lesson recall doesn't change the learning state.
+There is no skip for the whole lesson recall. `/wiederholen` and the buttons that show an exercise end it. Other commands, such as `/progress`, leave it as it is.
 
-**Model calls don't block the chat.** After a call, the handler reads the FSM data again. It continues only if the same `lesson_recall_id` is there, the state is the one that it set before the call, and after a check the sentence is the same. Otherwise a command, a button or a second message moved the chat on during the call, and the result is dropped. A button tap during a check gets "One moment, I'm still thinking…" as a short notice.
+The model's texts go out as plain text, without `parse_mode`, so they need no `html.escape()` (see [Showing an exercise](#showing-an-exercise)).
 
-**Failures.** A failed generation shows an error message with "Try again" and "Continue", and `finished_lesson` stays, so the learner can start again. After a failed check, the answer stays in `lesson_recall_answer`, and "Send again" checks it again. The learner can also type a new translation or skip the sentence.
+### The data
 
-A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. It shows the same buttons as after a failed generation or a failed check.
+All keys are exercise state (see [Chat state](storage.md#chat-state)). The bot removes them at the end of the lesson recall or with the next answer.
+
+| Key | What it holds |
+|---|---|
+| `lesson_recall_id` | a new id for each start |
+| `lesson_recall` | the sentences, the exercises and the language, from `LessonRecall.to_dict()` |
+| `lesson_recall_position` | the number of the current sentence |
+| `lesson_recall_answer` | the last translation, for "Send again" |
+| `lesson_recall_waiting_since` | the start of the current model call |
+
+The handlers don't open `check_out()`, because a lesson recall doesn't change the learning state.
+
+### Late results
+
+After a model call, the handler reads the FSM data again. It continues only if the same `lesson_recall_id` is there, the state is the one that it set before the call, and after a check the sentence is the same. Otherwise a command, a button or a second message moved the chat on during the call, and the bot drops the result. A button tap during a check gets "One moment, I'm still thinking…" as a short notice.
+
+### Failures
+
+A failed generation shows an error message with "Try again" and "Continue". `finished_lesson` stays, so the learner can start again. After a failed check, the answer stays in `lesson_recall_answer`, and "Send again" checks it again. The learner can also type a new translation or skip the sentence.
+
+A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same buttons as after a failed generation or a failed check.
 
 ## Chat settings
 
@@ -219,7 +245,7 @@ When you edit the text of a message, pass `reply_markup=` explicitly, with a new
 
 [`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) enables a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#ai-generated-questions) describes its format.
 
-At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, "ai_exercises", chat_id)`. There are two flags, `ai_exercises` for `/ai` and `lesson_recall` for the [lesson recall](#lesson-recall) (see [Configuration](configuration.md#ai-generated-questions)). If `lesson_recall` has a chat but `ANTHROPIC_API_KEY` or the course's guide is missing, `check_lesson_recall_config()` stops the bot at startup. The reminder worker and the web app don't check it. The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
+At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, "ai_exercises", chat_id)`. There are two flags, `ai_exercises` for `/ai` and `lesson_recall` for the [lesson recall](#lesson-recall) (see [Configuration](configuration.md#ai-generated-questions)). `check_lesson_recall_config()` checks at startup what `lesson_recall` needs (see [Configuration](configuration.md#ai-generated-questions)). The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
 
 The flags have no storage and no admin command. To change a flag, edit the variable and restart the bot. This is enough for a few test chats. The flags stay in the bot layer, and `wiederholen.school` never sees a chat id or a flag name.
 
