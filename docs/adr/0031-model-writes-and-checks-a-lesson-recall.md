@@ -55,7 +55,7 @@ The course owns the method, in a guide written for the model. The guide says:
 
 The rules of the experiments for this course, such as a narrative context for `praeteritum` and a visible article for `genus`, are the first version of the guide.
 
-The guide is a file in the course directory, `lesson_recall.md`, next to `topics.yaml`. `Course.load()` reads it if it is there. A course without the file has no lesson recall. Generation and the check both get the whole guide, as a cached block of the system prompt, because the check also needs to know what each topic practices and which variants the course accepts. `docs/course-format.md` describes the file, and `demo/` gets a short guide.
+The guide is a file in the course directory, `lesson_recall.md`, next to `topics.yaml`. `Course.load()` reads it if it is there. A course without the file can't have lesson recalls, and the bot checks this at startup (see Rollout). Generation and the check both get the whole guide, as a cached block of the system prompt, because the check also needs to know what each topic practices and which variants the course accepts. `docs/course-format.md` describes the file, and `demo/` gets a short guide.
 
 ### Validation and failures
 
@@ -75,7 +75,9 @@ A model call takes up to 30 s. During it, the learner can tap another button or 
 
 ### Rollout
 
-A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new feature flag, `lesson_recall`. A chat without the flag gets no lesson recall. The web app doesn't get the lesson recall yet, because its lessons have one exercise ([#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
+A new feature flag, `lesson_recall`, turns lesson recalls on for its chats. A chat without the flag gets no lesson recall. If the flag has a chat but `ANTHROPIC_API_KEY` is missing or the course has no guide, the bot fails at startup. A configuration error then shows at once, not as a feature that silently doesn't work. So a chat in the flag always has lesson recalls.
+
+A chat in the flag doesn't get the optional recall after a correct answer. A lesson recall takes its role, and two kinds of recall with similar buttons would confuse the learner. The required recall after a wrong answer stays, because it corrects that mistake at once, and a lesson recall may not use that exercise at all. `Tutor` still returns `RecallMode.optional`, and the bot doesn't show it, so the flag stays in the bot layer. Chats in the flag and chats without it can then be compared in the traces, which helps a later decision to replace the recalls of single exercises. The web app doesn't get the lesson recall yet, because its lessons have one exercise ([#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
 
 ### In the code
 
@@ -104,6 +106,8 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 - **The changes in the corrected sentence marked by `answer_diff`,** as after a wrong recall. Not chosen. In an exercise the marks are the only explanation, but here the comment names each mistake and its fix. `answer_diff` compares a short answer by the rules of the exercise check, without case and end punctuation, and these rules are wrong for a whole German sentence. It compares strings, so word order or a spoken variant would get marks where the model sees no mistake. Marks can come later if learners miss them.
 - **Show the reference translation instead of a corrected sentence.** Not chosen. A corrected version of the learner's own sentence shows the mistake. A different correct sentence makes the learner compare two translations.
 - **A lesson recall that changes the schedule.** A pair that the learner translated wrong would be due again today. Not chosen for now. A model verdict would then decide the schedule, and a debatable verdict or a prompt injection in the answer would change it. The spans record the topics by result, so this decision can use real data later.
+- **No lesson recall, without an error, when the key or the guide is missing.** Not chosen. A silent fallback hides a configuration error, and the learner in the flag would lose the optional recall and get no lesson recall either. `/ai` shows an error at each exercise in this case. A check at startup finds the error earlier.
+- **Hide the optional recall only on the last exercise of a lesson,** next to the summary. Not chosen, because the learner would still see two kinds of recall in one lesson.
 - **A lesson recall in the web app after every few answers.** Not chosen for now. The web app has no lesson summary to put it in, and the web widget is small.
 
 ## Consequences
