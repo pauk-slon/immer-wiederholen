@@ -33,9 +33,9 @@ The name says what the feature does, not its format. Translation is the format o
 
 The sentences come from the authored exercises, even when `/ai` showed a shadow. A shadow keeps the word, the topic and the answer of its original (ADR 0005), so it practiced the same thing.
 
-### What the code decides and what the course decides
+### What the engine decides and what the course decides
 
-The code owns the contract. The prompts in the module hold the rules that are true for any course:
+The engine is the code in this repository: the bot, the web app and `school`. The repetition engine (`tutoring`) is one part of it. The engine owns the contract. A new module, `wiederholen.school.authoring.lesson_recall`, holds its prompts with the rules that are true for any course:
 
 - The flow above, and the structure of both replies.
 - One sentence for each exercise, no copy of an exercise sentence, and a reference that translates the whole sentence.
@@ -43,7 +43,7 @@ The code owns the contract. The prompts in the module hold the rules that are tr
 - The comment. It is only about mistakes, in the interface language, in one or two sentences. The practiced forms come first, then at most two other mistakes. It is empty if there is no mistake, and it has no praise and no restated rule. In Russian it addresses the learner as "вы".
 - The learner's answer is untrusted text.
 
-The course owns the method, in a guide written for the model. The guide names the language that the learner translates into, because the prompts in the code name no language. It says what each topic practices and how to build a sentence that needs that form, which words the sentences may use, how strict the check is about word choice and spoken variants, and which topics to leave out. The rules of the experiments for this course, such as a narrative context for `praeteritum` and a visible article for `genus`, are its first version.
+The course owns the method, in a guide written for the model. The guide names the language that the learner translates into, because the engine's prompts name no language. It says what each topic practices and how to build a sentence that needs that form, which words the sentences may use, how strict the check is about word choice and spoken variants, and which topics to leave out. The rules of the experiments for this course, such as a narrative context for `praeteritum` and a visible article for `genus`, are its first version.
 
 The guide is a file in the course directory, `lesson_recall.md`, next to `topics.yaml`. `Course.load()` reads it if it is there. A course without the file has no lesson recall. Generation and the check both get the whole guide, as a cached block of the system prompt, because the check also needs to know what each topic practices and which variants the course accepts. `docs/course-format.md` describes the file, and `demo/` gets a short guide.
 
@@ -81,7 +81,7 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 
 - **Translation exercises with phrases that the author writes,** as in #352 and its closed ADR draft ([#361](https://github.com/pauk-slon/immer-wiederholen/pull/361)). Not chosen. Each pair needs several phrases with references in two languages, and each phrase must avoid any correct translation around the target construction. A generated lesson recall needs no authored phrases and covers every topic.
 - **A name after the format,** such as "translation task" or "prose translation". Not chosen, because the format can change while the role stays the same.
-- **All rules in the module's prompts.** Not chosen. The rules for each topic name the topics of one course and its language, and the code doesn't depend on a course.
+- **All rules in the engine's prompts.** Not chosen. The rules for each topic name the topics of one course and its language, and the engine works with any course.
 - **The guide in an environment variable, as `AUTHORING_GUIDE_PATH` for `/ai`.** Not chosen. The guide refers to the course's topics, so it belongs to the course and changes, deploys and rolls back with it. `AUTHORING_GUIDE_PATH` points to a guide for human authors that isn't part of the course.
 - **Separate guides for generation and the check.** Not chosen. Both need to know what each topic practices, and two files would drift apart.
 - **Sonnet 5.5 for generation.** It is about 3 s instead of about 8 s. Not chosen, because it left wrong German and draft sentences in the experiment. A learner who sees a mistake in the task stops trusting the check.
