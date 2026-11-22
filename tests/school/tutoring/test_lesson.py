@@ -449,6 +449,7 @@ def test_a_wrong_answer_to_a_shadow_exercise_marks_the_authored_one() -> None:
     lesson = _started_lesson(warten)
     tutor = Tutor(Course([warten]), {}, lesson=lesson)
     shadow = dataclasses.replace(_next(tutor), question="Ich warte ___ den Bus.")
+    assert shadow.content_key != warten.content_key
 
     mark = tutor.check_answer(shadow, "nonsense")
 
