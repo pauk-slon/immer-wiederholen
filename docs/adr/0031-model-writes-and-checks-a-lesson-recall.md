@@ -35,7 +35,7 @@ The sentences come from the authored exercises, even when `/ai` showed a shadow.
 
 ### What the engine decides and what the course decides
 
-The engine is the code in this repository: the bot, the web app and `school`. The repetition engine (`tutoring`) is one part of it. The engine owns the contract. A new module, `wiederholen.school.authoring.lesson_recall`, holds its prompts with the rules that are true for any course:
+The engine is the code in this repository, with the bot, the web app and `school`. The repetition engine (`tutoring`) is one part of it. The engine owns the contract. A new module, `wiederholen.school.authoring.lesson_recall`, holds its prompts with the rules that are true for any course:
 
 - The flow above, and the structure of both replies.
 - One sentence for each exercise, no copy of an exercise sentence, and a reference that translates the whole sentence.
