@@ -112,11 +112,13 @@ A tap removes the summary buttons and starts the generation with a typing indica
 
 After a check, the bot shows the verdict and the explanation, and after a wrong translation also the reference. Then the next sentence comes. "Skip" shows the reference and goes on without a model call. After the last sentence, the bot clears the exercise state and shows "Continue". There is no skip for the whole lesson recall. A command ends it, for example `/wiederholen`, or a button that leads to an exercise, because these change the FSM state. The model's texts go out as plain text, without `parse_mode`.
 
-**The data.** The keys are exercise state, so the end of an exercise removes them. `lesson_recall_id` is a new id for each start, `lesson_recall` is `LessonRecall.to_dict()`, `lesson_recall_position` is the current sentence, and `lesson_recall_answer` is the last translation. The handlers don't open `check_out()`, because a lesson recall doesn't change the learning state.
+**The data.** The keys are exercise state, so the end of an exercise removes them. `lesson_recall_id` is a new id for each start, `lesson_recall` is `LessonRecall.to_dict()`, `lesson_recall_position` is the current sentence, `lesson_recall_answer` is the last translation, and `lesson_recall_waiting_since` is the start of the current model call. The handlers don't open `check_out()`, because a lesson recall doesn't change the learning state.
 
-**Model calls don't block the chat.** After a call, the handler reads the FSM data again. It continues only if the same `lesson_recall_id` is there and the state is the one that it set before the call. Otherwise a command or a button ended the lesson recall during the call, and the result is dropped.
+**Model calls don't block the chat.** After a call, the handler reads the FSM data again. It continues only if the same `lesson_recall_id` is there, the state is the one that it set before the call, and after a check the sentence is the same. Otherwise a command, a button or a second message moved the chat on during the call, and the result is dropped. A button tap during a check gets "One moment, I'm still thinking…" as a short notice.
 
 **Failures.** A failed generation shows an error message with "Try again" and "Continue", and `finished_lesson` stays, so the learner can start again. After a failed check, the answer stays in `lesson_recall_answer`, and "Send again" checks it again. The learner can also type a new translation or skip the sentence.
+
+A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. It shows the same buttons as after a failed generation or a failed check.
 
 ## Chat settings
 

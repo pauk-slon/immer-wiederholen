@@ -60,7 +60,7 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 - Topic selection narrows what's *shown* (`/wiederholen`, next/study-more buttons, reminders), never `/progress` or answer checking.
 - `bot_blocked` is set from both `my_chat_member` and a 403 on send; the reminder skips such chats before touching the record.
 - Feature flags stay in the bot layer; `wiederholen.school` never sees a chat id or flag name.
-- The lesson recall (`commands/lesson_recall.py`, `lesson_recall` flag) checks the FSM data again after each model call and drops the result unless its `lesson_recall_id` and state are still there; its handlers never open `check_out()`.
+- The lesson recall (`commands/lesson_recall.py`, `lesson_recall` flag) checks the FSM data again after each model call and drops the result unless its `lesson_recall_id`, state and sentence are still there; its handlers never open `check_out()`.
 
 ## AI-generated content
 

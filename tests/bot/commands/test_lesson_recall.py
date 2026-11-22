@@ -1,3 +1,4 @@
+import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
@@ -5,7 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from aiogram.fsm.context import FSMContext
-from aiogram.methods import EditMessageReplyMarkup, SendMessage
+from aiogram.methods import AnswerCallbackQuery, EditMessageReplyMarkup, SendMessage
 from aiogram.types import InlineKeyboardMarkup
 from anthropic import AsyncAnthropic
 from opentelemetry import trace as otel_trace
@@ -357,11 +358,83 @@ async def test_a_message_while_the_model_works_gets_a_short_reply(
     send: Any, state: FSMContext, check: AsyncMock, waiting: Any
 ) -> None:
     await state.set_state(waiting)
+    await state.update_data(lesson_recall_waiting_since=time.time() - 10)
 
     requests = await send.message("Hallo?")
 
     assert [r.text for r in _sent(requests)] == [RU.lesson_recall_wait]
     check.assert_not_called()
+
+
+async def test_a_lost_generation_offers_to_try_again(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    await _finish_lesson(send, state)
+    await state.set_state(LessonRecallState.generating)
+    await state.update_data(lesson_recall_waiting_since=time.time() - 120)
+
+    requests = await send.message("Hallo?")
+
+    assert _buttons(_sent(requests)[-1]) == [
+        (RU.btn_recall_retry, LESSON_RECALL),
+        (RU.btn_continue, NEXT_EXERCISE),
+    ]
+    await send.callback(LESSON_RECALL)
+    assert await state.get_state() == LessonRecallState.translating.state
+
+
+async def test_a_lost_check_offers_to_send_the_answer_again(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    await state.set_state(LessonRecallState.checking)
+    await state.update_data(
+        lesson_recall_answer="Wir warten.",
+        lesson_recall_waiting_since=time.time() - 120,
+    )
+
+    requests = await send.message("Hallo?")
+
+    check.assert_not_called()
+    assert _sent(requests)[-1].text == RU.lesson_recall_check_failed
+    await send.callback(RESEND)
+    assert check.call_args.args[2:] == (0, "Wir warten.")
+
+
+async def test_a_check_result_is_dropped_if_the_sentence_changed(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+
+    async def second_message_moves_on(*args, **kwargs) -> TranslationCheck:
+        await state.update_data(lesson_recall_position=1)
+        return TranslationCheck(is_correct=True, explanation=None)
+
+    check.side_effect = second_message_moves_on
+
+    requests = await send.message("Wir warten.")
+
+    assert _sent(requests) == []
+
+
+async def test_a_button_while_checking_asks_to_wait(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    await _start(send, state)
+    await state.set_state(LessonRecallState.checking)
+
+    requests = await send.callback(SKIP)
+
+    answers = [r for r in requests if isinstance(r, AnswerCallbackQuery)]
+    assert [a.text for a in answers] == [RU.lesson_recall_wait]
+    assert _sent(requests) == []
+
+
+async def test_an_old_skip_button_is_answered(send: Any, state: FSMContext) -> None:
+    requests = await send.callback(SKIP)
+
+    assert any(isinstance(r, AnswerCallbackQuery) for r in requests)
+    assert _sent(requests) == []
 
 
 async def test_a_message_without_text_shows_the_sentence_again(
@@ -466,17 +539,6 @@ async def test_a_skip_is_recorded_on_the_update_span(
     mock_trace.get_current_span.return_value.set_attribute.assert_called_once_with(
         "lesson_recall.skipped", True
     )
-
-
-async def test_a_check_without_a_client_fails_visibly(
-    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
-) -> None:
-    await _start(send, state)
-
-    requests = await send.message("Wir warten.", anthropic_client=None)
-
-    check.assert_not_called()
-    assert _sent(requests)[-1].text == RU.lesson_recall_check_failed
 
 
 async def test_a_check_result_is_dropped_if_the_chat_moved_on(

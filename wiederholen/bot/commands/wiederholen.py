@@ -184,7 +184,7 @@ def _get_finished_lesson(tutor: Tutor, mark: Mark) -> dict | None:
     }
 
 
-def offers_lesson_recall(
+def _offers_lesson_recall(
     feature_flags: dict[str, frozenset[int]] | None,
     chat_id: int,
     finished_lesson: dict | None,
@@ -196,7 +196,7 @@ def offers_lesson_recall(
     )
 
 
-def with_lesson_recall_button(
+def _with_lesson_recall_button(
     markup: InlineKeyboardMarkup, locale: Locale
 ) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
@@ -605,12 +605,12 @@ async def handle_answer(
         finished_lesson = _get_finished_lesson(tutor, mark)
         await state.update_data(lesson=lesson, finished_lesson=finished_lesson)
         next_label = _get_next_label(finished_lesson, language)
-        has_lesson_recall = has_feature(
+        in_lesson_recall_flag = has_feature(
             feature_flags or {}, LESSON_RECALL_FLAG, message.chat.id
         )
         recall_mode = mark.recall
         # Two kinds of recall would confuse the learner (ADR 0031)
-        if has_lesson_recall and recall_mode == RecallMode.optional:
+        if in_lesson_recall_flag and recall_mode == RecallMode.optional:
             recall_mode = RecallMode.none
         result_line = (
             locale.correct
@@ -632,8 +632,8 @@ async def handle_answer(
         # recall it comes after the recall
         if reply_markup is not None:
             explanation = _append_lesson_summary(explanation, finished_lesson, language)
-            if offers_lesson_recall(feature_flags, message.chat.id, finished_lesson):
-                reply_markup = with_lesson_recall_button(reply_markup, locale)
+            if _offers_lesson_recall(feature_flags, message.chat.id, finished_lesson):
+                reply_markup = _with_lesson_recall_button(reply_markup, locale)
         first_reply_markup = (
             ReplyKeyboardRemove() if shown_exercise.distractors else None
         )
@@ -679,7 +679,7 @@ async def handle_recall(
     )
     next_label = _get_next_label(finished_lesson, language)
     locale = LOCALES[language]
-    has_lesson_recall = offers_lesson_recall(
+    offers_lesson_recall = _offers_lesson_recall(
         feature_flags, message.chat.id, finished_lesson
     )
     # check_recall() doesn't change student_record, unlike request_recall()
@@ -696,8 +696,8 @@ async def handle_recall(
             message.text or "",
         ):
             reply_markup = make_next_button(locale, next_label)
-            if has_lesson_recall:
-                reply_markup = with_lesson_recall_button(reply_markup, locale)
+            if offers_lesson_recall:
+                reply_markup = _with_lesson_recall_button(reply_markup, locale)
             sent = await message.answer(
                 _append_lesson_summary(
                     locale.recall_correct, finished_lesson, language
@@ -708,8 +708,8 @@ async def handle_recall(
             reply_markup = _make_recall_buttons(
                 locale, locale.btn_recall_retry, next_label
             )
-            if has_lesson_recall:
-                reply_markup = with_lesson_recall_button(reply_markup, locale)
+            if offers_lesson_recall:
+                reply_markup = _with_lesson_recall_button(reply_markup, locale)
             sent = await message.answer(
                 _append_lesson_summary(
                     _format_wrong(
