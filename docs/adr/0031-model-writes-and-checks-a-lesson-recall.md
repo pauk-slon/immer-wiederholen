@@ -6,7 +6,7 @@
 
 Every exercise checks one form in a sentence that the author wrote. Nothing makes the learner build new German sentences with what a lesson practiced. Translation from the learner's language does this, but a translation has many correct answers, so only a model can check it. Until now a model only wrote content ([ADR 0005](0005-shadow-exercises-keep-the-answer.md), [ADR 0014](0014-cues-generated-ahead.md)), and the verdict always came from the authored answer.
 
-[#352](https://github.com/pauk-slon/immer-wiederholen/issues/352) tried translations of phrases that the author writes. Claude Haiku 5.5 checked them reliably, but each phrase needed much authored content. Runs in [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367) then let Haiku write the sentences from the exercises of real lessons. The sentences were natural. In 78 translations the check accepted no wrong answer and rejected 2 of 36 correct ones.
+[#352](https://github.com/pauk-slon/immer-wiederholen/issues/352) tried translations of phrases that the author writes. Claude Haiku 5.5 checked them reliably, but each phrase needed much authored content. Runs in [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367) then let Haiku write the sentences from the exercises of real lessons. Most sentences were natural. In 78 translations the check accepted no wrong answer and rejected 2 of 36 correct ones.
 
 ## Decision
 
@@ -40,3 +40,4 @@ Open questions:
 - Should the bot tell the learner that the text goes to Anthropic? This must be decided before the flag opens to everyone.
 - How do we check the quality again after a change of the guide, a prompt or the model?
 - How do we limit the cost?
+- How do we measure if lesson recalls help retention? One option is to compare the recall of pairs in chats with the flag and without it.
