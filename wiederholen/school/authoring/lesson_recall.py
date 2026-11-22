@@ -37,8 +37,8 @@ Each sentence of the task has:
 - "exercises": the numbers of the exercises that the sentence uses, at
   least one.
 
-Never more sentences than exercises. Leave out an exercise that no
-sentence uses, with a short reason.
+Never more sentences than exercises. List each exercise that no sentence
+uses in "left_out", with a short reason.
 
 Call {_GENERATION_TOOL_NAME} once."""
 
