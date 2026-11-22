@@ -102,9 +102,9 @@ A lesson recall is a short translation task after a lesson (see [ADR 0031](adr/0
 
 ### The start
 
-The lesson summary gets a "Translate sentences" button above "Continue". The summary comes after the last answer, or after the recall result when the last answer needed a recall, so both places can have the button. A chat in the flag gets no optional recall after a right answer, because two kinds of recall would confuse the learner. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
+In a chat in the flag, the "Continue" button of the lesson summary starts the lesson recall. The summary comes after the last answer, or after the recall result when the last answer needed a recall, so both places have it. The button keeps its text and gets the `LESSON_RECALL` callback instead of `NEXT_EXERCISE`. A chat in the flag gets no optional recall after a right answer, because two kinds of recall would confuse the learner. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
-A tap removes the summary buttons and starts the generation with a typing indicator. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys, so it uses the authored exercises, also after `/ai` showed shadows. It skips keys that the course no longer has, and without keys the button does nothing. The sentences are in the interface language at the start.
+A tap removes the summary buttons and starts the generation with a typing indicator. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys, so it uses the authored exercises, also after `/ai` showed shadows. It skips keys that the course no longer has. Without keys, or after the flag lost the chat, the button does what "Continue" does without a lesson recall. It shows the next exercise. The sentences are in the interface language at the start.
 
 ### The states
 
@@ -113,12 +113,12 @@ A tap removes the summary buttons and starts the generation with a typing indica
 | State | What happens | A message from the learner |
 |---|---|---|
 | `generating` | the model writes the sentences | gets "One moment, I'm still thinking…" |
-| `translating` | the bot shows a sentence, "1/3 ✍️ Translate: …", with a "Skip" button | is the translation. A message without text shows the sentence again |
+| `translating` | the bot shows a sentence, "1/3 ✍️ Translate: …", with "Skip" and "Next exercise" buttons | is the translation. A message without text shows the sentence again |
 | `checking` | the model checks the translation | gets "One moment, I'm still thinking…" |
 
 After a check, the bot shows the verdict and the explanation, and after a wrong translation also the reference. Then the next sentence comes. "Skip" shows the reference and goes on without a model call. After the last sentence, the bot clears the exercise state and shows "Continue".
 
-There is no skip for the whole lesson recall. `/wiederholen` and the buttons that show an exercise end it. Other commands, such as `/progress`, leave it as it is.
+"Next exercise" ends the lesson recall. It is the usual `NEXT_EXERCISE` button, so `/wiederholen` and every other button that shows an exercise end it too. Other commands, such as `/progress`, leave it as it is.
 
 The model's texts go out as plain text, without `parse_mode`, so they need no `html.escape()` (see [Showing an exercise](#showing-an-exercise)).
 
@@ -142,9 +142,9 @@ After a model call, the handler reads the FSM data again. It continues only if t
 
 ### Failures
 
-A failed generation shows an error message with "Try again" and "Continue". `finished_lesson` stays, so the learner can start again. After a failed check, the answer stays in `lesson_recall_answer`, and "Send again" checks it again. The learner can also type a new translation or skip the sentence.
+A failed generation shows an error message with "Next exercise". The learner can't start the lesson recall again, because the next exercise is usually what they want after "Continue". After a failed check, the answer stays in `lesson_recall_answer`, and "Send again" checks it again. The learner can also type a new translation, skip the sentence, or go to the next exercise.
 
-A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same buttons as after a failed generation or a failed check.
+A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same message as after a failed generation or a failed check.
 
 ## Chat settings
 

@@ -196,17 +196,16 @@ def _offers_lesson_recall(
     )
 
 
-def _with_lesson_recall_button(
-    markup: InlineKeyboardMarkup, locale: Locale
-) -> InlineKeyboardMarkup:
+def _continue_to_lesson_recall(markup: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(
-                    text=locale.btn_lesson_recall, callback_data=LESSON_RECALL
-                )
-            ],
-            *markup.inline_keyboard,
+                button.model_copy(update={"callback_data": LESSON_RECALL})
+                if button.callback_data == NEXT_EXERCISE
+                else button
+                for button in row
+            ]
+            for row in markup.inline_keyboard
         ]
     )
 
@@ -633,7 +632,7 @@ async def handle_answer(
         if reply_markup is not None:
             explanation = _append_lesson_summary(explanation, finished_lesson, language)
             if _offers_lesson_recall(feature_flags, message.chat.id, finished_lesson):
-                reply_markup = _with_lesson_recall_button(reply_markup, locale)
+                reply_markup = _continue_to_lesson_recall(reply_markup)
         first_reply_markup = (
             ReplyKeyboardRemove() if shown_exercise.distractors else None
         )
@@ -697,7 +696,7 @@ async def handle_recall(
         ):
             reply_markup = make_next_button(locale, next_label)
             if offers_lesson_recall:
-                reply_markup = _with_lesson_recall_button(reply_markup, locale)
+                reply_markup = _continue_to_lesson_recall(reply_markup)
             sent = await message.answer(
                 _append_lesson_summary(
                     locale.recall_correct, finished_lesson, language
@@ -709,7 +708,7 @@ async def handle_recall(
                 locale, locale.btn_recall_retry, next_label
             )
             if offers_lesson_recall:
-                reply_markup = _with_lesson_recall_button(reply_markup, locale)
+                reply_markup = _continue_to_lesson_recall(reply_markup)
             sent = await message.answer(
                 _append_lesson_summary(
                     _format_wrong(

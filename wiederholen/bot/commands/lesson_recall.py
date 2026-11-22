@@ -18,6 +18,7 @@ from wiederholen.bot.commands.wiederholen import (
     LESSON_RECALL,
     NEXT_EXERCISE,
     clear_exercise_state,
+    handle_next_exercise,
     show_typing_while,
 )
 from wiederholen.bot.feature_flags import LESSON_RECALL_FLAG, has_feature
@@ -30,7 +31,10 @@ from wiederholen.bot.pending_buttons import (
 from wiederholen.school import (
     AIGenerationError,
     Course,
+    CueStore,
     LessonRecall,
+    StudentIdentityStore,
+    StudentRecordBook,
     check_translation,
     generate_lesson_recall,
 )
@@ -75,6 +79,12 @@ def _continue_button(locale: Locale) -> InlineKeyboardButton:
     return InlineKeyboardButton(text=locale.btn_continue, callback_data=NEXT_EXERCISE)
 
 
+def _next_exercise_button(locale: Locale) -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE
+    )
+
+
 def _require_setup(
     anthropic_client: AsyncAnthropic | None, course: Course
 ) -> tuple[AsyncAnthropic, str]:
@@ -110,21 +120,13 @@ async def _is_still_current(
     )
 
 
-async def _offer_generation_retry(
+async def _report_failed_generation(
     message: Message, state: FSMContext, locale: Locale
 ) -> None:
-    # finished_lesson stays, so the button can start the lesson recall again
     await state.set_state(None)
     sent = await message.answer(
         locale.lesson_recall_generation_failed,
-        reply_markup=_keyboard(
-            [
-                InlineKeyboardButton(
-                    text=locale.btn_recall_retry, callback_data=LESSON_RECALL
-                )
-            ],
-            [_continue_button(locale)],
-        ),
+        reply_markup=_keyboard([_next_exercise_button(locale)]),
     )
     await remember_buttoned_message(state, sent)
 
@@ -142,7 +144,8 @@ async def _offer_check_retry(
                     text=locale.btn_lesson_recall_resend, callback_data=RESEND
                 ),
                 _skip_button(locale),
-            ]
+            ],
+            [_next_exercise_button(locale)],
         ),
     )
     await remember_buttoned_message(state, sent)
@@ -158,7 +161,7 @@ async def _send_sentence(message: Message, state: FSMContext, locale: Locale) ->
             size=len(lesson_recall.sentences),
             text=lesson_recall.sentences[position].text,
         ),
-        reply_markup=_keyboard([_skip_button(locale)]),
+        reply_markup=_keyboard([_skip_button(locale), _next_exercise_button(locale)]),
     )
     await remember_buttoned_message(state, sent)
 
@@ -174,6 +177,7 @@ async def _go_to_next_sentence(
         await state.set_state(LessonRecallState.translating)
         await _send_sentence(message, state, locale)
         return
+    trace.get_current_span().set_attribute("lesson_recall.finished", True)
     await clear_exercise_state(state, data)
     sent = await message.answer(
         locale.lesson_recall_done, reply_markup=_keyboard([_continue_button(locale)])
@@ -186,8 +190,12 @@ async def handle_start(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
+    authoring_guide: str | None = None,
+    cue_store: CueStore | None = None,
 ) -> None:
     data = await state.get_data()
     finished_lesson = data.get("finished_lesson") or {}
@@ -198,13 +206,22 @@ async def handle_start(
         if key in exercises_by_key
     ]
     message = callback.message
-    # An old button, or a lesson whose exercises the course no longer has
+    # The button says "Continue", so without a lesson recall it continues
     if (
         not isinstance(message, Message)
         or not has_feature(feature_flags or {}, LESSON_RECALL_FLAG, message.chat.id)
         or not exercises
     ):
-        await callback.answer()
+        await handle_next_exercise(
+            callback,
+            state,
+            course,
+            student_record_book,
+            student_identity_store,
+            anthropic_client=anthropic_client,
+            authoring_guide=authoring_guide,
+            cue_store=cue_store,
+        )
         return
     client, guide = _require_setup(anthropic_client, course)
     language = get_language(data)
@@ -244,7 +261,7 @@ async def handle_start(
     ):
         return
     if lesson_recall is None:
-        await _offer_generation_retry(message, state, locale)
+        await _report_failed_generation(message, state, locale)
         return
     await state.update_data(
         {_LESSON_RECALL_KEY: lesson_recall.to_dict(), _POSITION_KEY: 0}
@@ -379,6 +396,6 @@ async def handle_while_waiting(message: Message, state: FSMContext) -> None:
     if time.time() - data.get(_WAITING_SINCE_KEY, 0.0) < _LOST_WAIT_SECONDS:
         await message.answer(locale.lesson_recall_wait)
     elif is_generating:
-        await _offer_generation_retry(message, state, locale)
+        await _report_failed_generation(message, state, locale)
     else:
         await _offer_check_retry(message, state, locale)
