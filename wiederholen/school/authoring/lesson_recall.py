@@ -3,10 +3,11 @@
 
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Self
 
 from anthropic import AnthropicError, AsyncAnthropic
 from anthropic.types import Message, TextBlockParam, ToolParam, ToolUseBlock
+from opentelemetry import trace
 
 from wiederholen.school.authoring.errors import AIGenerationError
 from wiederholen.school.curriculum import Exercise
@@ -139,6 +140,35 @@ class LessonRecall:
     sentences: tuple[LessonRecallSentence, ...]
     language: Language
 
+    def to_dict(self) -> dict:
+        return {
+            "exercises": [exercise.to_dict() for exercise in self.exercises],
+            "sentences": [
+                {
+                    "text": sentence.text,
+                    "reference": sentence.reference,
+                    "exercise_indexes": list(sentence.exercise_indexes),
+                }
+                for sentence in self.sentences
+            ],
+            "language": self.language,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Self:
+        return cls(
+            exercises=tuple(Exercise.from_dict(e) for e in d["exercises"]),
+            sentences=tuple(
+                LessonRecallSentence(
+                    text=s["text"],
+                    reference=s["reference"],
+                    exercise_indexes=tuple(s["exercise_indexes"]),
+                )
+                for s in d["sentences"]
+            ),
+            language=d["language"],
+        )
+
 
 @dataclass(frozen=True)
 class TranslationCheck:
@@ -181,6 +211,25 @@ def _without_angle_brackets(answer: str) -> str:
     return answer.replace("<", "‹").replace(">", "›")
 
 
+def _record_usage(response: Message) -> None:
+    span = trace.get_current_span()
+    if not span.is_recording():
+        return
+    usage = response.usage
+    span.set_attributes(
+        {
+            "lesson_recall.input_tokens": usage.input_tokens,
+            "lesson_recall.output_tokens": usage.output_tokens,
+            "lesson_recall.cache_read_input_tokens": (
+                usage.cache_read_input_tokens or 0
+            ),
+            "lesson_recall.cache_creation_input_tokens": (
+                usage.cache_creation_input_tokens or 0
+            ),
+        }
+    )
+
+
 async def _call_tool(
     client: AsyncAnthropic,
     *,
@@ -206,6 +255,7 @@ async def _call_tool(
         )
     except AnthropicError as e:
         raise AIGenerationError("Anthropic API call failed") from e
+    _record_usage(response)
     if response.stop_reason == "max_tokens":
         raise AIGenerationError("the reply was cut off at max_tokens")
     tool_use = next(

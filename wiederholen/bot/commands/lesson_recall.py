@@ -1,0 +1,402 @@
+import time
+import uuid
+from typing import Final
+
+from aiogram import Bot, F, Router
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
+from anthropic import AsyncAnthropic
+from opentelemetry import trace
+
+from wiederholen.bot.commands.wiederholen import (
+    LESSON_RECALL,
+    NEXT_EXERCISE,
+    clear_exercise_state,
+    handle_next_exercise,
+    offers_lesson_recall,
+    show_typing_while,
+)
+from wiederholen.bot.l10n import LOCALES, Locale, get_language
+from wiederholen.bot.pending_buttons import (
+    clear_stale_buttons,
+    forget_buttoned_message,
+    remember_buttoned_message,
+)
+from wiederholen.school import (
+    AIGenerationError,
+    Course,
+    CueStore,
+    LessonRecall,
+    StudentIdentityStore,
+    StudentRecordBook,
+    check_translation,
+    generate_lesson_recall,
+)
+from wiederholen.tracing import default_tracer
+
+router = Router()
+
+SKIP: Final = "__lesson_recall_skip__"
+RESEND: Final = "__lesson_recall_resend__"
+
+_ID_KEY: Final = "lesson_recall_id"
+_LESSON_RECALL_KEY: Final = "lesson_recall"
+_POSITION_KEY: Final = "lesson_recall_position"
+_ANSWER_KEY: Final = "lesson_recall_answer"
+_WAITING_SINCE_KEY: Final = "lesson_recall_waiting_since"
+
+# Longer than any model call, so a wait this long lost its handler,
+# for example to a restart of the bot
+_LOST_WAIT_SECONDS: Final = 60.0
+
+
+class LessonRecallState(StatesGroup):
+    generating = State()
+    translating = State()
+    checking = State()
+
+
+def _bot(message: Message) -> Bot:
+    assert message.bot is not None
+    return message.bot
+
+
+def _keyboard(*rows: list[InlineKeyboardButton]) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=list(rows))
+
+
+def _skip_button(locale: Locale) -> InlineKeyboardButton:
+    return InlineKeyboardButton(text=locale.btn_lesson_recall_skip, callback_data=SKIP)
+
+
+def _continue_button(locale: Locale) -> InlineKeyboardButton:
+    return InlineKeyboardButton(text=locale.btn_continue, callback_data=NEXT_EXERCISE)
+
+
+def _next_exercise_button(locale: Locale) -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE
+    )
+
+
+def _require_setup(
+    anthropic_client: AsyncAnthropic | None, course: Course
+) -> tuple[AsyncAnthropic, str]:
+    # check_lesson_recall_config() stops the bot at startup without them
+    assert anthropic_client is not None
+    assert course.lesson_recall_guide is not None
+    return anthropic_client, course.lesson_recall_guide
+
+
+def _lesson_recall_locale(data: dict) -> Locale:
+    return LOCALES[LessonRecall.from_dict(data[_LESSON_RECALL_KEY]).language]
+
+
+async def _start_waiting(state: FSMContext, waiting: State) -> None:
+    await state.set_state(waiting)
+    await state.update_data({_WAITING_SINCE_KEY: time.time()})
+
+
+async def _is_still_current(
+    state: FSMContext,
+    lesson_recall_id: str,
+    expected: State,
+    *,
+    position: int | None = None,
+) -> bool:
+    # A command, a button or a second message can move the chat on while the
+    # model works. Its result is dropped then
+    data = await state.get_data()
+    return (
+        data.get(_ID_KEY) == lesson_recall_id
+        and await state.get_state() == expected.state
+        and (position is None or data.get(_POSITION_KEY) == position)
+    )
+
+
+async def _report_failed_generation(
+    message: Message, state: FSMContext, locale: Locale
+) -> None:
+    await state.set_state(None)
+    sent = await message.answer(
+        locale.lesson_recall_generation_failed,
+        reply_markup=_keyboard([_next_exercise_button(locale)]),
+    )
+    await remember_buttoned_message(state, sent)
+
+
+async def _offer_check_retry(
+    message: Message, state: FSMContext, locale: Locale
+) -> None:
+    # The answer stays, so the button sends it again
+    await state.set_state(LessonRecallState.translating)
+    sent = await message.answer(
+        locale.lesson_recall_check_failed,
+        reply_markup=_keyboard(
+            [
+                InlineKeyboardButton(
+                    text=locale.btn_lesson_recall_resend, callback_data=RESEND
+                ),
+                _skip_button(locale),
+            ],
+            [_next_exercise_button(locale)],
+        ),
+    )
+    await remember_buttoned_message(state, sent)
+
+
+async def _send_sentence(message: Message, state: FSMContext, locale: Locale) -> None:
+    data = await state.get_data()
+    lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
+    position = data[_POSITION_KEY]
+    sent = await message.answer(
+        locale.lesson_recall_sentence.format(
+            position=position + 1,
+            size=len(lesson_recall.sentences),
+            text=lesson_recall.sentences[position].text,
+        ),
+        reply_markup=_keyboard([_skip_button(locale), _next_exercise_button(locale)]),
+    )
+    await remember_buttoned_message(state, sent)
+
+
+async def _go_to_next_sentence(
+    message: Message, state: FSMContext, locale: Locale
+) -> None:
+    data = await state.get_data()
+    lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
+    position = data[_POSITION_KEY] + 1
+    if position < len(lesson_recall.sentences):
+        await state.update_data({_POSITION_KEY: position, _ANSWER_KEY: None})
+        await state.set_state(LessonRecallState.translating)
+        await _send_sentence(message, state, locale)
+        return
+    trace.get_current_span().set_attribute("lesson_recall.finished", True)
+    await clear_exercise_state(state, data)
+    sent = await message.answer(
+        locale.lesson_recall_done, reply_markup=_keyboard([_continue_button(locale)])
+    )
+    await remember_buttoned_message(state, sent)
+
+
+@router.callback_query(F.data == LESSON_RECALL)
+async def handle_start(
+    callback: CallbackQuery,
+    state: FSMContext,
+    course: Course,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    feature_flags: dict[str, frozenset[int]] | None = None,
+    anthropic_client: AsyncAnthropic | None = None,
+    authoring_guide: str | None = None,
+    cue_store: CueStore | None = None,
+) -> None:
+    data = await state.get_data()
+    finished_lesson = data.get("finished_lesson")
+    exercises_by_key = {exercise.content_key: exercise for exercise in course.exercises}
+    exercises = [
+        exercises_by_key[key]
+        for key in (finished_lesson or {}).get("exercise_keys", [])
+        if key in exercises_by_key
+    ]
+    message = callback.message
+    # The button says "Continue", so without a lesson recall it continues
+    if (
+        not isinstance(message, Message)
+        or not offers_lesson_recall(feature_flags, message.chat.id, finished_lesson)
+        or not exercises
+    ):
+        await handle_next_exercise(
+            callback,
+            state,
+            course,
+            student_record_book,
+            student_identity_store,
+            anthropic_client=anthropic_client,
+            authoring_guide=authoring_guide,
+            cue_store=cue_store,
+        )
+        return
+    assert finished_lesson is not None
+    client, guide = _require_setup(anthropic_client, course)
+    language = get_language(data)
+    locale = LOCALES[language]
+    await message.edit_reply_markup(reply_markup=None)
+    await forget_buttoned_message(state)
+    await callback.answer()
+    lesson_recall_id = uuid.uuid4().hex
+    await state.update_data({_ID_KEY: lesson_recall_id})
+    await _start_waiting(state, LessonRecallState.generating)
+    wrong_exercise_keys = frozenset(finished_lesson.get("wrong_exercise_keys", []))
+    with default_tracer.start_as_current_span(
+        "lesson_recall.generate",
+        attributes={
+            "lesson_recall.exercises": len(exercises),
+            "lesson_recall.wrong_exercises": sum(
+                exercise.content_key in wrong_exercise_keys for exercise in exercises
+            ),
+        },
+    ) as span:
+        try:
+            async with show_typing_while(_bot(message), message.chat.id):
+                lesson_recall = await generate_lesson_recall(
+                    client,
+                    exercises,
+                    wrong_exercise_keys=wrong_exercise_keys,
+                    guide=guide,
+                    language=language,
+                )
+        except AIGenerationError as error:
+            span.set_attribute("lesson_recall.failure", str(error))
+            lesson_recall = None
+        else:
+            span.set_attribute("lesson_recall.sentences", len(lesson_recall.sentences))
+    if not await _is_still_current(
+        state, lesson_recall_id, LessonRecallState.generating
+    ):
+        return
+    if lesson_recall is None:
+        await _report_failed_generation(message, state, locale)
+        return
+    await state.update_data(
+        {_LESSON_RECALL_KEY: lesson_recall.to_dict(), _POSITION_KEY: 0}
+    )
+    await state.set_state(LessonRecallState.translating)
+    await _send_sentence(message, state, locale)
+
+
+async def _check(
+    message: Message,
+    state: FSMContext,
+    course: Course,
+    anthropic_client: AsyncAnthropic | None,
+    answer: str,
+) -> None:
+    client, guide = _require_setup(anthropic_client, course)
+    data = await state.get_data()
+    lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
+    locale = LOCALES[lesson_recall.language]
+    lesson_recall_id = data[_ID_KEY]
+    position = data[_POSITION_KEY]
+    await _start_waiting(state, LessonRecallState.checking)
+    await state.update_data({_ANSWER_KEY: answer})
+    await clear_stale_buttons(_bot(message), message.chat.id, state)
+    with default_tracer.start_as_current_span("lesson_recall.check") as span:
+        try:
+            async with show_typing_while(_bot(message), message.chat.id):
+                check = await check_translation(
+                    client, lesson_recall, position, answer, guide=guide
+                )
+        except AIGenerationError as error:
+            span.set_attribute("lesson_recall.failure", str(error))
+            check = None
+        else:
+            span.set_attribute(
+                "lesson_recall.verdict", "correct" if check.is_correct else "wrong"
+            )
+    if not await _is_still_current(
+        state, lesson_recall_id, LessonRecallState.checking, position=position
+    ):
+        return
+    if check is None:
+        await _offer_check_retry(message, state, locale)
+        return
+    lines = [
+        locale.lesson_recall_correct if check.is_correct else locale.lesson_recall_wrong
+    ]
+    if check.explanation:
+        lines.append(check.explanation)
+    if not check.is_correct:
+        reference = lesson_recall.sentences[position].reference
+        lines.append(locale.lesson_recall_reference.format(reference=reference))
+    await message.answer("\n\n".join(lines))
+    await _go_to_next_sentence(message, state, locale)
+
+
+@router.message(LessonRecallState.translating, F.text, ~F.text.startswith("/"))
+async def handle_translation(
+    message: Message,
+    state: FSMContext,
+    course: Course,
+    anthropic_client: AsyncAnthropic | None = None,
+) -> None:
+    assert message.text is not None
+    await _check(message, state, course, anthropic_client, message.text)
+
+
+@router.callback_query(LessonRecallState.translating, F.data == RESEND)
+async def handle_resend(
+    callback: CallbackQuery,
+    state: FSMContext,
+    course: Course,
+    anthropic_client: AsyncAnthropic | None = None,
+) -> None:
+    answer = (await state.get_data()).get(_ANSWER_KEY)
+    message = callback.message
+    if not answer or not isinstance(message, Message):
+        await callback.answer()
+        return
+    await message.edit_reply_markup(reply_markup=None)
+    await forget_buttoned_message(state)
+    await callback.answer()
+    await _check(message, state, course, anthropic_client, answer)
+
+
+@router.callback_query(LessonRecallState.translating, F.data == SKIP)
+async def handle_skip(callback: CallbackQuery, state: FSMContext) -> None:
+    message = callback.message
+    if not isinstance(message, Message):
+        await callback.answer()
+        return
+    trace.get_current_span().set_attribute("lesson_recall.skipped", True)
+    data = await state.get_data()
+    lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
+    locale = _lesson_recall_locale(data)
+    reference = lesson_recall.sentences[data[_POSITION_KEY]].reference
+    await message.edit_reply_markup(reply_markup=None)
+    await forget_buttoned_message(state)
+    await callback.answer()
+    await message.answer(locale.lesson_recall_reference.format(reference=reference))
+    await _go_to_next_sentence(message, state, locale)
+
+
+@router.message(LessonRecallState.translating, ~F.text.startswith("/"))
+async def handle_not_text(message: Message, state: FSMContext) -> None:
+    await clear_stale_buttons(message.bot, message.chat.id, state)
+    await _send_sentence(message, state, _lesson_recall_locale(await state.get_data()))
+
+
+@router.callback_query(LessonRecallState.checking, F.data.in_({SKIP, RESEND}))
+async def handle_button_while_checking(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
+    locale = _lesson_recall_locale(await state.get_data())
+    await callback.answer(locale.lesson_recall_wait)
+
+
+@router.callback_query(F.data.in_({SKIP, RESEND}))
+async def handle_old_button(callback: CallbackQuery) -> None:
+    await callback.answer()
+
+
+@router.message(LessonRecallState.generating, ~F.text.startswith("/"))
+@router.message(LessonRecallState.checking, ~F.text.startswith("/"))
+async def handle_while_waiting(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    is_generating = await state.get_state() == LessonRecallState.generating.state
+    # There is no lesson recall yet to take the language from
+    locale = (
+        LOCALES[get_language(data)] if is_generating else _lesson_recall_locale(data)
+    )
+    if time.time() - data.get(_WAITING_SINCE_KEY, 0.0) < _LOST_WAIT_SECONDS:
+        await message.answer(locale.lesson_recall_wait)
+    elif is_generating:
+        await _report_failed_generation(message, state, locale)
+    else:
+        await _offer_check_retry(message, state, locale)

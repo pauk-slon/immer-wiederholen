@@ -6,6 +6,7 @@ from .chat_membership import router as chat_membership_router
 from .commands import (
     ai,
     language,
+    lesson_recall,
     progress,
     reminders,
     reset,
@@ -34,5 +35,6 @@ dispatcher.include_router(ai.router)
 dispatcher.include_router(topics.router)
 dispatcher.include_router(reminders.router)
 dispatcher.include_router(wiederholen.router)
+dispatcher.include_router(lesson_recall.router)
 
 __all__ = ["dispatcher"]

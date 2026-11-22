@@ -4,7 +4,9 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from anthropic import AnthropicError, AsyncAnthropic
 from anthropic.resources.messages import AsyncMessages
-from anthropic.types import Message, TextBlock, ToolUseBlock
+from anthropic.types import Message, TextBlock, ToolUseBlock, Usage
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import Tracer
 
 from tests.plugins.curriculum import make_exercise
 from wiederholen.school.authoring.errors import AIGenerationError
@@ -38,7 +40,17 @@ def _tool_use(name: str, tool_input: Any) -> ToolUseBlock:
 
 
 def _response(*blocks: Any, stop_reason: str = "tool_use") -> Message:
-    return Mock(spec=Message, content=list(blocks), stop_reason=stop_reason)
+    return Mock(
+        spec=Message,
+        content=list(blocks),
+        stop_reason=stop_reason,
+        usage=Usage(
+            input_tokens=900,
+            output_tokens=1500,
+            cache_read_input_tokens=800,
+            cache_creation_input_tokens=None,
+        ),
+    )
 
 
 def _make_client(response: Message | None = None, side_effect=None) -> Mock:
@@ -371,3 +383,23 @@ async def test_the_answer_cannot_close_its_tag() -> None:
 
 def test_every_language_has_a_name() -> None:
     assert set(_LANGUAGE_NAMES) == LANGUAGES
+
+
+def test_a_lesson_recall_survives_a_round_trip_through_a_dict() -> None:
+    assert LessonRecall.from_dict(LESSON_RECALL.to_dict()) == LESSON_RECALL
+
+
+async def test_a_call_records_its_tokens_on_the_current_span(
+    tracer: Tracer, exporter: InMemorySpanExporter
+) -> None:
+    client = _make_client(_verdict({"correct": True, "explanation": ""}))
+
+    with tracer.start_as_current_span("lesson_recall.check"):
+        await _check(client)
+
+    assert dict(exporter.get_finished_spans()[0].attributes or {}) == {
+        "lesson_recall.input_tokens": 900,
+        "lesson_recall.output_tokens": 1500,
+        "lesson_recall.cache_read_input_tokens": 800,
+        "lesson_recall.cache_creation_input_tokens": 0,
+    }

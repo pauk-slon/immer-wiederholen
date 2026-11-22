@@ -95,6 +95,16 @@ class Locale:
     ai_generation_failed: str
     grammar_class_hint: str
     language_set: str
+    lesson_recall_sentence: str
+    btn_lesson_recall_skip: str
+    lesson_recall_correct: str
+    lesson_recall_wrong: str
+    lesson_recall_reference: str
+    lesson_recall_done: str
+    lesson_recall_wait: str
+    lesson_recall_generation_failed: str
+    lesson_recall_check_failed: str
+    btn_lesson_recall_resend: str
 
 
 # The texts address the learner as "вы", in lower case as usual in an
@@ -158,6 +168,16 @@ RU: Final = Locale(
     ai_generation_failed="⚠️ Не получилось сгенерировать задание. Попробуйте ещё раз или отключите /ai.",
     grammar_class_hint="Так же, как у {word}",
     language_set="🌐 Язык: русский",
+    lesson_recall_sentence="{position}/{size} ✍️ Переведите:\n{text}",
+    btn_lesson_recall_skip="Пропустить",
+    lesson_recall_correct="🟢 Верно!",
+    lesson_recall_wrong="🔴 Неверно.",
+    lesson_recall_reference="Вариант перевода: {reference}",
+    lesson_recall_done="✅ Это была последняя фраза",
+    lesson_recall_wait="⏳ Секунду, я ещё думаю…",
+    lesson_recall_generation_failed="⚠️ Не получилось подготовить фразы для перевода.",
+    lesson_recall_check_failed="⚠️ Не получилось проверить перевод. Отправьте его ещё раз.",
+    btn_lesson_recall_resend="Отправить ещё раз",
 )
 
 EN: Final = Locale(
@@ -218,6 +238,16 @@ EN: Final = Locale(
     ai_generation_failed="⚠️ Couldn't generate the exercise. Try again, or turn off /ai.",
     grammar_class_hint="Same as for {word}",
     language_set="🌐 Language: English",
+    lesson_recall_sentence="{position}/{size} ✍️ Translate:\n{text}",
+    btn_lesson_recall_skip="Skip",
+    lesson_recall_correct="🟢 Correct!",
+    lesson_recall_wrong="🔴 Not quite.",
+    lesson_recall_reference="A possible translation: {reference}",
+    lesson_recall_done="✅ That was the last sentence",
+    lesson_recall_wait="⏳ One moment, I'm still thinking…",
+    lesson_recall_generation_failed="⚠️ Couldn't prepare the sentences to translate.",
+    lesson_recall_check_failed="⚠️ Couldn't check the translation. Send it again.",
+    btn_lesson_recall_resend="Send again",
 )
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}

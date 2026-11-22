@@ -57,7 +57,7 @@ A kept answer is correct only if the answer doesn't depend on the exact wording 
 
 ## Lesson recalls
 
-A lesson recall is a short translation task after a lesson. Claude writes sentences in the learner's language from the exercises of the lesson, and then checks each translation of the learner (see [ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md)). [`lesson_recall.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/authoring/lesson_recall.py) has the two model calls. The bot doesn't use them yet.
+A lesson recall is a short translation task after a lesson. Claude writes sentences in the learner's language from the exercises of the lesson, and then checks each translation of the learner (see [ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md)). [`lesson_recall.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/authoring/lesson_recall.py) has the two model calls. [Telegram bot](bot.md#lesson-recall) describes how the bot uses them.
 
 ### The method and the engine
 
@@ -69,7 +69,7 @@ The module checks only the structure of a reply. It never looks at the language 
 
 `generate_lesson_recall(client, exercises, *, wrong_exercise_keys, guide, language)` sends the exercises of the lesson in their order. For each exercise, it sends `topic`, `word`, `question`, every answer and `explanation` in the learner's language. It marks the exercises with a key in `wrong_exercise_keys`. The model calls the `submit_task` tool with sentences. Each sentence has `text`, a `reference` translation and the numbers of its exercises. The tool also has `left_out`, the exercises that no sentence uses, with a reason. The module doesn't use `left_out`. It only gives the model a place to explain a skipped exercise.
 
-The function returns a `LessonRecall` with a copy of the exercises, the sentences and the learner's language. Each sentence is a `LessonRecallSentence` with `text`, `reference` and `exercise_indexes`, the positions of its exercises in `LessonRecall.exercises`. The sentences refer to the exercises by position, so they stay together in one object. A check then always sees the exercises that the task came from, even if the course changed. The language is the language at the start, so `/language` during a lesson recall doesn't change the check. It drops a sentence with an empty field, with no exercises or with a number outside the lesson. It also drops the sentences after as many as the lesson has exercises. An exercise that a sentence lists twice counts once.
+The function returns a `LessonRecall` with a copy of the exercises, the sentences and the learner's language. Each sentence is a `LessonRecallSentence` with `text`, `reference` and `exercise_indexes`, the positions of its exercises in `LessonRecall.exercises`. The sentences refer to the exercises by position, so they stay together in one object. A check then always sees the exercises that the task came from, even if the course changed. The language is the language at the start, so `/language` during a lesson recall doesn't change the check. The function drops a sentence with an empty field, with no exercises or with a number outside the lesson. It also drops the sentences after as many as the lesson has exercises. An exercise that a sentence lists twice counts once. The bot stores a `LessonRecall` in its FSM data with `to_dict()` and `from_dict()`.
 
 ### Checking a translation
 
@@ -78,6 +78,8 @@ The function returns a `LessonRecall` with a copy of the exercises, the sentence
 ### The request
 
 `MODEL` pins Claude Haiku 5.5. In the runs of [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367), Sonnet 5.5 was faster but left wrong German in the task. Both calls use effort `low` and a tool with `tool_choice` `auto`, because Haiku thinks before it calls the tool. The timeouts are 30 s for the task and 15 s for a check, with no retry, also not for 429 or 529 (overloaded). The learner then sees an error message and can try again. They are set per request with `with_options()`, so the shared client keeps its settings for `/ai`.
+
+Each call that gets a reply adds its token counts to the current span as `lesson_recall.*` attributes (see [Observability](tracing.md#what-gets-traced)). The module uses only the OpenTelemetry API.
 
 ### Failures
 

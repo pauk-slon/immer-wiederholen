@@ -8,6 +8,7 @@ from wiederholen.tracing import configure_tracing, instrument_redis
 
 from . import dispatcher
 from .bootstrap import (
+    check_lesson_recall_config,
     load_anthropic_client,
     load_authoring_guide,
     load_bot_course_and_storage,
@@ -28,6 +29,7 @@ async def main() -> None:
     )
     feature_flags = load_feature_flags()
     anthropic_client = load_anthropic_client()
+    check_lesson_recall_config(feature_flags, anthropic_client, course)
     authoring_guide = load_authoring_guide()
     bot_info_by_language = load_bot_info()
     cue_store = load_cue_store()

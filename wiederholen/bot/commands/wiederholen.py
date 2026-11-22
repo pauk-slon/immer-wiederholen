@@ -23,7 +23,7 @@ from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
 from wiederholen.bot import answer_diff
-from wiederholen.bot.feature_flags import has_feature
+from wiederholen.bot.feature_flags import LESSON_RECALL_FLAG, has_feature
 from wiederholen.bot.l10n import (
     LOCALES,
     Locale,
@@ -60,6 +60,7 @@ router = Router()
 NEXT_EXERCISE: Final = "__next__"
 RECALL: Final = "__recall__"
 STUDY_MORE: Final = "__study_more__"
+LESSON_RECALL: Final = "__lesson_recall__"
 
 # Telegram's own limit for a photo's caption — well below the 4096 a plain
 # text message gets. A question long enough to exceed it (word_bank's own
@@ -71,6 +72,8 @@ _PHOTO_CAPTION_LIMIT: Final = 1024
 # The bot's lessons have 5 exercises (#325). The web app keeps
 # Tutor.LESSON_SIZE of 1, so it has no counter and no summary
 _LESSON_SIZE: Final = 5
+# A smaller lesson gives too few sentences for the wait of a generation
+_MIN_LESSON_RECALL_SIZE: Final = 4
 
 
 class UserState(StatesGroup):
@@ -92,7 +95,7 @@ _LASTING_CHAT_STATE_KEYS: Final = (
 )
 
 
-async def _clear_exercise_state(state: FSMContext, state_data: dict) -> None:
+async def clear_exercise_state(state: FSMContext, state_data: dict) -> None:
     await state.clear()
     await state.update_data(
         {key: state_data[key] for key in _LASTING_CHAT_STATE_KEYS if key in state_data}
@@ -178,7 +181,47 @@ def _get_finished_lesson(tutor: Tutor, mark: Mark) -> dict | None:
         "size": finished_lesson.size,
         "correct": finished_lesson.correct,
         "streak_days": streak.days if streak is not None else None,
+        "exercise_keys": list(finished_lesson.given_exercise_keys),
+        "wrong_exercise_keys": list(finished_lesson.wrong_exercise_keys),
     }
+
+
+def _has_lesson_recall(
+    feature_flags: dict[str, frozenset[int]] | None,
+    chat_id: int,
+    lesson_size: int | None,
+) -> bool:
+    return (
+        lesson_size is not None
+        and lesson_size >= _MIN_LESSON_RECALL_SIZE
+        and has_feature(feature_flags or {}, LESSON_RECALL_FLAG, chat_id)
+    )
+
+
+def offers_lesson_recall(
+    feature_flags: dict[str, frozenset[int]] | None,
+    chat_id: int,
+    finished_lesson: dict | None,
+) -> bool:
+    return (
+        finished_lesson is not None
+        and bool(finished_lesson.get("exercise_keys"))
+        and _has_lesson_recall(feature_flags, chat_id, finished_lesson["size"])
+    )
+
+
+def _continue_to_lesson_recall(markup: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                button.model_copy(update={"callback_data": LESSON_RECALL})
+                if button.callback_data == NEXT_EXERCISE
+                else button
+                for button in row
+            ]
+            for row in markup.inline_keyboard
+        ]
+    )
 
 
 def _append_lesson_summary(
@@ -397,7 +440,7 @@ _TYPING_INTERVAL_SECONDS: Final = 4  # Telegram's own indicator lasts ~5s
 
 
 @contextlib.asynccontextmanager
-async def _show_typing_while(bot: Bot, chat_id: int) -> AsyncGenerator[None]:
+async def show_typing_while(bot: Bot, chat_id: int) -> AsyncGenerator[None]:
     # Telegram's "typing..." indicator auto-expires after ~5s (or once a
     # message is sent) — full shadow-exercise generation (question, answer,
     # distractors, explanation, recalls, all written fresh — see
@@ -444,7 +487,7 @@ async def _apply_ai_mode(
     # typing indicator, so fall back to a no-op context instead of skipping
     # generation itself.
     typing_indicator = (
-        _show_typing_while(bot, chat_id)
+        show_typing_while(bot, chat_id)
         if bot is not None and chat_id is not None
         else contextlib.nullcontext()
     )
@@ -557,9 +600,10 @@ async def handle_answer(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
+    feature_flags: dict[str, frozenset[int]] | None = None,
 ) -> None:
     state_data = await state.get_data()
-    await _clear_exercise_state(state, state_data)
+    await clear_exercise_state(state, state_data)
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
@@ -574,6 +618,16 @@ async def handle_answer(
         finished_lesson = _get_finished_lesson(tutor, mark)
         await state.update_data(lesson=lesson, finished_lesson=finished_lesson)
         next_label = _get_next_label(finished_lesson, language)
+        lesson_counter = state_data.get("shown_lesson_counter")
+        has_lesson_recall = _has_lesson_recall(
+            feature_flags,
+            message.chat.id,
+            lesson_counter[1] if lesson_counter else None,
+        )
+        recall_mode = mark.recall
+        # Two kinds of recall would confuse the learner
+        if has_lesson_recall and recall_mode == RecallMode.optional:
+            recall_mode = RecallMode.none
         result_line = (
             locale.correct
             if mark.is_correct
@@ -584,9 +638,9 @@ async def handle_answer(
                 course.shown_answers(shown_exercise),
             )
         )
-        if mark.recall == RecallMode.optional:
+        if recall_mode == RecallMode.optional:
             reply_markup = _make_recall_buttons(locale, locale.btn_recall, next_label)
-        elif mark.recall == RecallMode.none:
+        elif recall_mode == RecallMode.none:
             reply_markup = make_next_button(locale, next_label)
         else:
             reply_markup = None
@@ -594,6 +648,8 @@ async def handle_answer(
         # recall it comes after the recall
         if reply_markup is not None:
             explanation = _append_lesson_summary(explanation, finished_lesson, language)
+            if offers_lesson_recall(feature_flags, message.chat.id, finished_lesson):
+                reply_markup = _continue_to_lesson_recall(reply_markup)
         first_reply_markup = (
             ReplyKeyboardRemove() if shown_exercise.distractors else None
         )
@@ -601,7 +657,7 @@ async def handle_answer(
             result_line, reply_markup=first_reply_markup, parse_mode="HTML"
         )
         sent_explanation = await message.answer(explanation, reply_markup=reply_markup)
-        if mark.recall == RecallMode.required:
+        if recall_mode == RecallMode.required:
             await _start_recall(
                 state,
                 language,
@@ -625,9 +681,10 @@ async def handle_recall(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
+    feature_flags: dict[str, frozenset[int]] | None = None,
 ) -> None:
     state_data = await state.get_data()
-    await _clear_exercise_state(state, state_data)
+    await clear_exercise_state(state, state_data)
     language = get_language(state_data)
     shown_recall = Recall.from_dict(state_data["shown_recall"])
     finished_lesson = state_data.get("finished_lesson")
@@ -638,6 +695,9 @@ async def handle_recall(
     )
     next_label = _get_next_label(finished_lesson, language)
     locale = LOCALES[language]
+    continues_to_lesson_recall = offers_lesson_recall(
+        feature_flags, message.chat.id, finished_lesson
+    )
     # check_recall() doesn't change student_record, unlike request_recall()
     # in _start_recall() above — open() detects that nothing changed and
     # skips the write on its own, no separate read-only path needed here.
@@ -651,13 +711,21 @@ async def handle_recall(
             shown_recall,
             message.text or "",
         ):
+            reply_markup = make_next_button(locale, next_label)
+            if continues_to_lesson_recall:
+                reply_markup = _continue_to_lesson_recall(reply_markup)
             sent = await message.answer(
                 _append_lesson_summary(
                     locale.recall_correct, finished_lesson, language
                 ),
-                reply_markup=make_next_button(locale, next_label),
+                reply_markup=reply_markup,
             )
         else:
+            reply_markup = _make_recall_buttons(
+                locale, locale.btn_recall_retry, next_label
+            )
+            if continues_to_lesson_recall:
+                reply_markup = _continue_to_lesson_recall(reply_markup)
             sent = await message.answer(
                 _append_lesson_summary(
                     _format_wrong(
@@ -670,9 +738,7 @@ async def handle_recall(
                     finished_lesson,
                     language,
                 ),
-                reply_markup=_make_recall_buttons(
-                    locale, locale.btn_recall_retry, next_label
-                ),
+                reply_markup=reply_markup,
                 parse_mode="HTML",
             )
     await remember_buttoned_message(state, sent)
