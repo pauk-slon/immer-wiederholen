@@ -19,13 +19,13 @@ The prompts of both experiments mixed two kinds of rules. Some are true for any 
 
 ## Decision
 
-After a lesson of two or more exercises, the bot offers an optional lesson recall. A model writes short sentences from the exercises of the lesson, the learner translates them, and a model checks each translation. A lesson recall doesn't change the schedule.
+After a lesson of two or more exercises, the bot gives a lesson recall. A model writes short sentences from the exercises of the lesson, the learner translates them, and a model checks each translation. A lesson recall doesn't change the schedule.
 
 The name says what the feature does, not its format. Translation is the format of the first version. If a lesson recall works, it can later replace the recalls of single exercises.
 
 ### The flow
 
-1. Every message with the lesson summary gets a button that starts the lesson recall. The lesson is already finished, so the lesson recall doesn't delay the streak or the next lesson. The labels are chosen in the implementation.
+1. The lesson recall starts after the answer that finishes the lesson. The lesson is already finished, so the lesson recall doesn't delay the streak. How the learner starts it, whether the learner can skip it or a sentence in it, and the labels are decided in the implementation.
 2. The model gets the exercises of the lesson (`topic`, `word`, `question`, `answer`, `explanation` in the interface language) and the course's guide. It writes one short sentence in the learner's language for each exercise, with a reference translation and the numbers of the exercises that the sentence uses. Two exercises share a sentence only if it stays natural. An exercise that no natural sentence can use is skipped with a reason.
 3. The bot shows the sentences one at a time. The learner types a translation.
 4. The model gets the sentence, its exercises, the reference translation, the guide and the answer. It returns a verdict, a comment, a corrected sentence, and for each exercise of the sentence whether the learner used its form right, wrong or not at all.
@@ -57,7 +57,7 @@ A failure shows an error message, as ADR 0006 requires. After a failed generatio
 
 A model call takes up to 30 s. During it, the learner can tap another button or type a command, and another handler changes the FSM data. A handler that wrote back the data it read before the call would undo that change. For example, it would bring back the finished lesson after the learner started the next one. So:
 
-- A tap on the button first answers the callback, removes the buttons of the summary message and shows "typing". Then the bot sets a state for the generation and stores an id for this lesson recall. Otherwise the button in Telegram would spin for the whole call.
+- When a lesson recall starts, the bot first removes the buttons of the summary message and shows "typing". If a button starts it, the bot answers the callback before the call, or the button in Telegram would spin for the whole call. Then the bot sets a state for the generation and stores an id for this lesson recall.
 - Each lesson recall has its own states: generation, waiting for a translation, and the check. A message during the generation or the check gets a short reply and isn't checked.
 - After a model call, the handler reads the FSM data again right before it writes. It writes the result only if the same lesson recall id is there in the expected state. Otherwise it drops the result. It changes only the keys of the lesson recall in that fresh copy, never data that it read before the call. aiogram's `update_data()` still reads and writes the whole data, so an update of the same chat between the two steps can be lost. This makes the window milliseconds instead of the duration of the call, with the same rule of the last write as in #249.
 - A command or a button that leads to an exercise ends the lesson recall. A result that comes later finds another state and is dropped.
@@ -66,7 +66,7 @@ These handlers don't open `check_out()`, because a lesson recall doesn't touch t
 
 ### Rollout
 
-A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new feature flag, `lesson_recall`. A chat without the flag doesn't see the button. The web app doesn't get the lesson recall yet, because its lessons have one exercise ([#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
+A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new feature flag, `lesson_recall`. A chat without the flag gets no lesson recall. The web app doesn't get the lesson recall yet, because its lessons have one exercise ([#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)).
 
 ### In the code
 
@@ -87,7 +87,6 @@ A lesson recall needs `ANTHROPIC_API_KEY`, the guide in the course, and a new fe
 - **Sonnet 5.5 for generation.** It is about 3 s instead of about 8 s. Not chosen, because it left wrong German and draft sentences in the experiment. A learner who sees a mistake in the task stops trusting the check.
 - **Event isolation for each chat** (aiogram's `RedisEventIsolation`). The handlers of one chat would then run one at a time, and the writes to the FSM data would be safe. Not chosen, because a model call of up to 30 s would then block every other update of the chat, `/wiederholen` too.
 - **Generation in the background while the learner answers the last exercise,** so the sentences are ready at the summary. Not chosen for now. It costs a call for every lesson, used or not, and it needs the same protection of the FSM data as above, but without a state that the learner started.
-- **A lesson recall after every lesson without a button.** Not chosen, because a lesson then takes longer, and a learner who has no time would break the habit of finishing lessons.
 - **A comparison with the reference translation before the model check,** as in #352. Not chosen. The reference can be wrong, and an exact match is rare for a whole sentence, so it saves little.
 - **Show the reference translation instead of a corrected sentence.** Not chosen. A corrected version of the learner's own sentence shows the mistake. A different correct sentence makes the learner compare two translations.
 - **A lesson recall in the web app after every few answers.** Not chosen for now. The web app has no lesson summary to put it in, and the web widget is small.
