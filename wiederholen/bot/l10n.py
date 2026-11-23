@@ -169,7 +169,7 @@ RU: Final = Locale(
     lesson_recall_wait="⏳ Секунду, я ещё думаю…",
     lesson_recall_generation_failed="⚠️ Не получилось подготовить фразы для перевода.",
     lesson_recall_check_failed="⚠️ Не получилось проверить перевод.",
-    btn_lesson_recall_resend="Повторить",
+    btn_lesson_recall_resend="Проверить снова",
 )
 
 EN: Final = Locale(
@@ -235,7 +235,7 @@ EN: Final = Locale(
     lesson_recall_wait="⏳ One moment, I'm still thinking…",
     lesson_recall_generation_failed="⚠️ Couldn't prepare the sentences to translate.",
     lesson_recall_check_failed="⚠️ Couldn't check the translation.",
-    btn_lesson_recall_resend="Retry",
+    btn_lesson_recall_resend="Check again",
 )
 
 LOCALES: Final[dict[Language, Locale]] = {"ru": RU, "en": EN}

@@ -123,7 +123,7 @@ All keys are exercise state (see [Chat state](storage.md#chat-state)). The bot r
 | `lesson_recall_id` | a new id for each start |
 | `lesson_recall` | the sentences, the exercises and the language, from `LessonRecall.to_dict()` |
 | `lesson_recall_position` | the number of the current sentence |
-| `lesson_recall_answer` | the last translation, for "Retry" |
+| `lesson_recall_answer` | the last translation, for "Check again" |
 | `lesson_recall_waiting_since` | the start of the current model call |
 
 The handlers don't open `check_out()`, because a lesson recall doesn't change the learning state.
@@ -134,7 +134,7 @@ After a model call, the handler reads the FSM data again. It continues only if t
 
 ### Failures
 
-A failed generation shows an error message with "Next exercise". The learner chose "Continue", so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Retry" checks it again. The learner can also type a new translation or skip the sentence.
+A failed generation shows an error message with "Next exercise". The learner chose "Continue", so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" checks it again. The learner can also type a new translation or skip the sentence.
 
 A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same message as after a failed generation or a failed check.
 
