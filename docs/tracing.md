@@ -10,7 +10,7 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 
 | Span | Process | Attributes |
 |---|---|---|
-| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/`. For `/start`, also `telegram.start.new_chat` and, if a link selected groups, `telegram.start.topic_groups` (see below). `lesson_recall.finished` after the last translation of a lesson recall. `lesson_recall.limit_reached` after the last answer of a lesson that gets no lesson recall because of the daily limit |
+| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/`. For `/start`, also `telegram.start.new_chat` and, if a link selected groups, `telegram.start.topic_groups` (see below). `lesson_recall.finished` after the last translation of a lesson recall, `lesson_recall.too_long` for a translation over the length limit. `lesson_recall.limit_reached` after the last answer of a lesson that gets no lesson recall because of the daily limit |
 | `telegram.callback_query` | bot | `telegram.callback_data`, `telegram.handled`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns. `lesson_recall.skipped` for "Skip" in a lesson recall, and `lesson_recall.finished` if it skipped the last sentence |
 | `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
 | `telegram.update` | bot | `telegram.handled` only (any other kind of update) |

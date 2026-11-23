@@ -101,6 +101,7 @@ class Locale:
     lesson_recall_wait: str
     lesson_recall_generation_failed: str
     lesson_recall_check_failed: str
+    lesson_recall_too_long: str
     btn_lesson_recall_resend: str
 
 
@@ -171,6 +172,7 @@ RU: Final = Locale(
     lesson_recall_wait="⏳ Секунду, я ещё думаю…",
     lesson_recall_generation_failed="⚠️ Не получилось подготовить фразы для перевода.",
     lesson_recall_check_failed="⚠️ Не получилось проверить перевод.",
+    lesson_recall_too_long="⚠️ Перевод слишком длинный: не больше {limit} символов.",
     btn_lesson_recall_resend="Проверить снова",
 )
 
@@ -238,6 +240,7 @@ EN: Final = Locale(
     lesson_recall_wait="⏳ One moment, I'm still thinking…",
     lesson_recall_generation_failed="⚠️ Couldn't prepare the sentences to translate.",
     lesson_recall_check_failed="⚠️ Couldn't check the translation.",
+    lesson_recall_too_long="⚠️ The translation is too long: {limit} characters at most.",
     btn_lesson_recall_resend="Check again",
 )
 
