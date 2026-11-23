@@ -35,6 +35,7 @@ from wiederholen.school import (
     LessonRecall,
     StudentIdentityStore,
     StudentRecordBook,
+    TranslationCheck,
     check_translation,
     generate_lesson_recall,
 )
@@ -159,6 +160,15 @@ async def _send_sentence(message: Message, state: FSMContext, locale: Locale) ->
         reply_markup=_keyboard([_skip_button(locale)]),
     )
     await remember_buttoned_message(state, sent)
+
+
+def _wrong_answer_fix(
+    locale: Locale, check: TranslationCheck, lesson_recall: LessonRecall, position: int
+) -> str:
+    if check.correction:
+        return locale.lesson_recall_correction.format(correction=check.correction)
+    reference = lesson_recall.sentences[position].reference
+    return locale.lesson_recall_reference.format(reference=reference)
 
 
 async def _send_result_and_go_on(
@@ -306,8 +316,7 @@ async def _check(
     if check.explanation:
         lines.append(check.explanation)
     if not check.is_correct:
-        reference = lesson_recall.sentences[position].reference
-        lines.append(locale.lesson_recall_reference.format(reference=reference))
+        lines.append(_wrong_answer_fix(locale, check, lesson_recall, position))
     await _send_result_and_go_on(message, state, locale, "\n\n".join(lines))
 
 

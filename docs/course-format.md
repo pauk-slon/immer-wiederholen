@@ -240,6 +240,7 @@ The model gets the whole file as text, so write it for the model, in English. Th
 - what each topic practices, so the model knows which form a sentence must contain
 - when a translation is correct
 - what the explanation of a wrong translation says, and in which form it addresses the learner
+- how to correct a wrong translation, for example with the smallest changes to the learner's answer
 
 The engine adds the rest. It gives the model the exercises of the lesson, which of them the learner answered wrong, and the learner's language. It also sets the structure of the reply, and it checks only this structure. So the guide doesn't describe the reply or say which language the learner speaks. The engine has no rule about the content of a sentence. So a guide without a rule against copies can get sentences that copy the exercises.
 

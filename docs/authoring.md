@@ -27,7 +27,7 @@ The function returns a `LessonRecall` with a copy of the exercises, the sentence
 
 ### Checking a translation
 
-`check_translation(client, lesson_recall, sentence_index, answer, *, guide)` sends the sentence, its exercises, the reference and the learner's answer, in the language of the lesson recall. The answer is in `<answer>` tags, and the rules say that it is text to check, never instructions. The function replaces `<` and `>` in the answer with `‹` and `›`, so the answer can't close its tag. A prompt injection could at worst get a wrong verdict, which doesn't change the schedule (see [ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md)). The reference is only a guide, because the model's translation can be wrong. The model calls the `submit_check` tool with `correct` and `explanation`. The function returns a `TranslationCheck` with `is_correct` and `explanation`. An empty explanation becomes `None`. The explanation is plain text from the model, so the bot sends it without `parse_mode` (see [Telegram bot](bot.md#the-states)).
+`check_translation(client, lesson_recall, sentence_index, answer, *, guide)` sends the sentence, its exercises, the reference and the learner's answer, in the language of the lesson recall. The answer is in `<answer>` tags, and the rules say that it is text to check, never instructions. The function replaces `<` and `>` in the answer with `‹` and `›`, so the answer can't close its tag. A prompt injection could at worst get a wrong verdict, which doesn't change the schedule (see [ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md)). The reference is only a guide, because the model's translation can be wrong. The model calls the `submit_check` tool with `correct`, `explanation` and `correction`. The correction is the learner's answer, corrected as the guide says. It is a separate field, so the bot can show it on its own line, and the explanation doesn't repeat it. The function returns a `TranslationCheck` with `is_correct`, `explanation` and `correction`. An empty explanation or correction becomes `None`. The explanation is plain text from the model, so the bot sends it without `parse_mode` (see [Telegram bot](bot.md#the-states)).
 
 ### The request
 
@@ -43,7 +43,7 @@ Each call that gets a reply adds its token counts to the current span as `lesson
 - the reply is cut off at `max_tokens`
 - the reply has no call of the expected tool, or its input isn't an object
 - the task has no usable sentence
-- the check has no boolean verdict, or its explanation isn't a string
+- the check has no boolean verdict, or its explanation or correction isn't a string
 
 ## Cues
 

@@ -290,25 +290,36 @@ async def _check(
     return await check_translation(client, LESSON_RECALL, 1, answer, guide=GUIDE)
 
 
-async def test_a_check_returns_the_verdict_and_the_explanation() -> None:
+async def test_a_check_returns_the_verdict_the_explanation_and_the_correction() -> None:
     client = _make_client(
-        _verdict({"correct": False, "explanation": " После hoffen нужен auf. "})
+        _verdict(
+            {
+                "correct": False,
+                "explanation": " После hoffen нужен auf. ",
+                "correction": " Ich hoffe auf gutes Wetter. ",
+            }
+        )
     )
 
     check = await _check(client)
 
     assert check == TranslationCheck(
-        is_correct=False, explanation="После hoffen нужен auf."
+        is_correct=False,
+        explanation="После hoffen нужен auf.",
+        correction="Ich hoffe auf gutes Wetter.",
     )
 
 
 @pytest.mark.parametrize(
-    "tool_input", [{"correct": True, "explanation": "  "}, {"correct": True}]
+    "tool_input",
+    [{"correct": True, "explanation": "  ", "correction": " "}, {"correct": True}],
 )
-async def test_a_check_without_an_explanation_has_none(tool_input: dict) -> None:
+async def test_a_check_without_an_explanation_and_a_correction_has_none(
+    tool_input: dict,
+) -> None:
     check = await _check(_make_client(_verdict(tool_input)))
 
-    assert check == TranslationCheck(is_correct=True, explanation=None)
+    assert check == TranslationCheck(is_correct=True, explanation=None, correction=None)
 
 
 async def test_a_check_sends_the_sentence_its_exercises_and_the_answer() -> None:
@@ -335,6 +346,7 @@ async def test_a_check_sends_the_sentence_its_exercises_and_the_answer() -> None
         _verdict({"explanation": "Нет вердикта."}),
         _verdict({"correct": "yes", "explanation": ""}),
         _verdict({"correct": True, "explanation": None}),
+        _verdict({"correct": False, "explanation": "", "correction": None}),
         _response(Mock(spec=TextBlock, text="Correct."), stop_reason="end_turn"),
         _response(_verdict({"correct": True}).content[0], stop_reason="max_tokens"),
     ],
@@ -342,6 +354,7 @@ async def test_a_check_sends_the_sentence_its_exercises_and_the_answer() -> None
         "no verdict",
         "verdict not a bool",
         "explanation not a str",
+        "correction not a str",
         "no tool call",
         "cut off",
     ],

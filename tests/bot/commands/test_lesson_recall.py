@@ -315,7 +315,26 @@ async def test_a_translation_is_checked_and_the_next_sentence_follows(
     assert sentence.text == "2/2 ✍️ Переведите:\nВторая фраза."
 
 
-async def test_a_wrong_translation_shows_the_explanation_and_the_reference(
+async def test_a_wrong_translation_shows_the_explanation_and_the_correction(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False,
+        explanation="После warten нужен auf.",
+        correction="Wir warten auf <b>.",
+    )
+
+    requests = await send.message("Wir warten für <b>.")
+
+    assert _sent(requests)[-2].text == (
+        "🔴 Неверно.\n\nПосле warten нужен auf.\n\n"
+        "Ваш вариант с исправлениями: Wir warten auf <b>."
+    )
+    assert _sent(requests)[-2].parse_mode != "HTML"
+
+
+async def test_a_wrong_translation_without_a_correction_shows_the_reference(
     send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
 ) -> None:
     await _start(send, state)
