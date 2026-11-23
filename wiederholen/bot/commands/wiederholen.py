@@ -204,7 +204,7 @@ def _has_lesson_recall(
 ) -> bool:
     return _lesson_recall_is_on(
         feature_flags, chat_id, lesson_size
-    ) and has_lesson_recall_left(feature_flags or {}, chat_id, state_data)
+    ) and has_lesson_recall_left(feature_flags, chat_id, state_data)
 
 
 def offers_lesson_recall(
@@ -551,19 +551,19 @@ async def handle_answer(
         await state.update_data(lesson=lesson, finished_lesson=finished_lesson)
         next_label = _get_next_label(finished_lesson, language)
         lesson_counter = state_data.get("shown_lesson_counter")
-        has_lesson_recall = _has_lesson_recall(
+        lesson_recall_left = has_lesson_recall_left(
+            feature_flags, message.chat.id, state_data
+        )
+        has_lesson_recall = lesson_recall_left and _lesson_recall_is_on(
             feature_flags,
             message.chat.id,
             lesson_counter[1] if lesson_counter else None,
-            state_data,
         )
         if (
-            finished_lesson is not None
+            not lesson_recall_left
+            and finished_lesson is not None
             and _lesson_recall_is_on(
                 feature_flags, message.chat.id, finished_lesson["size"]
-            )
-            and not has_lesson_recall_left(
-                feature_flags or {}, message.chat.id, state_data
             )
         ):
             trace.get_current_span().set_attribute("lesson_recall.limit_reached", True)

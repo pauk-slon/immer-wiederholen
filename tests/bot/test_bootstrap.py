@@ -80,6 +80,30 @@ def test_lesson_recall_flag_without_an_api_key_fails() -> None:
         check_lesson_recall_config({"lesson_recall": frozenset({1})}, None, _WITH_GUIDE)
 
 
+def test_lesson_recall_unlimited_flag_needs_the_lesson_recall_flag() -> None:
+    check_lesson_recall_config(
+        {
+            "lesson_recall": frozenset({1, 2}),
+            "lesson_recall_unlimited": frozenset({1}),
+        },
+        Mock(spec=AsyncAnthropic),
+        _WITH_GUIDE,
+    )
+    with pytest.raises(RuntimeError, match="lesson_recall_unlimited"):
+        check_lesson_recall_config(
+            {
+                "lesson_recall": frozenset({1}),
+                "lesson_recall_unlimited": frozenset({1, 2}),
+            },
+            Mock(spec=AsyncAnthropic),
+            _WITH_GUIDE,
+        )
+    with pytest.raises(RuntimeError, match="lesson_recall_unlimited"):
+        check_lesson_recall_config(
+            {"lesson_recall_unlimited": frozenset({1})}, None, Course([make_exercise()])
+        )
+
+
 def test_lesson_recall_flag_without_a_guide_fails() -> None:
     with pytest.raises(RuntimeError, match="lesson_recall.md"):
         check_lesson_recall_config(

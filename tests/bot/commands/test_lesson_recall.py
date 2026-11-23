@@ -390,6 +390,7 @@ async def test_a_generation_result_is_dropped_if_the_chat_moved_on(
     requests = await send.callback(LESSON_RECALL)
 
     assert _sent(requests) == []
+    assert len((await state.get_data())[STARTED_AT_KEY]) == 1
 
 
 async def test_a_translation_is_checked_and_the_next_sentence_follows(

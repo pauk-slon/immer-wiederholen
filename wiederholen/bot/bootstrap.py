@@ -19,7 +19,11 @@ from wiederholen.school import (
     StudentRecordBook,
 )
 
-from .feature_flags import LESSON_RECALL_FLAG, parse_feature_flags
+from .feature_flags import (
+    LESSON_RECALL_FLAG,
+    LESSON_RECALL_UNLIMITED_FLAG,
+    parse_feature_flags,
+)
 
 
 @dataclass(frozen=True)
@@ -66,7 +70,15 @@ def check_lesson_recall_config(
     anthropic_client: AsyncAnthropic | None,
     course: Course,
 ) -> None:
-    if not feature_flags.get(LESSON_RECALL_FLAG):
+    lesson_recall_chats = feature_flags.get(LESSON_RECALL_FLAG, frozenset())
+    if not feature_flags.get(LESSON_RECALL_UNLIMITED_FLAG, frozenset()) <= (
+        lesson_recall_chats
+    ):
+        raise RuntimeError(
+            f"every chat in the {LESSON_RECALL_UNLIMITED_FLAG} feature flag "
+            f"needs the {LESSON_RECALL_FLAG} feature flag"
+        )
+    if not lesson_recall_chats:
         return
     if anthropic_client is None:
         raise RuntimeError(
