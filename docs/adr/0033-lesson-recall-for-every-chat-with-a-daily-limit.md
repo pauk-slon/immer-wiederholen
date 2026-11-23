@@ -29,6 +29,8 @@ ADR 0031 also left two questions for this step. Should the bot tell the learner 
 ## Consequences
 
 - Every learner gets lesson recalls, and the cost is at most 3 lesson recalls a day for each chat without the unlimited flag.
+- In a lesson with a lesson recall, a right answer gets no optional recall, because two kinds of recall would confuse the learner ([ADR 0031](0031-model-writes-and-checks-a-lesson-recall.md)). Before, only the test chats lost the optional recall. Now every learner loses it in the first 3 lessons of 4 or more exercises in 24 hours. After the limit, the optional recall comes back.
+- No chats are left without lesson recalls, so the effect on retention can't be measured against such chats, as ADR 0031 suggested. Only a comparison before and after the change is possible, or of lessons before and after the limit.
 - The limit is per chat, in the FSM data, so `/reset` doesn't change it.
 - The learner doesn't see that the limit was reached. "Continue" shows the next exercise, as in a lesson without a lesson recall.
 - `lesson_recall.limit_reached` in the traces shows how often learners reach the limit. If many learners reach it, the limit can go up.
