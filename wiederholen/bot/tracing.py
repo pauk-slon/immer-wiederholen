@@ -3,6 +3,7 @@ from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.dispatcher.event.bases import UNHANDLED
+from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     CallbackQuery,
     ChatMemberUpdated,
@@ -12,8 +13,11 @@ from aiogram.types import (
 )
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
+from redis.exceptions import RedisError
 
 from wiederholen.tracing import default_tracer
+
+from .l10n import get_language
 
 
 def _describe(update: Update) -> tuple[str, dict[str, Any]]:
@@ -58,4 +62,17 @@ class TracingMiddleware(BaseMiddleware):
             result = await handler(event, data)
             # False when no handler matched, so the learner got no reply
             span.set_attribute("telegram.handled", result is not UNHANDLED)
+            state = data.get("state")
+            if isinstance(state, FSMContext):
+                await _record_language(span, state)
             return result
+
+
+async def _record_language(span: trace.Span, state: FSMContext) -> None:
+    # Read after the handler, so /language records the new language
+    try:
+        state_data = await state.get_data()
+    except RedisError:
+        # The update was already handled, so the trace must not fail it
+        return
+    span.set_attribute("telegram.language", get_language(state_data))

@@ -1,8 +1,12 @@
 from datetime import UTC, datetime
 from typing import Any
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from aiogram.dispatcher.event.bases import UNHANDLED
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.base import StorageKey
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
     CallbackQuery,
     Chat,
@@ -17,6 +21,7 @@ from aiogram.types import (
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Tracer
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from wiederholen.bot.tracing import TracingMiddleware
 
@@ -67,6 +72,69 @@ async def test_message_span_carries_chat_id_and_command(
     attributes = _attributes(span)
     assert attributes["telegram.chat_id"] == 42
     assert attributes["telegram.command"] == "/wiederholen"
+
+
+def _make_state() -> FSMContext:
+    return FSMContext(
+        storage=MemoryStorage(), key=StorageKey(bot_id=1, chat_id=42, user_id=42)
+    )
+
+
+@pytest.mark.parametrize(
+    ("data", "language"),
+    [({"language": "en"}, "en"), ({}, "ru")],
+    ids=["stored", "default"],
+)
+async def test_span_carries_the_chat_language_after_the_handler(
+    middleware: TracingMiddleware,
+    exporter: InMemorySpanExporter,
+    data: dict[str, Any],
+    language: str,
+) -> None:
+    event = Update(update_id=1, message=_make_message("/language"))
+    state = _make_state()
+
+    async def handler(event, handler_data):
+        await handler_data["state"].set_data(data)
+
+    await middleware(handler, event, {"state": state})
+
+    span = exporter.get_finished_spans()[0]
+    assert _attributes(span)["telegram.language"] == language
+
+
+async def test_a_failed_language_read_leaves_the_update_handled(
+    middleware: TracingMiddleware,
+    exporter: InMemorySpanExporter,
+) -> None:
+    event = Update(update_id=1, message=_make_message("/language"))
+    state = Mock(spec=FSMContext)
+    state.get_data = AsyncMock(side_effect=RedisConnectionError("down"))
+
+    async def handler(event, data):
+        return "result"
+
+    result = await middleware(handler, event, {"state": state})
+
+    assert result == "result"
+    attributes = _attributes(exporter.get_finished_spans()[0])
+    assert attributes["telegram.handled"] is True
+    assert "telegram.language" not in attributes
+
+
+async def test_span_has_no_language_without_a_chat_state(
+    middleware: TracingMiddleware,
+    exporter: InMemorySpanExporter,
+) -> None:
+    event = Update(update_id=1, message=_make_message("/language"))
+
+    async def handler(event, data):
+        return None
+
+    await middleware(handler, event, {})
+
+    span = exporter.get_finished_spans()[0]
+    assert "telegram.language" not in _attributes(span)
 
 
 async def test_message_span_omits_command_for_free_text(
