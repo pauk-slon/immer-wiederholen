@@ -120,7 +120,7 @@ A tap removes the summary buttons and starts the generation with a typing indica
 | `translating` | the bot shows a sentence, "1/3 ✍️ Translate: …", with "Skip" and "Next exercise" buttons | is the translation. A message without text shows the sentence again |
 | `checking` | the model checks the translation | gets "One moment, I'm still thinking…" |
 
-After a check, the bot shows the verdict and the explanation, and after a wrong translation also the reference. Then the next sentence comes. "Skip" shows the reference and goes on without a model call. After the last sentence, the bot clears the exercise state, and the result of this sentence comes with the "Next exercise" button.
+After a check, the bot shows the verdict and the explanation, and after a wrong translation also the reference. Then the next sentence comes. "Skip" shows the reference and goes on without a model call. The result of the last sentence, a verdict or the reference after "Skip", comes with the "Next exercise" button. The bot clears the exercise state before it, so the button starts a new lesson.
 
 "Next exercise", `/wiederholen` and every other button that shows an exercise end the lesson recall, because they change the FSM state. "Next exercise" is the usual `NEXT_EXERCISE` button, with no handler of its own. Other commands, such as `/progress`, leave the lesson recall as it is.
 
