@@ -253,8 +253,9 @@ async def _start_recall(
     shown_exercise_dict: dict,
     shown_exercise: Exercise,
     message: Message,
-    locale: Locale,
     course: Course,
+    *,
+    skip_markup: InlineKeyboardMarkup | None = None,
 ) -> None:
     # student_record is mutated in place; whichever student_record_book.check_out() the
     # caller opened it under persists it on exit — this function itself
@@ -265,8 +266,32 @@ async def _start_recall(
     await state.update_data(
         shown_exercise=shown_exercise_dict,
         shown_recall=recall.to_dict(),
+        recall_is_skippable=skip_markup is not None,
     )
-    await message.answer(_recall_prompt(recall, language, locale), parse_mode="HTML")
+    await _send_recall_prompt(message, state, recall, language, skip_markup)
+
+
+async def _send_recall_prompt(
+    message: Message,
+    state: FSMContext,
+    recall: Recall,
+    language: Language,
+    skip_markup: InlineKeyboardMarkup | None,
+) -> None:
+    sent = await message.answer(
+        _recall_prompt(recall, language, LOCALES[language]),
+        reply_markup=skip_markup,
+        parse_mode="HTML",
+    )
+    if skip_markup is not None:
+        await remember_buttoned_message(state, sent)
+
+
+def _make_skip_recall_button(
+    locale: Locale, continues_to_lesson_recall: bool
+) -> InlineKeyboardMarkup:
+    markup = make_next_button(locale, locale.btn_recall_skip)
+    return _continue_to_lesson_recall(markup) if continues_to_lesson_recall else markup
 
 
 def _recall_prompt(recall: Recall, language: Language, locale: Locale) -> str:
@@ -604,7 +629,6 @@ async def handle_answer(
                 state_data["shown_exercise"],
                 shown_exercise,
                 message,
-                locale,
                 course,
             )
         else:
@@ -624,6 +648,7 @@ async def handle_recall(
     anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     assert message.text is not None
+    await clear_stale_buttons(message.bot, message.chat.id, state)
     state_data = await state.get_data()
     await clear_exercise_state(state, state_data)
     language = get_language(state_data)
@@ -686,15 +711,37 @@ async def handle_recall(
 
 
 @router.message(UserState.recalling)
-async def show_the_recall_again(message: Message, state: FSMContext) -> None:
+async def show_the_recall_again(
+    message: Message,
+    state: FSMContext,
+    feature_flags: dict[str, frozenset[int]] | None = None,
+    anthropic_client: AsyncAnthropic | None = None,
+) -> None:
     # Not the fallback: its "next" button would skip the recall, and after
     # the last answer of a lesson also the summary and the lesson recall
     await clear_stale_buttons(message.bot, message.chat.id, state)
     state_data = await state.get_data()
     language = get_language(state_data)
-    recall = Recall.from_dict(state_data["shown_recall"])
-    await message.answer(
-        _recall_prompt(recall, language, LOCALES[language]), parse_mode="HTML"
+    skip_markup = (
+        _make_skip_recall_button(
+            LOCALES[language],
+            offers_lesson_recall(
+                anthropic_client,
+                feature_flags,
+                message.chat.id,
+                state_data.get("finished_lesson"),
+                state_data,
+            ),
+        )
+        if state_data.get("recall_is_skippable")
+        else None
+    )
+    await _send_recall_prompt(
+        message,
+        state,
+        Recall.from_dict(state_data["shown_recall"]),
+        language,
+        skip_markup,
     )
 
 
@@ -786,6 +833,9 @@ async def handle_next_exercise(
         "telegram", str(callback.from_user.id)
     )
     course = restrict_to_selected_groups(course, state_data)
+    if await state.get_state() == UserState.recalling:
+        # The learner skipped the recall
+        await state.set_state(None)
     if await _respond_with_pending_exercise(
         callback, state, state_data, course, language, cue_store
     ):
@@ -858,12 +908,26 @@ async def handle_recall_request(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
+    feature_flags: dict[str, frozenset[int]] | None = None,
+    anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
     if isinstance(callback.message, Message):
+        # The learner asked for this recall, after an optional offer or after
+        # a wrong attempt, which already offered to go on
+        skip_markup = _make_skip_recall_button(
+            locale,
+            offers_lesson_recall(
+                anthropic_client,
+                feature_flags,
+                callback.message.chat.id,
+                state_data.get("finished_lesson"),
+                state_data,
+            ),
+        )
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
         student_id = await student_identity_store.resolve_or_create_student_id(
@@ -877,7 +941,7 @@ async def handle_recall_request(
                 state_data["shown_exercise"],
                 shown_exercise,
                 callback.message,
-                locale,
                 course,
+                skip_markup=skip_markup,
             )
     await callback.answer()

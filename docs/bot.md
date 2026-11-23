@@ -55,6 +55,8 @@ After an answer, the bot says whether it was right, removes the options keyboard
 
 The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)). After a wrong answer to a pair that the learner answered before, a recall starts at once. After a right answer, or a wrong first answer to a pair, the learner can choose an optional recall with "Drill" ([ADR 0034](adr/0034-no-required-recall-on-a-new-pair.md)). A wrong recall answer gets the mistake marked in the same way, and the learner can try again.
 
+A recall that the learner asked for, with "Drill" or "Try again", has a "Skip" button. The learner can't see the sentence before the tap, so they must be able to change their mind. Only the first attempt of a required recall has no "Skip". "Skip" works as the "next" button after a wrong recall answer. It shows the next exercise. After the last answer of a lesson with a lesson recall, it starts the lesson recall. `recall_is_skippable` in the FSM data keeps the choice, so the bot can show the recall again with the same button.
+
 When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" button. It raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
 
 ### Marking a mistake
@@ -84,7 +86,7 @@ The message is HTML, so `answer_diff.py` escapes the texts. The web widget has n
 
 An answer to an exercise or a recall is text that doesn't start with `/`. A sticker, a photo or an unknown command such as `/help` isn't an answer, because the learner didn't try to answer. As a wrong answer, it would set the interval of the pair to 0. During an exercise, such a message goes to the [fallback](#other-messages), and its "next" button shows the same exercise again.
 
-During a recall, the bot shows the recall again and doesn't use the fallback. The fallback's button shows the next exercise, so it would skip the recall, and after the last answer of a lesson also the summary and the lesson recall that come after it. To leave a recall on purpose, the learner sends `/wiederholen`.
+During a recall, the bot shows the recall again and doesn't use the fallback. The fallback's button shows the next exercise, so it would skip the recall, and after the last answer of a lesson also the summary and the lesson recall that come after it. To leave a recall on purpose, the learner taps "Skip" if the recall has it, or sends `/wiederholen`.
 
 ## Lessons
 

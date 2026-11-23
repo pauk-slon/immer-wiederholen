@@ -209,6 +209,21 @@ async def test_continue_after_a_wrong_required_recall_starts_a_lesson_recall(
     ]
 
 
+async def test_skipping_a_retry_at_the_end_of_a_lesson_starts_a_lesson_recall(
+    send: Any,
+    state: FSMContext,
+    introduce_pairs: IntroducePairs,
+) -> None:
+    course = _course_with_recalls()
+    await introduce_pairs(course.exercises)
+    await _answer_lesson(send, state, [True, True, True, False], course=course)
+    await send.message("falsch", course=course)
+
+    requests = await send.callback(RECALL, course=course)
+
+    assert _buttons(_sent(requests)[-1]) == [(RU.btn_recall_skip, LESSON_RECALL)]
+
+
 async def test_continue_after_a_right_required_recall_starts_a_lesson_recall(
     send: Any,
     state: FSMContext,

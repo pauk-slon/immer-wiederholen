@@ -464,7 +464,7 @@ const STRINGS = {
     correct: "Правильно!",
     wrong: (answer) => `Неправильно. Правильный ответ: ${answer}`,
     // Mirrors the bot's own l10n.py wording exactly (btn_recall,
-    // btn_recall_retry, recall_correct, recall_wrong, recall_prompt) —
+    // btn_recall_retry, btn_recall_skip, recall_correct, recall_wrong, recall_prompt) —
     // recallRetry is kept distinct from tryAgain above (a different
     // button, for the unrelated network-error-retry case) since the bot's
     // own ru copy for the two differs ("Попробовать ещё раз" vs
@@ -474,6 +474,7 @@ const STRINGS = {
     // itself is needed here.
     recallDrill: "Закрепить",
     recallRetry: "Попробовать ещё раз",
+    recallSkip: "Пропустить",
     recallCorrect: "Правильно!",
     recallWrong: (answer) => `Неправильно. Правильный ответ: ${answer}`,
     recallInstruction: "Напишите фразу целиком",
@@ -487,6 +488,7 @@ const STRINGS = {
     wrong: (answer) => `Wrong. The correct answer is: ${answer}`,
     recallDrill: "Drill",
     recallRetry: "Try again",
+    recallSkip: "Skip",
     recallCorrect: "Correct!",
     recallWrong: (answer) => `Wrong. The correct answer is: ${answer}`,
     recallInstruction: "Type the whole sentence",
@@ -964,7 +966,9 @@ class GermanExerciseWidget extends HTMLElement {
       trigger.addEventListener("click", () => this._startRecall());
       trigger.focus({ preventScroll: true });
     } else if (recallMode === "optional") {
-      this._setToolbarToActions(this._strings.recallDrill, () => this._startRecall());
+      this._setToolbarToActions(this._strings.recallDrill, () =>
+        this._startRecall({ skippable: true })
+      );
     } else {
       this._setToolbar(
         this._primarySlot(
@@ -983,7 +987,9 @@ class GermanExerciseWidget extends HTMLElement {
   // (called directly from _renderResult() above) and for a retry after a
   // wrong attempt (called from _submitRecallAnswer()'s own wrong branch
   // below).
-  async _startRecall() {
+  // skippable: the learner asked for this recall, so they can change their
+  // mind. Only a required recall's first attempt has no way past it.
+  async _startRecall({ skippable = false } = {}) {
     // A transient loading state in the *current* card's own toolbar — not
     // a new card yet, since there's nothing to show until the fetch
     // resolves. Deliberately before the drop below, not after: while the
@@ -1017,8 +1023,15 @@ class GermanExerciseWidget extends HTMLElement {
           `<div class="centered-pair"><p class="question">❓ ${escapeHtml(recall.question)}</p>${hint}</div>` +
           `</div><div class="toolbar">` +
           `<form data-recall-form><input type="text" autocomplete="off" />` +
-          `<button type="submit">✓</button></form></div></div>`
+          `<button type="submit">✓</button></form>` +
+          (skippable
+            ? `<button type="button" data-recall-skip>${escapeHtml(this._strings.recallSkip)}</button>`
+            : "") +
+          `</div></div>`
       );
+      this._currentCard
+        .querySelector("[data-recall-skip]")
+        ?.addEventListener("click", () => this._loadNext(true));
       const form = this._currentCard.querySelector("[data-recall-form]");
       const input = form.querySelector("input");
       form.addEventListener("submit", (event) => {
@@ -1078,7 +1091,9 @@ class GermanExerciseWidget extends HTMLElement {
         );
         this._wireNextButton();
       } else {
-        this._setToolbarToActions(this._strings.recallRetry, () => this._startRecall());
+        this._setToolbarToActions(this._strings.recallRetry, () =>
+          this._startRecall({ skippable: true })
+        );
       }
     } catch (error) {
       this._reportClientError("submitRecallAnswer", error);

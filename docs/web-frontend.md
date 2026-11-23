@@ -134,7 +134,7 @@ After an answer, the result card shows the verdict and the explanation. Its butt
 - **`optional`** (right answer, or a wrong first answer to the pair). The card shows "Drill" and "Next".
 - **`required`** (wrong answer to a pair that the learner answered before). The card shows only "Drill". The recall starts with a button, not at once, so the learner has time to read the explanation that the recall builds on.
 
-A recall card tells the learner what to do ("Type the whole sentence"). It shows the recall question and the hint and takes a typed answer. After a wrong attempt, it shows "Try again" and "Next". "Try again" gets a recall again, usually a different one.
+A recall card tells the learner what to do ("Type the whole sentence"). It shows the recall question and the hint and takes a typed answer. A recall that the learner asked for, after an optional offer or with "Try again", also has "Skip", which loads the next exercise. The first attempt of a required recall has no "Skip", as in the bot (see [Bot](bot.md#answering)). After a wrong attempt, it shows "Try again" and "Next". "Try again" gets a recall again, usually a different one.
 
 The widget doesn't underline the differences in a wrong recall like the bot. It shows the expected sentence.
 
