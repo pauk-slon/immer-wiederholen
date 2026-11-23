@@ -65,7 +65,7 @@ For this reason, give the project its own bot. Don't reuse a bot that you made f
 
 ## Optional integrations
 
-You enable each integration with its variables. There is no separate flag. Without the variables, the feature is off, and the bot starts normally.
+You enable each integration with its variables. Without the variables, the feature is off, and the bot starts normally. The lesson recall also needs a feature flag.
 
 ### Lesson recalls
 

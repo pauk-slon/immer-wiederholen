@@ -96,7 +96,7 @@ The bot takes the size from the counter of the shown exercise ("2/5"). So it dec
 
 In a lesson with a lesson recall, the "Continue" button of the lesson summary starts the lesson recall. The summary comes after the last answer, or after the recall result when the last answer needed a recall, so both places have it. The button keeps its text and gets the `LESSON_RECALL` callback instead of `NEXT_EXERCISE`. Such a lesson gets no optional recall after a right answer, because two kinds of recall would confuse the learner. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
-A tap starts the generation. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys, It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
+A tap starts the generation. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
 
 ### The states
 

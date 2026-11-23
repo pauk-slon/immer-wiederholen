@@ -31,7 +31,7 @@ The function returns a `LessonRecall` with a copy of the exercises, the sentence
 
 ### The request
 
-`MODEL` pins Claude Haiku 5.5. In the runs of [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367), Sonnet 5.5 was faster but left wrong German in the task. Both calls use effort `low` and a tool with `tool_choice` `auto`, because Haiku thinks before it calls the tool. The timeouts are 30 s for the task and 15 s for a check, with no retry, also not for 429 or 529 (overloaded). The learner then sees an error message and can try again. They are set per request with `with_options()`, so the client has no settings of its own.
+`MODEL` pins Claude Haiku 5.5. In the runs of [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367), Sonnet 5.5 was faster but left wrong German in the task. Both calls use effort `low` and a tool with `tool_choice` `auto`, because Haiku thinks before it calls the tool. The timeouts are 30 s for the task and 15 s for a check, with no retry, also not for 429 or 529 (overloaded). The learner then sees an error message and can try again. They are set per request with `with_options()`, so the shared client keeps the SDK's defaults.
 
 Each call that gets a reply adds its token counts to the current span as `lesson_recall.*` attributes (see [Observability](tracing.md#what-gets-traced)). The module uses only the OpenTelemetry API.
 

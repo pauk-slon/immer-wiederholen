@@ -112,7 +112,7 @@ The answer to the last exercise of a lesson finishes it, also if the lesson expi
 
 `take_exercise_key()` removes each key that it gives from `exercise_keys`, so the lesson keeps the keys in two more lists. `start()` creates these lists, and a lesson started before them never gets them. So such a lesson reports no keys, not only the keys that it gave after the deployment.
 
-A wrong answer marks the exercise that the lesson gave last, not the answered exercise. Each frontend keeps the lesson next to the exercise that it shows, so these are the same exercise. A given exercise can have no answer, if `/topics` deselected its topic while it was shown.
+A wrong answer marks the exercise that the lesson gave last. A given exercise can have no answer, if `/topics` deselected its topic while it was shown.
 
 `lesson_progress()` returns the position of the exercise that `next_exercise()` gave last, and the size of its lesson. The bot shows them as "3/5".
 

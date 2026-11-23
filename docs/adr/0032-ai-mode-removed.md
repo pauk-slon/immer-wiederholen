@@ -19,7 +19,7 @@ The mode had its own costs:
 
 The `/ai` mode is removed. This includes the `/ai` command, `wiederholen.school.authoring.shadow_exercises`, the `ai_mode` setting, `Course.ai_generatable_topics` and `AUTHORING_GUIDE_PATH`. The Anthropic client now has the SDK's default settings, and each call sets its own timeout and retries.
 
-The course loader ignores `ai_generation` in `topics.yaml`, and the bot ignores the `ai_exercises` flag, as it ignores every unknown setting. So a course or a configuration from before still works.
+The course loader ignores unknown topic settings, such as `ai_generation`, and the bot ignores unknown flags, such as `ai_exercises`. So a course or a configuration from before still works.
 
 [ADR 0006](0006-ai-generation-fails-visibly.md) stays, because the lesson recall also fails visibly with `AIGenerationError`.
 
