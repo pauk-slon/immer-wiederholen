@@ -33,4 +33,5 @@ The course loader ignores `ai_generation` in `topics.yaml`, and the bot ignores 
 - One flow shows an exercise. The bot shows only authored exercises, and a lesson always gets an answer to the exercise that it gave.
 - A course author no longer decides which topics a model may rewrite.
 - `ai_mode` and `shown_is_ai_generated` can stay in the FSM data of the test chat. The bot doesn't read them, and the end of the next exercise removes them, because they aren't lasting chat state.
+- [ADR 0006](0006-ai-generation-fails-visibly.md) gives its reason for a testing tool. The lesson recall is behind a feature flag too, so the reason still holds. Before the flag opens to everyone, ADR 0006 needs a review.
 - The notes about shadows in [ADR 0022](0022-several-equal-answers.md), [ADR 0024](0024-primary-answer-per-topic.md) and [ADR 0030](0030-cue-field-sets-the-scene-or-turns-it-off.md) no longer apply.
