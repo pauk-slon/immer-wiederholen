@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from typing import Any
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from aiogram.dispatcher.event.bases import UNHANDLED
@@ -20,6 +21,7 @@ from aiogram.types import (
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Tracer
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from wiederholen.bot.tracing import TracingMiddleware
 
@@ -72,11 +74,10 @@ async def test_message_span_carries_chat_id_and_command(
     assert attributes["telegram.command"] == "/wiederholen"
 
 
-def _make_state(data: dict[str, Any]) -> FSMContext:
-    storage = MemoryStorage()
-    key = StorageKey(bot_id=1, chat_id=42, user_id=42)
-    storage.storage[key].data = data
-    return FSMContext(storage=storage, key=key)
+def _make_state() -> FSMContext:
+    return FSMContext(
+        storage=MemoryStorage(), key=StorageKey(bot_id=1, chat_id=42, user_id=42)
+    )
 
 
 @pytest.mark.parametrize(
@@ -91,7 +92,7 @@ async def test_span_carries_the_chat_language_after_the_handler(
     language: str,
 ) -> None:
     event = Update(update_id=1, message=_make_message("/language"))
-    state = _make_state({})
+    state = _make_state()
 
     async def handler(event, handler_data):
         await handler_data["state"].set_data(data)
@@ -100,6 +101,25 @@ async def test_span_carries_the_chat_language_after_the_handler(
 
     span = exporter.get_finished_spans()[0]
     assert _attributes(span)["telegram.language"] == language
+
+
+async def test_a_failed_language_read_leaves_the_update_handled(
+    middleware: TracingMiddleware,
+    exporter: InMemorySpanExporter,
+) -> None:
+    event = Update(update_id=1, message=_make_message("/language"))
+    state = Mock(spec=FSMContext)
+    state.get_data = AsyncMock(side_effect=RedisConnectionError("down"))
+
+    async def handler(event, data):
+        return "result"
+
+    result = await middleware(handler, event, {"state": state})
+
+    assert result == "result"
+    attributes = _attributes(exporter.get_finished_spans()[0])
+    assert attributes["telegram.handled"] is True
+    assert "telegram.language" not in attributes
 
 
 async def test_span_has_no_language_without_a_chat_state(

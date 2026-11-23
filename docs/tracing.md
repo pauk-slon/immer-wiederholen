@@ -29,7 +29,7 @@ When code inside a span raises an exception, OpenTelemetry records it on that sp
 
 `telegram.start.topic_groups` has only group ids that the course has. The bot never records the payload itself, because a learner can type any text after `/start`. With `telegram.start.new_chat`, the two attributes show how many new chats came from a page with groups. `telegram.start.language` is the language from the link. A link can carry a language without groups, so this attribute shows the new chats that came from a link at all.
 
-`telegram.language` is the chat's language, `ru` or `en`, or the default if the chat never stored one. It lets you compare the learners of the two languages, for example in lesson recalls. `TracingMiddleware` reads it from the FSM data after the handler, so after `/language` the span has the new language. This is one more Redis read for each update.
+`telegram.language` is the chat's language, `ru` or `en`, or the default if the chat never stored one. It lets you compare the learners of the two languages, for example in lesson recalls. `TracingMiddleware` reads it from the FSM data after the handler, so after `/language` the span has the new language. This is one more Redis read for each update. If the read fails, the span has no language, because the update was already handled.
 
 The two `lesson_recall.*` spans never contain a sentence, a translation or an explanation. `lesson_recall.failure` is the message of `AIGenerationError`, a fixed text from the code.
 
