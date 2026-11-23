@@ -184,8 +184,15 @@ def _correction_html(answer: str, correction: str) -> str:
     return diff.mistake or diff.answer
 
 
+def _quote(text_html: str) -> str:
+    # Sets the sentence apart from the explanation above it
+    return f"<blockquote>{text_html}</blockquote>"
+
+
 def _reference_html(locale: Locale, reference: str) -> str:
-    return locale.lesson_recall_reference.format(reference=html.escape(reference))
+    return locale.lesson_recall_reference.format(
+        reference=_quote(html.escape(reference))
+    )
 
 
 async def _send_result_and_go_on(
@@ -347,7 +354,7 @@ async def _check(
         if correction := _shown_correction(check, answer):
             lines.append(
                 locale.lesson_recall_correction.format(
-                    correction=_correction_html(answer, correction)
+                    correction=_quote(_correction_html(answer, correction))
                 )
             )
         else:
