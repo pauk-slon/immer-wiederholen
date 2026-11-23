@@ -19,10 +19,10 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
 )
+from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
 from wiederholen.bot import answer_diff
-from wiederholen.bot.feature_flags import LESSON_RECALL_FLAG, has_feature
 from wiederholen.bot.l10n import (
     LOCALES,
     Locale,
@@ -185,29 +185,18 @@ def _get_finished_lesson(tutor: Tutor, mark: Mark) -> dict | None:
 
 
 def _lesson_recall_is_on(
-    feature_flags: dict[str, frozenset[int]] | None,
-    chat_id: int,
-    lesson_size: int | None,
+    anthropic_client: AsyncAnthropic | None, lesson_size: int | None
 ) -> bool:
+    # check_lesson_recall_config() makes sure that the client has a guide
     return (
-        lesson_size is not None
+        anthropic_client is not None
+        and lesson_size is not None
         and lesson_size >= _MIN_LESSON_RECALL_SIZE
-        and has_feature(feature_flags or {}, LESSON_RECALL_FLAG, chat_id)
     )
 
 
-def _has_lesson_recall(
-    feature_flags: dict[str, frozenset[int]] | None,
-    chat_id: int,
-    lesson_size: int | None,
-    state_data: dict,
-) -> bool:
-    return _lesson_recall_is_on(
-        feature_flags, chat_id, lesson_size
-    ) and has_lesson_recall_left(feature_flags, chat_id, state_data)
-
-
 def offers_lesson_recall(
+    anthropic_client: AsyncAnthropic | None,
     feature_flags: dict[str, frozenset[int]] | None,
     chat_id: int,
     finished_lesson: dict | None,
@@ -216,9 +205,8 @@ def offers_lesson_recall(
     return (
         finished_lesson is not None
         and bool(finished_lesson.get("exercise_keys"))
-        and _has_lesson_recall(
-            feature_flags, chat_id, finished_lesson["size"], state_data
-        )
+        and _lesson_recall_is_on(anthropic_client, finished_lesson["size"])
+        and has_lesson_recall_left(feature_flags, chat_id, state_data)
     )
 
 
@@ -533,6 +521,7 @@ async def handle_answer(
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
     feature_flags: dict[str, frozenset[int]] | None = None,
+    anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     state_data = await state.get_data()
     await clear_exercise_state(state, state_data)
@@ -555,16 +544,12 @@ async def handle_answer(
             feature_flags, message.chat.id, state_data
         )
         has_lesson_recall = lesson_recall_left and _lesson_recall_is_on(
-            feature_flags,
-            message.chat.id,
-            lesson_counter[1] if lesson_counter else None,
+            anthropic_client, lesson_counter[1] if lesson_counter else None
         )
         if (
             not lesson_recall_left
             and finished_lesson is not None
-            and _lesson_recall_is_on(
-                feature_flags, message.chat.id, finished_lesson["size"]
-            )
+            and _lesson_recall_is_on(anthropic_client, finished_lesson["size"])
         ):
             trace.get_current_span().set_attribute("lesson_recall.limit_reached", True)
         recall_mode = mark.recall
@@ -592,7 +577,11 @@ async def handle_answer(
         if reply_markup is not None:
             explanation = _append_lesson_summary(explanation, finished_lesson, language)
             if offers_lesson_recall(
-                feature_flags, message.chat.id, finished_lesson, state_data
+                anthropic_client,
+                feature_flags,
+                message.chat.id,
+                finished_lesson,
+                state_data,
             ):
                 reply_markup = _continue_to_lesson_recall(reply_markup)
         first_reply_markup = (
@@ -627,6 +616,7 @@ async def handle_recall(
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
     feature_flags: dict[str, frozenset[int]] | None = None,
+    anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     state_data = await state.get_data()
     await clear_exercise_state(state, state_data)
@@ -641,7 +631,7 @@ async def handle_recall(
     next_label = _get_next_label(finished_lesson, language)
     locale = LOCALES[language]
     continues_to_lesson_recall = offers_lesson_recall(
-        feature_flags, message.chat.id, finished_lesson, state_data
+        anthropic_client, feature_flags, message.chat.id, finished_lesson, state_data
     )
     # check_recall() doesn't change student_record, unlike request_recall()
     # in _start_recall() above — open() detects that nothing changed and

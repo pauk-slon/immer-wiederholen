@@ -1,6 +1,6 @@
 # 0031. A model writes a lesson recall and checks the translations
 
-**Status:** Accepted, 2026-11-22 ([#368](https://github.com/pauk-slon/immer-wiederholen/pull/368)). The feature and the implementation notes are in [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367).
+**Status:** Accepted, 2026-11-22 ([#368](https://github.com/pauk-slon/immer-wiederholen/pull/368)). Amended by [0033](0033-lesson-recall-for-every-chat-with-a-daily-limit.md). The feature and the implementation notes are in [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367).
 
 ## Context
 

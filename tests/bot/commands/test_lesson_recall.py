@@ -51,8 +51,8 @@ def _lesson_recall(*texts: str, language: Any = "ru") -> LessonRecall:
 
 
 @pytest.fixture
-def flags(chat_id: int) -> dict[str, frozenset[int]]:
-    return {"lesson_recall": frozenset({chat_id})}
+def flags() -> dict[str, frozenset[int]]:
+    return {}
 
 
 @pytest.fixture
@@ -160,15 +160,15 @@ async def test_continue_after_the_summary_starts_a_lesson_recall(
     assert _buttons(summary) == [(RU.btn_continue, LESSON_RECALL)]
 
 
-async def test_a_chat_outside_the_flag_gets_no_lesson_recall(
+async def test_without_an_api_key_there_is_no_lesson_recall(
     send: Any, state: FSMContext
 ) -> None:
-    requests = await _finish_lesson(send, state, feature_flags={})
+    requests = await _finish_lesson(send, state, anthropic_client=None)
 
     assert _buttons(_sent(requests)[-1]) == [(RU.btn_continue, NEXT_EXERCISE)]
 
 
-async def test_a_chat_in_the_flag_gets_no_optional_recall(
+async def test_a_lesson_with_a_lesson_recall_gets_no_optional_recall(
     send: Any, state: FSMContext
 ) -> None:
     requests = await _answer_lesson(send, state, [True], course=_course_with_recalls())
@@ -250,12 +250,12 @@ async def test_continue_without_a_finished_lesson_shows_the_next_exercise(
     assert await state.get_state() == "UserState:answering"
 
 
-async def test_continue_outside_the_flag_shows_the_next_exercise(
+async def test_continue_without_an_api_key_shows_the_next_exercise(
     send: Any, state: FSMContext, generate: AsyncMock
 ) -> None:
     await _finish_lesson(send, state)
 
-    await send.callback(LESSON_RECALL, feature_flags={})
+    await send.callback(LESSON_RECALL, anthropic_client=None)
 
     generate.assert_not_called()
     assert await state.get_state() == "UserState:answering"
@@ -323,10 +323,7 @@ async def test_a_lesson_recall_older_than_a_day_does_not_count(
 async def test_a_chat_in_the_unlimited_flag_has_no_daily_limit(
     send: Any, state: FSMContext, generate: AsyncMock, chat_id: int
 ) -> None:
-    flags = {
-        "lesson_recall": frozenset({chat_id}),
-        "lesson_recall_unlimited": frozenset({chat_id}),
-    }
+    flags = {"lesson_recall_unlimited": frozenset({chat_id})}
     await _use_up_the_daily_limit(state)
 
     requests = await _finish_lesson(send, state, feature_flags=flags)

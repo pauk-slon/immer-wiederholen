@@ -234,7 +234,7 @@ async def handle_start(
     if (
         not isinstance(message, Message)
         or not offers_lesson_recall(
-            feature_flags, message.chat.id, finished_lesson, data
+            anthropic_client, feature_flags, message.chat.id, finished_lesson, data
         )
         or not exercises
     ):
