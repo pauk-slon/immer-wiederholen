@@ -333,9 +333,25 @@ async def test_a_wrong_translation_shows_the_explanation_and_the_correction(
 
     assert _sent(requests)[-2].text == (
         "🔴 Неверно.\n\nПосле warten нужен auf.\n\n"
-        "Ваш вариант с исправлениями: Wir warten auf <b>."
+        "Ваш вариант с исправлениями: Wir warten <u>auf</u> &lt;b&gt;."
     )
-    assert _sent(requests)[-2].parse_mode != "HTML"
+    assert _sent(requests)[-2].parse_mode == "HTML"
+
+
+async def test_a_correction_that_only_removes_words_strikes_them_through(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation=None, correction="Wir warten auf den Bus."
+    )
+
+    requests = await send.message("Wir warten sehr auf den Bus.")
+
+    assert _sent(requests)[-2].text == (
+        "🔴 Неверно.\n\n"
+        "Ваш вариант с исправлениями: Wir warten <s>sehr</s> auf den Bus."
+    )
 
 
 async def test_an_unchanged_correction_shows_the_reference(
@@ -362,9 +378,9 @@ async def test_a_wrong_translation_without_a_correction_shows_the_reference(
     requests = await send.message("Wir warten für.")
 
     assert _sent(requests)[-2].text == (
-        "🔴 Неверно.\n\nПосле warten нужен auf <b>.\n\nВариант перевода: Ref 0"
+        "🔴 Неверно.\n\nПосле warten нужен auf &lt;b&gt;.\n\nВариант перевода: Ref 0"
     )
-    assert _sent(requests)[-2].parse_mode != "HTML"
+    assert _sent(requests)[-2].parse_mode == "HTML"
 
 
 async def test_the_last_result_leads_to_the_next_exercise(
@@ -451,6 +467,7 @@ async def test_a_skip_shows_the_reference_without_a_model_call(
     check.assert_not_called()
     reference, sentence = _sent(requests)[-2:]
     assert reference.text == "Вариант перевода: Ref 0"
+    assert reference.parse_mode == "HTML"
     assert sentence.text == "2/2 ✍️ Переведите:\nВторая фраза."
 
 

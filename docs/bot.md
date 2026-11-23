@@ -51,7 +51,7 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 
 ### Marking a mistake
 
-After a wrong answer to an exercise or a recall, [`answer_diff.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/answer_diff.py) shows where the answer differs from the correct one (see [#319](https://github.com/pauk-slon/immer-wiederholen/issues/319)). It compares the two texts word by word:
+After a wrong answer to an exercise or a recall, and in the correction of a lesson recall, [`answer_diff.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/answer_diff.py) shows where the answer differs from the correct one (see [#319](https://github.com/pauk-slon/immer-wiederholen/issues/319)). It compares the two texts word by word:
 
 - **Similar words.** In a pair of similar words, only the letters that differ are underlined. In declension, one letter carries the case, so the learner must see that letter. Two words are similar if `difflib.SequenceMatcher.ratio()` is more than 0.5.
 - **Other words.** A word that has little in common with the learner's word is underlined as a whole. A letter diff of unrelated words would mark letters that match by chance.
@@ -64,7 +64,7 @@ After a wrong answer to an exercise or a recall, [`answer_diff.py`](https://gith
 | `gegangt` | `gegangen` | gegang<u>en</u> |
 | `Gegangt` | `gegangen` | gegang<u>en</u> |
 
-The comparison ignores what the answer check ignores. The case of letters never counts, so a capital letter from the phone keyboard isn't marked. For a recall, `.,!?` at the start or end of the text don't count either, because `check_recall()` removes them. In an answer to an exercise, they count, because its check counts them, so an extra period is struck through.
+The comparison ignores what the answer check ignores. The case of letters never counts, so a capital letter from the phone keyboard isn't marked. For a recall, `.,!?` at the start or end of the text don't count either, because `check_recall()` removes them. A correction in a lesson recall ignores the same characters as a recall, so it doesn't mark a period that the learner left out. In an answer to an exercise, they count, because its check counts them, so an extra period is struck through.
 
 If the exercise shows several answers, the bot marks the answer that is closest to the learner's text, because the learner most likely meant that form.
 
@@ -108,13 +108,13 @@ A tap starts the generation. `finished_lesson` has the keys of the exercises of 
 | `translating` | the bot shows a sentence with "Skip" | is the translation. A message without text shows the sentence again |
 | `checking` | the model checks the translation | gets a busy notice |
 
-After a wrong translation, the bot shows the correction from the model. The correction keeps what the learner wrote and fixes only the mistakes, so the learner sees how to fix their own sentence. The bot doesn't show the reference too, because the reference and the correction are often the same sentence. If the model gave no correction, or the correction is the same as the answer, the bot shows the reference instead.
+After a wrong translation, the bot shows the correction from the model. The correction keeps what the learner wrote and fixes only the mistakes, so the learner sees how to fix their own sentence. The bot doesn't show the reference too, because the reference and the correction are often the same sentence. The bot marks the changes in the correction as it marks a mistake in an exercise (see [Marking a mistake](#marking-a-mistake)), so the learner sees what changed without a comparison word by word. If the correction only removes words, the bot shows the learner's answer with these words struck through. If the model gave no correction, or the correction is the same as the answer, the bot shows the reference instead.
 
 "Skip" shows the reference. A sentence has no button that leaves the lesson recall, because such a button would look like "Skip". The learner can skip to the end quickly, because "Skip" needs no model call. After the last sentence, the bot clears the exercise state, so the "Next exercise" button on its result starts a new lesson.
 
 To leave a lesson recall early, the learner sends `/wiederholen`. Every button that shows an exercise, for example the button of a reminder, also ends the lesson recall, because it changes the FSM state. Other commands, such as `/progress`, leave the lesson recall as it is.
 
-The model's texts go out as plain text, without `parse_mode`, so they need no `html.escape()` (see [Showing an exercise](#showing-an-exercise)).
+The result is HTML because of the marks. So the explanation and the reference go through `html.escape()`, and `answer_diff.py` escapes the correction (see [Showing an exercise](#showing-an-exercise)).
 
 ### The data
 
