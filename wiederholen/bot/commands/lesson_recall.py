@@ -49,8 +49,7 @@ router = Router()
 SKIP: Final = "__lesson_recall_skip__"
 
 _MIN_CHANGED_WORDS_WITHOUT_MARKS: Final = 3
-# 3 times the longest reference in test runs. A longer reply wouldn't fit
-# Telegram's limit, because the result repeats the corrected translation
+# The result repeats the translation, so a longer one wouldn't fit a message
 _MAX_ANSWER_LENGTH: Final = 300
 RESEND: Final = "__lesson_recall_resend__"
 
