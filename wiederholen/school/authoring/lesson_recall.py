@@ -116,11 +116,17 @@ _CHECK_TOOL: Final[ToolParam] = {
             "explanation": {
                 "type": "string",
                 "description": "The explanation for the learner, in the learner's "
-                "language. An empty string if the guide gives none for this "
-                "answer.",
+                "language. It doesn't repeat the correction. An empty string if "
+                "the guide gives none for this answer.",
+            },
+            "correction": {
+                "type": "string",
+                "description": "The learner's answer, corrected as the guide says. "
+                "An empty string if the answer is correct or the guide gives no "
+                "correction for it.",
             },
         },
-        "required": ["correct", "explanation"],
+        "required": ["correct", "explanation", "correction"],
     },
 }
 
@@ -172,6 +178,7 @@ class LessonRecall:
 class TranslationCheck:
     is_correct: bool
     explanation: str | None
+    correction: str | None
 
 
 def _system(rules: str, guide: str) -> list[TextBlockParam]:
@@ -391,8 +398,15 @@ async def check_translation(
     )
     is_correct = tool_input.get("correct")
     explanation = tool_input.get("explanation", "")
-    if not isinstance(is_correct, bool) or not isinstance(explanation, str):
+    correction = tool_input.get("correction", "")
+    if (
+        not isinstance(is_correct, bool)
+        or not isinstance(explanation, str)
+        or not isinstance(correction, str)
+    ):
         raise AIGenerationError("model returned a malformed response")
     return TranslationCheck(
-        is_correct=is_correct, explanation=explanation.strip() or None
+        is_correct=is_correct,
+        explanation=explanation.strip() or None,
+        correction=correction.strip() or None,
     )

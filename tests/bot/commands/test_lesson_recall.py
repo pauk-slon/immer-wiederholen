@@ -68,7 +68,11 @@ def generate() -> Iterator[AsyncMock]:
 
 @pytest.fixture
 def check() -> Iterator[AsyncMock]:
-    mock = AsyncMock(return_value=TranslationCheck(is_correct=True, explanation=None))
+    mock = AsyncMock(
+        return_value=TranslationCheck(
+            is_correct=True, explanation=None, correction=None
+        )
+    )
     with patch("wiederholen.bot.commands.lesson_recall.check_translation", mock):
         yield mock
 
@@ -315,12 +319,44 @@ async def test_a_translation_is_checked_and_the_next_sentence_follows(
     assert sentence.text == "2/2 ✍️ Переведите:\nВторая фраза."
 
 
-async def test_a_wrong_translation_shows_the_explanation_and_the_reference(
+async def test_a_wrong_translation_shows_the_explanation_and_the_correction(
     send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
 ) -> None:
     await _start(send, state)
     check.return_value = TranslationCheck(
-        is_correct=False, explanation="После warten нужен auf <b>."
+        is_correct=False,
+        explanation="После warten нужен auf.",
+        correction="Wir warten auf <b>.",
+    )
+
+    requests = await send.message("Wir warten für <b>.")
+
+    assert _sent(requests)[-2].text == (
+        "🔴 Неверно.\n\nПосле warten нужен auf.\n\n"
+        "Ваш вариант с исправлениями: Wir warten auf <b>."
+    )
+    assert _sent(requests)[-2].parse_mode != "HTML"
+
+
+async def test_an_unchanged_correction_shows_the_reference(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation=None, correction="Wir warten."
+    )
+
+    requests = await send.message(" Wir warten. ")
+
+    assert _sent(requests)[-2].text == "🔴 Неверно.\n\nВариант перевода: Ref 0"
+
+
+async def test_a_wrong_translation_without_a_correction_shows_the_reference(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation="После warten нужен auf <b>.", correction=None
     )
 
     requests = await send.message("Wir warten für.")
@@ -498,7 +534,7 @@ async def test_a_check_result_is_dropped_if_the_sentence_changed(
 
     async def second_message_moves_on(*args, **kwargs) -> TranslationCheck:
         await state.update_data(lesson_recall_position=1)
-        return TranslationCheck(is_correct=True, explanation=None)
+        return TranslationCheck(is_correct=True, explanation=None, correction=None)
 
     check.side_effect = second_message_moves_on
 
@@ -514,7 +550,7 @@ async def test_a_check_result_is_dropped_if_the_chat_moved_on(
 
     async def move_on(*args, **kwargs) -> TranslationCheck:
         await state.set_state(None)
-        return TranslationCheck(is_correct=True, explanation=None)
+        return TranslationCheck(is_correct=True, explanation=None, correction=None)
 
     check.side_effect = move_on
 
@@ -626,20 +662,34 @@ async def test_the_spans_record_the_generation_and_the_check(
 ) -> None:
     with patch("wiederholen.bot.commands.lesson_recall.default_tracer", tracer):
         await _start(send, state)
-        check.return_value = TranslationCheck(is_correct=False, explanation=None)
+        check.return_value = TranslationCheck(
+            is_correct=False, explanation=None, correction="Wir warten auf."
+        )
         await send.message("Wir warten.")
         check.side_effect = AIGenerationError("model did not call the expected tool")
         await send.message("Ich hoffe.")
+        check.side_effect = None
+        check.return_value = TranslationCheck(
+            is_correct=False, explanation=None, correction=None
+        )
+        await send.message("Wir hoffen.")
 
-    generation, verdict, failure = exporter.get_finished_spans()
+    generation, corrected, failure, uncorrected = exporter.get_finished_spans()
     assert generation.name == "lesson_recall.generate"
     assert dict(generation.attributes or {}) == {
         "lesson_recall.exercises": 4,
         "lesson_recall.wrong_exercises": 1,
         "lesson_recall.sentences": 2,
     }
-    assert verdict.name == "lesson_recall.check"
-    assert dict(verdict.attributes or {}) == {"lesson_recall.verdict": "wrong"}
+    assert corrected.name == "lesson_recall.check"
+    assert dict(corrected.attributes or {}) == {
+        "lesson_recall.verdict": "wrong",
+        "lesson_recall.corrected": True,
+    }
+    assert dict(uncorrected.attributes or {}) == {
+        "lesson_recall.verdict": "wrong",
+        "lesson_recall.corrected": False,
+    }
     assert dict(failure.attributes or {}) == {
         "lesson_recall.failure": "model did not call the expected tool"
     }

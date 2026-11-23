@@ -37,3 +37,7 @@ Write the explanation in the learner's language. In Russian, address the learner
 - Otherwise name each mistake and its fix, in one or two short sentences. Start with the practiced form.
 - If the learner translated around the practiced form in correct German, say that the translation is correct and name the form that the lesson practiced.
 - No praise and no summary.
+
+## The correction
+
+Correct a wrong translation with the smallest changes that fix every mistake. Keep the words and the word order of the learner where they are correct.

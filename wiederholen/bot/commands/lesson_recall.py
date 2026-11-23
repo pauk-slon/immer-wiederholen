@@ -35,6 +35,7 @@ from wiederholen.school import (
     LessonRecall,
     StudentIdentityStore,
     StudentRecordBook,
+    TranslationCheck,
     check_translation,
     generate_lesson_recall,
 )
@@ -159,6 +160,12 @@ async def _send_sentence(message: Message, state: FSMContext, locale: Locale) ->
         reply_markup=_keyboard([_skip_button(locale)]),
     )
     await remember_buttoned_message(state, sent)
+
+
+def _shown_correction(check: TranslationCheck, answer: str) -> str | None:
+    if check.correction and check.correction != answer.strip():
+        return check.correction
+    return None
 
 
 async def _send_result_and_go_on(
@@ -293,6 +300,11 @@ async def _check(
             span.set_attribute(
                 "lesson_recall.verdict", "correct" if check.is_correct else "wrong"
             )
+            if not check.is_correct:
+                span.set_attribute(
+                    "lesson_recall.corrected",
+                    _shown_correction(check, answer) is not None,
+                )
     if not await _is_still_current(
         state, lesson_recall_id, LessonRecallState.checking, position=position
     ):
@@ -306,8 +318,11 @@ async def _check(
     if check.explanation:
         lines.append(check.explanation)
     if not check.is_correct:
-        reference = lesson_recall.sentences[position].reference
-        lines.append(locale.lesson_recall_reference.format(reference=reference))
+        if correction := _shown_correction(check, answer):
+            lines.append(locale.lesson_recall_correction.format(correction=correction))
+        else:
+            reference = lesson_recall.sentences[position].reference
+            lines.append(locale.lesson_recall_reference.format(reference=reference))
     await _send_result_and_go_on(message, state, locale, "\n\n".join(lines))
 
 
