@@ -931,11 +931,12 @@ class GermanExerciseWidget extends HTMLElement {
     );
     // result.recall mirrors the bot's own RecallMode: "none" (no recalls on
     // this exercise at all — plain Next, unchanged from before recall
-    // existed), "optional" (answered correctly, a recall is offered but not
-    // required), "required" (answered wrong, a recall must be attempted
-    // before moving on). Forced to "none" when _recallEnabled is off (the
-    // default — see its own comment), rather than a separate branch
-    // duplicating "none"'s own body — an embed that never asked for recall
+    // existed), "optional" (answered correctly, or wrong on the pair's first
+    // answer, a recall is offered but not required), "required" (answered
+    // wrong on a known pair, a recall must be attempted before moving on).
+    // Forced to "none" when _recallEnabled is off (the default — see its
+    // own comment), rather than a separate branch duplicating "none"'s own
+    // body — an embed that never asked for recall
     // takes exactly the same path as an exercise with no recalls at all.
     const recallMode = this._recallEnabled ? result.recall : "none";
     if (recallMode === "required") {

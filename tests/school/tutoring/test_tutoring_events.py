@@ -420,6 +420,7 @@ def test_a_recall_after_a_wrong_answer_reports_a_required_first_attempt(
 ) -> None:
     exercise = make_exercise(word="warten", answer="auf", recalls=True)
     tutor = Tutor(Course([exercise]), {})
+    tutor.check_answer(exercise, "auf")
     tutor.check_answer(exercise, "an")
 
     with tracer.start_as_current_span("test-span"):

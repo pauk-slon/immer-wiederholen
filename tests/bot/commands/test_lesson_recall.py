@@ -15,6 +15,7 @@ from opentelemetry.trace import Tracer
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage, FeedRawUpdate
 from tests.plugins.curriculum import make_exercise
+from tests.plugins.student_record_book import IntroducePairs
 from wiederholen.bot.commands.lesson_recall import RESEND, SKIP, LessonRecallState
 from wiederholen.bot.commands.wiederholen import LESSON_RECALL, NEXT_EXERCISE, RECALL
 from wiederholen.bot.l10n import RU
@@ -192,9 +193,12 @@ async def test_a_lesson_of_three_exercises_has_no_lesson_recall(
 
 
 async def test_continue_after_a_wrong_required_recall_starts_a_lesson_recall(
-    send: Any, state: FSMContext
+    send: Any,
+    state: FSMContext,
+    introduce_pairs: IntroducePairs,
 ) -> None:
     course = _course_with_recalls()
+    await introduce_pairs(course.exercises)
     await _answer_lesson(send, state, [True, True, True, False], course=course)
 
     requests = await send.message("falsch", course=course)
@@ -206,9 +210,12 @@ async def test_continue_after_a_wrong_required_recall_starts_a_lesson_recall(
 
 
 async def test_continue_after_a_right_required_recall_starts_a_lesson_recall(
-    send: Any, state: FSMContext
+    send: Any,
+    state: FSMContext,
+    introduce_pairs: IntroducePairs,
 ) -> None:
     course = _course_with_recalls()
+    await introduce_pairs(course.exercises)
     await _answer_lesson(send, state, [True, True, True, False], course=course)
     recall = (await state.get_data())["shown_recall"]
 

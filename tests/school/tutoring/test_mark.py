@@ -1,3 +1,5 @@
+from datetime import date
+
 from tests.plugins.curriculum import make_exercise
 from wiederholen.school.curriculum import Course
 from wiederholen.school.tutoring import Mark, RecallMode, Tutor
@@ -9,10 +11,37 @@ def test_check_returns_none_recall_without_recall_field() -> None:
     assert mark == Mark(is_correct=True, recall=RecallMode.none)
 
 
-def test_check_returns_required_recall_on_wrong_answer_with_recall() -> None:
+def test_check_returns_required_recall_on_wrong_answer_to_a_known_pair() -> None:
+    exercise = make_exercise(answer="auf", recalls=True)
+    tutor = Tutor(Course([exercise]), {})
+    tutor.check_answer(exercise, "auf")
+
+    mark = tutor.check_answer(exercise, "für")
+
+    assert mark == Mark(is_correct=False, recall=RecallMode.required)
+
+
+def test_check_returns_optional_recall_on_wrong_first_answer_to_a_pair() -> None:
     exercise = make_exercise(answer="auf", recalls=True)
     mark = Tutor(Course([exercise]), {}).check_answer(exercise, "für")
-    assert mark == Mark(is_correct=False, recall=RecallMode.required)
+    assert mark == Mark(is_correct=False, recall=RecallMode.optional)
+
+
+def test_a_pair_scheduled_by_a_link_is_still_new() -> None:
+    # A chain gives the pair an entry before its first answer
+    exercise = make_exercise(answer="auf", recalls=True)
+    today = date.today().isoformat()
+    student_record = {
+        "word_schedule": {
+            exercise.word: {
+                exercise.topic: {"repetition_interval": 0, "due_date": today}
+            }
+        }
+    }
+
+    mark = Tutor(Course([exercise]), student_record).check_answer(exercise, "für")
+
+    assert mark.recall == RecallMode.optional
 
 
 def test_check_returns_optional_recall_on_correct_answer_with_recall() -> None:

@@ -88,3 +88,4 @@ The date is the day of the decision.
 | [0031](0031-model-writes-and-checks-a-lesson-recall.md) | A model writes a lesson recall and checks the translations | 2026-11-22 | Amended by [0033](0033-lesson-recall-for-every-chat-with-a-daily-limit.md) |
 | [0032](0032-ai-mode-removed.md) | The /ai mode is removed | 2026-11-23 | Accepted |
 | [0033](0033-lesson-recall-for-every-chat-with-a-daily-limit.md) | Every chat gets lesson recalls, with a daily limit | 2026-11-23 | Accepted |
+| [0034](0034-no-required-recall-on-a-new-pair.md) | A wrong first answer to a pair doesn't require a recall | 2026-11-23 | Accepted |
