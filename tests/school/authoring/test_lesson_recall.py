@@ -139,7 +139,9 @@ async def test_generation_sends_the_rules_the_guide_and_the_exercises() -> None:
         "cache_control": {"type": "ephemeral"},
     }
     prompt = request["messages"][0]["content"]
-    assert "The learner's language is Russian." in prompt
+    assert (
+        'The learner\'s language is Russian. Write every "text" in Russian.' in prompt
+    )
     assert (
         f"Exercise 1\ntopic: verb_preposition\nword: warten\nquestion: {WARTEN.question}"
         in prompt
@@ -159,8 +161,20 @@ async def test_several_answers_are_all_shown() -> None:
 
     prompt = _request(client)["messages"][0]["content"]
     assert "answer: Komm / Komme" in prompt
-    assert "The learner's language is English." in prompt
+    assert (
+        'The learner\'s language is English. Write every "text" in English.' in prompt
+    )
     assert f"explanation: {komm.explanation['en']}" in prompt
+
+
+async def test_a_task_that_copies_its_reference_fails() -> None:
+    # Then the learner would see the answer instead of a task
+    client = _make_client(
+        _task(_sentence(), _sentence("Ich hoffe auf Regen.", "Ich hoffe auf Regen."))
+    )
+
+    with pytest.raises(AIGenerationError, match="reference's language"):
+        await _generate(client)
 
 
 @pytest.mark.parametrize(

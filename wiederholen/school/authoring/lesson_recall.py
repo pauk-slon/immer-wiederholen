@@ -212,6 +212,14 @@ def _learner_language(language: Language) -> str:
     return f"The learner's language is {_LANGUAGE_NAMES[language]}."
 
 
+def _task_language(language: Language) -> str:
+    # Without it, the model sometimes wrote an English task in German
+    return (
+        f"{_learner_language(language)} "
+        f'Write every "text" in {_LANGUAGE_NAMES[language]}.'
+    )
+
+
 def _without_angle_brackets(answer: str) -> str:
     return answer.replace("<", "‹").replace(">", "›")
 
@@ -324,7 +332,7 @@ async def generate_lesson_recall(
         raise ValueError("a lesson recall needs the exercises of a lesson")
     prompt = "\n\n".join(
         [
-            _learner_language(language),
+            _task_language(language),
             "The exercises of the lesson:",
             *(
                 _describe_exercise(
@@ -356,6 +364,8 @@ async def generate_lesson_recall(
     ]
     if not sentences:
         raise AIGenerationError("model returned no usable sentence")
+    if any(sentence.text == sentence.reference for sentence in sentences):
+        raise AIGenerationError("model wrote a task in the reference's language")
     return LessonRecall(
         exercises=tuple(exercises),
         sentences=tuple(sentences[: len(exercises)]),
