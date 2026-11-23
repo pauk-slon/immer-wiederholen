@@ -105,12 +105,12 @@ A tap starts the generation. `finished_lesson` has the keys of the exercises of 
 | State | What happens | A message from the learner |
 |---|---|---|
 | `generating` | the model writes the sentences | gets a busy notice |
-| `translating` | the bot shows a sentence with "Skip" and "Next exercise" | is the translation. A message without text shows the sentence again |
+| `translating` | the bot shows a sentence with "Skip" | is the translation. A message without text shows the sentence again |
 | `checking` | the model checks the translation | gets a busy notice |
 
-A wrong translation and "Skip" show the reference. "Skip" needs no model call. After the last sentence, the bot clears the exercise state, so the "Next exercise" button on its result starts a new lesson.
+A wrong translation and "Skip" show the reference. "Skip" needs no model call. A sentence has no button that leaves the lesson recall. The sentences are ready, so the learner can skip to the end at no cost, and a second button that moves on would look like "Skip". After the last sentence, the bot clears the exercise state, so the "Next exercise" button on its result starts a new lesson.
 
-"Next exercise", `/wiederholen` and every other button that shows an exercise end the lesson recall, because they change the FSM state. "Next exercise" is the usual `NEXT_EXERCISE` button, with no handler of its own. Other commands, such as `/progress`, leave the lesson recall as it is.
+`/wiederholen` and every button that shows an exercise, for example the button of a reminder, end the lesson recall, because they change the FSM state. Other commands, such as `/progress`, leave the lesson recall as it is.
 
 The model's texts go out as plain text, without `parse_mode`, so they need no `html.escape()` (see [Showing an exercise](#showing-an-exercise)).
 
@@ -123,7 +123,7 @@ All keys are exercise state (see [Chat state](storage.md#chat-state)). The bot r
 | `lesson_recall_id` | a new id for each start |
 | `lesson_recall` | the sentences, the exercises and the language, from `LessonRecall.to_dict()` |
 | `lesson_recall_position` | the number of the current sentence |
-| `lesson_recall_answer` | the last translation, for "Send again" |
+| `lesson_recall_answer` | the last translation, for "Retry" |
 | `lesson_recall_waiting_since` | the start of the current model call |
 
 The handlers don't open `check_out()`, because a lesson recall doesn't change the learning state.
@@ -134,7 +134,7 @@ After a model call, the handler reads the FSM data again. It continues only if t
 
 ### Failures
 
-A failed generation shows an error message with "Next exercise". The learner chose "Continue", so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Send again" checks it again. The learner can also type a new translation, skip the sentence, or go to the next exercise.
+A failed generation shows an error message with "Next exercise". The learner chose "Continue", so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Retry" checks it again. The learner can also type a new translation or skip the sentence.
 
 A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same message as after a failed generation or a failed check.
 

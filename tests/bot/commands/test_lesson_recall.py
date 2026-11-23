@@ -234,7 +234,6 @@ async def test_the_start_sends_the_lesson_and_shows_the_first_sentence(
     assert sentence.text == "1/2 ✍️ Переведите:\nПервая фраза."
     assert _buttons(sentence) == [
         (RU.btn_lesson_recall_skip, SKIP),
-        (RU.cmd_wiederholen, NEXT_EXERCISE),
     ]
     assert await state.get_state() == LessonRecallState.translating.state
 
@@ -390,7 +389,6 @@ async def test_a_failed_check_keeps_the_answer_for_another_try(
     assert _buttons(message) == [
         (RU.btn_lesson_recall_resend, RESEND),
         (RU.btn_lesson_recall_skip, SKIP),
-        (RU.cmd_wiederholen, NEXT_EXERCISE),
     ]
     check.side_effect = None
     requests = await send.callback(RESEND)
