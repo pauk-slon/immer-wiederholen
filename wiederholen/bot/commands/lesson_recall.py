@@ -191,7 +191,6 @@ async def handle_start(
     student_identity_store: StudentIdentityStore,
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
-    authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
 ) -> None:
     data = await state.get_data()
@@ -215,8 +214,6 @@ async def handle_start(
             course,
             student_record_book,
             student_identity_store,
-            anthropic_client=anthropic_client,
-            authoring_guide=authoring_guide,
             cue_store=cue_store,
         )
         return

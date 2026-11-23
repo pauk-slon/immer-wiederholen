@@ -73,7 +73,6 @@ def _env(
     # real value set on the host running these tests (e.g. compose.override.
     # yaml's local dev config) can't leak in.
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("AUTHORING_GUIDE_PATH", raising=False)
     monkeypatch.delenv("BOT_FEATURE_FLAGS", raising=False)
     monkeypatch.delenv("R2_ACCOUNT_ID", raising=False)
     with tmp_yaml_file([exercise_data], filename="exercises.yaml") as path:
@@ -137,7 +136,6 @@ async def test_starts_polling_with_bot_and_dependencies(
     assert isinstance(kwargs["student_record_book"], StudentRecordBook)
     assert kwargs["feature_flags"] == {}
     assert kwargs["anthropic_client"] is None
-    assert kwargs["authoring_guide"] is None
     assert kwargs["cue_store"] is None
     exercise = Tutor(kwargs["course"], {}).next_exercise()
     assert exercise is not None
@@ -147,29 +145,25 @@ async def test_starts_polling_with_bot_and_dependencies(
 async def test_starts_polling_with_feature_flags_from_env(
     monkeypatch, mock_main_io: MockMainIO
 ) -> None:
-    monkeypatch.setenv("BOT_FEATURE_FLAGS", "ai_exercises:1,2")
+    monkeypatch.setenv("BOT_FEATURE_FLAGS", "some_flag:1,2")
 
     with mock_main_io() as (_mock_request, mock_polling):
         await main()
 
     _args, kwargs = mock_polling.call_args
-    assert kwargs["feature_flags"] == {"ai_exercises": frozenset({1, 2})}
+    assert kwargs["feature_flags"] == {"some_flag": frozenset({1, 2})}
 
 
-async def test_starts_polling_with_anthropic_client_and_guide_from_env(
-    monkeypatch, tmp_path, mock_main_io: MockMainIO
+async def test_starts_polling_with_anthropic_client_from_env(
+    monkeypatch, mock_main_io: MockMainIO
 ) -> None:
-    guide_path = tmp_path / "CLAUDE.md"
-    guide_path.write_text("guide text")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
-    monkeypatch.setenv("AUTHORING_GUIDE_PATH", str(guide_path))
 
     with mock_main_io() as (_mock_request, mock_polling):
         await main()
 
     _args, kwargs = mock_polling.call_args
     assert isinstance(kwargs["anthropic_client"], AsyncAnthropic)
-    assert kwargs["authoring_guide"] == "guide text"
 
 
 async def test_starts_polling_with_cue_store_from_env(

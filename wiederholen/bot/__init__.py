@@ -4,7 +4,6 @@ from aiogram import Dispatcher
 
 from .chat_membership import router as chat_membership_router
 from .commands import (
-    ai,
     language,
     lesson_recall,
     progress,
@@ -31,7 +30,6 @@ dispatcher.include_router(start.router)
 dispatcher.include_router(language.router)
 dispatcher.include_router(progress.router)
 dispatcher.include_router(reset.router)
-dispatcher.include_router(ai.router)
 dispatcher.include_router(topics.router)
 dispatcher.include_router(reminders.router)
 dispatcher.include_router(wiederholen.router)

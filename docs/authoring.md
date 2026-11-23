@@ -2,58 +2,12 @@
 
 [`wiederholen.school.authoring`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/authoring) is the one package that calls generative AI. All of its parts work only in the bot. The parts are independent:
 
-- **Shadow exercises** are exercises that Claude writes for the `/ai` mode. They are generated when the bot shows them.
 - **Lesson recalls** are translation tasks that Claude writes after a lesson. Claude also checks the translations.
 - **Cues** are illustrations for sentence exercises. They are generated ahead of time.
 
-`topics.yaml` sets which topics get them (see [Course format](course-format.md#ai-generated-questions-and-illustrations)). [Configuration](configuration.md#optional-integrations) lists the environment variables and the Cloudflare setup.
+`topics.yaml` sets which topics get cues (see [Course format](course-format.md#illustrations)). [Configuration](configuration.md#optional-integrations) lists the environment variables and the Cloudflare setup.
 
-`authoring` is a sibling of `tutoring`, not a part of it. It depends only on the course model (`wiederholen.school.curriculum`), so the repetition engine never gets a network dependency. The parts share only `AIGenerationError` (in `errors.py`). Shadow exercises and lesson recalls use the same Anthropic client. Cues use another provider with other credentials. No part imports another.
-
-## Shadow exercises
-
-The `/ai` command enables or disables AI mode for chats with the `ai_exercises` feature flag (see [Telegram bot](bot.md#feature-flags)). In AI mode, the bot replaces each exercise that `Tutor` picks with a **shadow**. A shadow is a new exercise for the same word and answer, written by the model.
-
-### What's generated and what's kept
-
-[`generate_shadow_exercise(client, exercise, course, *, authoring_guide=None)`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/authoring/shadow_exercises.py) takes the exercise that `Tutor.next_exercise()` picked. It returns a copy made with `dataclasses.replace()`:
-
-| Kept as authored | Generated |
-|---|---|
-| `word`, `topic`, `answer`, `word_bank`, `grammar_classes` | `question`, `distractors`, `explanation`, `recalls`, and `description` if the original has one |
-
-Because the shadow keeps `word`, `topic` and `answer`, it tests exactly what `Tutor` chose. The model can't pick a different answer, even one that would be correct for its own sentence. A different answer would silently change what the learner practices (see [ADR 0005](adr/0005-shadow-exercises-keep-the-answer.md)). The schedule uses `word` and `topic` as its key, and `chains_by_answer` uses the primary answer, so a shadow is scheduled like the original. If `answer` has several answers, the shadow keeps all of them, and the prompt tells the model that every one of them must fit its sentence. But two generated fields do matter to `check_answer()`. The shadow's `recalls` decide whether a recall follows, and its `question` is stored as the last exercise shown.
-
-The model must generate `description` together with the question. The description translates the sentence, so the old description would describe a sentence that no longer exists.
-
-`dataclasses.replace()` runs `Exercise.__post_init__()`, so the shadow is validated like any authored exercise.
-
-### The request
-
-`MODEL` pins the model (`claude-haiku-4-5-20251001`). Each request has two parts:
-
-- **A system block with the authoring guide.** The guide has the guidelines for writing exercises from the content repo, if `AUTHORING_GUIDE_PATH` points to them (see [Configuration](configuration.md#ai-generated-questions)). The block is the same for every request, so Anthropic's prompt cache caches it. Without a guide, the generation uses only the examples.
-- **A user message with the exercise to replace.** It also has up to three examples of the same topic as a style reference. Exercises with the same word come first.
-
-The model answers with a call to a tool, `submit_shadow_exercise`. The input schema of the tool is the generated fields. The call isn't forced, because the prompt asks the model to reason first, in plain text, about the grammar of the fixed answer. Then the model submits.
-
-### Failures
-
-`AIGenerationError` covers all failures. The API call can fail, the model can skip the tool call, the tool input can be malformed, or the result can fail validation. The bot intentionally doesn't show the authored exercise instead. `/ai` is a testing tool, and a silent fallback would hide a broken integration behind questions that look normal. The learner sees an error message without buttons. `/wiederholen` tries again, and `/ai` disables the mode (see [ADR 0006](adr/0006-ai-generation-fails-visibly.md)).
-
-### In the bot
-
-Right after `next_exercise()` picks an exercise, the caller computes whether AI mode applies to it, with `ai_mode and exercise.topic in course.ai_generatable_topics`. The caller passes the result to `_apply_ai_mode()` in `commands/wiederholen.py`:
-
-- If the result is false, `_apply_ai_mode()` returns the exercise unchanged, with no error and no marker.
-- Otherwise it generates a shadow. Meanwhile, it shows Telegram's "typing…" indicator and sends it again every few seconds, because Telegram removes it after about five seconds.
-- It returns `None` if there is no Anthropic client or the generation failed. The caller then shows the error message. Nothing needs to be undone, because `next_exercise()` doesn't write to the record.
-
-The bot marks a shadow with `🤖` in front of the question. `ai_mode` is a chat setting (see [Telegram bot](bot.md#chat-settings)), so it stays on from one exercise to the next.
-
-### Which topics are safe
-
-A kept answer is correct only if the answer doesn't depend on the exact wording of the sentence. For this reason, each topic must enable generation explicitly. [Course format](course-format.md#ai-generated-questions-and-illustrations) lists for course authors which kinds of topics this excludes.
+`authoring` is a sibling of `tutoring`, not a part of it. It depends only on the course model (`wiederholen.school.curriculum`), so the repetition engine never gets a network dependency. The parts share only `AIGenerationError` (in `errors.py`). Lesson recalls use Anthropic. Cues use another provider with other credentials. No part imports another.
 
 ## Lesson recalls
 
@@ -77,13 +31,13 @@ The function returns a `LessonRecall` with a copy of the exercises, the sentence
 
 ### The request
 
-`MODEL` pins Claude Haiku 5.5. In the runs of [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367), Sonnet 5.5 was faster but left wrong German in the task. Both calls use effort `low` and a tool with `tool_choice` `auto`, because Haiku thinks before it calls the tool. The timeouts are 30 s for the task and 15 s for a check, with no retry, also not for 429 or 529 (overloaded). The learner then sees an error message and can try again. They are set per request with `with_options()`, so the shared client keeps its settings for `/ai`.
+`MODEL` pins Claude Haiku 5.5. In the runs of [#367](https://github.com/pauk-slon/immer-wiederholen/issues/367), Sonnet 5.5 was faster but left wrong German in the task. Both calls use effort `low` and a tool with `tool_choice` `auto`, because Haiku thinks before it calls the tool. The timeouts are 30 s for the task and 15 s for a check, with no retry, also not for 429 or 529 (overloaded). The learner then sees an error message and can try again. They are set per request with `with_options()`, so the client has no settings of its own.
 
 Each call that gets a reply adds its token counts to the current span as `lesson_recall.*` attributes (see [Observability](tracing.md#what-gets-traced)). The module uses only the OpenTelemetry API.
 
 ### Failures
 
-`AIGenerationError` covers all failures, as for shadow exercises (see [ADR 0006](adr/0006-ai-generation-fails-visibly.md)):
+`AIGenerationError` covers all failures (see [ADR 0006](adr/0006-ai-generation-fails-visibly.md)):
 
 - the API call fails or times out
 - the reply is cut off at `max_tokens`
@@ -131,15 +85,15 @@ Otherwise it sends plain text. If the lookup fails, the bot logs the error and s
 
 ## Testing
 
-- **Shadow exercises.** [`tests/school/authoring/test_shadow_exercises.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/tests/school/authoring/test_shadow_exercises.py) mocks the client as `Mock(spec=AsyncAnthropic)`. It builds the model's response from `Mock(spec=Message)` and `Mock(spec=ToolUseBlock, input=...)`, so each failure path, such as no tool call, malformed input or an invalid result, is one fake response.
-- **Lesson recalls.** [`tests/school/authoring/test_lesson_recall.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/tests/school/authoring/test_lesson_recall.py) mocks the client the same way. `with_options()` returns a second `Mock(spec=AsyncAnthropic)`, and the tests check the request that this copy gets.
+- **Lesson recalls.** [`tests/school/authoring/test_lesson_recall.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/tests/school/authoring/test_lesson_recall.py) mocks the client as `Mock(spec=AsyncAnthropic)`. It builds the model's response from `Mock(spec=Message)` and `Mock(spec=ToolUseBlock, input=...)`, so each failure path is one fake response. `with_options()` returns a second `Mock(spec=AsyncAnthropic)`, and the tests check the request that this copy gets.
 - **Cue generation.** `tests/school/authoring/cues/test_generation.py` mocks Workers AI as `Mock(spec=httpx.AsyncClient)` that returns a `Mock(spec=httpx.Response)`. `test_main.py` runs the generator against a store mocked as `Mock(spec=R2CueStore)`.
 - **Storage.** [`tests/school/test_cue_store.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/tests/school/test_cue_store.py) covers `R2CueStore` and the cache. It mocks the aioboto3 session as `Mock(spec=aioboto3.Session)`. The S3 client is a plain `Mock`, because aiobotocore builds its class at runtime (see the testing rules in [`CONTRIBUTING.md`](https://github.com/pauk-slon/immer-wiederholen/blob/main/CONTRIBUTING.md)).
 - **In the bot.** Handler tests pass a mocked `anthropic_client` or `cue_store` to `feed_message(...)`, the same way they pass the course.
 
 ## Decisions
 
-- [Shadow exercises keep the answer](adr/0005-shadow-exercises-keep-the-answer.md) (ADR 0005)
+- [Shadow exercises keep the answer](adr/0005-shadow-exercises-keep-the-answer.md) (ADR 0005, superseded by ADR 0032)
+- [The /ai mode is removed](adr/0032-ai-mode-removed.md) (ADR 0032)
 - [AI generation fails visibly, without a fallback](adr/0006-ai-generation-fails-visibly.md) (ADR 0006)
 - [A model writes a lesson recall and checks the translations](adr/0031-model-writes-and-checks-a-lesson-recall.md) (ADR 0031)
 - [Illustrations are generated ahead of time](adr/0014-cues-generated-ahead.md) (ADR 0014)

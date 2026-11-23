@@ -90,9 +90,6 @@ class Locale:
     lesson_summary: str
     # After a lesson, on the "Next exercise" button
     btn_continue: str
-    ai_mode_on: str
-    ai_mode_off: str
-    ai_generation_failed: str
     grammar_class_hint: str
     language_set: str
     lesson_recall_sentence: str
@@ -162,9 +159,6 @@ RU: Final = Locale(
     streak_text="🔥 Серия: {days}",
     lesson_summary="✅ Готово! Верно: {correct} из {size}",
     btn_continue="Продолжить",
-    ai_mode_on="🤖 AI-режим включён",
-    ai_mode_off="AI-режим выключен",
-    ai_generation_failed="⚠️ Не получилось сгенерировать задание. Попробуйте ещё раз или отключите /ai.",
     grammar_class_hint="Так же, как у {word}",
     language_set="🌐 Язык: русский",
     lesson_recall_sentence="{position}/{size} ✍️ Переведите:\n{text}",
@@ -231,9 +225,6 @@ EN: Final = Locale(
     streak_text="🔥 Streak: {days}",
     lesson_summary="✅ Done! Correct: {correct} of {size}",
     btn_continue="Continue",
-    ai_mode_on="🤖 AI mode is on",
-    ai_mode_off="AI mode is off",
-    ai_generation_failed="⚠️ Couldn't generate the exercise. Try again, or turn off /ai.",
     grammar_class_hint="Same as for {word}",
     language_set="🌐 Language: English",
     lesson_recall_sentence="{position}/{size} ✍️ Translate:\n{text}",

@@ -19,8 +19,6 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
 )
-from anthropic import AsyncAnthropic
-from opentelemetry import trace
 
 from wiederholen.bot import answer_diff
 from wiederholen.bot.feature_flags import LESSON_RECALL_FLAG, has_feature
@@ -38,7 +36,6 @@ from wiederholen.bot.pending_buttons import (
 )
 from wiederholen.bot.topic_selection import restrict_to_selected_groups
 from wiederholen.school import (
-    AIGenerationError,
     Course,
     CueStore,
     Exercise,
@@ -49,7 +46,6 @@ from wiederholen.school import (
     StudentIdentityStore,
     StudentRecordBook,
     Tutor,
-    generate_shadow_exercise,
     shuffle_word_bank,
 )
 
@@ -82,11 +78,10 @@ class UserState(StatesGroup):
 
 
 # Lasting chat state living in FSM data alongside exercise state — it
-# must outlive the state.clear() that ends each exercise, or e.g. AI mode
-# silently reverts to off after one answer.
+# must outlive the state.clear() that ends each exercise, or e.g. the
+# language silently reverts to the default after one answer.
 _LASTING_CHAT_STATE_KEYS: Final = (
     "language",
-    "ai_mode",
     "topic_groups",
     "remind_after_hours",
     # Not a setting: the lesson lasts for several exercises (see
@@ -278,14 +273,13 @@ def _format_question(
     language: Language,
     course: Course,
     *,
-    is_ai_generated: bool = False,
     hint_word: str | None = None,
     lesson_counter: list[int] | None = None,
 ) -> str:
-    prefix = "🤖 " if is_ai_generated else ""
+    prefix = ""
     if lesson_counter is not None:
         position, size = lesson_counter
-        prefix = f"{position}/{size} {prefix}"
+        prefix = f"{position}/{size} "
     text = f"{prefix}❓ {html.escape(exercise.question)}"
     if exercise.word_bank:
         # Reconstructs exactly the shape question's own hand-written
@@ -341,11 +335,10 @@ async def _answer_with_optional_cue(
     **kwargs,
 ) -> None:
     # Only for topics the content repo has explicitly opted in via
-    # topics.yaml's cue_generation flag (see Course.cue_generatable_topics)
-    # — mirrors ai_generatable_topics's own per-topic gating, and for the
-    # same reason: whether an exercise's topic even has anything worth
-    # illustrating is a decision made once for the topic, not implied by
-    # whatever else the exercise happens to carry.
+    # topics.yaml's cue_generation flag (see Course.cue_generatable_topics):
+    # whether an exercise's topic even has anything worth illustrating is a
+    # decision made once for the topic, not implied by whatever else the
+    # exercise happens to carry.
     cue_url = None
     if (
         cue_store is not None
@@ -378,7 +371,6 @@ async def _send_question(
     course: Course,
     cue_store: CueStore | None,
     *,
-    is_ai_generated: bool,
     hint_word: str | None,
     lesson_counter: list[int] | None,
 ) -> None:
@@ -386,7 +378,6 @@ async def _send_question(
         exercise,
         language,
         course,
-        is_ai_generated=is_ai_generated,
         hint_word=hint_word,
         lesson_counter=lesson_counter,
     )
@@ -430,7 +421,6 @@ async def _send_pending_question(
         language,
         course,
         cue_store,
-        is_ai_generated=data.get("shown_is_ai_generated", False),
         hint_word=data.get("shown_hint_word"),
         lesson_counter=data.get("shown_lesson_counter"),
     )
@@ -442,12 +432,9 @@ _TYPING_INTERVAL_SECONDS: Final = 4  # Telegram's own indicator lasts ~5s
 @contextlib.asynccontextmanager
 async def show_typing_while(bot: Bot, chat_id: int) -> AsyncGenerator[None]:
     # Telegram's "typing..." indicator auto-expires after ~5s (or once a
-    # message is sent) — full shadow-exercise generation (question, answer,
-    # distractors, explanation, recalls, all written fresh — see
-    # wiederholen.school.authoring) can easily run past that, so a
-    # single one-shot call wouldn't stay visible for the whole wait. Refresh
-    # it on a loop in the background instead, cancelled once generation
-    # finishes either way (success or AIGenerationError).
+    # message is sent), and a model call can easily run past that. Refresh
+    # it on a loop in the background instead, cancelled once the call
+    # finishes either way.
     async def _pulse() -> None:
         while True:
             await bot.send_chat_action(chat_id, "typing")
@@ -462,44 +449,6 @@ async def show_typing_while(bot: Bot, chat_id: int) -> AsyncGenerator[None]:
             await task
 
 
-async def _apply_ai_mode(
-    exercise: Exercise,
-    *,
-    ai_mode: bool,
-    anthropic_client: AsyncAnthropic | None,
-    course: Course,
-    authoring_guide: str | None,
-    bot: Bot | None,
-    chat_id: int | None,
-) -> Exercise | None:
-    # None means "AI mode is on but generation failed" — distinct from
-    # ai_mode being off, in which case the original exercise passes through
-    # untouched. The caller shows locale.ai_generation_failed on None rather
-    # than falling back to the real exercise, so a tester notices generation
-    # is broken instead of unknowingly seeing human-authored questions.
-    if not ai_mode:
-        return exercise
-    if anthropic_client is None:
-        return None
-    # bot/chat_id are None only for _respond_with_next_exercise's
-    # inaccessible-message edge case (see its own isinstance(..., Message)
-    # guards) — generation still runs, there's just nowhere left to show a
-    # typing indicator, so fall back to a no-op context instead of skipping
-    # generation itself.
-    typing_indicator = (
-        show_typing_while(bot, chat_id)
-        if bot is not None and chat_id is not None
-        else contextlib.nullcontext()
-    )
-    try:
-        async with typing_indicator:
-            return await generate_shadow_exercise(
-                anthropic_client, exercise, course, authoring_guide=authoring_guide
-            )
-    except AIGenerationError:
-        return None
-
-
 @router.message(Command("wiederholen"))
 async def command_wiederholen(
     message: Message,
@@ -507,16 +456,9 @@ async def command_wiederholen(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
-    feature_flags: dict[str, frozenset[int]] | None = None,
-    anthropic_client: AsyncAnthropic | None = None,
-    authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
 ) -> None:
     await clear_stale_buttons(message.bot, message.chat.id, state)
-    # An example check point for #121's flag mechanism — no visible effect
-    # yet, just a span attribute for whoever's testing the flag right now.
-    if has_feature(feature_flags or {}, "ai_exercises", message.chat.id):
-        trace.get_current_span().set_attribute("feature.ai_exercises", True)
     data = await state.get_data()
     language = get_language(data)
     locale = LOCALES[language]
@@ -530,8 +472,6 @@ async def command_wiederholen(
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(message.chat.id)
     )
-    # A copy, saved only after AI generation succeeds: if it fails, the next
-    # request takes the same exercise from the lesson again
     lesson = dict(data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(
@@ -548,35 +488,11 @@ async def command_wiederholen(
             )
             await remember_buttoned_message(state, sent)
             return
-        # Only apply for topics the content repo has explicitly opted in via
-        # topics.yaml's ai_generation flag (see Course.ai_generatable_topics)
-        # — for topics where the question's exact wording encodes part of
-        # the answer (word banks, fixed "verb → form" templates,
-        # subject-dependent conjugation), a rewritten question can silently
-        # stop matching the untouched answer.
-        ai_mode = bool(data.get("ai_mode", False)) and (
-            exercise.topic in course.ai_generatable_topics
-        )
-        bot = message.bot
-        assert bot is not None
-        exercise = await _apply_ai_mode(
-            exercise,
-            ai_mode=ai_mode,
-            anthropic_client=anthropic_client,
-            course=course,
-            authoring_guide=authoring_guide,
-            bot=bot,
-            chat_id=message.chat.id,
-        )
-        if exercise is None:
-            await message.answer(locale.ai_generation_failed)
-            return
         hint_word = tutor.get_hint(exercise)
         lesson_counter = _get_lesson_counter(tutor)
         await state.set_state(UserState.answering)
         await state.update_data(
             shown_exercise=exercise.to_dict(),
-            shown_is_ai_generated=ai_mode,
             shown_hint_word=hint_word,
             shown_lesson_counter=lesson_counter,
             lesson=lesson,
@@ -587,7 +503,6 @@ async def command_wiederholen(
             language,
             course,
             cue_store,
-            is_ai_generated=ai_mode,
             hint_word=hint_word,
             lesson_counter=lesson_counter,
         )
@@ -753,9 +668,6 @@ async def _respond_with_next_exercise(
     language: Language,
     locale: Locale,
     *,
-    ai_mode: bool,
-    anthropic_client: AsyncAnthropic | None,
-    authoring_guide: str | None,
     cue_store: CueStore | None,
 ) -> None:
     # tutor already wraps the student_record its caller opened via
@@ -772,37 +684,11 @@ async def _respond_with_next_exercise(
             await remember_buttoned_message(state, sent)
         await callback.answer()
         return
-    # See command_wiederholen's own version of this check for why it's
-    # per-topic, not just the raw ai_mode toggle.
-    ai_mode = ai_mode and exercise.topic in course.ai_generatable_topics
-    # None (rather than message.bot/message.chat.id) for the rare
-    # inaccessible-message case — same isinstance(..., Message) guard the
-    # rest of this function already uses below; _apply_ai_mode() still runs
-    # generation either way, it just has nowhere left to show typing.
-    has_accessible_message = isinstance(callback.message, Message)
-    exercise = await _apply_ai_mode(
-        exercise,
-        ai_mode=ai_mode,
-        anthropic_client=anthropic_client,
-        course=course,
-        authoring_guide=authoring_guide,
-        bot=callback.bot if has_accessible_message else None,
-        chat_id=callback.message.chat.id if has_accessible_message else None,
-    )
-    if exercise is None:
-        if isinstance(callback.message, Message):
-            await callback.message.edit_reply_markup(reply_markup=None)
-            await forget_buttoned_message(state)
-            await callback.message.answer(locale.ai_generation_failed)
-        await callback.answer()
-        return
     hint_word = tutor.get_hint(exercise)
     lesson_counter = _get_lesson_counter(tutor)
     await state.set_state(UserState.answering)
-    # Saved only after AI generation succeeded, as in command_wiederholen
     await state.update_data(
         shown_exercise=exercise.to_dict(),
-        shown_is_ai_generated=ai_mode,
         shown_hint_word=hint_word,
         shown_lesson_counter=lesson_counter,
         lesson=lesson,
@@ -816,7 +702,6 @@ async def _respond_with_next_exercise(
             language,
             course,
             cue_store,
-            is_ai_generated=ai_mode,
             hint_word=hint_word,
             lesson_counter=lesson_counter,
         )
@@ -853,8 +738,6 @@ async def handle_next_exercise(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
-    anthropic_client: AsyncAnthropic | None = None,
-    authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
 ) -> None:
     state_data = await state.get_data()
@@ -884,9 +767,6 @@ async def handle_next_exercise(
             lesson,
             language,
             locale,
-            ai_mode=state_data.get("ai_mode", False),
-            anthropic_client=anthropic_client,
-            authoring_guide=authoring_guide,
             cue_store=cue_store,
         )
 
@@ -898,8 +778,6 @@ async def handle_study_more(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
-    anthropic_client: AsyncAnthropic | None = None,
-    authoring_guide: str | None = None,
     cue_store: CueStore | None = None,
 ) -> None:
     state_data = await state.get_data()
@@ -930,9 +808,6 @@ async def handle_study_more(
             lesson,
             language,
             locale,
-            ai_mode=state_data.get("ai_mode", False),
-            anthropic_client=anthropic_client,
-            authoring_guide=authoring_guide,
             cue_store=cue_store,
         )
 

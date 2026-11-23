@@ -37,7 +37,7 @@ flowchart TD
 |---|---|
 | [`curriculum`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/curriculum.py) | the course model (`Exercise`, `Recall`, `TopicGroup`, `Course`) and its loading from YAML (see [Course format](course-format.md)) |
 | [`tutoring`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/tutoring) | the repetition engine. `Tutor` works on a `StudentRecord`. It picks the next exercise, checks answers and decides on reminders. `SelectablePairs` chooses the word and topic. `events` reports what happened to the current trace |
-| [`authoring`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/authoring) | content from generative AI. `shadow_exercises` are exercises that Claude rewrites. `lesson_recall` is a translation task that Claude writes after a lesson and checks. `cues` are illustrations from Workers AI, and `cues/__main__.py` is their generator |
+| [`authoring`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/authoring) | content from generative AI. `lesson_recall` is a translation task that Claude writes after a lesson and checks. `cues` are illustrations from Workers AI, and `cues/__main__.py` is their generator |
 | [`student_record_book`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_record_book.py) | `StudentRecordBook`, the storage for learners' records, and its Redis implementation |
 | [`student_identity_store`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/student_identity_store.py) | `StudentIdentityStore`, which maps logins (a Telegram chat, a browser) to learners |
 | [`cue_store`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/school/cue_store.py) | `CueStore`, which stores and finds illustrations in Cloudflare R2, with an in-process cache |
@@ -50,7 +50,7 @@ flowchart TD
 | Module | What it holds |
 |---|---|
 | [`__init__`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/__init__.py) | the aiogram `dispatcher` with its middlewares and routers. Their order matters. The tracing middleware comes first, so its span also covers the FSM read of the chat state |
-| [`commands/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/bot/commands) | one module per command: `/start`, `/wiederholen` (exercises, answers, recalls), `/progress`, `/topics`, `/reminders`, `/language`, `/reset`, `/ai` |
+| [`commands/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/bot/commands) | one module per command: `/start`, `/wiederholen` (exercises, answers, recalls), `/progress`, `/topics`, `/reminders`, `/language`, `/reset` |
 | [`__main__`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/__main__.py), [`bootstrap`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/bootstrap.py) | startup. These modules read the configuration, build the stores, set the bot's Telegram profile and start polling |
 | [`reminder`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder.py), [`reminder_settings`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder_settings.py) | the reminder process and the reminder interval of each chat |
 | [`chat_membership`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/chat_membership.py) | noticing that a learner blocked or unblocked the bot |
@@ -114,7 +114,7 @@ When a learner answers an exercise in Telegram, these steps happen:
 3. The handler opens the learner's record with `StudentRecordBook.check_out()` and creates a `Tutor` for it.
 4. `Tutor.check_answer()` marks the answer, schedules the pair again and schedules linked topics. It records what happened as span events.
 5. The handler replies with the explanation and the next step, a recall or a "next" button.
-6. The handler clears the exercise state but keeps the lasting chat state, such as the language, the `/ai` mode and the selected topics (see [Storage and identity](storage.md#chat-state)). Clearing all of the FSM data would reset the settings after every exercise.
+6. The handler clears the exercise state but keeps the lasting chat state, such as the language and the selected topics (see [Storage and identity](storage.md#chat-state)). Clearing all of the FSM data would reset the settings after every exercise.
 7. When the `check_out()` block ends, `StudentRecordBook` saves the record, but only if it changed.
 
 The web app follows the same steps, with three differences:

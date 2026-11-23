@@ -442,21 +442,6 @@ def test_a_lesson_started_before_the_given_keys_reports_none() -> None:
     assert finished_lesson.wrong_exercise_keys == ()
 
 
-def test_a_wrong_answer_to_a_shadow_exercise_marks_the_authored_one() -> None:
-    # /ai shows a shadow exercise with another question, so another
-    # content_key. The lesson still marks the exercise that it gave
-    warten = make_exercise(word="warten")
-    lesson = _started_lesson(warten)
-    tutor = Tutor(Course([warten]), {}, lesson=lesson)
-    shadow = dataclasses.replace(_next(tutor), question="Ich warte ___ den Bus.")
-    assert shadow.content_key != warten.content_key
-
-    mark = tutor.check_answer(shadow, "nonsense")
-
-    assert mark.finished_lesson is not None
-    assert mark.finished_lesson.wrong_exercise_keys == (warten.content_key,)
-
-
 def test_a_lesson_keeps_the_given_and_wrong_keys_after_taking_them() -> None:
     now = datetime.now(UTC)
     data: dict = {}

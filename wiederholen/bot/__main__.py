@@ -10,7 +10,6 @@ from . import dispatcher
 from .bootstrap import (
     check_lesson_recall_config,
     load_anthropic_client,
-    load_authoring_guide,
     load_bot_course_and_storage,
     load_bot_info,
     load_cue_store,
@@ -30,7 +29,6 @@ async def main() -> None:
     feature_flags = load_feature_flags()
     anthropic_client = load_anthropic_client()
     check_lesson_recall_config(feature_flags, anthropic_client, course)
-    authoring_guide = load_authoring_guide()
     bot_info_by_language = load_bot_info()
     cue_store = load_cue_store()
     dispatcher.fsm.storage = storage
@@ -73,7 +71,6 @@ async def main() -> None:
         student_identity_store=student_identity_store,
         feature_flags=feature_flags,
         anthropic_client=anthropic_client,
-        authoring_guide=authoring_guide,
         cue_store=cue_store,
     )
 

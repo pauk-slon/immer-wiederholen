@@ -1,10 +1,10 @@
 # 0005. Shadow exercises keep the answer
 
-**Status:** Accepted, 2026-08-14 ([#166](https://github.com/pauk-slon/immer-wiederholen/pull/166)). It builds on [#163](https://github.com/pauk-slon/immer-wiederholen/pull/163) and [#164](https://github.com/pauk-slon/immer-wiederholen/pull/164).
+**Status:** Accepted, 2026-08-14 ([#166](https://github.com/pauk-slon/immer-wiederholen/pull/166)). It builds on [#163](https://github.com/pauk-slon/immer-wiederholen/pull/163) and [#164](https://github.com/pauk-slon/immer-wiederholen/pull/164). Superseded by [0032](0032-ai-mode-removed.md).
 
 ## Context
 
-The `/ai` mode replaces the exercise that `Tutor` picked with a "shadow" that Claude writes (see [AI-generated content](../authoring.md#shadow-exercises)). `Tutor` picked a specific exercise for a specific word, topic and answer. The shadow should test the same thing.
+The `/ai` mode replaces the exercise that `Tutor` picked with a "shadow" that Claude writes (see [AI-generated content](../authoring.md)). `Tutor` picked a specific exercise for a specific word, topic and answer. The shadow should test the same thing.
 
 The first version ([#163](https://github.com/pauk-slon/immer-wiederholen/pull/163)) rewrote only the question and the explanation and kept all other fields, so the shadow was correct by construction. From the start, each topic had to enable generation explicitly (`ai_generation` in `topics.yaml`). Generation was meant for topics where the answer doesn't depend on the exact wording.
 

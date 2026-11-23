@@ -35,7 +35,6 @@ def test_demo_course_uses_every_topics_setting(demo_course: Course) -> None:
     assert demo_course.gated_topics
     assert demo_course.answer_chained_topics
     assert demo_course.topic_instructions
-    assert demo_course.ai_generatable_topics
     assert demo_course.cue_generatable_topics
     assert demo_course.primary_answer_only_topics
 
