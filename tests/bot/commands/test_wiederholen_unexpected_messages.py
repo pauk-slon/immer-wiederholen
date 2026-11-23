@@ -1,6 +1,7 @@
 import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.methods import SendMessage
+from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage, FeedRawUpdate
 from tests.plugins.curriculum import make_exercise
@@ -88,4 +89,24 @@ async def test_a_message_during_a_recall_shows_the_recall_again(
     recall = EXERCISE.recalls[0]
     assert _texts(requests) == [RU.recall_prompt.format(recall=recall.question)]
     assert requests[-1].reply_markup is None
+
+
+async def test_a_message_during_a_skippable_recall_keeps_the_skip_button(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    await state.set_state(UserState.recalling)
+    await state.update_data(
+        shown_exercise=EXERCISE.to_dict(),
+        shown_recall=EXERCISE.recalls[0].to_dict(),
+        recall_is_skippable=True,
+    )
+
+    requests = await feed_message("/help", course=COURSE)
+
+    markup = requests[-1].reply_markup
+    assert isinstance(markup, InlineKeyboardMarkup)
+    assert [
+        (b.text, b.callback_data) for row in markup.inline_keyboard for b in row
+    ] == [(RU.btn_recall_skip, NEXT_EXERCISE)]
     assert await state.get_state() == UserState.recalling
