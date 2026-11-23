@@ -513,7 +513,7 @@ async def command_wiederholen(
         )
 
 
-@router.message(UserState.answering)
+@router.message(UserState.answering, F.text, ~F.text.startswith("/"))
 async def handle_answer(
     message: Message,
     state: FSMContext,
@@ -523,6 +523,7 @@ async def handle_answer(
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
+    assert message.text is not None
     state_data = await state.get_data()
     await clear_exercise_state(state, state_data)
     language = get_language(state_data)
@@ -535,7 +536,7 @@ async def handle_answer(
     lesson = dict(state_data.get("lesson") or {})
     async with student_record_book.check_out(student_id) as student_record:
         tutor = Tutor(course, student_record, lesson=lesson)
-        mark = tutor.check_answer(shown_exercise, message.text or "")
+        mark = tutor.check_answer(shown_exercise, message.text)
         finished_lesson = _get_finished_lesson(tutor, mark)
         await state.update_data(lesson=lesson, finished_lesson=finished_lesson)
         next_label = _get_next_label(finished_lesson, language)
@@ -562,7 +563,7 @@ async def handle_answer(
             else _format_wrong(
                 locale.wrong,
                 locale.wrong_extra_letters,
-                message.text or "",
+                message.text,
                 course.shown_answers(shown_exercise),
             )
         )
@@ -608,7 +609,7 @@ async def handle_answer(
                 await remember_buttoned_message(state, sent_explanation)
 
 
-@router.message(UserState.recalling)
+@router.message(UserState.recalling, F.text, ~F.text.startswith("/"))
 async def handle_recall(
     message: Message,
     state: FSMContext,
@@ -618,6 +619,7 @@ async def handle_recall(
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
+    assert message.text is not None
     state_data = await state.get_data()
     await clear_exercise_state(state, state_data)
     language = get_language(state_data)
@@ -644,7 +646,7 @@ async def handle_recall(
         if tutor.check_recall(
             Exercise.from_dict(state_data["shown_exercise"]),
             shown_recall,
-            message.text or "",
+            message.text,
         ):
             reply_markup = make_next_button(locale, next_label)
             if continues_to_lesson_recall:
@@ -666,7 +668,7 @@ async def handle_recall(
                     _format_wrong(
                         locale.recall_wrong,
                         locale.recall_wrong_extra_letters,
-                        message.text or "",
+                        message.text,
                         [shown_recall.answer[0]],
                         ignore_punctuation=True,
                     ),
