@@ -54,6 +54,7 @@ async def command_start(
         language, groups = get_language(data), []
     else:
         language, groups = parsed
+        span.set_attribute("telegram.start.language", language)
         if groups:
             await state.update_data(language=language, topic_groups=groups)
             # Only ids that the course has, never text from the link itself

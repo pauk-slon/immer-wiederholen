@@ -10,9 +10,9 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 
 | Span | Process | Attributes |
 |---|---|---|
-| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/`. For `/start`, also `telegram.start.new_chat` and, if a link selected groups, `telegram.start.topic_groups` (see below). `lesson_recall.finished` after the last translation of a lesson recall. `lesson_recall.too_long` for a translation over the length limit (see [Lesson recall](bot.md#the-states)). `lesson_recall.limit_reached` after the last answer of a lesson that gets no lesson recall because of the daily limit |
-| `telegram.callback_query` | bot | `telegram.callback_data`, `telegram.handled`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns. `lesson_recall.skipped` for "Skip" in a lesson recall, and `lesson_recall.finished` if it skipped the last sentence |
-| `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
+| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/`. `telegram.language` (see below). For `/start`, also `telegram.start.new_chat` and, if a link set up a new chat, `telegram.start.language` and, if the link selected groups, `telegram.start.topic_groups` (see below). `lesson_recall.finished` after the last translation of a lesson recall. `lesson_recall.too_long` for a translation over the length limit (see [Lesson recall](bot.md#the-states)). `lesson_recall.limit_reached` after the last answer of a lesson that gets no lesson recall because of the daily limit |
+| `telegram.callback_query` | bot | `telegram.callback_data`, `telegram.handled`, `telegram.language`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns. `lesson_recall.skipped` for "Skip" in a lesson recall, and `lesson_recall.finished` if it skipped the last sentence |
+| `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.language`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
 | `telegram.update` | bot | `telegram.handled` only (any other kind of update) |
 | `lesson_recall.generate` | bot (child of `telegram.callback_query`) | `lesson_recall.exercises`, `lesson_recall.wrong_exercises`, and `lesson_recall.sentences` or `lesson_recall.failure`. Also the tokens of the model call (see below) |
 | `lesson_recall.check` | bot (child of `telegram.message`, or of `telegram.callback_query` for "Check again") | `lesson_recall.verdict` (`correct` or `wrong`) or `lesson_recall.failure`. For a wrong translation, `lesson_recall.corrected` is `true` if the bot showed the correction and `false` if it showed the reference. Also the tokens of the model call |
@@ -27,7 +27,9 @@ The traces never contain text that a learner typed. A message span records only 
 
 When code inside a span raises an exception, OpenTelemetry records it on that span. In the reminder, an error in one chat is recorded on that chat's `reminder.check_chat` span. The sweep then logs the error and continues with the next chat.
 
-`telegram.start.topic_groups` has only group ids that the course has. The bot never records the payload itself, because a learner can type any text after `/start`. With `telegram.start.new_chat`, the two attributes show how many new chats came from a page with groups.
+`telegram.start.topic_groups` has only group ids that the course has. The bot never records the payload itself, because a learner can type any text after `/start`. With `telegram.start.new_chat`, the two attributes show how many new chats came from a page with groups. `telegram.start.language` is the language from the link. A link can carry a language without groups, so this attribute shows the new chats that came from a link at all.
+
+`telegram.language` is the chat's language, `ru` or `en`, or the default if the chat never stored one. It lets you compare the learners of the two languages, for example in lesson recalls. `TracingMiddleware` reads it from the FSM data after the handler, so after `/language` the span has the new language. This is one more Redis read for each update.
 
 The two `lesson_recall.*` spans never contain a sentence, a translation or an explanation. `lesson_recall.failure` is the message of `AIGenerationError`, a fixed text from the code.
 

@@ -265,7 +265,22 @@ async def test_records_new_chat_and_topic_groups_in_the_span(
 
     attributes = dict(exporter.get_finished_spans()[0].attributes or {})
     assert attributes["telegram.start.new_chat"] is True
+    assert attributes["telegram.start.language"] == "ru"
     assert attributes["telegram.start.topic_groups"] == ("cases",)
+    assert attributes["telegram.language"] == "ru"
+
+
+@pytest.mark.usefixtures("traced_dispatcher")
+async def test_records_the_language_of_a_link_without_groups(
+    exporter: InMemorySpanExporter,
+    feed_message: FeedMessage,
+) -> None:
+    await feed_message("/start en", course=_course())
+
+    attributes = dict(exporter.get_finished_spans()[0].attributes or {})
+    assert attributes["telegram.start.language"] == "en"
+    assert "telegram.start.topic_groups" not in attributes
+    assert attributes["telegram.language"] == "en"
 
 
 @pytest.mark.usefixtures("traced_dispatcher")
@@ -280,4 +295,5 @@ async def test_records_an_existing_chat_in_the_span(
 
     attributes = dict(exporter.get_finished_spans()[0].attributes or {})
     assert attributes["telegram.start.new_chat"] is False
+    assert "telegram.start.language" not in attributes
     assert "telegram.start.topic_groups" not in attributes
