@@ -141,7 +141,6 @@ async def _offer_check_retry(
                 ),
                 _skip_button(locale),
             ],
-            [_next_exercise_button(locale)],
         ),
     )
     await remember_buttoned_message(state, sent)
@@ -157,7 +156,7 @@ async def _send_sentence(message: Message, state: FSMContext, locale: Locale) ->
             size=len(lesson_recall.sentences),
             text=lesson_recall.sentences[position].text,
         ),
-        reply_markup=_keyboard([_skip_button(locale), _next_exercise_button(locale)]),
+        reply_markup=_keyboard([_skip_button(locale)]),
     )
     await remember_buttoned_message(state, sent)
 
