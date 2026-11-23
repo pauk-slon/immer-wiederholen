@@ -23,7 +23,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 ## Showing an exercise
 
-`_format_question()` in `commands/wiederholen.py` builds the question message. It adds to the question the parts that the exercise has: the `word_bank` chunks, the `description`, the topic's `instruction` and a hint from grammar classes (see [Hints from grammar classes](#hints-from-grammar-classes)). The `word_bank` chunks are shuffled again each time the bot shows the exercise.
+`_format_question()` in `commands/wiederholen.py` builds the question message. Under the question, it adds the parts that the exercise has: the `word_bank` chunks, the `description`, the topic's `instruction` and a hint from grammar classes (see [Hints from grammar classes](#hints-from-grammar-classes)). The `word_bank` chunks are shuffled again each time the bot shows the exercise.
 
 The bot marks an AI-generated question. A multiple-choice exercise shows its options as a reply keyboard. In a topic with `show_primary_answer_only`, the primary answer is the only correct option. For an exercise with a typed answer, the bot removes the keyboard.
 
@@ -44,11 +44,11 @@ The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate
 
 ## Answering
 
-After an answer, the bot says whether it was right and sends the `explanation`. After a wrong answer, it shows the correct answers with the mistake marked (see [Marking a mistake](#marking-a-mistake)). In a topic with `show_primary_answer_only`, it shows only the primary answer (see [Course format](course-format.md#several-correct-answers)).
+After an answer, the bot says whether it was right, removes the options keyboard and sends the `explanation`. After a wrong answer, it shows the correct answers with the mistake marked (see [Marking a mistake](#marking-a-mistake)). In a topic with `show_primary_answer_only`, it shows only the primary answer (see [Course format](course-format.md#several-correct-answers)).
 
 The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)). After a wrong answer, a recall starts at once. After a right answer, the learner can choose an optional recall with "Drill". A wrong recall answer gets the mistake marked in the same way, and the learner can try again.
 
-When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). Its "Study more" button raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
+When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" button. It raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
 
 ### Marking a mistake
 
@@ -80,7 +80,7 @@ The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tut
 In a lesson of several exercises, the learner sees these things:
 
 - **A counter.** The question starts with the position of the exercise in the lesson, for example "3/5".
-- **A summary.** The last result of the lesson also shows the number of right answers, and the streak if the lesson added a day. This result is the explanation, or the recall result after a recall. After an optional recall, both have the summary.
+- **A summary.** The last result of the lesson also shows the number of right answers, and the streak if the lesson added a day. This result is the explanation, or the recall result after a recall. After an optional recall, the explanation and the recall result both have the summary.
 - **A "Continue" button.** After the summary, the "Next exercise" button says "Continue" and starts the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
 
 A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
@@ -105,9 +105,9 @@ A tap starts the generation. `finished_lesson` has the keys of the exercises of 
 
 | State | What happens | A message from the learner |
 |---|---|---|
-| `generating` | the model writes the sentences | gets a notice that the bot is busy |
+| `generating` | the model writes the sentences | gets a busy notice |
 | `translating` | the bot shows a sentence with "Skip" and "Next exercise" | is the translation. A message without text shows the sentence again |
-| `checking` | the model checks the translation | gets a notice that the bot is busy |
+| `checking` | the model checks the translation | gets a busy notice |
 
 A wrong translation and "Skip" show the reference. "Skip" needs no model call. After the last sentence, the bot clears the exercise state, so the "Next exercise" button on its result starts a new lesson.
 
@@ -169,7 +169,7 @@ The landing site links to the bot from each grammar page, so that the learner co
 
 `/start` applies the payload only to a new chat, as with the language. It saves the groups as `topic_groups`, so `/topics` shows them and the learner can change them. The bot skips a group id that the course doesn't have. If the course has none of the groups, the learner gets a usual start in the language of the link. A payload without a known language at the start gives a usual start.
 
-After groups from a link, the greeting also shows the selected groups and points to `/topics`. Without it, a learner could think that the bot has no other exercises.
+After groups from a link, the greeting also shows the selected groups and points to `/topics`. Without these lines, a learner could think that the bot has no other exercises.
 
 ## Reminders
 
