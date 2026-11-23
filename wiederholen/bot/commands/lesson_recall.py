@@ -1,3 +1,4 @@
+import html
 import time
 import uuid
 from typing import Final
@@ -14,6 +15,7 @@ from aiogram.types import (
 from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
+from wiederholen.bot import answer_diff
 from wiederholen.bot.commands.wiederholen import (
     LESSON_RECALL,
     NEXT_EXERCISE,
@@ -44,6 +46,8 @@ from wiederholen.tracing import default_tracer
 router = Router()
 
 SKIP: Final = "__lesson_recall_skip__"
+
+_MIN_CHANGED_WORDS_WITHOUT_MARKS: Final = 3
 RESEND: Final = "__lesson_recall_resend__"
 
 _ID_KEY: Final = "lesson_recall_id"
@@ -168,14 +172,29 @@ def _shown_correction(check: TranslationCheck, answer: str) -> str | None:
     return None
 
 
+def _correction_html(answer: str, correction: str) -> str:
+    changed, total = answer_diff.count_changed_words(
+        answer, correction, ignore_punctuation=True
+    )
+    # Many marks on most of the words don't show where the mistakes are
+    if changed >= _MIN_CHANGED_WORDS_WITHOUT_MARKS and changed > total / 2:
+        return html.escape(correction)
+    diff = answer_diff.correct(answer, [correction], ignore_punctuation=True)
+    return diff.mistake or diff.answer
+
+
+def _reference_html(locale: Locale, reference: str) -> str:
+    return locale.lesson_recall_reference.format(reference=html.escape(reference))
+
+
 async def _send_result_and_go_on(
-    message: Message, state: FSMContext, locale: Locale, result: str
+    message: Message, state: FSMContext, locale: Locale, result_html: str
 ) -> None:
     data = await state.get_data()
     lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
     position = data[_POSITION_KEY] + 1
     if position < len(lesson_recall.sentences):
-        await message.answer(result)
+        await message.answer(result_html, parse_mode="HTML")
         await state.update_data({_POSITION_KEY: position, _ANSWER_KEY: None})
         await state.set_state(LessonRecallState.translating)
         await _send_sentence(message, state, locale)
@@ -183,7 +202,9 @@ async def _send_result_and_go_on(
     trace.get_current_span().set_attribute("lesson_recall.finished", True)
     await clear_exercise_state(state, data)
     sent = await message.answer(
-        result, reply_markup=_keyboard([_next_exercise_button(locale)])
+        result_html,
+        parse_mode="HTML",
+        reply_markup=_keyboard([_next_exercise_button(locale)]),
     )
     await remember_buttoned_message(state, sent)
 
@@ -316,13 +337,17 @@ async def _check(
         locale.lesson_recall_correct if check.is_correct else locale.lesson_recall_wrong
     ]
     if check.explanation:
-        lines.append(check.explanation)
+        lines.append(html.escape(check.explanation))
     if not check.is_correct:
         if correction := _shown_correction(check, answer):
-            lines.append(locale.lesson_recall_correction.format(correction=correction))
+            lines.append(
+                locale.lesson_recall_correction.format(
+                    correction=_correction_html(answer, correction)
+                )
+            )
         else:
             reference = lesson_recall.sentences[position].reference
-            lines.append(locale.lesson_recall_reference.format(reference=reference))
+            lines.append(_reference_html(locale, reference))
     await _send_result_and_go_on(message, state, locale, "\n\n".join(lines))
 
 
@@ -373,7 +398,7 @@ async def handle_skip(callback: CallbackQuery, state: FSMContext) -> None:
         message,
         state,
         locale,
-        locale.lesson_recall_reference.format(reference=reference),
+        _reference_html(locale, reference),
     )
 
 

@@ -47,24 +47,51 @@ def correct(
     user_text: str, answers: Sequence[str], *, ignore_punctuation: bool = False
 ) -> Correction:
     closest = max(range(len(answers)), key=lambda i: _ratio(user_text, answers[i]))
-    ignored = " " + (_END_PUNCTUATION if ignore_punctuation else "")
-    user_lead, user_core, user_trail = _split_ends(user_text, ignored)
-    lead, core, trail = _split_ends(answers[closest], ignored)
-    # The expected comma is still shown, but not marked
-    inner_ignored = _INNER_PUNCTUATION if ignore_punctuation else ""
-    user_words, correct_words = _diff_words(user_core, core, inner_ignored)
+    user, expected = _diff_texts(user_text, answers[closest], ignore_punctuation)
     rendered = [
-        html.escape(lead) + _render(correct_words, "u") + html.escape(trail)
+        html.escape(expected.lead)
+        + _render(expected.words, "u")
+        + html.escape(expected.trail)
         if i == closest
         else html.escape(answer)
         for i, answer in enumerate(answers)
     ]
     mistake = None
-    if not _is_marked(correct_words) and _is_marked(user_words):
+    if not _is_marked(expected.words) and _is_marked(user.words):
         mistake = (
-            html.escape(user_lead) + _render(user_words, "s") + html.escape(user_trail)
+            html.escape(user.lead) + _render(user.words, "s") + html.escape(user.trail)
         )
     return Correction(answer=" / ".join(rendered), mistake=mistake)
+
+
+def count_changed_words(
+    user_text: str, correct_text: str, *, ignore_punctuation: bool = False
+) -> tuple[int, int]:
+    """The words of `correct_text` that `correct()` marks, and all its words."""
+    _, expected = _diff_texts(user_text, correct_text, ignore_punctuation)
+    return sum(_is_marked([word]) for word in expected.words), len(expected.words)
+
+
+@dataclass(frozen=True)
+class _DiffedText:
+    lead: str
+    words: list[list[_Segment]]
+    trail: str
+
+
+def _diff_texts(
+    user_text: str, correct_text: str, ignore_punctuation: bool
+) -> tuple[_DiffedText, _DiffedText]:
+    ignored = " " + (_END_PUNCTUATION if ignore_punctuation else "")
+    user_lead, user_core, user_trail = _split_ends(user_text, ignored)
+    lead, core, trail = _split_ends(correct_text, ignored)
+    # The expected comma is still shown, but not marked
+    inner_ignored = _INNER_PUNCTUATION if ignore_punctuation else ""
+    user_words, correct_words = _diff_words(user_core, core, inner_ignored)
+    return (
+        _DiffedText(user_lead, user_words, user_trail),
+        _DiffedText(lead, correct_words, trail),
+    )
 
 
 def _split_ends(text: str, ignored: str) -> tuple[str, str, str]:
