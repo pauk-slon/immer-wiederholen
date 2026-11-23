@@ -421,7 +421,7 @@ async def test_a_wrong_translation_shows_the_explanation_and_the_correction(
 
     assert _sent(requests)[-2].text == (
         "🔴 Неверно.\n\nПосле warten нужен auf.\n\n"
-        "Ваш вариант с исправлениями:\nWir warten <u>auf</u> &lt;b&gt;."
+        "Ваш вариант с исправлениями:\n<blockquote>Wir warten <u>auf</u> &lt;b&gt;.</blockquote>"
     )
     assert _sent(requests)[-2].parse_mode == "HTML"
 
@@ -438,7 +438,7 @@ async def test_a_correction_that_only_removes_words_strikes_them_through(
 
     assert _sent(requests)[-2].text == (
         "🔴 Неверно.\n\n"
-        "Ваш вариант с исправлениями:\nWir warten <s>sehr</s> auf den Bus."
+        "Ваш вариант с исправлениями:\n<blockquote>Wir warten <s>sehr</s> auf den Bus.</blockquote>"
     )
 
 
@@ -453,7 +453,7 @@ async def test_a_correction_that_changes_most_words_has_no_marks(
     requests = await send.message("Ich hoffe für ein Auto.")
 
     assert _sent(requests)[-2].text == (
-        "🔴 Неверно.\n\nВаш вариант с исправлениями:\nWir warten auf &lt;den&gt; Bus."
+        "🔴 Неверно.\n\nВаш вариант с исправлениями:\n<blockquote>Wir warten auf &lt;den&gt; Bus.</blockquote>"
     )
 
 
@@ -468,7 +468,7 @@ async def test_a_short_correction_with_two_changes_keeps_its_marks(
     requests = await send.message("Er hat gewartet.")
 
     assert _sent(requests)[-2].text == (
-        "🔴 Неверно.\n\nВаш вариант с исправлениями:\nEr <u>ist</u> <u>geblieben</u>."
+        "🔴 Неверно.\n\nВаш вариант с исправлениями:\n<blockquote>Er <u>ist</u> <u>geblieben</u>.</blockquote>"
     )
 
 
@@ -482,7 +482,10 @@ async def test_an_unchanged_correction_shows_the_reference(
 
     requests = await send.message(" Wir warten. ")
 
-    assert _sent(requests)[-2].text == "🔴 Неверно.\n\nВариант перевода:\nRef 0"
+    assert (
+        _sent(requests)[-2].text
+        == "🔴 Неверно.\n\nВариант перевода:\n<blockquote>Ref 0</blockquote>"
+    )
 
 
 async def test_a_wrong_translation_without_a_correction_shows_the_reference(
@@ -496,7 +499,7 @@ async def test_a_wrong_translation_without_a_correction_shows_the_reference(
     requests = await send.message("Wir warten für.")
 
     assert _sent(requests)[-2].text == (
-        "🔴 Неверно.\n\nПосле warten нужен auf &lt;b&gt;.\n\nВариант перевода:\nRef 0"
+        "🔴 Неверно.\n\nПосле warten нужен auf &lt;b&gt;.\n\nВариант перевода:\n<blockquote>Ref 0</blockquote>"
     )
     assert _sent(requests)[-2].parse_mode == "HTML"
 
@@ -524,7 +527,7 @@ async def test_a_wrong_translation_escapes_the_reference(
     requests = await send.message("Wir warten.")
 
     assert _sent(requests)[-1].text == (
-        "🔴 Неверно.\n\nВариант перевода:\nTom &amp; &lt;Jerry&gt;"
+        "🔴 Неверно.\n\nВариант перевода:\n<blockquote>Tom &amp; &lt;Jerry&gt;</blockquote>"
     )
 
 
@@ -536,7 +539,10 @@ async def test_a_skip_escapes_the_reference(
 
     requests = await send.callback(SKIP)
 
-    assert _sent(requests)[-1].text == "Вариант перевода:\nTom &amp; &lt;Jerry&gt;"
+    assert (
+        _sent(requests)[-1].text
+        == "Вариант перевода:\n<blockquote>Tom &amp; &lt;Jerry&gt;</blockquote>"
+    )
 
 
 async def test_the_last_result_leads_to_the_next_exercise(
@@ -566,7 +572,7 @@ async def test_a_skip_of_the_last_sentence_leads_to_the_next_exercise(
     requests = await send.callback(SKIP)
 
     [reference] = _sent(requests)
-    assert reference.text == "Вариант перевода:\nRef 1"
+    assert reference.text == "Вариант перевода:\n<blockquote>Ref 1</blockquote>"
     assert _buttons(reference) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
 
 
@@ -622,7 +628,7 @@ async def test_a_skip_shows_the_reference_without_a_model_call(
 
     check.assert_not_called()
     reference, sentence = _sent(requests)[-2:]
-    assert reference.text == "Вариант перевода:\nRef 0"
+    assert reference.text == "Вариант перевода:\n<blockquote>Ref 0</blockquote>"
     assert reference.parse_mode == "HTML"
     assert sentence.text == "2/2 ✍️ Переведите:\nВторая фраза."
 
