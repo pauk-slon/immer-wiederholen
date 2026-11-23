@@ -24,7 +24,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 ### Other messages
 
-A message without a reply makes the bot look broken, for example to a new learner who writes right after `/start`. So the router of `fallback` comes last and takes a message that no other handler takes, if it is text, a sticker, a photo, a video, a voice message, an audio file or a document. This includes text outside an exercise and an unknown command such as `/help`. A message during an exercise or a lesson recall still goes to its handler. Service messages, for example about a pinned message, get no reply, because the learner didn't write anything.
+A message without a reply makes the bot look broken, for example to a new learner who writes right after `/start`. So the router of `fallback` comes last and takes a message that no other handler takes, if it is text, a sticker, a photo, a video, a voice message, an audio file or a document. This includes text outside an exercise and an unknown command such as `/help`. During an exercise, this includes such messages that aren't an answer (see [What counts as an answer](#what-counts-as-an-answer)). During a recall, the bot shows the recall again instead. During a lesson recall, every message except a command goes to its handlers. Service messages, for example about a pinned message, get no reply, because the learner didn't write anything.
 
 The bot replies with what it does and the "next" button. The reply is the same in every state, because the "next" button shows what fits the state: an exercise, or the message that nothing is due today. The bot doesn't start an exercise on such a message, because the learner may have asked a question. The handler removes the buttons of the earlier message like every typed command does.
 
@@ -79,6 +79,12 @@ If the exercise shows several answers, the bot marks the answer that is closest 
 If the learner only added letters, for example `Kinders` for `Kinder`, the correct answer has nothing to underline. Then the bot shows the learner's answer with the extra letters struck through, and the correct answer after it, for example "Kinder<s>s</s> → Kinder". In all other cases, the bot doesn't show the wrong answer again.
 
 The message is HTML, so `answer_diff.py` escapes the texts. The web widget has no marks, because the markup is specific to Telegram.
+
+### What counts as an answer
+
+An answer to an exercise or a recall is text that doesn't start with `/`. A sticker, a photo or an unknown command such as `/help` isn't an answer, because the learner didn't try to answer. As a wrong answer, it would set the interval of the pair to 0. During an exercise, such a message goes to the [fallback](#other-messages), and its "next" button shows the same exercise again.
+
+During a recall, the bot shows the recall again and doesn't use the fallback. The fallback's button shows the next exercise, so it would skip the recall, and after the last answer of a lesson also the summary and the lesson recall that come after it. To leave a recall on purpose, the learner sends `/wiederholen`.
 
 ## Lessons
 
