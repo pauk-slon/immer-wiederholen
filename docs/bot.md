@@ -90,7 +90,7 @@ A lesson recall is a short translation task after a lesson (see [ADR 0031](adr/0
 
 ### The start
 
-Only a lesson of 4 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_SIZE`). A smaller lesson gives too few sentences for the wait of a generation. Small lessons come on the first day, at the end of a day and with few topics in `/topics`. A small lesson works as a lesson in a bot without the lesson recall.
+Only a lesson of 4 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_SIZE`). A smaller lesson gives too few sentences for the wait of a generation. Small lessons come on the first day, at the end of a day and with few topics in `/topics`. A small lesson works as a lesson without a lesson recall.
 
 The bot takes the size from the counter of the shown exercise ("2/5"). So it decides for the whole lesson at its first exercise. A lesson that gets smaller, for example after `/topics`, gets the optional recall back and no lesson recall.
 
@@ -104,9 +104,9 @@ Each lesson recall costs model calls, so a chat gets 3 lesson recalls in 24 hour
 
 - **The 24 hours move with time.** The bot counts the lesson recalls that started in the last 24 hours, not in a calendar day. The bot doesn't know the learner's time zone, so a calendar day would end at a random time of the learner's day.
 - **Only a generated task counts.** The bot counts a lesson recall after the model wrote the sentences. A failed generation doesn't use up the limit, because the learner got nothing. A task that the chat left during the generation counts, because the call was paid.
-- **A lesson after the limit works as a lesson without a lesson recall.** It gets the optional recall back, and "Continue" shows the next exercise. The bot decides at each answer, so a lesson that started before the end of the limit also gets the optional recall.
+- **A lesson after the limit works as a lesson without a lesson recall.** It gets the optional recall back, and "Continue" shows the next exercise. The bot checks the limit at each answer. If the limit ends during a lesson, the rest of the lesson gets no optional recall, and the lesson gets a lesson recall.
 
-The limit is per chat, because it is in the FSM data, as the feature flags are per chat. `/reset` doesn't change it.
+The limit is per chat, because the bot keeps it in the FSM data of the chat. `/reset` doesn't change it.
 
 ### The states
 
@@ -252,11 +252,11 @@ When you edit the text of a message, pass `reply_markup=` explicitly, with a new
 
 ## Feature flags
 
-[`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) enables a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#lesson-recalls) describes its format.
+[`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) changes a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#lesson-recalls) describes its format.
 
 At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, LESSON_RECALL_UNLIMITED_FLAG, chat_id)`. The one flag is `lesson_recall_unlimited`, which removes the [daily limit](#the-daily-limit) of the lesson recall. `check_lesson_recall_config()` checks at startup what it needs (see [Configuration](configuration.md#lesson-recalls)). The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
 
-The flags have no storage and no admin command. To change a flag, edit the variable and restart the bot. This is enough for a few test chats. The flags stay in the bot layer, and `wiederholen.school` never sees a chat id or a flag name.
+The flags have no storage and no admin command. To change a flag, edit the variable and restart the bot. This is enough for a few chats, such as the author's and test chats. The flags stay in the bot layer, and `wiederholen.school` never sees a chat id or a flag name.
 
 ## Hints from grammar classes
 
