@@ -10,7 +10,7 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 
 | Span | Process | Attributes |
 |---|---|---|
-| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/`. For `/start`, also `telegram.start.new_chat` and, if a link selected groups, `telegram.start.topic_groups` (see below). `lesson_recall.finished` after the last translation of a lesson recall |
+| `telegram.message` | bot | `telegram.chat_id`, `telegram.handled`, and `telegram.command` (the first word, such as `/wiederholen`) if the text starts with `/`. For `/start`, also `telegram.start.new_chat` and, if a link selected groups, `telegram.start.topic_groups` (see below). `lesson_recall.finished` after the last translation of a lesson recall. `lesson_recall.limit_reached` after the last answer of a lesson that gets no lesson recall because of the daily limit |
 | `telegram.callback_query` | bot | `telegram.callback_data`, `telegram.handled`, and `telegram.chat_id` unless the button belongs to an old message that Telegram no longer returns. `lesson_recall.skipped` for "Skip" in a lesson recall, and `lesson_recall.finished` if it skipped the last sentence |
 | `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
 | `telegram.update` | bot | `telegram.handled` only (any other kind of update) |
@@ -34,6 +34,8 @@ The two `lesson_recall.*` spans never contain a sentence, a translation or an ex
 The model call adds `lesson_recall.input_tokens`, `lesson_recall.output_tokens`, `lesson_recall.cache_read_input_tokens` and `lesson_recall.cache_creation_input_tokens` to the current span. So the span shows what a lesson recall costs and whether the prompt cache works. A call that fails before a reply has no token counts.
 
 `lesson_recall.finished` and `lesson_recall.generate` show how many learners stay to the end of a lesson recall. Divide the number of updates with `lesson_recall.finished` by the number of `lesson_recall.generate` spans without `lesson_recall.failure`.
+
+`lesson_recall.limit_reached` shows how often learners reach the daily limit. If many learners reach it, the limit is too low for them.
 
 `lesson_recall.corrected` shows how often a wrong translation gets the reference instead of a correction. If this happens often, the guide's rule for the correction doesn't work well.
 

@@ -18,6 +18,7 @@ from tests.plugins.curriculum import make_exercise
 from wiederholen.bot.commands.lesson_recall import RESEND, SKIP, LessonRecallState
 from wiederholen.bot.commands.wiederholen import LESSON_RECALL, NEXT_EXERCISE, RECALL
 from wiederholen.bot.l10n import RU
+from wiederholen.bot.lesson_recall_limit import DAILY_LESSON_RECALLS, STARTED_AT_KEY
 from wiederholen.school import (
     AIGenerationError,
     Course,
@@ -258,6 +259,95 @@ async def test_continue_outside_the_flag_shows_the_next_exercise(
 
     generate.assert_not_called()
     assert await state.get_state() == "UserState:answering"
+
+
+async def _use_up_the_daily_limit(state: FSMContext, hours_ago: float = 1) -> None:
+    started_at = time.time() - hours_ago * 60 * 60
+    await state.update_data({STARTED_AT_KEY: [started_at] * DAILY_LESSON_RECALLS})
+
+
+async def test_a_started_lesson_recall_counts_toward_the_daily_limit(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    await _start(send, state)
+    await send.message("/wiederholen")
+
+    assert len((await state.get_data())[STARTED_AT_KEY]) == 1
+
+
+async def test_a_failed_generation_does_not_count_toward_the_daily_limit(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    generate.side_effect = AIGenerationError("boom")
+
+    await _start(send, state)
+
+    assert STARTED_AT_KEY not in await state.get_data()
+
+
+async def test_after_the_daily_limit_continue_shows_the_next_exercise(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    await _use_up_the_daily_limit(state)
+
+    requests = await _finish_lesson(send, state)
+    await send.callback(LESSON_RECALL)
+
+    assert _buttons(_sent(requests)[-1]) == [(RU.btn_continue, NEXT_EXERCISE)]
+    generate.assert_not_called()
+    assert await state.get_state() == "UserState:answering"
+
+
+async def test_after_the_daily_limit_the_optional_recall_comes_back(
+    send: Any, state: FSMContext
+) -> None:
+    await _use_up_the_daily_limit(state)
+
+    requests = await _answer_lesson(send, state, [True], course=_course_with_recalls())
+
+    assert RECALL in [data for _, data in _buttons(_sent(requests)[-1])]
+
+
+async def test_a_lesson_recall_older_than_a_day_does_not_count(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    await _use_up_the_daily_limit(state, hours_ago=25)
+
+    requests = await _finish_lesson(send, state)
+    await send.callback(LESSON_RECALL)
+
+    assert _buttons(_sent(requests)[-1]) == [(RU.btn_continue, LESSON_RECALL)]
+    assert len((await state.get_data())[STARTED_AT_KEY]) == 1
+
+
+async def test_a_chat_in_the_unlimited_flag_has_no_daily_limit(
+    send: Any, state: FSMContext, generate: AsyncMock, chat_id: int
+) -> None:
+    flags = {
+        "lesson_recall": frozenset({chat_id}),
+        "lesson_recall_unlimited": frozenset({chat_id}),
+    }
+    await _use_up_the_daily_limit(state)
+
+    requests = await _finish_lesson(send, state, feature_flags=flags)
+
+    assert _buttons(_sent(requests)[-1]) == [(RU.btn_continue, LESSON_RECALL)]
+
+
+async def test_the_daily_limit_is_recorded_on_the_update_span(
+    send: Any, state: FSMContext
+) -> None:
+    await _use_up_the_daily_limit(state)
+    await _answer_lesson(send, state, [True, True, True])
+    await send.callback(NEXT_EXERCISE)
+
+    with patch(
+        "wiederholen.bot.commands.wiederholen.trace", spec=otel_trace
+    ) as mock_trace:
+        await send.message((await _shown_exercise(state)).answer[0])
+
+    set_attribute = mock_trace.get_current_span.return_value.set_attribute
+    set_attribute.assert_called_once_with("lesson_recall.limit_reached", True)
 
 
 async def test_a_start_skips_exercises_that_the_course_no_longer_has(
