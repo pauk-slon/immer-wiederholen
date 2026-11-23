@@ -162,13 +162,10 @@ async def _send_sentence(message: Message, state: FSMContext, locale: Locale) ->
     await remember_buttoned_message(state, sent)
 
 
-def _wrong_answer_fix(
-    locale: Locale, check: TranslationCheck, lesson_recall: LessonRecall, position: int
-) -> str:
-    if check.correction:
-        return locale.lesson_recall_correction.format(correction=check.correction)
-    reference = lesson_recall.sentences[position].reference
-    return locale.lesson_recall_reference.format(reference=reference)
+def _shown_correction(check: TranslationCheck, answer: str) -> str | None:
+    if check.correction and check.correction != answer.strip():
+        return check.correction
+    return None
 
 
 async def _send_result_and_go_on(
@@ -303,6 +300,11 @@ async def _check(
             span.set_attribute(
                 "lesson_recall.verdict", "correct" if check.is_correct else "wrong"
             )
+            if not check.is_correct:
+                span.set_attribute(
+                    "lesson_recall.corrected",
+                    _shown_correction(check, answer) is not None,
+                )
     if not await _is_still_current(
         state, lesson_recall_id, LessonRecallState.checking, position=position
     ):
@@ -316,7 +318,11 @@ async def _check(
     if check.explanation:
         lines.append(check.explanation)
     if not check.is_correct:
-        lines.append(_wrong_answer_fix(locale, check, lesson_recall, position))
+        if correction := _shown_correction(check, answer):
+            lines.append(locale.lesson_recall_correction.format(correction=correction))
+        else:
+            reference = lesson_recall.sentences[position].reference
+            lines.append(locale.lesson_recall_reference.format(reference=reference))
     await _send_result_and_go_on(message, state, locale, "\n\n".join(lines))
 
 

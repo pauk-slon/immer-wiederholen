@@ -178,7 +178,7 @@ class LessonRecall:
 class TranslationCheck:
     is_correct: bool
     explanation: str | None
-    correction: str | None = None
+    correction: str | None
 
 
 def _system(rules: str, guide: str) -> list[TextBlockParam]:
