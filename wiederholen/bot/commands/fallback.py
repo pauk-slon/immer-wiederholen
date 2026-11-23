@@ -1,8 +1,8 @@
 """The reply to a message that no other handler takes (see docs/bot.md)."""
 
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import ContentType, Message
 from opentelemetry import trace
 
 from wiederholen.bot.commands.wiederholen import make_next_button
@@ -14,8 +14,23 @@ from wiederholen.bot.pending_buttons import (
 
 router = Router()
 
+# What a learner sends. Service messages, such as a pinned message, get no reply
+_LEARNER_CONTENT = frozenset(
+    {
+        ContentType.TEXT,
+        ContentType.STICKER,
+        ContentType.PHOTO,
+        ContentType.VOICE,
+        ContentType.VIDEO,
+        ContentType.VIDEO_NOTE,
+        ContentType.ANIMATION,
+        ContentType.DOCUMENT,
+        ContentType.AUDIO,
+    }
+)
 
-@router.message()
+
+@router.message(F.content_type.in_(_LEARNER_CONTENT))
 async def reply_to_an_unexpected_message(message: Message, state: FSMContext) -> None:
     trace.get_current_span().set_attribute("telegram.fallback", True)
     await clear_stale_buttons(message.bot, message.chat.id, state)

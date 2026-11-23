@@ -1,16 +1,13 @@
 import pytest
-from aiogram import Dispatcher
 from aiogram.fsm.context import FSMContext
 from aiogram.methods import EditMessageReplyMarkup, SendMessage
 from aiogram.types import InlineKeyboardMarkup
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import Tracer
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.curriculum import make_exercise
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.bot.tracing import TracingMiddleware
 from wiederholen.school import Course
 from wiederholen.school.curriculum import TopicGroup
 
@@ -243,17 +240,6 @@ async def test_selected_topic_groups_narrow_the_first_exercise(
     texts = [request.text for request in requests if isinstance(request, SendMessage)]
     assert any("Ich ___ helfen." in text for text in texts)
     assert not any("sprechen" in text for text in texts)
-
-
-@pytest.fixture
-def traced_dispatcher(
-    dispatcher: Dispatcher, tracer: Tracer, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # The dispatcher's TracingMiddleware opens the telegram.message span that
-    # the handler adds attributes to, so it must record with the test tracer
-    for middleware in dispatcher.update.outer_middleware:
-        if isinstance(middleware, TracingMiddleware):
-            monkeypatch.setattr(middleware, "_tracer", tracer)
 
 
 @pytest.mark.usefixtures("traced_dispatcher")

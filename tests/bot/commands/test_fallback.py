@@ -1,16 +1,14 @@
 import pytest
-from aiogram import Dispatcher
 from aiogram.fsm.context import FSMContext
 from aiogram.methods import EditMessageReplyMarkup, SendMessage
 from aiogram.types import InlineKeyboardMarkup
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import Tracer
 
 from tests.plugins.aiogram import FeedMessage, FeedRawUpdate
 from tests.plugins.curriculum import make_exercise
+from tests.plugins.telegram import MessageFactory
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
-from wiederholen.bot.tracing import TracingMiddleware
 from wiederholen.school import Course
 
 COURSE = Course([make_exercise(word="warten")])
@@ -43,7 +41,7 @@ async def test_the_hint_is_in_the_chat_language(
 
 
 async def test_a_sticker_gets_the_hint(
-    feed_raw_update: FeedRawUpdate, message_factory, chat_id: int
+    feed_raw_update: FeedRawUpdate, message_factory: MessageFactory
 ) -> None:
     raw_update = message_factory("")
     message = raw_update["message"]
@@ -82,18 +80,22 @@ async def test_an_answer_to_an_exercise_isnt_taken(
 
     requests = await feed_message("falsch", course=COURSE)
 
-    assert all(
-        getattr(request, "text", None) != RU.unexpected_message for request in requests
-    )
+    texts = [request.text for request in requests if isinstance(request, SendMessage)]
+    assert texts[0].startswith(RU.wrong.split("{")[0])
+    assert RU.unexpected_message not in texts
 
 
-@pytest.fixture
-def traced_dispatcher(
-    dispatcher: Dispatcher, tracer: Tracer, monkeypatch: pytest.MonkeyPatch
+async def test_a_service_message_gets_no_reply(
+    feed_raw_update: FeedRawUpdate, message_factory: MessageFactory
 ) -> None:
-    for middleware in dispatcher.update.outer_middleware:
-        if isinstance(middleware, TracingMiddleware):
-            monkeypatch.setattr(middleware, "_tracer", tracer)
+    raw_update = message_factory("")
+    message = raw_update["message"]
+    del message["text"]
+    message["message_auto_delete_timer_changed"] = {"message_auto_delete_time": 86400}
+
+    requests = await feed_raw_update(raw_update, course=COURSE)
+
+    assert requests == []
 
 
 @pytest.mark.usefixtures("traced_dispatcher")
