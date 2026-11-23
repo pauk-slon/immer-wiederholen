@@ -100,7 +100,6 @@ class Locale:
     lesson_recall_correct: str
     lesson_recall_wrong: str
     lesson_recall_reference: str
-    lesson_recall_done: str
     lesson_recall_wait: str
     lesson_recall_generation_failed: str
     lesson_recall_check_failed: str
@@ -173,7 +172,6 @@ RU: Final = Locale(
     lesson_recall_correct="🟢 Верно!",
     lesson_recall_wrong="🔴 Неверно.",
     lesson_recall_reference="Вариант перевода: {reference}",
-    lesson_recall_done="✅ Это была последняя фраза",
     lesson_recall_wait="⏳ Секунду, я ещё думаю…",
     lesson_recall_generation_failed="⚠️ Не получилось подготовить фразы для перевода.",
     lesson_recall_check_failed="⚠️ Не получилось проверить перевод. Отправьте его ещё раз.",
@@ -243,7 +241,6 @@ EN: Final = Locale(
     lesson_recall_correct="🟢 Correct!",
     lesson_recall_wrong="🔴 Not quite.",
     lesson_recall_reference="A possible translation: {reference}",
-    lesson_recall_done="✅ That was the last sentence",
     lesson_recall_wait="⏳ One moment, I'm still thinking…",
     lesson_recall_generation_failed="⚠️ Couldn't prepare the sentences to translate.",
     lesson_recall_check_failed="⚠️ Couldn't check the translation. Send it again.",
