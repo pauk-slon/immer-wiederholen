@@ -398,8 +398,9 @@ class Course:
         #
         # topic_groups/word_chained_topics/answer_chained_topics/gated_topics/
         # topic_instructions/cue_generatable_topics/primary_answer_only_topics
-        # are deliberately left untouched rather than filtered down too: a chain/gate pointing at a topic excluded
-        # here just never finds an exercise to expedite
+        # are deliberately left untouched rather than filtered down too: a
+        # chain/gate pointing at a topic excluded here just never finds an
+        # exercise to expedite
         # (Tutor._expedite_dependent() already treats "dependent topic has
         # no exercises" as a no-op, the same case a topic with genuinely no
         # exercises in the full course hits), and the rest are inert,
