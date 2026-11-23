@@ -232,9 +232,7 @@ async def test_the_start_sends_the_lesson_and_shows_the_first_sentence(
     assert kwargs["language"] == "ru"
     sentence = _sent(requests)[-1]
     assert sentence.text == "1/2 ✍️ Переведите:\nПервая фраза."
-    assert _buttons(sentence) == [
-        (RU.btn_lesson_recall_skip, SKIP),
-    ]
+    assert _buttons(sentence) == [(RU.btn_lesson_recall_skip, SKIP)]
     assert await state.get_state() == LessonRecallState.translating.state
 
 
@@ -364,7 +362,7 @@ async def test_a_skip_of_the_last_sentence_leads_to_the_next_exercise(
     assert _buttons(reference) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
 
 
-async def test_the_next_exercise_button_leaves_the_lesson_recall(
+async def test_a_next_exercise_button_of_another_message_leaves_the_lesson_recall(
     send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
 ) -> None:
     await _start(send, state)
