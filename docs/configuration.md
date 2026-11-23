@@ -65,18 +65,22 @@ For this reason, give the project its own bot. Don't reuse a bot that you made f
 
 ## Optional integrations
 
-You enable each integration with its variables. Without the variables, the feature is off, and the bot starts normally. The lesson recall also needs a feature flag.
+You enable each integration with its variables. Without the variables, the feature is off, and the bot starts normally.
 
 ### Lesson recalls
 
-**Bot only.** After a lesson, the bot can give a translation task that Anthropic's Claude writes and checks (see [Telegram bot](bot.md#lesson-recall)). The feature is an experiment, so only the chats in a feature flag get it. The feature uses these variables:
+**Bot only.** After a lesson, the bot can give a translation task that Anthropic's Claude writes and checks (see [Telegram bot](bot.md#lesson-recall)). Every chat gets it, within a daily limit (see [The daily limit](bot.md#the-daily-limit)). The feature uses these variables:
 
 | Variable | Meaning |
 |---|---|
-| `ANTHROPIC_API_KEY` | an [Anthropic API](https://console.anthropic.com/) key |
+| `ANTHROPIC_API_KEY` | an [Anthropic API](https://console.anthropic.com/) key. It turns on the lesson recall |
 | `BOT_FEATURE_FLAGS` | the chats of each feature flag (see below). For a private chat, the chat id is the user's Telegram id |
 
-`BOT_FEATURE_FLAGS` holds flags separated by `;`, each with its chat ids, such as `lesson_recall:123,456`. `lesson_recall` turns on the lesson recall after a lesson. If `lesson_recall` has a chat, the bot doesn't start without `ANTHROPIC_API_KEY` or without the course's `lesson_recall.md` (see [Course format](course-format.md#lesson_recallmd)). So the guide goes to the course before the flag gets a chat. The reminder worker and the web app don't check this. The lesson recall sets its own timeouts (see [AI-generated content](authoring.md#lesson-recalls)). The bot ignores a flag that it doesn't know, such as `lessons` or `ai_exercises` from an older configuration.
+If `ANTHROPIC_API_KEY` is set, the bot doesn't start without the course's `lesson_recall.md` (see [Course format](course-format.md#lesson_recallmd)), because the key has no other use. So the guide goes to the course before the key goes to the bot.
+
+`BOT_FEATURE_FLAGS` holds flags separated by `;`, each with its chat ids, such as `lesson_recall_unlimited:123,456`. `lesson_recall_unlimited` removes the daily limit of lesson recalls for its chats. The bot doesn't start if this flag has a chat but `ANTHROPIC_API_KEY` is missing, because the flag would have no effect.
+
+The reminder worker and the web app don't make these checks. The lesson recall sets its own timeouts (see [AI-generated content](authoring.md#lesson-recalls)). The bot ignores a flag that it doesn't know, such as `lesson_recall`, `lessons` or `ai_exercises` from an older configuration.
 
 After you change the variable, restart the bot.
 

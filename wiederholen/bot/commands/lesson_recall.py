@@ -25,6 +25,7 @@ from wiederholen.bot.commands.wiederholen import (
     show_typing_while,
 )
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
+from wiederholen.bot.lesson_recall_limit import count_lesson_recall
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     forget_buttoned_message,
@@ -232,7 +233,9 @@ async def handle_start(
     # The button says "Continue", so without a lesson recall it continues
     if (
         not isinstance(message, Message)
-        or not offers_lesson_recall(feature_flags, message.chat.id, finished_lesson)
+        or not offers_lesson_recall(
+            anthropic_client, feature_flags, message.chat.id, finished_lesson, data
+        )
         or not exercises
     ):
         await handle_next_exercise(
@@ -278,6 +281,8 @@ async def handle_start(
             lesson_recall = None
         else:
             span.set_attribute("lesson_recall.sentences", len(lesson_recall.sentences))
+            # Counted even if the chat moved on, because the model call is paid
+            await state.update_data(count_lesson_recall(await state.get_data()))
     if not await _is_still_current(
         state, lesson_recall_id, LessonRecallState.generating
     ):

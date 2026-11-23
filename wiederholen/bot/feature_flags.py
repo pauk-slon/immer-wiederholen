@@ -12,7 +12,7 @@ wiederholen.school.
 
 from typing import Final
 
-LESSON_RECALL_FLAG: Final = "lesson_recall"
+LESSON_RECALL_UNLIMITED_FLAG: Final = "lesson_recall_unlimited"
 
 
 def parse_feature_flags(raw: str) -> dict[str, frozenset[int]]:

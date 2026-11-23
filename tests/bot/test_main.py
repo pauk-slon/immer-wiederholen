@@ -1,5 +1,7 @@
+import os
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
+from pathlib import Path
 from typing import Protocol
 from unittest.mock import AsyncMock, patch
 
@@ -158,6 +160,8 @@ async def test_starts_polling_with_anthropic_client_from_env(
     monkeypatch, mock_main_io: MockMainIO
 ) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    course_path = Path(os.environ["COURSE_PATH"])
+    (course_path / "lesson_recall.md").write_text("Write two sentences.")
 
     with mock_main_io() as (_mock_request, mock_polling):
         await main()

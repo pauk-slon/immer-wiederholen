@@ -86,17 +86,27 @@ A lesson is shorter when fewer exercises are available, for example at the end o
 
 ## Lesson recall
 
-A lesson recall is a short translation task after a lesson (see [ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md)). [AI-generated content](authoring.md#lesson-recalls) describes the model calls. Only chats with the `lesson_recall` [feature flag](#feature-flags) get it. The handlers are in [`commands/lesson_recall.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/commands/lesson_recall.py).
+A lesson recall is a short translation task after a lesson (see [ADR 0031](adr/0031-model-writes-and-checks-a-lesson-recall.md)). [AI-generated content](authoring.md#lesson-recalls) describes the model calls. Every chat gets it if `ANTHROPIC_API_KEY` is set (see [ADR 0033](adr/0033-lesson-recall-for-every-chat-with-a-daily-limit.md)), within a [daily limit](#the-daily-limit). The handlers are in [`commands/lesson_recall.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/commands/lesson_recall.py).
 
 ### The start
 
-Only a lesson of 4 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_SIZE`). A smaller lesson gives too few sentences for the wait of a generation. Small lessons come on the first day, at the end of a day and with few topics in `/topics`. In a chat in the flag, a small lesson works as in a chat outside the flag.
+Only a lesson of 4 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_SIZE`). A smaller lesson gives too few sentences for the wait of a generation. Small lessons come on the first day, at the end of a day and with few topics in `/topics`. A small lesson works as a lesson without a lesson recall.
 
 The bot takes the size from the counter of the shown exercise ("2/5"). So it decides for the whole lesson at its first exercise. A lesson that gets smaller, for example after `/topics`, gets the optional recall back and no lesson recall.
 
 In a lesson with a lesson recall, the "Continue" button of the lesson summary starts the lesson recall. The summary comes after the last answer, or after the recall result when the last answer needed a recall, so both places have it. The button keeps its text and gets the `LESSON_RECALL` callback instead of `NEXT_EXERCISE`. Such a lesson gets no optional recall after a right answer, because two kinds of recall would confuse the learner. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
 A tap starts the generation. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
+
+### The daily limit
+
+Each lesson recall costs model calls, so a chat gets 3 lesson recalls in 24 hours (`DAILY_LESSON_RECALLS` in [`lesson_recall_limit.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/lesson_recall_limit.py)). A chat with the `lesson_recall_unlimited` [feature flag](#feature-flags) has no limit.
+
+- **The 24 hours move with time.** The bot counts the lesson recalls that started in the last 24 hours, not in a calendar day. The bot doesn't know the learner's time zone, so a calendar day would end at a random time of the learner's day.
+- **Only a generated task counts.** The bot counts a lesson recall after the model wrote the sentences. A failed generation doesn't use up the limit, because the learner got nothing. A task that the chat left during the generation counts, because the call was paid.
+- **A lesson after the limit works as a lesson without a lesson recall.** It gets the optional recall back, and "Continue" shows the next exercise. The bot checks the limit at each answer. If the limit ends during a lesson, the rest of the lesson gets no optional recall, and the lesson gets a lesson recall.
+
+The limit is per chat, because the bot keeps it in the FSM data of the chat. `/reset` doesn't change it.
 
 ### The states
 
@@ -123,7 +133,7 @@ The result is HTML because of the marks, so the explanation and the reference go
 
 ### The data
 
-All keys are exercise state (see [Chat state](storage.md#chat-state)). The bot removes them at the end of the lesson recall or with the next answer.
+All keys except `lesson_recall_started_at` are exercise state (see [Chat state](storage.md#chat-state)). The bot removes them at the end of the lesson recall or with the next answer. `lesson_recall_started_at` is lasting chat state, because the daily limit outlives a lesson recall.
 
 | Key | What it holds |
 |---|---|
@@ -132,6 +142,7 @@ All keys are exercise state (see [Chat state](storage.md#chat-state)). The bot r
 | `lesson_recall_position` | the number of the current sentence |
 | `lesson_recall_answer` | the last translation, for "Check again" |
 | `lesson_recall_waiting_since` | the start of the current model call |
+| `lesson_recall_started_at` | the start times of the lesson recalls of the last 24 hours, for the daily limit |
 
 The handlers don't open `check_out()`, because a lesson recall doesn't change the learning state.
 
@@ -153,7 +164,7 @@ A restart of the bot during a model call loses the call, and the chat stays in `
 | topic groups | `topic_groups` | `/topics`, a `/start` deep link in a new chat | the choice of what to show, the reminder (see below) |
 | reminder interval | `remind_after_hours` | `/reminders` | the reminder (see [The /reminders setting](#the-reminders-setting)) |
 
-The settings are lasting chat state (see [Storage and identity](storage.md#chat-state)). `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists all three settings and the current lesson. When an exercise ends, the bot clears the exercise state but keeps the keys in this tuple. **Add a new setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored a setting by hand after each exercise. One of four call sites missed it, and the setting silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
+The settings are lasting chat state (see [Storage and identity](storage.md#chat-state)). `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists all three settings, the current lesson and the start times of the lesson recalls (see [The daily limit](#the-daily-limit)). When an exercise ends, the bot clears the exercise state but keeps the keys in this tuple. **Add a new setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored a setting by hand after each exercise. One of four call sites missed it, and the setting silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
 
 ### Topic selection
 
@@ -241,11 +252,11 @@ When you edit the text of a message, pass `reply_markup=` explicitly, with a new
 
 ## Feature flags
 
-[`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) enables a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#lesson-recalls) describes its format.
+[`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) changes a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#lesson-recalls) describes its format.
 
-At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, LESSON_RECALL_FLAG, chat_id)`. The one flag is `lesson_recall` for the [lesson recall](#lesson-recall). `check_lesson_recall_config()` checks at startup what it needs (see [Configuration](configuration.md#lesson-recalls)). The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
+At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, LESSON_RECALL_UNLIMITED_FLAG, chat_id)`. The one flag is `lesson_recall_unlimited`, which removes the [daily limit](#the-daily-limit) of the lesson recall. `check_lesson_recall_config()` checks at startup what it needs (see [Configuration](configuration.md#lesson-recalls)). The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
 
-The flags have no storage and no admin command. To change a flag, edit the variable and restart the bot. This is enough for a few test chats. The flags stay in the bot layer, and `wiederholen.school` never sees a chat id or a flag name.
+The flags have no storage and no admin command. To change a flag, edit the variable and restart the bot. This is enough for a few chats, such as the author's and test chats. The flags stay in the bot layer, and `wiederholen.school` never sees a chat id or a flag name.
 
 ## Hints from grammar classes
 

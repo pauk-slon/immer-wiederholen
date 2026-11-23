@@ -59,10 +59,10 @@ def test_load_cue_store_builds_a_cached_r2_store_when_configured(
     assert isinstance(store, CachedCueStore)
 
 
-def test_lesson_recall_config_needs_nothing_without_the_flag() -> None:
+def test_lesson_recall_config_needs_nothing_without_an_api_key() -> None:
     check_lesson_recall_config({}, None, Course([make_exercise()]))
     check_lesson_recall_config(
-        {"lesson_recall": frozenset()}, None, Course([make_exercise()])
+        {"lesson_recall_unlimited": frozenset()}, None, Course([make_exercise()])
     )
 
 
@@ -71,19 +71,21 @@ _WITH_GUIDE = Course([make_exercise()], lesson_recall_guide="Guide")
 
 def test_lesson_recall_config_passes_with_a_client_and_a_guide() -> None:
     check_lesson_recall_config(
-        {"lesson_recall": frozenset({1})}, Mock(spec=AsyncAnthropic), _WITH_GUIDE
+        {"lesson_recall_unlimited": frozenset({1})},
+        Mock(spec=AsyncAnthropic),
+        _WITH_GUIDE,
     )
 
 
-def test_lesson_recall_flag_without_an_api_key_fails() -> None:
+def test_lesson_recall_unlimited_flag_without_an_api_key_fails() -> None:
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
-        check_lesson_recall_config({"lesson_recall": frozenset({1})}, None, _WITH_GUIDE)
+        check_lesson_recall_config(
+            {"lesson_recall_unlimited": frozenset({1})}, None, _WITH_GUIDE
+        )
 
 
-def test_lesson_recall_flag_without_a_guide_fails() -> None:
+def test_an_api_key_without_a_guide_fails() -> None:
     with pytest.raises(RuntimeError, match="lesson_recall.md"):
         check_lesson_recall_config(
-            {"lesson_recall": frozenset({1})},
-            Mock(spec=AsyncAnthropic),
-            Course([make_exercise()]),
+            {}, Mock(spec=AsyncAnthropic), Course([make_exercise()])
         )

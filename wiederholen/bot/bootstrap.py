@@ -19,7 +19,7 @@ from wiederholen.school import (
     StudentRecordBook,
 )
 
-from .feature_flags import LESSON_RECALL_FLAG, parse_feature_flags
+from .feature_flags import LESSON_RECALL_UNLIMITED_FLAG, parse_feature_flags
 
 
 @dataclass(frozen=True)
@@ -66,22 +66,22 @@ def check_lesson_recall_config(
     anthropic_client: AsyncAnthropic | None,
     course: Course,
 ) -> None:
-    if not feature_flags.get(LESSON_RECALL_FLAG):
-        return
+    # ANTHROPIC_API_KEY turns on the lesson recall, its only use
     if anthropic_client is None:
-        raise RuntimeError(
-            f"the {LESSON_RECALL_FLAG} feature flag needs ANTHROPIC_API_KEY"
-        )
+        if feature_flags.get(LESSON_RECALL_UNLIMITED_FLAG):
+            raise RuntimeError(
+                f"the {LESSON_RECALL_UNLIMITED_FLAG} feature flag needs "
+                "ANTHROPIC_API_KEY"
+            )
+        return
     if course.lesson_recall_guide is None:
-        raise RuntimeError(
-            f"the {LESSON_RECALL_FLAG} feature flag needs the course's lesson_recall.md"
-        )
+        raise RuntimeError("ANTHROPIC_API_KEY needs the course's lesson_recall.md")
 
 
 def load_anthropic_client() -> AsyncAnthropic | None:
-    # Unlike BOT_TOKEN, not required at startup: only chats in the
-    # lesson_recall flag need it (see check_lesson_recall_config()). Each
-    # request sets its own timeout and retries
+    # Optional: without it, the bot has no lesson recall (see
+    # check_lesson_recall_config()). Each request sets its own timeout and
+    # retries
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return None
