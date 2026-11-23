@@ -334,7 +334,7 @@ async def test_a_wrong_translation_shows_the_explanation_and_the_reference(
     assert _sent(requests)[-2].parse_mode != "HTML"
 
 
-async def test_the_last_translation_finishes_the_lesson_recall(
+async def test_the_last_result_leads_to_the_next_exercise(
     send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
 ) -> None:
     await _start(send, state)
@@ -342,14 +342,27 @@ async def test_the_last_translation_finishes_the_lesson_recall(
 
     requests = await send.message("Ich hoffe.")
 
-    done = _sent(requests)[-1]
-    assert done.text == RU.lesson_recall_done
-    assert _buttons(done) == [(RU.btn_continue, NEXT_EXERCISE)]
+    [result] = _sent(requests)
+    assert result.text == RU.lesson_recall_correct
+    assert _buttons(result) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
     assert await state.get_state() is None
     data = await state.get_data()
     assert "lesson_recall" not in data
     assert "finished_lesson" not in data
     assert "lesson" in data
+
+
+async def test_a_skip_of_the_last_sentence_leads_to_the_next_exercise(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    await _start(send, state)
+    await send.callback(SKIP)
+
+    requests = await send.callback(SKIP)
+
+    [reference] = _sent(requests)
+    assert reference.text == "Вариант перевода: Ref 1"
+    assert _buttons(reference) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
 
 
 async def test_the_next_exercise_button_leaves_the_lesson_recall(

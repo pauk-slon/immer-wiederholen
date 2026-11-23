@@ -75,10 +75,6 @@ def _skip_button(locale: Locale) -> InlineKeyboardButton:
     return InlineKeyboardButton(text=locale.btn_lesson_recall_skip, callback_data=SKIP)
 
 
-def _continue_button(locale: Locale) -> InlineKeyboardButton:
-    return InlineKeyboardButton(text=locale.btn_continue, callback_data=NEXT_EXERCISE)
-
-
 def _next_exercise_button(locale: Locale) -> InlineKeyboardButton:
     return InlineKeyboardButton(
         text=locale.cmd_wiederholen, callback_data=NEXT_EXERCISE
@@ -166,13 +162,14 @@ async def _send_sentence(message: Message, state: FSMContext, locale: Locale) ->
     await remember_buttoned_message(state, sent)
 
 
-async def _go_to_next_sentence(
-    message: Message, state: FSMContext, locale: Locale
+async def _send_result_and_go_on(
+    message: Message, state: FSMContext, locale: Locale, result: str
 ) -> None:
     data = await state.get_data()
     lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
     position = data[_POSITION_KEY] + 1
     if position < len(lesson_recall.sentences):
+        await message.answer(result)
         await state.update_data({_POSITION_KEY: position, _ANSWER_KEY: None})
         await state.set_state(LessonRecallState.translating)
         await _send_sentence(message, state, locale)
@@ -180,7 +177,7 @@ async def _go_to_next_sentence(
     trace.get_current_span().set_attribute("lesson_recall.finished", True)
     await clear_exercise_state(state, data)
     sent = await message.answer(
-        locale.lesson_recall_done, reply_markup=_keyboard([_continue_button(locale)])
+        result, reply_markup=_keyboard([_next_exercise_button(locale)])
     )
     await remember_buttoned_message(state, sent)
 
@@ -315,8 +312,7 @@ async def _check(
     if not check.is_correct:
         reference = lesson_recall.sentences[position].reference
         lines.append(locale.lesson_recall_reference.format(reference=reference))
-    await message.answer("\n\n".join(lines))
-    await _go_to_next_sentence(message, state, locale)
+    await _send_result_and_go_on(message, state, locale, "\n\n".join(lines))
 
 
 @router.message(LessonRecallState.translating, F.text, ~F.text.startswith("/"))
@@ -362,8 +358,12 @@ async def handle_skip(callback: CallbackQuery, state: FSMContext) -> None:
     await message.edit_reply_markup(reply_markup=None)
     await forget_buttoned_message(state)
     await callback.answer()
-    await message.answer(locale.lesson_recall_reference.format(reference=reference))
-    await _go_to_next_sentence(message, state, locale)
+    await _send_result_and_go_on(
+        message,
+        state,
+        locale,
+        locale.lesson_recall_reference.format(reference=reference),
+    )
 
 
 @router.message(LessonRecallState.translating, ~F.text.startswith("/"))
