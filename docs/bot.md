@@ -51,7 +51,7 @@ The bot doesn't call `Tutor` to show the exercise again. With `shown_exercise`, 
 
 ## Answering
 
-An answer to an exercise or a recall is text that doesn't start with `/`. A sticker, a photo or an unknown command such as `/help` isn't an answer, because the learner didn't try to answer. Before, such a message counted as a wrong answer and sent the pair back to the start of the schedule. Now it goes to the [fallback](#other-messages). During an exercise, the "next" button of the fallback shows the same exercise again. During a recall, it shows the next exercise, the same as `/wiederholen`.
+An answer to an exercise or a recall is text that doesn't start with `/`. A sticker, a photo or an unknown command such as `/help` isn't an answer, because the learner didn't try to answer. As a wrong answer, it would send the pair back to the start of the schedule. Such a message goes to the [fallback](#other-messages). During an exercise, the "next" button of the fallback shows the same exercise again. During a recall, it shows the next exercise, the same as `/wiederholen`.
 
 After an answer, the bot says whether it was right, removes the options keyboard and sends the `explanation`. After a wrong answer, it shows the correct answers with the mistake marked (see [Marking a mistake](#marking-a-mistake)). In a topic with `show_primary_answer_only`, it shows only the primary answer (see [Course format](course-format.md#several-correct-answers)).
 
