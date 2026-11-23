@@ -383,6 +383,44 @@ async def test_a_wrong_translation_without_a_correction_shows_the_reference(
     assert _sent(requests)[-2].parse_mode == "HTML"
 
 
+_RECALL_WITH_MARKUP_IN_THE_REFERENCE = LessonRecall(
+    exercises=(WARTEN,),
+    sentences=(
+        LessonRecallSentence(
+            text="Первая фраза.", reference="Tom & <Jerry>", exercise_indexes=(0,)
+        ),
+    ),
+    language="ru",
+)
+
+
+async def test_a_wrong_translation_escapes_the_reference(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    generate.return_value = _RECALL_WITH_MARKUP_IN_THE_REFERENCE
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation=None, correction=None
+    )
+
+    requests = await send.message("Wir warten.")
+
+    assert _sent(requests)[-1].text == (
+        "🔴 Неверно.\n\nВариант перевода: Tom &amp; &lt;Jerry&gt;"
+    )
+
+
+async def test_a_skip_escapes_the_reference(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    generate.return_value = _RECALL_WITH_MARKUP_IN_THE_REFERENCE
+    await _start(send, state)
+
+    requests = await send.callback(SKIP)
+
+    assert _sent(requests)[-1].text == "Вариант перевода: Tom &amp; &lt;Jerry&gt;"
+
+
 async def test_the_last_result_leads_to_the_next_exercise(
     send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
 ) -> None:

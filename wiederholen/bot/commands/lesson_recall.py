@@ -170,7 +170,7 @@ def _shown_correction(check: TranslationCheck, answer: str) -> str | None:
     return None
 
 
-def _marked_correction(answer: str, correction: str) -> str:
+def _correction_html(answer: str, correction: str) -> str:
     diff = answer_diff.correct(answer, [correction], ignore_punctuation=True)
     return diff.mistake or diff.answer
 
@@ -334,7 +334,7 @@ async def _check(
         if correction := _shown_correction(check, answer):
             lines.append(
                 locale.lesson_recall_correction.format(
-                    correction=_marked_correction(answer, correction)
+                    correction=_correction_html(answer, correction)
                 )
             )
         else:
