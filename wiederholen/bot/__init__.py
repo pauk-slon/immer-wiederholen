@@ -4,6 +4,7 @@ from aiogram import Dispatcher
 
 from .chat_membership import router as chat_membership_router
 from .commands import (
+    fallback,
     language,
     lesson_recall,
     progress,
@@ -34,5 +35,7 @@ dispatcher.include_router(topics.router)
 dispatcher.include_router(reminders.router)
 dispatcher.include_router(wiederholen.router)
 dispatcher.include_router(lesson_recall.router)
+# Last, because it takes every message that the routers above don't
+dispatcher.include_router(fallback.router)
 
 __all__ = ["dispatcher"]

@@ -86,6 +86,7 @@ class Locale:
     reminder_streak_text: str
     progress_text: str
     nothing_due_text: str
+    unexpected_message: str
     streak_text: str
     lesson_summary: str
     # After a lesson, on the "Next exercise" button
@@ -158,6 +159,10 @@ RU: Final = Locale(
         "✅ Выучено: {mastered}"
     ),
     nothing_due_text="🎉 На сегодня всё! Загляните завтра за новыми заданиями.",
+    unexpected_message=(
+        "Я не отвечаю на сообщения, только даю задания и проверяю ответы. "
+        "Нажмите кнопку, чтобы продолжить."
+    ),
     streak_text="🔥 Серия: {days}",
     lesson_summary="✅ Готово! Верно: {correct} из {size}",
     btn_continue="Продолжить",
@@ -226,6 +231,10 @@ EN: Final = Locale(
         "✅ Mastered: {mastered}"
     ),
     nothing_due_text="🎉 That's all for today! Come back tomorrow for more.",
+    unexpected_message=(
+        "I don't answer messages, I only give exercises and check your answers. "
+        "Tap the button to continue."
+    ),
     streak_text="🔥 Streak: {days}",
     lesson_summary="✅ Done! Correct: {correct} of {size}",
     btn_continue="Continue",
