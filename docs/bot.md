@@ -18,7 +18,15 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 `lesson_recall` has no command. It handles the [lesson recall](#lesson-recall) after a lesson.
 
+`fallback` has no command either. It replies to a message that no other handler takes (see [Other messages](#other-messages)).
+
 [`l10n.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/l10n.py) has the bot's texts in both languages.
+
+### Other messages
+
+A message without a reply makes the bot look broken, for example to a new learner who writes right after `/start`. So the router of `fallback` comes last and takes a message that no other handler takes, if it is text, a sticker, a photo, a video, a voice message, an audio file or a document. This includes text outside an exercise and an unknown command such as `/help`. A message during an exercise or a lesson recall still goes to its handler. Service messages, for example about a pinned message, get no reply, because the learner didn't write anything.
+
+The bot replies with what it does and the "next" button. The reply is the same in every state, because the "next" button shows what fits the state: an exercise, or the message that nothing is due today. The bot doesn't start an exercise on such a message, because the learner may have asked a question. The handler removes the buttons of the earlier message like every typed command does.
 
 ## Showing an exercise
 

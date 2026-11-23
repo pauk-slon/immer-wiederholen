@@ -13,8 +13,10 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.methods import SendMessage, TelegramMethod
 from aiogram.types import Chat, Message
+from opentelemetry.trace import Tracer
 
 from wiederholen.bot import dispatcher as _dp
+from wiederholen.bot.tracing import TracingMiddleware
 
 from .telegram import CallbackQueryFactory, MessageFactory
 
@@ -142,3 +144,14 @@ async def redis_storage() -> AsyncIterator[RedisStorage]:
 @pytest.fixture(autouse=True)
 def _reset_storage(dispatcher: Dispatcher, redis_storage: RedisStorage) -> None:
     dispatcher.fsm.storage = redis_storage
+
+
+@pytest.fixture
+def traced_dispatcher(
+    dispatcher: Dispatcher, tracer: Tracer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The dispatcher's TracingMiddleware opens the update's span that the
+    # handler adds attributes to, so it must record with the test tracer
+    for middleware in dispatcher.update.outer_middleware:
+        if isinstance(middleware, TracingMiddleware):
+            monkeypatch.setattr(middleware, "_tracer", tracer)
