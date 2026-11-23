@@ -115,8 +115,10 @@ The limit is per chat, because the bot keeps it in the FSM data of the chat. `/r
 | State | What happens | A message from the learner |
 |---|---|---|
 | `generating` | the model writes the sentences | gets a busy notice |
-| `translating` | the bot shows a sentence with "Skip" | is the translation. A message without text shows the sentence again |
+| `translating` | the bot shows a sentence with "Skip" | is the translation. A message without text shows the sentence again. A translation that is too long gets a notice and the sentence again |
 | `checking` | the model checks the translation | gets a busy notice |
+
+The bot doesn't send a translation of more than 300 characters (`_MAX_ANSWER_LENGTH`) to the model. The bot counts the characters without the spaces at the ends of the text. The longest reference in test runs had 99 characters, so 300 leaves room for a free translation. The limit protects the result, which repeats the corrected translation. A very long translation would make the result longer than a Telegram message can be, and the model's reply could be cut off.
 
 After a wrong translation, the bot shows the correction from the model. The correction keeps what the learner wrote and fixes only the mistakes, so the learner sees how to fix their own sentence. The bot doesn't show the reference too, because the reference and the correction are often the same sentence. If the model gave no correction, or the correction is the same as the answer, the bot shows the reference instead.
 

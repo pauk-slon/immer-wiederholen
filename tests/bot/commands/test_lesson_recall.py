@@ -758,6 +758,46 @@ async def test_an_old_skip_button_is_answered(send: Any, state: FSMContext) -> N
     assert _sent(requests) == []
 
 
+async def test_a_too_long_translation_isnt_checked(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+
+    requests = await send.message("Wir warten " + "sehr " * 60)
+
+    check.assert_not_called()
+    notice, sentence = _sent(requests)
+    assert notice.text == RU.lesson_recall_too_long.format(limit=300)
+    assert sentence.text == "1/2 ✍️ Переведите:\nПервая фраза."
+    assert _buttons(sentence) == [(RU.btn_lesson_recall_skip, SKIP)]
+    assert any(isinstance(r, EditMessageReplyMarkup) for r in requests)
+    assert await state.get_state() == LessonRecallState.translating.state
+
+
+async def test_a_translation_of_the_maximum_length_is_checked(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+
+    await send.message("a" * 300 + "  ")
+
+    check.assert_called_once()
+
+
+async def test_a_too_long_translation_is_recorded_on_the_update_span(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    await _start(send, state)
+
+    with patch(
+        "wiederholen.bot.commands.lesson_recall.trace", spec=otel_trace
+    ) as mock_trace:
+        await send.message("a" * 301)
+
+    set_attribute = mock_trace.get_current_span.return_value.set_attribute
+    set_attribute.assert_called_once_with("lesson_recall.too_long", True)
+
+
 async def test_a_message_without_text_shows_the_sentence_again(
     send: Any,
     state: FSMContext,

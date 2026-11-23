@@ -49,6 +49,8 @@ router = Router()
 SKIP: Final = "__lesson_recall_skip__"
 
 _MIN_CHANGED_WORDS_WITHOUT_MARKS: Final = 3
+# The result repeats the translation, so a longer one wouldn't fit a message
+_MAX_ANSWER_LENGTH: Final = 300
 RESEND: Final = "__lesson_recall_resend__"
 
 _ID_KEY: Final = "lesson_recall_id"
@@ -371,6 +373,15 @@ async def handle_translation(
     anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     assert message.text is not None
+    if len(message.text.strip()) > _MAX_ANSWER_LENGTH:
+        trace.get_current_span().set_attribute("lesson_recall.too_long", True)
+        locale = _lesson_recall_locale(await state.get_data())
+        await clear_stale_buttons(_bot(message), message.chat.id, state)
+        await message.answer(
+            locale.lesson_recall_too_long.format(limit=_MAX_ANSWER_LENGTH)
+        )
+        await _send_sentence(message, state, locale)
+        return
     await _check(message, state, course, anthropic_client, message.text)
 
 
