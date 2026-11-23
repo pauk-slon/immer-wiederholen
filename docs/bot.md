@@ -108,9 +108,9 @@ A tap starts the generation. `finished_lesson` has the keys of the exercises of 
 | `translating` | the bot shows a sentence with "Skip" | is the translation. A message without text shows the sentence again |
 | `checking` | the model checks the translation | gets a busy notice |
 
-A wrong translation and "Skip" show the reference. "Skip" needs no model call. A sentence has no button that leaves the lesson recall. The sentences are ready, so the learner can skip to the end at no cost, and a second button that moves on would look like "Skip". After the last sentence, the bot clears the exercise state, so the "Next exercise" button on its result starts a new lesson.
+A wrong translation and "Skip" show the reference. A sentence has no button that leaves the lesson recall, because such a button would look like "Skip". The learner can skip to the end quickly, because "Skip" needs no model call. After the last sentence, the bot clears the exercise state, so the "Next exercise" button on its result starts a new lesson.
 
-`/wiederholen` and every button that shows an exercise, for example the button of a reminder, end the lesson recall, because they change the FSM state. Other commands, such as `/progress`, leave the lesson recall as it is.
+To leave a lesson recall early, the learner sends `/wiederholen`. Every button that shows an exercise, for example the button of a reminder, also ends the lesson recall, because it changes the FSM state. Other commands, such as `/progress`, leave the lesson recall as it is.
 
 The model's texts go out as plain text, without `parse_mode`, so they need no `html.escape()` (see [Showing an exercise](#showing-an-exercise)).
 
@@ -134,7 +134,7 @@ After a model call, the handler reads the FSM data again. It continues only if t
 
 ### Failures
 
-A failed generation shows an error message with "Next exercise". The learner chose "Continue", so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" checks it again. The learner can also type a new translation or skip the sentence.
+A failed generation shows an error message with "Next exercise". The learner chose "Continue", so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" sends it to the model again. The learner can also type a new translation or skip the sentence.
 
 A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same message as after a failed generation or a failed check.
 
