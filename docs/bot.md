@@ -8,12 +8,12 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 | Command | Module | What it does |
 |---|---|---|
-| `/start` | `start` | greets the learner, with a "Next exercise" button. A deep link can set the language and the topic groups of a new chat, a chat that has no FSM data yet. See [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md) for the language (`t.me/<bot>?start=en`) and [Topic groups from a link](#topic-groups-from-a-link) for the groups |
+| `/start` | `start` | greets the learner. A deep link can set the language and the topic groups of a new chat, a chat that has no FSM data yet. See [ADR 0019](adr/0019-start-payload-sets-only-a-new-language.md) for the language (`t.me/<bot>?start=en`) and [Topic groups from a link](#topic-groups-from-a-link) for the groups |
 | `/wiederholen` | `wiederholen` | shows the next exercise, or the current one again if it has no answer yet. The same module handles answers, recalls and the "next" and "study more" buttons |
 | `/progress` | `progress` | shows today's counts (due, new, answered), how many words the learner is learning or has mastered and, if there is one, the streak (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
 | `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
-| `/language` | `language` | switches between Russian and English and confirms the new language |
+| `/language` | `language` | switches between Russian and English |
 | `/reset` | `reset` | deletes the learner's schedule and today's answer counts after a confirmation. The streak stays |
 | `/ai` | `ai` | switches the chat to exercises that an LLM rewrites, for topics with `ai_generation`. Only chats with the `ai_exercises` [feature flag](#feature-flags) have it (see [AI-generated content](authoring.md#shadow-exercises)) |
 
@@ -23,14 +23,9 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 ## Showing an exercise
 
-`_format_question()` in `commands/wiederholen.py` builds the question message. Under the question (`❓`), it adds these parts if the exercise has them:
+`_format_question()` in `commands/wiederholen.py` builds the question message. Under the question, it adds the parts that the exercise has: the `word_bank` chunks, the `description`, the topic's `instruction` and a hint from grammar classes (see [Hints from grammar classes](#hints-from-grammar-classes)). The `word_bank` chunks are shuffled again each time the bot shows the exercise.
 
-- the `word_bank` chunks in parentheses, shuffled again each time the bot shows the exercise
-- the `description` (`💭`)
-- the topic's `instruction` (`ℹ️`)
-- a hint from grammar classes (`🔍`), hidden in a spoiler that the learner taps to open (see [Hints from grammar classes](#hints-from-grammar-classes))
-
-The bot marks an AI-generated question with `🤖`. A multiple-choice exercise shows its options as a reply keyboard. In a topic with `show_primary_answer_only`, the primary answer is the only correct option. For an exercise with a typed answer, the bot removes the keyboard.
+The bot marks an AI-generated question. A multiple-choice exercise shows its options as a reply keyboard. In a topic with `show_primary_answer_only`, the primary answer is the only correct option. For an exercise with a typed answer, the bot removes the keyboard.
 
 The bot sends the message with `parse_mode="HTML"`, so **every piece of authored text goes through `html.escape()`**. Without it, a `<`, `>` or `&` in a question would break the markup.
 
@@ -45,18 +40,15 @@ The bot shows the next exercise instead in these cases:
 - The learner answers a recall.
 - The learner deselected the topic of the shown exercise in `/topics` after the bot showed it.
 
-The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate an AI question again. With `shown_exercise`, the bot keeps the `🤖` mark in `shown_is_ai_generated`, the hint from grammar classes in `shown_hint_word` (see [Hints from grammar classes](#hints-from-grammar-classes)) and the lesson counter in `shown_lesson_counter`. So the question looks the same. Only the order of the options and of the `word_bank` chunks can change.
+The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate an AI question again. With `shown_exercise`, the bot keeps the AI mark in `shown_is_ai_generated`, the hint from grammar classes in `shown_hint_word` (see [Hints from grammar classes](#hints-from-grammar-classes)) and the lesson counter in `shown_lesson_counter`. So the question looks the same. Only the order of the options and of the `word_bank` chunks can change.
 
 ## Answering
 
-1. The learner answers with a tap on an option or with typed text. The bot says whether the answer was right and shows the correct answers if it wasn't, with the mistake marked (see [Marking a mistake](#marking-a-mistake)). In a topic with `show_primary_answer_only`, the bot shows only the primary answer (see [Course format](course-format.md#several-correct-answers)). Then the bot removes the options keyboard and sends the `explanation`.
-2. The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)):
-   - **Wrong answer, the exercise has recalls.** A recall starts at once, and the learner must type the sentence.
-   - **Right answer, the exercise has recalls.** The explanation comes with two buttons, "Drill" ("Закрепить") for an optional recall and "Next exercise" ("Следующее задание").
-   - **No recalls.** The explanation comes with only a "Next exercise" button.
-3. After a right recall answer, the bot says "correct" and shows a "Next exercise" button. After a wrong one, the bot shows the correct sentence with the mistake marked, in the same way. It also shows "Try again" ("Попробовать ещё раз") and "Next exercise".
+After an answer, the bot says whether it was right, removes the options keyboard and sends the `explanation`. After a wrong answer, it shows the correct answers with the mistake marked (see [Marking a mistake](#marking-a-mistake)). In a topic with `show_primary_answer_only`, it shows only the primary answer (see [Course format](course-format.md#several-correct-answers)).
 
-When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" ("Позаниматься ещё") button. A tap raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
+The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)). After a wrong answer, a recall starts at once. After a right answer, the learner can choose an optional recall with "Drill". A wrong recall answer gets the mistake marked in the same way, and the learner can try again.
+
+When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" button. It raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
 
 ### Marking a mistake
 
@@ -77,7 +69,7 @@ The comparison ignores what the answer check ignores. The case of letters never 
 
 If the exercise shows several answers, the bot marks the answer that is closest to the learner's text, because the learner most likely meant that form.
 
-If the learner only added letters, for example `Kinders` for `Kinder`, the correct answer has nothing to underline. Then the bot shows the learner's answer with the extra letters struck through, and the correct answer after it, for example "🔴 Wrong. Kinder<s>s</s> → Kinder". In all other cases, the bot doesn't show the wrong answer again.
+If the learner only added letters, for example `Kinders` for `Kinder`, the correct answer has nothing to underline. Then the bot shows the learner's answer with the extra letters struck through, and the correct answer after it, for example "Kinder<s>s</s> → Kinder". In all other cases, the bot doesn't show the wrong answer again.
 
 The message is HTML, so `answer_diff.py` escapes the texts. The web widget has no marks, because the markup is specific to Telegram.
 
@@ -88,11 +80,8 @@ The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tut
 In a lesson of several exercises, the learner sees these things:
 
 - **A counter.** The question starts with the position of the exercise in the lesson, for example "3/5".
-- **A summary.** After the last answer, the message with the "Next exercise" button also says "✅ Done! Correct: 4 of 5" ("✅ Готово! Верно: 4 из 5"). If the lesson added a day to the streak, the summary also shows the streak. The message depends on the recalls of the last exercise:
-    - **No recalls.** The summary comes with the explanation.
-    - **A required recall.** The summary comes with the recall result.
-    - **An optional recall.** The summary comes with the explanation, and again with the recall result if the learner chooses the recall.
-- **A "Continue" button.** After the summary, the "Next exercise" button says "Continue" ("Продолжить") and starts the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
+- **A summary.** The last result of the lesson also shows the number of right answers, and the streak if the lesson added a day. This result is the explanation, or the recall result after a recall. After an optional recall, the explanation and the recall result both have the summary.
+- **A "Continue" button.** After the summary, the "Next exercise" button says "Continue" and starts the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
 
 A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
 
@@ -108,7 +97,7 @@ The bot takes the size from the counter of the shown exercise ("2/5"). So it dec
 
 In a lesson with a lesson recall, the "Continue" button of the lesson summary starts the lesson recall. The summary comes after the last answer, or after the recall result when the last answer needed a recall, so both places have it. The button keeps its text and gets the `LESSON_RECALL` callback instead of `NEXT_EXERCISE`. Such a lesson gets no optional recall after a right answer, because two kinds of recall would confuse the learner. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
-A tap removes the summary buttons and starts the generation with a typing indicator. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys, so it uses the authored exercises, also after `/ai` showed shadows. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
+A tap starts the generation. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys, so it uses the authored exercises, also after `/ai` showed shadows. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
 
 ### The states
 
@@ -116,11 +105,11 @@ A tap removes the summary buttons and starts the generation with a typing indica
 
 | State | What happens | A message from the learner |
 |---|---|---|
-| `generating` | the model writes the sentences | gets "One moment, I'm still thinking…" |
-| `translating` | the bot shows a sentence, "1/3 ✍️ Translate: …", with "Skip" and "Next exercise" buttons | is the translation. A message without text shows the sentence again |
-| `checking` | the model checks the translation | gets "One moment, I'm still thinking…" |
+| `generating` | the model writes the sentences | gets a busy notice |
+| `translating` | the bot shows a sentence with "Skip" and "Next exercise" | is the translation. A message without text shows the sentence again |
+| `checking` | the model checks the translation | gets a busy notice |
 
-After a check, the bot shows the verdict and the explanation, and after a wrong translation also the reference. Then the next sentence comes. "Skip" shows the reference and goes on without a model call. The result of the last sentence, a verdict or the reference after "Skip", comes with the "Next exercise" button. The bot clears the exercise state before it, so the button starts a new lesson.
+A wrong translation and "Skip" show the reference. "Skip" needs no model call. After the last sentence, the bot clears the exercise state, so the "Next exercise" button on its result starts a new lesson.
 
 "Next exercise", `/wiederholen` and every other button that shows an exercise end the lesson recall, because they change the FSM state. "Next exercise" is the usual `NEXT_EXERCISE` button, with no handler of its own. Other commands, such as `/progress`, leave the lesson recall as it is.
 
@@ -142,7 +131,7 @@ The handlers don't open `check_out()`, because a lesson recall doesn't change th
 
 ### Late results
 
-After a model call, the handler reads the FSM data again. It continues only if the same `lesson_recall_id` is there, the state is the one that it set before the call, and after a check the sentence is the same. Otherwise a command, a button or a second message moved the chat on during the call, and the bot drops the result. A button tap during a check gets "One moment, I'm still thinking…" as a short notice.
+After a model call, the handler reads the FSM data again. It continues only if the same `lesson_recall_id` is there, the state is the one that it set before the call, and after a check the sentence is the same. Otherwise a command, a button or a second message moved the chat on during the call, and the bot drops the result. A button tap during a check gets a busy notice.
 
 ### Failures
 
@@ -163,7 +152,7 @@ The settings are lasting chat state (see [Storage and identity](storage.md#chat-
 
 ### Topic selection
 
-`/topics` shows one inline button per topic group (`✅` or `⬜`) and a "Done" button. Each tap selects or deselects a group and saves the selection at once. "Done" replaces the menu with a summary and a "Next exercise" button. The bot stores the selection as `topic_groups`, a list of group ids.
+`/topics` shows a button per topic group. Each tap selects or deselects a group and saves the selection at once. The bot stores the selection as `topic_groups`, a list of group ids.
 
 [`topic_selection.restrict_to_selected_groups()`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/topic_selection.py) limits the course to the selected groups with `Course.restricted_to()`. The web widget uses the same method. An empty selection means all topics. The function ignores group ids that the course no longer defines. If none of the selected groups exists any more, the learner gets all topics, not none.
 
@@ -180,7 +169,7 @@ The landing site links to the bot from each grammar page, so that the learner co
 
 `/start` applies the payload only to a new chat, as with the language. It saves the groups as `topic_groups`, so `/topics` shows them and the learner can change them. The bot skips a group id that the course doesn't have. If the course has none of the groups, the learner gets a usual start in the language of the link. A payload without a known language at the start gives a usual start.
 
-After groups from a link, the greeting also shows the summary of `/topics` ("✅ Topics: Verb government") and the line "Choose other topics: /topics" ("Выбрать другие темы: /topics"). Without these lines, a learner could think that the bot has no other exercises.
+After groups from a link, the greeting also shows the selected groups and points to `/topics`. Without these lines, a learner could think that the bot has no other exercises.
 
 ## Reminders
 
@@ -191,7 +180,7 @@ For one chat, these steps happen in order:
 1. Read the chat's FSM data. Stop if the learner has blocked the bot (see [Blocked chats](#blocked-chats)) or turned reminders off.
 2. Limit the course to the selected topic groups.
 3. Open the student record with `check_out()` and ask `Tutor.should_remind(remind_after)`.
-4. Remove the buttons from the chat's previous message with buttons (see [Pending inline buttons](#pending-inline-buttons)). Send the reminder with a "Next exercise" button. If the learner has a streak, the reminder also says how long the streak is and in how many hours it ends. The hours are rounded up, so the last hour shows as 1 hour, not 0. The longest `/reminders` interval is 24 hours. So if the last answer finished a lesson, a streak has at least 12 hours left when the reminder comes. After an answer in an unfinished lesson, the streak can have less time left, because it counts from the last finished lesson.
+4. Remove the buttons from the chat's previous message with buttons (see [Pending inline buttons](#pending-inline-buttons)). Send the reminder. If the learner has a streak, the reminder also says how long the streak is and in how many hours it ends. The hours are rounded up, so the last hour shows as 1 hour, not 0. The longest `/reminders` interval is 24 hours. So if the last answer finished a lesson, a streak has at least 12 hours left when the reminder comes. After an answer in an unfinished lesson, the streak can have less time left, because it counts from the last finished lesson.
 5. If Telegram accepts the message, call `Tutor.record_reminder_sent()`. Only this step changes the student record, so the record is saved only in this case.
 
 If one chat fails, the reminder logs the error and continues with the next chat.
@@ -219,7 +208,7 @@ Usually the streak reminder is a second reminder. It comes after a usual reminde
 
 ### The /reminders setting
 
-`/reminders` offers 4, 8, 12 or 24 hours after the last answer, or off, with one button each. The default is 24 hours. A tap saves the choice and confirms it. The bot stores the choice as `remind_after_hours`. The value `0` means off, which is different from "never chosen". "Never chosen" means the default. If the stored value is no longer offered, [`reminder_settings.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder_settings.py) uses the default. Unlike `/topics`, there's no "Done" step, because the setting needs only one tap. The interval counts from the last answer and doesn't follow a fixed schedule (see [ADR 0011](adr/0011-remind-after-the-last-session.md)).
+`/reminders` offers 4, 8, 12 or 24 hours after the last answer, or off. The default is 24 hours. The bot stores the choice as `remind_after_hours`. The value `0` means off, which is different from "never chosen". "Never chosen" means the default. If the stored value is no longer offered, [`reminder_settings.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/reminder_settings.py) uses the default. The interval counts from the last answer and doesn't follow a fixed schedule (see [ADR 0011](adr/0011-remind-after-the-last-session.md)).
 
 The setting is an interval since the last session, not "every N hours" or "N times a day". It gives at most two reminders per period of inactivity, so reminders don't accumulate overnight. An active learner can get several reminders a day, one after each session. The bot doesn't handle time zones. The learner's phone can mute notifications at night.
 
@@ -261,7 +250,7 @@ The flags have no storage and no admin command. To change a flag, edit the varia
 2. Keep the words that the learner knows well. Such a word has a repetition interval above one day, so the learner has answered it correctly at least once after its first answer. An interval of `0` can mean "answered wrong" or "answered once", and `1` is one success, so neither counts.
 3. Return the word with the longest interval, because the learner remembers it best. Choose at random among words with the same interval. Return `None` if no word qualifies.
 
-`get_hint()` returns only the word. The bot renders it with `Locale.grammar_class_hint` ("Same as for {word}"). The hint intentionally doesn't include the other word's answer. For a class like `an+Akk`, that answer would also be the answer to this question. `get_hint()` only reads the record. The bot calls it after `_apply_ai_mode()` decides which exercise to show. `grammar_classes` doesn't change when AI mode rewrites an exercise.
+`get_hint()` returns only the word. The bot renders it with `Locale.grammar_class_hint`. The hint intentionally doesn't include the other word's answer. For a class like `an+Akk`, that answer would also be the answer to this question. `get_hint()` only reads the record. The bot calls it after `_apply_ai_mode()` decides which exercise to show. `grammar_classes` doesn't change when AI mode rewrites an exercise.
 
 The web widget doesn't show these hints yet.
 
