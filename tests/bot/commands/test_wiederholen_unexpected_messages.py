@@ -1,3 +1,4 @@
+import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.methods import SendMessage
 
@@ -65,10 +66,13 @@ async def test_an_unknown_command_during_an_exercise_keeps_the_exercise(
     assert await state.get_state() == UserState.answering
 
 
-async def test_a_sticker_during_a_recall_isnt_an_answer(
+@pytest.mark.parametrize("message", ["sticker", "/help"])
+async def test_a_message_during_a_recall_shows_the_recall_again(
     state: FSMContext,
+    feed_message: FeedMessage,
     feed_raw_update: FeedRawUpdate,
     message_factory: MessageFactory,
+    message: str,
 ) -> None:
     await state.set_state(UserState.recalling)
     await state.update_data(
@@ -76,7 +80,12 @@ async def test_a_sticker_during_a_recall_isnt_an_answer(
         shown_recall=EXERCISE.recalls[0].to_dict(),
     )
 
-    requests = await feed_raw_update(_sticker(message_factory), course=COURSE)
+    if message == "sticker":
+        requests = await feed_raw_update(_sticker(message_factory), course=COURSE)
+    else:
+        requests = await feed_message(message, course=COURSE)
 
-    assert _texts(requests) == [RU.unexpected_message]
+    recall = EXERCISE.recalls[0]
+    assert _texts(requests) == [RU.recall_prompt.format(recall=recall.question)]
+    assert requests[-1].reply_markup is None
     assert await state.get_state() == UserState.recalling

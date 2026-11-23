@@ -266,11 +266,15 @@ async def _start_recall(
         shown_exercise=shown_exercise_dict,
         shown_recall=recall.to_dict(),
     )
+    await message.answer(_recall_prompt(recall, language, locale), parse_mode="HTML")
+
+
+def _recall_prompt(recall: Recall, language: Language, locale: Locale) -> str:
     text = locale.recall_prompt.format(recall=html.escape(recall.question))
     hint = recall.hint.get(language) if recall.hint else None
     if hint:
         text += f"\n<i>{html.escape(hint)}</i>"
-    await message.answer(text, parse_mode="HTML")
+    return text
 
 
 def _format_question(
@@ -679,6 +683,19 @@ async def handle_recall(
                 parse_mode="HTML",
             )
     await remember_buttoned_message(state, sent)
+
+
+@router.message(UserState.recalling)
+async def show_the_recall_again(message: Message, state: FSMContext) -> None:
+    # Not the fallback: its "next" button would skip the recall, and after
+    # the last answer of a lesson also the summary and the lesson recall
+    await clear_stale_buttons(message.bot, message.chat.id, state)
+    state_data = await state.get_data()
+    language = get_language(state_data)
+    recall = Recall.from_dict(state_data["shown_recall"])
+    await message.answer(
+        _recall_prompt(recall, language, LOCALES[language]), parse_mode="HTML"
+    )
 
 
 async def _respond_with_next_exercise(

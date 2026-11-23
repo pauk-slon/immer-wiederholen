@@ -24,7 +24,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 ### Other messages
 
-A message without a reply makes the bot look broken, for example to a new learner who writes right after `/start`. So the router of `fallback` comes last and takes a message that no other handler takes, if it is text, a sticker, a photo, a video, a voice message, an audio file or a document. This includes text outside an exercise and an unknown command such as `/help`. During an exercise or a recall, this includes everything except an answer (see [Answering](#answering)). Text during a lesson recall still goes to its handler. Service messages, for example about a pinned message, get no reply, because the learner didn't write anything.
+A message without a reply makes the bot look broken, for example to a new learner who writes right after `/start`. So the router of `fallback` comes last and takes a message that no other handler takes, if it is text, a sticker, a photo, a video, a voice message, an audio file or a document. This includes text outside an exercise and an unknown command such as `/help`. During an exercise, this includes everything except an answer (see [Answering](#answering)). Text during a lesson recall still goes to its handler. Service messages, for example about a pinned message, get no reply, because the learner didn't write anything.
 
 The bot replies with what it does and the "next" button. The reply is the same in every state, because the "next" button shows what fits the state: an exercise, or the message that nothing is due today. The bot doesn't start an exercise on such a message, because the learner may have asked a question. The handler removes the buttons of the earlier message like every typed command does.
 
@@ -51,7 +51,7 @@ The bot doesn't call `Tutor` to show the exercise again. With `shown_exercise`, 
 
 ## Answering
 
-An answer to an exercise or a recall is text that doesn't start with `/`. A sticker, a photo or an unknown command such as `/help` isn't an answer, because the learner didn't try to answer. As a wrong answer, it would send the pair back to the start of the schedule. Such a message goes to the [fallback](#other-messages). During an exercise, the "next" button of the fallback shows the same exercise again. During a recall, it shows the next exercise, the same as `/wiederholen`.
+An answer to an exercise or a recall is text that doesn't start with `/`. A sticker, a photo or an unknown command such as `/help` isn't an answer, because the learner didn't try to answer. As a wrong answer, it would send the pair back to the start of the schedule. During an exercise, such a message goes to the [fallback](#other-messages), and its "next" button shows the same exercise again. During a recall, the bot shows the recall again instead. The fallback's button would show the next exercise and skip the recall. After the last answer of a lesson, it would also skip the summary and the lesson recall, because they come after the recall. `/wiederholen` still leaves a recall.
 
 After an answer, the bot says whether it was right, removes the options keyboard and sends the `explanation`. After a wrong answer, it shows the correct answers with the mistake marked (see [Marking a mistake](#marking-a-mistake)). In a topic with `show_primary_answer_only`, it shows only the primary answer (see [Course format](course-format.md#several-correct-answers)).
 
