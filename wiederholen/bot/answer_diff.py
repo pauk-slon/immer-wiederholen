@@ -67,6 +67,20 @@ def correct(
     return Correction(answer=" / ".join(rendered), mistake=mistake)
 
 
+def changed_word_share(
+    user_text: str, correct_text: str, *, ignore_punctuation: bool = False
+) -> float:
+    """The share of the words of `correct_text` that `correct()` marks."""
+    ignored = " " + (_END_PUNCTUATION if ignore_punctuation else "")
+    inner_ignored = _INNER_PUNCTUATION if ignore_punctuation else ""
+    _, core, _ = _split_ends(correct_text, ignored)
+    _, user_core, _ = _split_ends(user_text, ignored)
+    _, correct_words = _diff_words(user_core, core, inner_ignored)
+    if not correct_words:
+        return 0.0
+    return sum(_is_marked([word]) for word in correct_words) / len(correct_words)
+
+
 def _split_ends(text: str, ignored: str) -> tuple[str, str, str]:
     # The ignored characters at the start, the text between, and the ignored
     # characters at the end

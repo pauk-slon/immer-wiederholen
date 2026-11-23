@@ -46,6 +46,8 @@ from wiederholen.tracing import default_tracer
 router = Router()
 
 SKIP: Final = "__lesson_recall_skip__"
+
+_MOSTLY_CHANGED_SHARE: Final = 0.5
 RESEND: Final = "__lesson_recall_resend__"
 
 _ID_KEY: Final = "lesson_recall_id"
@@ -171,6 +173,12 @@ def _shown_correction(check: TranslationCheck, answer: str) -> str | None:
 
 
 def _correction_html(answer: str, correction: str) -> str:
+    # Marks on most of the words don't show where the mistakes are
+    if (
+        answer_diff.changed_word_share(answer, correction, ignore_punctuation=True)
+        > _MOSTLY_CHANGED_SHARE
+    ):
+        return html.escape(correction)
     diff = answer_diff.correct(answer, [correction], ignore_punctuation=True)
     return diff.mistake or diff.answer
 
