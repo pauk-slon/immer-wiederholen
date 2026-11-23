@@ -47,7 +47,7 @@ router = Router()
 
 SKIP: Final = "__lesson_recall_skip__"
 
-_MOSTLY_CHANGED_SHARE: Final = 0.5
+_MIN_CHANGED_WORDS_WITHOUT_MARKS: Final = 3
 RESEND: Final = "__lesson_recall_resend__"
 
 _ID_KEY: Final = "lesson_recall_id"
@@ -173,11 +173,11 @@ def _shown_correction(check: TranslationCheck, answer: str) -> str | None:
 
 
 def _correction_html(answer: str, correction: str) -> str:
-    # Marks on most of the words don't show where the mistakes are
-    if (
-        answer_diff.changed_word_share(answer, correction, ignore_punctuation=True)
-        > _MOSTLY_CHANGED_SHARE
-    ):
+    changed, total = answer_diff.count_changed_words(
+        answer, correction, ignore_punctuation=True
+    )
+    # Many marks on most of the words don't show where the mistakes are
+    if changed >= _MIN_CHANGED_WORDS_WITHOUT_MARKS and changed > total / 2:
         return html.escape(correction)
     diff = answer_diff.correct(answer, [correction], ignore_punctuation=True)
     return diff.mistake or diff.answer

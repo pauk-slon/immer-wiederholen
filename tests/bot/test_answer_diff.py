@@ -1,6 +1,6 @@
 import pytest
 
-from wiederholen.bot.answer_diff import Correction, changed_word_share, correct
+from wiederholen.bot.answer_diff import Correction, correct, count_changed_words
 
 
 @pytest.mark.parametrize(
@@ -114,18 +114,18 @@ def test_escapes_html() -> None:
 
 
 @pytest.mark.parametrize(
-    ("user_text", "correct_text", "share"),
+    ("user_text", "correct_text", "counts"),
     [
-        ("unseren Kind", "unserem Kind", 0.5),
-        ("Wir warten.", "wir warten", 0.0),
-        ("Wir warten sehr auf", "Wir warten auf", 0.0),
-        ("Der Arzt meint, unsere Kind", "Der Arzt sagt unserem Kind, dass es", 4 / 7),
-        ("Hallo", "", 0.0),
+        ("unseren Kind", "unserem Kind", (1, 2)),
+        ("Wir warten.", "wir warten", (0, 2)),
+        ("Wir warten sehr auf", "Wir warten auf", (0, 3)),
+        ("Der Arzt meint, unsere Kind", "Der Arzt sagt unserem Kind, dass es", (4, 7)),
+        ("Hallo", "", (0, 0)),
     ],
 )
-def test_changed_word_share_counts_the_marked_words(
-    user_text: str, correct_text: str, share: float
+def test_count_changed_words_counts_the_marked_words(
+    user_text: str, correct_text: str, counts: tuple[int, int]
 ) -> None:
-    assert changed_word_share(
-        user_text, correct_text, ignore_punctuation=True
-    ) == pytest.approx(share)
+    assert (
+        count_changed_words(user_text, correct_text, ignore_punctuation=True) == counts
+    )

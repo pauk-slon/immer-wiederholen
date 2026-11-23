@@ -369,6 +369,21 @@ async def test_a_correction_that_changes_most_words_has_no_marks(
     )
 
 
+async def test_a_short_correction_with_two_changes_keeps_its_marks(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation=None, correction="Er ist geblieben."
+    )
+
+    requests = await send.message("Er hat gewartet.")
+
+    assert _sent(requests)[-2].text == (
+        "🔴 Неверно.\n\nВаш вариант с исправлениями:\nEr <u>ist</u> <u>geblieben</u>."
+    )
+
+
 async def test_an_unchanged_correction_shows_the_reference(
     send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
 ) -> None:
