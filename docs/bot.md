@@ -108,7 +108,9 @@ A tap starts the generation. `finished_lesson` has the keys of the exercises of 
 | `translating` | the bot shows a sentence with "Skip" | is the translation. A message without text shows the sentence again |
 | `checking` | the model checks the translation | gets a busy notice |
 
-A wrong translation shows the correction from the model. It shows the reference if the model gave no correction, or if the correction is the same as the answer. The correction keeps what the learner wrote and fixes only the mistakes, so it shows the learner how to fix their own sentence. The bot doesn't also show the reference, because it is often the same sentence. "Skip" shows the reference. A sentence has no button that leaves the lesson recall, because such a button would look like "Skip". The learner can skip to the end quickly, because "Skip" needs no model call. After the last sentence, the bot clears the exercise state, so the "Next exercise" button on its result starts a new lesson.
+After a wrong translation, the bot shows the correction from the model. The correction keeps what the learner wrote and fixes only the mistakes, so the learner sees how to fix their own sentence. The bot doesn't show the reference too, because the reference and the correction are often the same sentence. If the model gave no correction, or the correction is the same as the answer, the bot shows the reference instead.
+
+"Skip" shows the reference. A sentence has no button that leaves the lesson recall, because such a button would look like "Skip". The learner can skip to the end quickly, because "Skip" needs no model call. After the last sentence, the bot clears the exercise state, so the "Next exercise" button on its result starts a new lesson.
 
 To leave a lesson recall early, the learner sends `/wiederholen`. Every button that shows an exercise, for example the button of a reminder, also ends the lesson recall, because it changes the FSM state. Other commands, such as `/progress`, leave the lesson recall as it is.
 

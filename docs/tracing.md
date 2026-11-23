@@ -15,7 +15,7 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 | `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
 | `telegram.update` | bot | `telegram.handled` only (any other kind of update) |
 | `lesson_recall.generate` | bot (child of `telegram.callback_query`) | `lesson_recall.exercises`, `lesson_recall.wrong_exercises`, and `lesson_recall.sentences` or `lesson_recall.failure`. Also the tokens of the model call (see below) |
-| `lesson_recall.check` | bot (child of `telegram.message`, or of `telegram.callback_query` for "Check again") | `lesson_recall.verdict` (`correct` or `wrong`) or `lesson_recall.failure`. For a wrong translation, `lesson_recall.corrected` says whether the bot showed the correction or the reference. Also the tokens of the model call |
+| `lesson_recall.check` | bot (child of `telegram.message`, or of `telegram.callback_query` for "Check again") | `lesson_recall.verdict` (`correct` or `wrong`) or `lesson_recall.failure`. For a wrong translation, `lesson_recall.corrected` is `true` if the bot showed the correction and `false` if it showed the reference. Also the tokens of the model call |
 | `reminder.tick` | reminder | none (one sweep over all chats) |
 | `reminder.check_chat` | reminder (child of `reminder.tick`) | `telegram.chat_id`, `reminder.sent` (the reminder went out), `reminder.bot_blocked` (the learner had blocked the bot, or Telegram refused the message for that reason) |
 | an HTTP server span per request | web | the standard HTTP attributes from Litestar's OpenTelemetry plugin, and `client.error.step` and `client.error.status` for `POST /api/client-error` |
@@ -35,7 +35,7 @@ The model call adds `lesson_recall.input_tokens`, `lesson_recall.output_tokens`,
 
 `lesson_recall.finished` and `lesson_recall.generate` show how many learners stay to the end of a lesson recall. Divide the number of updates with `lesson_recall.finished` by the number of `lesson_recall.generate` spans without `lesson_recall.failure`.
 
-`lesson_recall.corrected` shows how often the model gives no correction for a wrong translation. If this happens often, the guide's rule for the correction doesn't work well.
+`lesson_recall.corrected` shows how often a wrong translation gets the reference instead of a correction. If this happens often, the guide's rule for the correction doesn't work well.
 
 `telegram.handled` is `false` when no handler matched the update. For a new message or a button press, this means that the learner got no reply. Some updates need no reply, but they also get `false`. An edited message is one example. It gets a `telegram.message` span too, so the span name doesn't separate the two cases. A handler that raises an exception leaves the attribute unset.
 
