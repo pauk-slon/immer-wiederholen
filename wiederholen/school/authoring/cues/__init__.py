@@ -5,12 +5,9 @@ labs/flux-1-schnell`, free at this project's scale) — a relevant image
 acting as a retrieval cue for the sentence (dual coding), not "an image" as
 a generic asset.
 
-A sibling of `shadow_exercises.py`, not a dependency of it — the two share
-nothing beyond both taking an `Exercise` and calling out to a generative AI
-API. Storing/serving the resulting bytes is a separate concern entirely
-(see `wiederholen.school.cue_store`); this module only ever produces raw
-image bytes from an `Exercise`, the same way `generate_shadow_exercise()`
-only ever produces a new `Exercise`, neither one touching storage.
+Storing/serving the resulting bytes is a separate concern entirely (see
+`wiederholen.school.cue_store`); this module only ever produces raw image
+bytes from an `Exercise`, never touching storage.
 """
 
 import base64

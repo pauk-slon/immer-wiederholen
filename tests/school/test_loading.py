@@ -284,7 +284,6 @@ class TestTopicsConfigLoading:
         assert course.gated_topics == frozenset()
         assert course.answer_chained_topics == {}
         assert course.topic_instructions == {}
-        assert course.ai_generatable_topics == frozenset()
         assert course.cue_generatable_topics == frozenset()
         assert course.topic_groups == {}
 
@@ -346,7 +345,6 @@ class TestTopicsConfigLoading:
         assert course.gated_topics == frozenset()
         assert course.answer_chained_topics == {}
         assert course.topic_instructions == {}
-        assert course.ai_generatable_topics == frozenset()
         assert course.cue_generatable_topics == frozenset()
 
     def test_loads_topic_instructions(
@@ -386,35 +384,6 @@ class TestTopicsConfigLoading:
         ):
             course = Course.load(tmp_path)
         assert course.topic_instructions == {}
-
-    def test_loads_ai_generation_flag(
-        self,
-        tmp_path: Path,
-        tmp_yaml_file: TmpYamlFile,
-    ) -> None:
-        data = {
-            "verb_preposition": {"ai_generation": True},
-            "partizip_ii": {"chains": ["preteritum"]},
-        }
-        with (
-            tmp_yaml_file([], filename="exercises.yaml"),
-            tmp_yaml_file(_grouped(data), filename="topics.yaml"),
-        ):
-            course = Course.load(tmp_path)
-        assert course.ai_generatable_topics == frozenset({"verb_preposition"})
-
-    def test_ai_generation_false_is_not_included(
-        self,
-        tmp_path: Path,
-        tmp_yaml_file: TmpYamlFile,
-    ) -> None:
-        data = {"verb_preposition": {"ai_generation": False}}
-        with (
-            tmp_yaml_file([], filename="exercises.yaml"),
-            tmp_yaml_file(_grouped(data), filename="topics.yaml"),
-        ):
-            course = Course.load(tmp_path)
-        assert course.ai_generatable_topics == frozenset()
 
     def test_loads_show_primary_answer_only_flag(
         self,

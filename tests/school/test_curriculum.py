@@ -36,7 +36,6 @@ def test_restricted_to_leaves_chains_gates_and_instructions_untouched() -> None:
         answer_chained_topics={"government": ["preposition_meaning"]},
         gated_topics=frozenset({"preposition_meaning"}),
         topic_instructions={"preposition_meaning": {"ru": "x", "en": "y"}},
-        ai_generatable_topics=frozenset({"government"}),
         cue_generatable_topics=frozenset({"government"}),
         primary_answer_only_topics=frozenset({"government"}),
     )
@@ -52,7 +51,6 @@ def test_restricted_to_leaves_chains_gates_and_instructions_untouched() -> None:
     assert restricted.topic_instructions == {
         "preposition_meaning": {"ru": "x", "en": "y"}
     }
-    assert restricted.ai_generatable_topics == frozenset({"government"})
     assert restricted.cue_generatable_topics == frozenset({"government"})
     assert restricted.primary_answer_only_topics == frozenset({"government"})
 

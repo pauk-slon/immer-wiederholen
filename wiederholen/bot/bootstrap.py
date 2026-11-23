@@ -1,7 +1,6 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
 
 import yaml
 from aiogram import Bot
@@ -21,9 +20,6 @@ from wiederholen.school import (
 )
 
 from .feature_flags import LESSON_RECALL_FLAG, parse_feature_flags
-
-_ANTHROPIC_TIMEOUT_SECONDS: Final = 60.0
-_ANTHROPIC_MAX_RETRIES: Final = 1
 
 
 @dataclass(frozen=True)
@@ -83,39 +79,13 @@ def check_lesson_recall_config(
 
 
 def load_anthropic_client() -> AsyncAnthropic | None:
-    # Unlike BOT_TOKEN, not required at startup: AI mode is opt-in per chat
-    # (see feature_flags) and only the flag-gated test chat needs it, so a
-    # normal deployment without ANTHROPIC_API_KEY set still starts cleanly.
+    # Unlike BOT_TOKEN, not required at startup: only chats in the
+    # lesson_recall flag need it (see check_lesson_recall_config()). Each
+    # request sets its own timeout and retries
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return None
-    # The learner waits for the generation with a typing indicator. The SDK's
-    # defaults (10 minutes, 2 retries) could keep it there for half an hour
-    # before the error message. Even a full answer of _MAX_TOKENS from the
-    # MODEL in school/authoring/shadow_exercises.py takes well under a
-    # minute. Check the timeout when either of them changes
-    return AsyncAnthropic(
-        api_key=api_key,
-        timeout=_ANTHROPIC_TIMEOUT_SECONDS,
-        max_retries=_ANTHROPIC_MAX_RETRIES,
-    )
-
-
-def load_authoring_guide() -> str | None:
-    # Optional, same reasoning as topics.yaml's absence (see wiederholen.
-    # tutoring.curriculum): without it, shadow-exercise generation just runs
-    # on few-shot examples alone rather than failing to start.
-    guide_path = os.environ.get("AUTHORING_GUIDE_PATH")
-    if not guide_path:
-        return None
-    guide = Path(guide_path).read_text()
-    # AUTHORING_GUIDE_PATH points at the content repo's whole CLAUDE.md, but
-    # everything from "## Deploying" onward (compose.yaml, DNS, GitHub Pages,
-    # ...) is infra documentation, not exercise-writing guidance — irrelevant
-    # to shadow-exercise generation, and it references local files/repos the
-    # model has no access to anyway. Cut the guide off there, keeping only
-    # the Exercises/Recall sections that precede it.
-    return guide.split("\n## Deploying", 1)[0]
+    return AsyncAnthropic(api_key=api_key)
 
 
 def load_bot_info() -> dict[Language, BotInfo] | None:

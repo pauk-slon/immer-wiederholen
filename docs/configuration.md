@@ -65,27 +65,24 @@ For this reason, give the project its own bot. Don't reuse a bot that you made f
 
 ## Optional integrations
 
-You enable each integration with its variables. There is no separate flag. Without the variables, the feature is off, and the bot starts normally.
+You enable each integration with its variables. Without the variables, the feature is off, and the bot starts normally. The lesson recall also needs a feature flag.
 
-### AI-generated questions
+### Lesson recalls
 
-**Bot only.** The `/ai` command switches a chat to exercises that an LLM (Anthropic's Claude) rewrites. It works for topics with `ai_generation: true` in `topics.yaml`. The feature is an experiment, so only the chats in a feature flag get it. The feature uses these variables:
+**Bot only.** After a lesson, the bot can give a translation task that Anthropic's Claude writes and checks (see [Telegram bot](bot.md#lesson-recall)). The feature is an experiment, so only the chats in a feature flag get it. The feature uses these variables:
 
 | Variable | Meaning |
 |---|---|
 | `ANTHROPIC_API_KEY` | an [Anthropic API](https://console.anthropic.com/) key |
 | `BOT_FEATURE_FLAGS` | the chats of each feature flag (see below). For a private chat, the chat id is the user's Telegram id |
-| `AUTHORING_GUIDE_PATH` | optional. A Markdown file with guidelines for writing exercises, which the bot sends to the model with each request. The part from a `## Deploying` heading to the end of the file isn't sent, so the file can keep deployment notes for people |
 
-For chats outside the flag, `/ai` does nothing. If `ANTHROPIC_API_KEY` is missing, a flagged chat with `/ai` on gets an error message each time an AI exercise is due. For `/ai`, a request to Anthropic times out after 60 seconds and is retried once, so the learner waits at most about two minutes for the error message. Exercises of other topics appear as usual.
-
-`BOT_FEATURE_FLAGS` holds flags separated by `;`, each with its chat ids, such as `ai_exercises:123,456;lesson_recall:123`. `ai_exercises` turns on `/ai`. `lesson_recall` turns on the lesson recall after a lesson (see [Telegram bot](bot.md#lesson-recall)). If `lesson_recall` has a chat, the bot doesn't start without `ANTHROPIC_API_KEY` or without the course's `lesson_recall.md` (see [Course format](course-format.md#lesson_recallmd)). So the guide goes to the course before the flag gets a chat. The reminder worker and the web app don't check this. The lesson recall has its own timeouts (see [AI-generated content](authoring.md#lesson-recalls)). The bot ignores a flag that it doesn't know. For example, `lessons` from an older configuration has no effect, because all bot chats have lessons (see [Telegram bot](bot.md#lessons)).
+`BOT_FEATURE_FLAGS` holds flags separated by `;`, each with its chat ids, such as `lesson_recall:123,456`. `lesson_recall` turns on the lesson recall after a lesson. If `lesson_recall` has a chat, the bot doesn't start without `ANTHROPIC_API_KEY` or without the course's `lesson_recall.md` (see [Course format](course-format.md#lesson_recallmd)). So the guide goes to the course before the flag gets a chat. The reminder worker and the web app don't check this. The lesson recall sets its own timeouts (see [AI-generated content](authoring.md#lesson-recalls)). The bot ignores a flag that it doesn't know, such as `lessons` or `ai_exercises` from an older configuration.
 
 After you change the variable, restart the bot.
 
 ### Illustrations
 
-**Bot only.** For topics with `cue_generation: true`, the bot shows each question with an illustration (a "cue" in the code, see [Course format](course-format.md#ai-generated-questions-and-illustrations)). Cloudflare Workers AI generates the images ahead of time, and Cloudflare R2 stores them. The bot only reads them.
+**Bot only.** For topics with `cue_generation: true`, the bot shows each question with an illustration (a "cue" in the code, see [Course format](course-format.md#illustrations)). Cloudflare Workers AI generates the images ahead of time, and Cloudflare R2 stores them. The bot only reads them.
 
 **1. Set up Cloudflare:**
 

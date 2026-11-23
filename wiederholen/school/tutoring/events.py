@@ -24,7 +24,7 @@ class ExerciseAnswered:
 
 @dataclass(frozen=True)
 class ExerciseSelected:
-    # A frontend may still fail to show it (e.g. AI generation errors)
+    # A frontend may still fail to show it
     word: str
     topic: str
     # Authored text, never what the learner typed
@@ -76,8 +76,7 @@ class LessonFinished:
 class RecallRequested:
     word: str
     topic: str
-    # The recall's text from the course, or generated in /ai mode, never
-    # what the learner typed
+    # The recall's text from the course, never what the learner typed
     question: str
     # None, as in RecallAnswered, when last_exercise belongs to another answer
     recall_mode: RecallMode | None

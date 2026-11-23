@@ -7,7 +7,6 @@ from wiederholen.school.authoring import (
     check_translation,
     generate_exercise_cue,
     generate_lesson_recall,
-    generate_shadow_exercise,
 )
 from wiederholen.school.cue_store import CachedCueStore, CueStore, R2CueStore
 from wiederholen.school.curriculum import (
@@ -73,6 +72,5 @@ __all__ = [
     "check_translation",
     "generate_exercise_cue",
     "generate_lesson_recall",
-    "generate_shadow_exercise",
     "shuffle_word_bank",
 ]

@@ -122,9 +122,7 @@ class Lesson:
             self._data[self._CORRECT_KEY] = self.correct + 1
         elif given_exercise_keys := self.given_exercise_keys:
             # The answer is to the exercise that the lesson gave last: each
-            # frontend keeps the lesson next to the exercise that it shows.
-            # Not the key of the answered exercise, which for a shadow
-            # exercise of /ai differs from the key of the authored one
+            # frontend keeps the lesson next to the exercise that it shows
             self._append_key(self._WRONG_EXERCISE_KEYS_KEY, given_exercise_keys[-1])
 
     def start(self, exercise_keys: list[str]) -> None:

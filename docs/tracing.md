@@ -54,9 +54,9 @@ The model call adds `lesson_recall.input_tokens`, `lesson_recall.output_tokens`,
 | `RecallRequested` | `request_recall()` picks a recall, also after "Try again" (see [Course format](course-format.md#recalls)) | `word`, `topic`, `question` (the text of the recall), `recall_mode` (`required` after a wrong answer, `optional` after a right one), `attempt` (1 for the first recall after an answer, 2 or more after "Try again"). `recall_mode` and `attempt` are not set if the learner answered another exercise in the other frontend after the recall (see [Repetition schedule](repetition-schedule.md#recalls)) |
 | `RecallAnswered` | every `check_recall()` | `word`, `topic`, `question`, `is_correct`, `recall_mode`, `attempt`. `recall_mode` and `attempt` are not set in the same case |
 
-`ExerciseSelected` records the exercise that `Tutor` took from the lesson, not the message that the learner saw. In `/ai` mode the bot shows a generated question instead, and `question` still holds the original. If generation fails, the learner sees no question at all, and the next request takes the same exercise from the lesson again, with a new `ExerciseSelected`. To find where a learner stopped, look for their last `ExerciseSelected` without an `ExerciseAnswered` after it.
+`ExerciseSelected` records the exercise that `Tutor` took from the lesson. To find where a learner stopped, look for their last `ExerciseSelected` without an `ExerciseAnswered` after it.
 
-Unlike `ExerciseSelected`, the recall events hold the generated text in `question` in `/ai` mode, because the learner answers the generated recall.
+
 
 The recall events give two measures:
 

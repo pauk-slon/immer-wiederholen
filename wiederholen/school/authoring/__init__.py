@@ -7,7 +7,6 @@ from wiederholen.school.authoring.lesson_recall import (
     check_translation,
     generate_lesson_recall,
 )
-from wiederholen.school.authoring.shadow_exercises import generate_shadow_exercise
 
 __all__ = [
     "AIGenerationError",
@@ -18,5 +17,4 @@ __all__ = [
     "check_translation",
     "generate_exercise_cue",
     "generate_lesson_recall",
-    "generate_shadow_exercise",
 ]

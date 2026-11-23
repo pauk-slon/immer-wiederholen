@@ -80,9 +80,10 @@ The date is the day of the decision.
 
 | ADR | Decision | Date | Status |
 |---|---|---|---|
-| [0005](0005-shadow-exercises-keep-the-answer.md) | Shadow exercises keep the answer | 2026-08-14 | Accepted |
+| [0005](0005-shadow-exercises-keep-the-answer.md) | Shadow exercises keep the answer | 2026-08-14 | Superseded by [0032](0032-ai-mode-removed.md) |
 | [0006](0006-ai-generation-fails-visibly.md) | AI generation fails visibly, without a fallback | 2026-08-10 | Accepted |
 | [0014](0014-cues-generated-ahead.md) | Illustrations are generated ahead of time | 2026-10-17 | Accepted |
 | [0017](0017-cues-keyed-by-question-hash.md) | Illustrations are keyed by the question's hash | 2026-10-17 | Amended by [0030](0030-cue-field-sets-the-scene-or-turns-it-off.md) |
 | [0030](0030-cue-field-sets-the-scene-or-turns-it-off.md) | An exercise's `cue` field sets the scene of its illustration or turns it off | 2026-11-15 | Accepted |
 | [0031](0031-model-writes-and-checks-a-lesson-recall.md) | A model writes a lesson recall and checks the translations | 2026-11-22 | Accepted |
+| [0032](0032-ai-mode-removed.md) | The /ai mode is removed | 2026-11-23 | Accepted |

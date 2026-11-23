@@ -33,7 +33,7 @@ Spaced-repetition scheduling — `Tutor`/`StudentRecord`/`Lesson`, `SelectablePa
 - Every handler opens exactly one `async with student_record_book.check_out(student_id) as student_record:` per request and does its replies inside it; `check_out()` saves only if the record changed, in a `finally`, so there's no explicit save anywhere.
 - Every bot handler gets its `student_id` from `student_identity_store.resolve_or_create_student_id("telegram", str(chat_id))` (callback handlers: `str(callback.from_user.id)`, the same value in a private chat).
 - The student record holds only learning state; lasting chat state (such as settings) and exercise state stay in FSM data. Anything in FSM data that must outlive one exercise belongs in `_LASTING_CHAT_STATE_KEYS`.
-- `Tutor` never touches a store — it gets a plain `dict` for the record and another for the lesson. The lesson is conversation state, not learning state: the bot keeps it in FSM data (`lesson` in `_LASTING_CHAT_STATE_KEYS`), the web app in `WebSessionStore`, each its own (ADR 0026). The bot saves it only after AI generation succeeds, so a failed generation retries the same exercise.
+- `Tutor` never touches a store — it gets a plain `dict` for the record and another for the lesson. The lesson is conversation state, not learning state: the bot keeps it in FSM data (`lesson` in `_LASTING_CHAT_STATE_KEYS`), the web app in `WebSessionStore`, each its own (ADR 0026).
 - `check_out()` isn't atomic across concurrent updates for the same student: last write wins (#249). Don't rely on two handlers for one student seeing each other's changes.
 
 ## Tracing and tutoring events
@@ -48,7 +48,7 @@ What's traced (span names and attributes per process, `Tutor`'s span events), ho
 
 ## Telegram bot
 
-Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/language`, `/ai`), the reminder worker, blocked chats, pending inline buttons, feature flags and grammar-class hints are documented in `docs/bot.md` — read it before touching `wiederholen.bot`. The rules that matter most:
+Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/language`), the reminder worker, blocked chats, pending inline buttons, feature flags and grammar-class hints are documented in `docs/bot.md` — read it before touching `wiederholen.bot`. The rules that matter most:
 
 - Every message sent with an inline keyboard is followed by `remember_buttoned_message()`; a callback handler that removes its own buttons and attaches none calls `forget_buttoned_message()`; every typed command calls `clear_stale_buttons()` first. When editing a message's text, pass `reply_markup=` explicitly.
 - `_format_question()` sends HTML: every piece of authored text goes through `html.escape()`.
@@ -64,10 +64,9 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 
 ## AI-generated content
 
-Shadow exercises (the `/ai` mode, `wiederholen.school.authoring.shadow_exercises`), lesson recalls (`wiederholen.school.authoring.lesson_recall`, ADR 0031) and cues (illustrations, `wiederholen.school.authoring.cues`, `wiederholen.school.cue_store`, the generator at `python -m wiederholen.school.authoring.cues`) are documented in `docs/authoring.md` — read it before touching either. The rules that matter most:
+Lesson recalls (`wiederholen.school.authoring.lesson_recall`, ADR 0031) and cues (illustrations, `wiederholen.school.authoring.cues`, `wiederholen.school.cue_store`, the generator at `python -m wiederholen.school.authoring.cues`) are documented in `docs/authoring.md` — read it before touching either. The rules that matter most:
 
-- A shadow keeps `word`, `topic` and `answer` (and `word_bank`, `grammar_classes`) from the picked exercise; the model generates `question`, `distractors`, `explanation`, `recalls`, and `description` when the original has one. Never let it choose the answer.
-- `AIGenerationError` surfaces as an error message, never a silent fallback to the authored exercise. `_apply_ai_mode()` is the single decision point; per-exercise eligibility is `ai_mode and exercise.topic in course.ai_generatable_topics`.
+- `AIGenerationError` surfaces as an error message, never a silent fallback (ADR 0006).
 - `Exercise.cue_key` (SHA-256 of `question`, plus the scene if the exercise's `cue` has one) is the only place a cue's key is derived. `cue: false` means no cue: the generator skips it and the bot doesn't look it up (ADR 0030). Cue lookups in the bot are best-effort: any exception falls back to a text question.
 - A lesson recall's method lives in the course's `lesson_recall.md`; the engine's prompts hold only the steps and the reply structure, and the module validates only that structure.
 - `authoring` depends only on `curriculum`; `tutoring` never imports it. The cue generator's `__main__` is the one module under `school` allowed to read env vars.

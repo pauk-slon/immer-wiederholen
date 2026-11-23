@@ -247,7 +247,6 @@ class _TopicsConfig(TypedDict):
     answer_chained_topics: dict[str, list[str]]
     gated_topics: frozenset[str]
     topic_instructions: dict[str, dict[Language, str]]
-    ai_generatable_topics: frozenset[str]
     cue_generatable_topics: frozenset[str]
     primary_answer_only_topics: frozenset[str]
 
@@ -268,9 +267,6 @@ class Course:
     topic_instructions: Mapping[str, Mapping[Language, str]] = field(
         default_factory=dict,
         kw_only=True,
-    )
-    ai_generatable_topics: frozenset[str] = field(
-        default_factory=frozenset, kw_only=True
     )
     cue_generatable_topics: frozenset[str] = field(
         default_factory=frozenset, kw_only=True
@@ -298,7 +294,6 @@ class Course:
                 answer_chained_topics={},
                 gated_topics=frozenset(),
                 topic_instructions={},
-                ai_generatable_topics=frozenset(),
                 cue_generatable_topics=frozenset(),
                 primary_answer_only_topics=frozenset(),
             )
@@ -311,7 +306,6 @@ class Course:
         gates_by_source: dict[str, list[str]] = {}
         answer_chained_topics: dict[str, list[str]] = {}
         topic_instructions: dict[str, dict[Language, str]] = {}
-        ai_generatable_topics: set[str] = set()
         cue_generatable_topics: set[str] = set()
         primary_answer_only_topics: set[str] = set()
         for group_id, group in data.items():
@@ -338,8 +332,6 @@ class Course:
                     )
                 if instruction := relations.get("instruction"):
                     topic_instructions[source] = instruction
-                if relations.get("ai_generation"):
-                    ai_generatable_topics.add(source)
                 if relations.get("cue_generation"):
                     cue_generatable_topics.add(source)
                 if relations.get("show_primary_answer_only"):
@@ -361,7 +353,6 @@ class Course:
             answer_chained_topics=answer_chained_topics,
             gated_topics=frozenset(gated_topics),
             topic_instructions=topic_instructions,
-            ai_generatable_topics=frozenset(ai_generatable_topics),
             cue_generatable_topics=frozenset(cue_generatable_topics),
             primary_answer_only_topics=frozenset(primary_answer_only_topics),
         )
@@ -406,10 +397,10 @@ class Course:
         # (word, topic), not by which Course object selected them.
         #
         # topic_groups/word_chained_topics/answer_chained_topics/gated_topics/
-        # topic_instructions/ai_generatable_topics/cue_generatable_topics/
-        # primary_answer_only_topics are deliberately left untouched rather
-        # than filtered down too: a chain/gate pointing at a topic excluded
-        # here just never finds an exercise to expedite
+        # topic_instructions/cue_generatable_topics/primary_answer_only_topics
+        # are deliberately left untouched rather than filtered down too: a
+        # chain/gate pointing at a topic excluded here just never finds an
+        # exercise to expedite
         # (Tutor._expedite_dependent() already treats "dependent topic has
         # no exercises" as a no-op, the same case a topic with genuinely no
         # exercises in the full course hits), and the rest are inert,

@@ -15,7 +15,6 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 | `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
 | `/language` | `language` | switches between Russian and English |
 | `/reset` | `reset` | deletes the learner's schedule and today's answer counts after a confirmation. The streak stays |
-| `/ai` | `ai` | switches the chat to exercises that an LLM rewrites, for topics with `ai_generation`. Only chats with the `ai_exercises` [feature flag](#feature-flags) have it (see [AI-generated content](authoring.md#shadow-exercises)) |
 
 `lesson_recall` has no command. It handles the [lesson recall](#lesson-recall) after a lesson.
 
@@ -25,7 +24,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 
 `_format_question()` in `commands/wiederholen.py` builds the question message. Under the question, it adds the parts that the exercise has: the `word_bank` chunks, the `description`, the topic's `instruction` and a hint from grammar classes (see [Hints from grammar classes](#hints-from-grammar-classes)). The `word_bank` chunks are shuffled again each time the bot shows the exercise.
 
-The bot marks an AI-generated question. A multiple-choice exercise shows its options as a reply keyboard. In a topic with `show_primary_answer_only`, the primary answer is the only correct option. For an exercise with a typed answer, the bot removes the keyboard.
+A multiple-choice exercise shows its options as a reply keyboard. In a topic with `show_primary_answer_only`, the primary answer is the only correct option. For an exercise with a typed answer, the bot removes the keyboard.
 
 The bot sends the message with `parse_mode="HTML"`, so **every piece of authored text goes through `html.escape()`**. Without it, a `<`, `>` or `&` in a question would break the markup.
 
@@ -40,7 +39,7 @@ The bot shows the next exercise instead in these cases:
 - The learner answers a recall.
 - The learner deselected the topic of the shown exercise in `/topics` after the bot showed it.
 
-The bot doesn't call `Tutor` to show the exercise again, and it doesn't generate an AI question again. With `shown_exercise`, the bot keeps the AI mark in `shown_is_ai_generated`, the hint from grammar classes in `shown_hint_word` (see [Hints from grammar classes](#hints-from-grammar-classes)) and the lesson counter in `shown_lesson_counter`. So the question looks the same. Only the order of the options and of the `word_bank` chunks can change.
+The bot doesn't call `Tutor` to show the exercise again. With `shown_exercise`, the bot keeps the hint from grammar classes in `shown_hint_word` (see [Hints from grammar classes](#hints-from-grammar-classes)) and the lesson counter in `shown_lesson_counter`. So the question looks the same. Only the order of the options and of the `word_bank` chunks can change.
 
 ## Answering
 
@@ -97,7 +96,7 @@ The bot takes the size from the counter of the shown exercise ("2/5"). So it dec
 
 In a lesson with a lesson recall, the "Continue" button of the lesson summary starts the lesson recall. The summary comes after the last answer, or after the recall result when the last answer needed a recall, so both places have it. The button keeps its text and gets the `LESSON_RECALL` callback instead of `NEXT_EXERCISE`. Such a lesson gets no optional recall after a right answer, because two kinds of recall would confuse the learner. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
-A tap starts the generation. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys, so it uses the authored exercises, also after `/ai` showed shadows. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
+A tap starts the generation. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
 
 ### The states
 
@@ -146,9 +145,8 @@ A restart of the bot during a model call loses the call, and the chat stays in `
 | language | `language` | `/language`, a `/start` deep link in a new chat | every reply, the reminder |
 | topic groups | `topic_groups` | `/topics`, a `/start` deep link in a new chat | the choice of what to show, the reminder (see below) |
 | reminder interval | `remind_after_hours` | `/reminders` | the reminder (see [The /reminders setting](#the-reminders-setting)) |
-| AI mode | `ai_mode` | `/ai` | the choice whether to rewrite a question |
 
-The settings are lasting chat state (see [Storage and identity](storage.md#chat-state)). `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists all four settings and the current lesson. When an exercise ends, the bot clears the exercise state but keeps the keys in this tuple. **Add a new setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored `ai_mode` by hand after each exercise. One of four call sites missed it, and AI mode silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
+The settings are lasting chat state (see [Storage and identity](storage.md#chat-state)). `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists all three settings and the current lesson. When an exercise ends, the bot clears the exercise state but keeps the keys in this tuple. **Add a new setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored a setting by hand after each exercise. One of four call sites missed it, and the setting silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
 
 ### Topic selection
 
@@ -230,15 +228,15 @@ A tap on an inline button ("Next exercise", "Drill", "Study more" and others) re
 - **`forget_buttoned_message(state)`.** Call it when a callback handler removed its own buttons and attached no new ones.
 - **`clear_stale_buttons(bot, chat_id, state)`.** It removes the buttons from the remembered message, if there is one, and forgets the message. It ignores a `TelegramBadRequest`, which means that the message was already edited, deleted or is too old.
 
-Every command that the learner types calls `clear_stale_buttons()` first. These commands are `/start`, `/wiederholen`, `/progress`, `/topics`, `/reminders`, `/language`, `/reset` and `/ai`. The reminder calls it right before it sends a message. `clear_stale_buttons()` takes a bot and a chat id, not a `Message`, because the reminder has no incoming message.
+Every command that the learner types calls `clear_stale_buttons()` first. These commands are `/start`, `/wiederholen`, `/progress`, `/topics`, `/reminders`, `/language` and `/reset`. The reminder calls it right before it sends a message. `clear_stale_buttons()` takes a bot and a chat id, not a `Message`, because the reminder has no incoming message.
 
 When you edit the text of a message, pass `reply_markup=` explicitly, with a new keyboard or `None`. If you edit only the text, the message keeps its old keyboard.
 
 ## Feature flags
 
-[`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) enables a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#ai-generated-questions) describes its format.
+[`feature_flags.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/feature_flags.py) enables a feature for specific chats, based on the `BOT_FEATURE_FLAGS` variable. [Configuration](configuration.md#lesson-recalls) describes its format.
 
-At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, "ai_exercises", chat_id)`. There are two flags, `ai_exercises` for `/ai` and `lesson_recall` for the [lesson recall](#lesson-recall) (see [Configuration](configuration.md#ai-generated-questions)). `check_lesson_recall_config()` checks at startup what `lesson_recall` needs (see [Configuration](configuration.md#ai-generated-questions)). The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
+At startup, `bootstrap.load_feature_flags()` parses the variable once into a `dict[str, frozenset[int]]`. `main()` passes it to `start_polling()` as `feature_flags`, so every handler that declares a `feature_flags` parameter gets it. A handler checks a chat with `has_feature(feature_flags or {}, LESSON_RECALL_FLAG, chat_id)`. The one flag is `lesson_recall` for the [lesson recall](#lesson-recall). `check_lesson_recall_config()` checks at startup what it needs (see [Configuration](configuration.md#lesson-recalls)). The parameter defaults to `None`, so tests that don't need flags don't have to pass it.
 
 The flags have no storage and no admin command. To change a flag, edit the variable and restart the bot. This is enough for a few test chats. The flags stay in the bot layer, and `wiederholen.school` never sees a chat id or a flag name.
 
@@ -250,7 +248,7 @@ The flags have no storage and no admin command. To change a flag, edit the varia
 2. Keep the words that the learner knows well. Such a word has a repetition interval above one day, so the learner has answered it correctly at least once after its first answer. An interval of `0` can mean "answered wrong" or "answered once", and `1` is one success, so neither counts.
 3. Return the word with the longest interval, because the learner remembers it best. Choose at random among words with the same interval. Return `None` if no word qualifies.
 
-`get_hint()` returns only the word. The bot renders it with `Locale.grammar_class_hint`. The hint intentionally doesn't include the other word's answer. For a class like `an+Akk`, that answer would also be the answer to this question. `get_hint()` only reads the record. The bot calls it after `_apply_ai_mode()` decides which exercise to show. `grammar_classes` doesn't change when AI mode rewrites an exercise.
+`get_hint()` returns only the word. The bot renders it with `Locale.grammar_class_hint`. The hint intentionally doesn't include the other word's answer. For a class like `an+Akk`, that answer would also be the answer to this question. `get_hint()` only reads the record.
 
 The web widget doesn't show these hints yet.
 

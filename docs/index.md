@@ -22,7 +22,7 @@ Start with [CONTRIBUTING.md](https://github.com/pauk-slon/immer-wiederholen/blob
 - [Storage and identity](storage.md) describes where each learner's state is stored
 - [Telegram bot](bot.md) describes the commands, the chat settings and the reminders
 - [Web frontend](web-frontend.md) describes the widget, the web app and the Telegram login
-- [AI-generated content](authoring.md) describes shadow exercises and illustrations
+- [AI-generated content](authoring.md) describes lesson recalls and illustrations
 - [Observability](tracing.md) describes what the processes record as traces
 
 The [Architecture decision records](adr/README.md) explain the reasons for the main design choices.
