@@ -3,6 +3,7 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardRemove
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.curriculum import make_exercise
+from tests.plugins.student_record_book import IntroducePairs
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.school import Course
@@ -129,11 +130,34 @@ async def test_no_button_after_wrong_answer_with_recall(
     assert requests[0].reply_markup is None
 
 
-async def test_recall_prompt_sent_after_wrong_answer(
+async def test_a_wrong_first_answer_offers_the_recall(
     state: FSMContext,
     feed_message: FeedMessage,
 ) -> None:
     exercise = make_exercise(distractors=[], recalls=True)
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict())
+
+    requests = await feed_message("falsch", course=Course([exercise]))
+
+    assert len(requests) == 2
+    assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
+    callbacks = [
+        button.callback_data
+        for row in requests[1].reply_markup.inline_keyboard
+        for button in row
+    ]
+    assert callbacks == [RECALL, NEXT_EXERCISE]
+    assert await state.get_state() != UserState.recalling
+
+
+async def test_recall_prompt_sent_after_wrong_answer(
+    state: FSMContext,
+    feed_message: FeedMessage,
+    introduce_pairs: IntroducePairs,
+) -> None:
+    exercise = make_exercise(distractors=[], recalls=True)
+    await introduce_pairs([exercise])
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 

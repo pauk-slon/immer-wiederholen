@@ -7,6 +7,7 @@ from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.curriculum import make_exercise
+from tests.plugins.student_record_book import IntroducePairs
 from wiederholen.bot.commands.wiederholen import (
     NEXT_EXERCISE,
     RECALL,
@@ -115,8 +116,10 @@ async def test_after_a_required_recall_the_summary_comes_with_the_recall_result(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
+    introduce_pairs: IntroducePairs,
 ) -> None:
     course = _course("warten", "hoffen", recalls=True)
+    await introduce_pairs(course.exercises)
     await feed_message("/wiederholen", course=course)
     await feed_message("an", course=course)
     await feed_message("Ich warte auf den Bus.", course=course)

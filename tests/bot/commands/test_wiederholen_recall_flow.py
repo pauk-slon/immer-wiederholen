@@ -6,7 +6,11 @@ from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.curriculum import make_exercise
-from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
+from tests.plugins.student_record_book import (
+    IntroducePairs,
+    ReadStudentRecord,
+    SeedStudentRecord,
+)
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE, RECALL, UserState
 from wiederholen.bot.l10n import RU
 from wiederholen.school import Course, StudentID
@@ -167,10 +171,12 @@ async def test_accepts_any_of_multiple_answers(
 async def test_recall_prompt_sent_after_answering(
     state: FSMContext,
     feed_message: FeedMessage,
+    introduce_pairs: IntroducePairs,
 ) -> None:
     exercise = make_exercise(
         recalls=[{"hint": {"ru": "die Rede — речь", "en": "die Rede — speech"}}],
     )
+    await introduce_pairs([exercise])
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 
@@ -185,6 +191,7 @@ async def test_recall_prompt_sent_after_answering(
 async def test_recall_prompt_escapes_question_and_hint(
     state: FSMContext,
     feed_message: FeedMessage,
+    introduce_pairs: IntroducePairs,
 ) -> None:
     exercise = make_exercise(
         recalls=[
@@ -194,6 +201,7 @@ async def test_recall_prompt_escapes_question_and_hint(
             }
         ],
     )
+    await introduce_pairs([exercise])
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 
@@ -207,8 +215,10 @@ async def test_recall_prompt_escapes_question_and_hint(
 async def test_recall_prompt_without_hint_escapes_question(
     state: FSMContext,
     feed_message: FeedMessage,
+    introduce_pairs: IntroducePairs,
 ) -> None:
     exercise = make_exercise(recalls=[{"question": "Ich ___ Tom & Jerry."}])
+    await introduce_pairs([exercise])
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 
@@ -222,8 +232,10 @@ async def test_recall_prompt_without_hint_escapes_question(
 async def test_recall_accepted_after_answering(
     state: FSMContext,
     feed_message: FeedMessage,
+    introduce_pairs: IntroducePairs,
 ) -> None:
     exercise = make_exercise(recalls=True)
+    await introduce_pairs([exercise])
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 

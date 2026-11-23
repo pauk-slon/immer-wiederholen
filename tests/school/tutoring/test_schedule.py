@@ -6,7 +6,7 @@ import pytest
 
 from tests.plugins.curriculum import make_exercise
 from wiederholen.school.curriculum import Course, Exercise
-from wiederholen.school.tutoring import StudentRecord, Tutor
+from wiederholen.school.tutoring import RecallMode, StudentRecord, Tutor
 
 
 def _next(tutor: Tutor) -> Exercise:
@@ -1645,6 +1645,20 @@ class TestRequestRecallInterval:
 
         entry = student_record["word_schedule"]["machen"]["partizip_ii"]
         assert entry["repetition_interval"] == 0
+
+    def test_an_optional_recall_after_a_wrong_first_answer_keeps_the_pair_today(
+        self,
+    ) -> None:
+        exercise = make_exercise(recalls=True)
+        student_record: dict = {}
+        tutor = Tutor(Course([exercise]), student_record)
+        assert tutor.check_answer(exercise, "an").recall == RecallMode.optional
+
+        tutor.request_recall(exercise)
+
+        entry = student_record["word_schedule"]["warten"]["government"]
+        assert entry["repetition_interval"] == 0
+        assert entry["due_date"] == datetime.now(UTC).date().isoformat()
 
     def test_does_not_halve_when_last_mark_is_required(self) -> None:
         exercise = make_exercise(recalls=True)

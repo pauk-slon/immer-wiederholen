@@ -404,7 +404,11 @@ class Tutor:
         is_correct = _is_answer_correct(exercise, answer)
         if not exercise.recalls:
             recall_mode = RecallMode.none
-        elif is_correct:
+        elif is_correct or not self._student_record.is_introduced(
+            exercise.word, exercise.topic
+        ):
+            # A mistake in the first answer to a pair is a first meeting,
+            # not forgetting, so the recall is up to the learner (ADR 0034)
             recall_mode = RecallMode.optional
         else:
             recall_mode = RecallMode.required
@@ -516,6 +520,9 @@ class Tutor:
             return recall
         if (
             last_exercise["is_recall_optional"]
+            # After a wrong answer the interval is already 0, and halving
+            # would make it 1, so the pair wouldn't come back today
+            and last_exercise.get("is_answer_correct", True)
             and "recall_question" not in last_exercise
         ):
             repetition_interval = self._student_record.get_repetition_interval(

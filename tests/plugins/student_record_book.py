@@ -1,10 +1,12 @@
 import os
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
+from datetime import date
 
 import pytest
 from aiogram import Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
 
+from wiederholen.school import Exercise, StudentID
 from wiederholen.school.student_record_book import (
     RedisStudentRecordBook,
     StudentRecordBook,
@@ -12,6 +14,7 @@ from wiederholen.school.student_record_book import (
 
 type SeedStudentRecord = Callable[[str, dict], Awaitable[None]]
 type ReadStudentRecord = Callable[[str], Awaitable[dict]]
+type IntroducePairs = Callable[[Iterable[Exercise]], Awaitable[None]]
 
 
 @pytest.fixture
@@ -74,5 +77,27 @@ def read_student_record(student_record_book: StudentRecordBook) -> ReadStudentRe
     async def factory(student_id: str) -> dict:
         async with student_record_book.check_out(student_id) as student_record:
             return student_record
+
+    return factory
+
+
+@pytest.fixture
+def introduce_pairs(
+    seed_student_record: SeedStudentRecord, student_id: StudentID
+) -> IntroducePairs:
+    """Makes the pairs of the exercises known and due today, so a wrong answer
+    to one of them requires a recall (a first answer only offers one).
+    """
+
+    async def factory(exercises: Iterable[Exercise]) -> None:
+        today = date.today().isoformat()
+        word_schedule: dict = {}
+        for exercise in exercises:
+            word_schedule.setdefault(exercise.word, {})[exercise.topic] = {
+                "repetition_interval": 1,
+                "due_date": today,
+                "introduced_at": today,
+            }
+        await seed_student_record(student_id, {"word_schedule": word_schedule})
 
     return factory

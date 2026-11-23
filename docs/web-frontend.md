@@ -131,8 +131,8 @@ When the widget adds a card, it removes the buttons of the previous card. This i
 After an answer, the result card shows the verdict and the explanation. Its buttons depend on `recall`, which is always `none` without the `recall` attribute:
 
 - **`none`.** The card shows "Next".
-- **`optional`** (right answer). The card shows "Drill" and "Next".
-- **`required`** (wrong answer). The card shows only "Drill". The recall starts with a button, not at once, so the learner has time to read the explanation that the recall builds on.
+- **`optional`** (right answer, or a wrong first answer to the pair). The card shows "Drill" and "Next".
+- **`required`** (wrong answer to a pair that the learner answered before). The card shows only "Drill". The recall starts with a button, not at once, so the learner has time to read the explanation that the recall builds on.
 
 A recall card tells the learner what to do ("Type the whole sentence"). It shows the recall question and the hint and takes a typed answer. After a wrong attempt, it shows "Try again" and "Next". "Try again" gets a recall again, usually a different one.
 

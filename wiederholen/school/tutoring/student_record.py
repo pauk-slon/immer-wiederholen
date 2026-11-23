@@ -15,6 +15,9 @@ class LastExercise(TypedDict):
     question: str
     answered_at: str
     is_recall_optional: bool
+    # NotRequired for a last_exercise from before this field. Such an answer
+    # had an optional recall only after a right answer
+    is_answer_correct: NotRequired[bool]
     recall_question: NotRequired[str]
     # How many recalls request_recall() gave for this answer
     recall_attempt: NotRequired[int]
@@ -72,6 +75,7 @@ class StudentRecord:
             topic=topic,
             answered_at=answered_at.isoformat(),
             is_recall_optional=is_recall_optional,
+            is_answer_correct=is_answer_correct,
         )
         answered, right = self.get_answer_stats_today()
         self._data[self._TODAY_ANSWERS_KEY] = AnswerStats(
@@ -178,6 +182,10 @@ class StudentRecord:
         topic_schedule = self._get_topic_schedule(word)
         schedule_entry = topic_schedule.get(topic)
         return schedule_entry if self._is_valid_schedule_entry(schedule_entry) else None
+
+    def is_introduced(self, word: str, topic: str) -> bool:
+        schedule_entry = self._get_schedule_entry(word, topic)
+        return schedule_entry is not None and "introduced_at" in schedule_entry
 
     def get_repetition_interval(self, word: str, topic: str) -> int | None:
         schedule_entry = self._get_schedule_entry(word, topic)
