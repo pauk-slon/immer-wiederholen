@@ -167,11 +167,13 @@ async def test_several_answers_are_all_shown() -> None:
     assert f"explanation: {komm.explanation['en']}" in prompt
 
 
-async def test_a_task_that_copies_its_reference_fails() -> None:
+@pytest.mark.parametrize(
+    "text",
+    ["Ich hoffe auf Regen.", "ich hoffe  auf Regen", "„Ich hoffe auf Regen!“"],
+)
+async def test_a_task_that_copies_its_reference_fails(text: str) -> None:
     # Then the learner would see the answer instead of a task
-    client = _make_client(
-        _task(_sentence(), _sentence("Ich hoffe auf Regen.", "Ich hoffe auf Regen."))
-    )
+    client = _make_client(_task(_sentence(), _sentence(text, "Ich hoffe auf Regen.")))
 
     with pytest.raises(AIGenerationError, match="reference's language"):
         await _generate(client)

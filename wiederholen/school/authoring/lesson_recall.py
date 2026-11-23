@@ -22,6 +22,8 @@ _CHECK_TIMEOUT: Final = 15.0
 
 _LANGUAGE_NAMES: Final[dict[Language, str]] = {"ru": "Russian", "en": "English"}
 
+_END_PUNCTUATION: Final = " .,!?;:…\"'«»„“”"
+
 _GENERATION_TOOL_NAME: Final = "submit_task"
 _CHECK_TOOL_NAME: Final = "submit_check"
 
@@ -220,6 +222,13 @@ def _task_language(language: Language) -> str:
     )
 
 
+def _copies_reference(sentence: LessonRecallSentence) -> bool:
+    def comparable(text: str) -> str:
+        return " ".join(text.split()).strip(_END_PUNCTUATION).casefold()
+
+    return comparable(sentence.text) == comparable(sentence.reference)
+
+
 def _without_angle_brackets(answer: str) -> str:
     return answer.replace("<", "‹").replace(">", "›")
 
@@ -364,7 +373,7 @@ async def generate_lesson_recall(
     ]
     if not sentences:
         raise AIGenerationError("model returned no usable sentence")
-    if any(sentence.text == sentence.reference for sentence in sentences):
+    if any(_copies_reference(sentence) for sentence in sentences):
         raise AIGenerationError("model wrote a task in the reference's language")
     return LessonRecall(
         exercises=tuple(exercises),
