@@ -86,12 +86,15 @@ async def test_the_last_answer_of_a_lesson_shows_the_summary(
 
     assert RU.lesson_summary.split("!")[0] not in first[-1].text
     assert _button_texts(first[-1]) == [RU.cmd_wiederholen]
-    assert last[-1].text.endswith(
+    result, summary = last[-2:]
+    assert result.text.startswith(RU.wrong_mark)
+    assert result.reply_markup is None
+    assert summary.text == (
         RU.lesson_summary.format(correct=1, size=2)
         + "\n"
         + RU.streak_text.format(days="1 день")
     )
-    assert _button_texts(last[-1]) == ["Продолжить"]
+    assert _button_texts(summary) == ["Продолжить"]
 
 
 async def test_a_lesson_that_adds_no_streak_day_shows_no_streak_line(

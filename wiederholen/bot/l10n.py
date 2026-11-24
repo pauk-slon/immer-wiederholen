@@ -46,6 +46,10 @@ def format_count(
 @dataclass(frozen=True)
 class Locale:
     start: str
+    # A result starts with a mark instead of a verdict line. The marks differ
+    # in shape, not only in color, for learners who don't see colors
+    correct_mark: str
+    wrong_mark: str
     correct: str
     wrong: str
     recall_prompt: str
@@ -54,7 +58,6 @@ class Locale:
     # After a mistake of only extra letters: the learner's text with them
     # struck through, then the answer
     wrong_extra_letters: str
-    recall_wrong_extra_letters: str
     cmd_start: str
     cmd_wiederholen: str
     btn_recall: str
@@ -94,10 +97,10 @@ class Locale:
     btn_continue: str
     grammar_class_hint: str
     language_set: str
+    # Before the first sentence, so the learner sees a new task begin
+    lesson_recall_intro: str
     lesson_recall_sentence: str
     btn_lesson_recall_skip: str
-    lesson_recall_correct: str
-    lesson_recall_wrong: str
     lesson_recall_reference: str
     lesson_recall_correction: str
     lesson_recall_wait: str
@@ -112,13 +115,14 @@ class Locale:
 # ещё раз")
 RU: Final = Locale(
     start="Привет! Я буду давать вам короткие задания и возвращаться к ним, пока вы их не запомните.",
-    correct="🟢 Правильно!",
-    wrong="🔴 Неправильно. Правильный ответ: {answer}",
+    correct_mark="✅",
+    wrong_mark="❌",
+    correct="Правильно!",
+    wrong="Правильный ответ: {answer}",
     recall_prompt="Напишите фразу целиком:\n{recall}",
-    recall_correct="🟢 Правильно!",
-    recall_wrong="🔴 Неправильно. Правильный ответ:\n{answer}",
-    wrong_extra_letters="🔴 Неправильно. {mistake} → {answer}",
-    recall_wrong_extra_letters="🔴 Неправильно.\n{mistake} → {answer}",
+    recall_correct="Правильно!",
+    recall_wrong="Правильный ответ:\n{answer}",
+    wrong_extra_letters="{mistake} → {answer}",
     cmd_start="Начать",
     cmd_wiederholen="Следующее задание",
     btn_recall="Закрепить",
@@ -166,14 +170,13 @@ RU: Final = Locale(
         "Нажмите кнопку, чтобы продолжить."
     ),
     streak_text="🔥 Серия: {days}",
-    lesson_summary="✅ Готово! Верно: {correct} из {size}",
+    lesson_summary="🏁 Готово! Верно: {correct} из {size}",
     btn_continue="Продолжить",
     grammar_class_hint="Так же, как у {word}",
     language_set="🌐 Язык: русский",
+    lesson_recall_intro="✍️ Теперь переведите несколько предложений со словами из этого урока",
     lesson_recall_sentence="{position}/{size} ✍️ Переведите:\n{text}",
     btn_lesson_recall_skip="Пропустить",
-    lesson_recall_correct="🟢 Верно!",
-    lesson_recall_wrong="🔴 Неверно.",
     lesson_recall_reference="Вариант перевода:\n{reference}",
     lesson_recall_correction="Ваш вариант с исправлениями:\n{correction}",
     lesson_recall_wait="⏳ Секунду, я ещё думаю…",
@@ -185,13 +188,14 @@ RU: Final = Locale(
 
 EN: Final = Locale(
     start="Hi! I'll give you short exercises and bring them back until you remember them.",
-    correct="🟢 Correct!",
-    wrong="🔴 Wrong. The correct answer is: {answer}",
+    correct_mark="✅",
+    wrong_mark="❌",
+    correct="Correct!",
+    wrong="The correct answer is: {answer}",
     recall_prompt="Type the whole sentence:\n{recall}",
-    recall_correct="🟢 Correct!",
-    recall_wrong="🔴 Wrong. The correct answer is:\n{answer}",
-    wrong_extra_letters="🔴 Wrong. {mistake} → {answer}",
-    recall_wrong_extra_letters="🔴 Wrong.\n{mistake} → {answer}",
+    recall_correct="Correct!",
+    recall_wrong="The correct answer is:\n{answer}",
+    wrong_extra_letters="{mistake} → {answer}",
     cmd_start="Start",
     cmd_wiederholen="Next exercise",
     btn_recall="Drill",
@@ -239,14 +243,13 @@ EN: Final = Locale(
         "Tap the button to continue."
     ),
     streak_text="🔥 Streak: {days}",
-    lesson_summary="✅ Done! Correct: {correct} of {size}",
+    lesson_summary="🏁 Done! Correct: {correct} of {size}",
     btn_continue="Continue",
     grammar_class_hint="Same as for {word}",
     language_set="🌐 Language: English",
+    lesson_recall_intro="✍️ Now translate a few sentences with the words from this lesson",
     lesson_recall_sentence="{position}/{size} ✍️ Translate:\n{text}",
     btn_lesson_recall_skip="Skip",
-    lesson_recall_correct="🟢 Correct!",
-    lesson_recall_wrong="🔴 Not quite.",
     lesson_recall_reference="A possible translation:\n{reference}",
     lesson_recall_correction="Your translation, corrected:\n{correction}",
     lesson_recall_wait="⏳ One moment, I'm still thinking…",

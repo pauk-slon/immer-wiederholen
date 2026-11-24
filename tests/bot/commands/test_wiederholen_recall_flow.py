@@ -101,7 +101,7 @@ async def test_wrong_input_with_extra_letters_strikes_them_through(
     requests = await feed_message("Ich warte auf den Buss.", course=Course([exercise]))
 
     assert requests[0].text == (
-        "🔴 Неправильно.\nIch warte auf den Bus<s>s</s>. → Ich warte auf den Bus."
+        "❌ Ich warte auf den Bus<s>s</s>. → Ich warte auf den Bus."
     )
 
 
@@ -121,9 +121,7 @@ async def test_wrong_input_marks_neither_case_nor_end_punctuation(
 
     requests = await feed_message("ich warte auf den Bas", course=Course([exercise]))
 
-    assert requests[0].text == (
-        "🔴 Неправильно. Правильный ответ:\nIch warte auf den B<u>u</u>s."
-    )
+    assert requests[0].text == ("❌ Правильный ответ:\nIch warte auf den B<u>u</u>s.")
 
 
 async def test_normalizes_case_and_whitespace(
@@ -183,7 +181,7 @@ async def test_recall_prompt_sent_after_answering(
     await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message(exercise.distractors[0], course=Course([exercise]))
-    recall_message = requests[2]
+    recall_message = requests[-1]
 
     assert exercise.recalls
     assert exercise.recalls[0].question in recall_message.text
@@ -208,7 +206,7 @@ async def test_recall_prompt_escapes_question_and_hint(
     await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message(exercise.distractors[0], course=Course([exercise]))
-    recall_message = requests[2]
+    recall_message = requests[-1]
 
     assert "Ich ___ &lt;b&gt;Tom &amp; Jerry&lt;/b&gt;." in recall_message.text
     assert "<i>a &lt; b &amp; c</i>" in recall_message.text
@@ -225,7 +223,7 @@ async def test_recall_prompt_without_hint_escapes_question(
     await state.update_data(shown_exercise=exercise.to_dict())
 
     requests = await feed_message(exercise.distractors[0], course=Course([exercise]))
-    recall_message = requests[2]
+    recall_message = requests[-1]
 
     assert "Ich ___ Tom &amp; Jerry." in recall_message.text
     assert "<i>" not in recall_message.text

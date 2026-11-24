@@ -22,6 +22,7 @@ from wiederholen.bot.commands.wiederholen import (
     clear_exercise_state,
     handle_next_exercise,
     offers_lesson_recall,
+    send_result,
     show_typing_while,
 )
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
@@ -47,6 +48,7 @@ from wiederholen.tracing import default_tracer
 router = Router()
 
 SKIP: Final = "__lesson_recall_skip__"
+NEXT_SENTENCE: Final = "__lesson_recall_next__"
 
 _MIN_CHANGED_WORDS_WITHOUT_MARKS: Final = 3
 # The result repeats the translation, so a longer one wouldn't fit a message
@@ -57,6 +59,7 @@ _ID_KEY: Final = "lesson_recall_id"
 _LESSON_RECALL_KEY: Final = "lesson_recall"
 _POSITION_KEY: Final = "lesson_recall_position"
 _ANSWER_KEY: Final = "lesson_recall_answer"
+_CORRECT_KEY: Final = "lesson_recall_correct"
 _WAITING_SINCE_KEY: Final = "lesson_recall_waiting_since"
 
 # Longer than any model call, so a wait this long lost its handler,
@@ -68,6 +71,7 @@ class LessonRecallState(StatesGroup):
     generating = State()
     translating = State()
     checking = State()
+    reading = State()
 
 
 def _bot(message: Message) -> Bot:
@@ -198,25 +202,56 @@ def _reference_html(locale: Locale, reference: str) -> str:
 
 
 async def _send_result_and_go_on(
-    message: Message, state: FSMContext, locale: Locale, result_html: str
+    message: Message,
+    state: FSMContext,
+    locale: Locale,
+    result_html: str,
+    *,
+    wait_for_learner: bool = False,
 ) -> None:
     data = await state.get_data()
     lesson_recall = LessonRecall.from_dict(data[_LESSON_RECALL_KEY])
     position = data[_POSITION_KEY] + 1
-    if position < len(lesson_recall.sentences):
-        await message.answer(result_html, parse_mode="HTML")
+    size = len(lesson_recall.sentences)
+    if position < size:
         await state.update_data({_POSITION_KEY: position, _ANSWER_KEY: None})
+        if wait_for_learner:
+            # The next sentence would push the correction up before the
+            # learner reads it
+            await state.set_state(LessonRecallState.reading)
+            sent = await message.answer(
+                result_html,
+                parse_mode="HTML",
+                reply_markup=_keyboard(
+                    [
+                        InlineKeyboardButton(
+                            text=locale.btn_continue, callback_data=NEXT_SENTENCE
+                        )
+                    ]
+                ),
+            )
+            await remember_buttoned_message(state, sent)
+            return
+        await message.answer(result_html, parse_mode="HTML")
         await state.set_state(LessonRecallState.translating)
         await _send_sentence(message, state, locale)
         return
     trace.get_current_span().set_attribute("lesson_recall.finished", True)
     await clear_exercise_state(state, data)
-    sent = await message.answer(
+    sent = await send_result(
+        message,
         result_html,
-        parse_mode="HTML",
-        reply_markup=_keyboard([_next_exercise_button(locale)]),
+        locale.lesson_summary.format(correct=data.get(_CORRECT_KEY, 0), size=size),
+        _keyboard([_next_exercise_button(locale)]),
     )
     await remember_buttoned_message(state, sent)
+
+
+async def _show_next_sentence(
+    message: Message, state: FSMContext, locale: Locale
+) -> None:
+    await state.set_state(LessonRecallState.translating)
+    await _send_sentence(message, state, locale)
 
 
 @router.callback_query(F.data == LESSON_RECALL)
@@ -263,8 +298,9 @@ async def handle_start(
     await message.edit_reply_markup(reply_markup=None)
     await forget_buttoned_message(state)
     await callback.answer()
+    await message.answer(locale.lesson_recall_intro)
     lesson_recall_id = uuid.uuid4().hex
-    await state.update_data({_ID_KEY: lesson_recall_id})
+    await state.update_data({_ID_KEY: lesson_recall_id, _CORRECT_KEY: 0})
     await _start_waiting(state, LessonRecallState.generating)
     wrong_exercise_keys = frozenset(finished_lesson.get("wrong_exercise_keys", []))
     with default_tracer.start_as_current_span(
@@ -347,22 +383,32 @@ async def _check(
     if check is None:
         await _offer_check_retry(message, state, locale)
         return
-    lines = [
-        locale.lesson_recall_correct if check.is_correct else locale.lesson_recall_wrong
-    ]
+    paragraphs = []
     if check.explanation:
-        lines.append(html.escape(check.explanation))
-    if not check.is_correct:
+        paragraphs.append(html.escape(check.explanation))
+    if check.is_correct:
+        await state.update_data({_CORRECT_KEY: data.get(_CORRECT_KEY, 0) + 1})
+        mark = locale.correct_mark
+        if not paragraphs:
+            paragraphs.append(locale.correct)
+    else:
+        mark = locale.wrong_mark
         if correction := _shown_correction(check, answer):
-            lines.append(
+            paragraphs.append(
                 locale.lesson_recall_correction.format(
                     correction=_quote(_correction_html(answer, correction))
                 )
             )
         else:
             reference = lesson_recall.sentences[position].reference
-            lines.append(_reference_html(locale, reference))
-    await _send_result_and_go_on(message, state, locale, "\n\n".join(lines))
+            paragraphs.append(_reference_html(locale, reference))
+    await _send_result_and_go_on(
+        message,
+        state,
+        locale,
+        f"{mark} " + "\n\n".join(paragraphs),
+        wait_for_learner=not check.is_correct,
+    )
 
 
 @router.message(LessonRecallState.translating, F.text, ~F.text.startswith("/"))
@@ -431,6 +477,30 @@ async def handle_not_text(message: Message, state: FSMContext) -> None:
     await _send_sentence(message, state, _lesson_recall_locale(await state.get_data()))
 
 
+@router.callback_query(LessonRecallState.reading, F.data == NEXT_SENTENCE)
+async def handle_next_sentence(callback: CallbackQuery, state: FSMContext) -> None:
+    message = callback.message
+    if not isinstance(message, Message):
+        await callback.answer()
+        return
+    await message.edit_reply_markup(reply_markup=None)
+    await forget_buttoned_message(state)
+    await callback.answer()
+    await _show_next_sentence(
+        message, state, _lesson_recall_locale(await state.get_data())
+    )
+
+
+@router.message(LessonRecallState.reading, ~F.text.startswith("/"))
+async def handle_while_reading(message: Message, state: FSMContext) -> None:
+    # The learner hasn't seen the next sentence, so the message can't be its
+    # translation
+    await clear_stale_buttons(message.bot, message.chat.id, state)
+    await _show_next_sentence(
+        message, state, _lesson_recall_locale(await state.get_data())
+    )
+
+
 @router.callback_query(LessonRecallState.checking, F.data.in_({SKIP, RESEND}))
 async def handle_button_while_checking(
     callback: CallbackQuery, state: FSMContext
@@ -439,7 +509,7 @@ async def handle_button_while_checking(
     await callback.answer(locale.lesson_recall_wait)
 
 
-@router.callback_query(F.data.in_({SKIP, RESEND}))
+@router.callback_query(F.data.in_({SKIP, RESEND, NEXT_SENTENCE}))
 async def handle_old_button(callback: CallbackQuery) -> None:
     await callback.answer()
 

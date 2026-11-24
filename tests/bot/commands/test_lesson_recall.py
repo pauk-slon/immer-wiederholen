@@ -16,7 +16,12 @@ from opentelemetry.trace import Tracer
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage, FeedRawUpdate
 from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import IntroducePairs
-from wiederholen.bot.commands.lesson_recall import RESEND, SKIP, LessonRecallState
+from wiederholen.bot.commands.lesson_recall import (
+    NEXT_SENTENCE,
+    RESEND,
+    SKIP,
+    LessonRecallState,
+)
 from wiederholen.bot.commands.wiederholen import LESSON_RECALL, NEXT_EXERCISE, RECALL
 from wiederholen.bot.l10n import RU
 from wiederholen.bot.lesson_recall_limit import DAILY_LESSON_RECALLS, STARTED_AT_KEY
@@ -257,7 +262,8 @@ async def test_the_start_sends_the_lesson_and_shows_the_first_sentence(
     assert len(kwargs["wrong_exercise_keys"]) == 1
     assert kwargs["guide"] == GUIDE
     assert kwargs["language"] == "ru"
-    sentence = _sent(requests)[-1]
+    intro, sentence = _sent(requests)
+    assert intro.text == RU.lesson_recall_intro
     assert sentence.text == "1/2 ✍️ Переведите:\nПервая фраза."
     assert _buttons(sentence) == [(RU.btn_lesson_recall_skip, SKIP)]
     assert await state.get_state() == LessonRecallState.translating.state
@@ -408,7 +414,7 @@ async def test_a_generation_result_is_dropped_if_the_chat_moved_on(
 
     requests = await send.callback(LESSON_RECALL)
 
-    assert _sent(requests) == []
+    assert [r.text for r in _sent(requests)] == [RU.lesson_recall_intro]
     assert len((await state.get_data())[STARTED_AT_KEY]) == 1
 
 
@@ -425,7 +431,7 @@ async def test_a_translation_is_checked_and_the_next_sentence_follows(
     assert args[2:] == (0, "Wir warten.")
     assert kwargs == {"guide": GUIDE}
     result, sentence = _sent(requests)[-2:]
-    assert result.text == RU.lesson_recall_correct
+    assert result.text == f"{RU.correct_mark} {RU.correct}"
     assert sentence.text == "2/2 ✍️ Переведите:\nВторая фраза."
 
 
@@ -441,11 +447,11 @@ async def test_a_wrong_translation_shows_the_explanation_and_the_correction(
 
     requests = await send.message("Wir warten für <b>.")
 
-    assert _sent(requests)[-2].text == (
-        "🔴 Неверно.\n\nПосле warten нужен auf.\n\n"
+    assert _sent(requests)[-1].text == (
+        "❌ После warten нужен auf.\n\n"
         "Ваш вариант с исправлениями:\n<blockquote>Wir warten <u>auf</u> &lt;b&gt;.</blockquote>"
     )
-    assert _sent(requests)[-2].parse_mode == "HTML"
+    assert _sent(requests)[-1].parse_mode == "HTML"
 
 
 async def test_a_correction_that_only_removes_words_strikes_them_through(
@@ -458,8 +464,8 @@ async def test_a_correction_that_only_removes_words_strikes_them_through(
 
     requests = await send.message("Wir warten sehr auf den Bus.")
 
-    assert _sent(requests)[-2].text == (
-        "🔴 Неверно.\n\n"
+    assert _sent(requests)[-1].text == (
+        "❌ "
         "Ваш вариант с исправлениями:\n<blockquote>Wir warten <s>sehr</s> auf den Bus.</blockquote>"
     )
 
@@ -474,8 +480,8 @@ async def test_a_correction_that_changes_most_words_has_no_marks(
 
     requests = await send.message("Ich hoffe für ein Auto.")
 
-    assert _sent(requests)[-2].text == (
-        "🔴 Неверно.\n\nВаш вариант с исправлениями:\n<blockquote>Wir warten auf &lt;den&gt; Bus.</blockquote>"
+    assert _sent(requests)[-1].text == (
+        "❌ Ваш вариант с исправлениями:\n<blockquote>Wir warten auf &lt;den&gt; Bus.</blockquote>"
     )
 
 
@@ -489,8 +495,8 @@ async def test_a_short_correction_with_two_changes_keeps_its_marks(
 
     requests = await send.message("Er hat gewartet.")
 
-    assert _sent(requests)[-2].text == (
-        "🔴 Неверно.\n\nВаш вариант с исправлениями:\n<blockquote>Er <u>ist</u> <u>geblieben</u>.</blockquote>"
+    assert _sent(requests)[-1].text == (
+        "❌ Ваш вариант с исправлениями:\n<blockquote>Er <u>ist</u> <u>geblieben</u>.</blockquote>"
     )
 
 
@@ -505,8 +511,8 @@ async def test_an_unchanged_correction_shows_the_reference(
     requests = await send.message(" Wir warten. ")
 
     assert (
-        _sent(requests)[-2].text
-        == "🔴 Неверно.\n\nВариант перевода:\n<blockquote>Ref 0</blockquote>"
+        _sent(requests)[-1].text
+        == "❌ Вариант перевода:\n<blockquote>Ref 0</blockquote>"
     )
 
 
@@ -520,10 +526,10 @@ async def test_a_wrong_translation_without_a_correction_shows_the_reference(
 
     requests = await send.message("Wir warten für.")
 
-    assert _sent(requests)[-2].text == (
-        "🔴 Неверно.\n\nПосле warten нужен auf &lt;b&gt;.\n\nВариант перевода:\n<blockquote>Ref 0</blockquote>"
+    assert _sent(requests)[-1].text == (
+        "❌ После warten нужен auf &lt;b&gt;.\n\nВариант перевода:\n<blockquote>Ref 0</blockquote>"
     )
-    assert _sent(requests)[-2].parse_mode == "HTML"
+    assert _sent(requests)[-1].parse_mode == "HTML"
 
 
 _RECALL_WITH_MARKUP_IN_THE_REFERENCE = LessonRecall(
@@ -548,8 +554,8 @@ async def test_a_wrong_translation_escapes_the_reference(
 
     requests = await send.message("Wir warten.")
 
-    assert _sent(requests)[-1].text == (
-        "🔴 Неверно.\n\nВариант перевода:\n<blockquote>Tom &amp; &lt;Jerry&gt;</blockquote>"
+    assert _sent(requests)[-2].text == (
+        "❌ Вариант перевода:\n<blockquote>Tom &amp; &lt;Jerry&gt;</blockquote>"
     )
 
 
@@ -562,7 +568,7 @@ async def test_a_skip_escapes_the_reference(
     requests = await send.callback(SKIP)
 
     assert (
-        _sent(requests)[-1].text
+        _sent(requests)[-2].text
         == "Вариант перевода:\n<blockquote>Tom &amp; &lt;Jerry&gt;</blockquote>"
     )
 
@@ -575,9 +581,11 @@ async def test_the_last_result_leads_to_the_next_exercise(
 
     requests = await send.message("Ich hoffe.")
 
-    [result] = _sent(requests)
-    assert result.text == RU.lesson_recall_correct
-    assert _buttons(result) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
+    result, summary = _sent(requests)
+    assert result.text == f"{RU.correct_mark} {RU.correct}"
+    assert result.reply_markup is None
+    assert summary.text == RU.lesson_summary.format(correct=2, size=2)
+    assert _buttons(summary) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
     assert await state.get_state() is None
     data = await state.get_data()
     assert "lesson_recall" not in data
@@ -593,9 +601,10 @@ async def test_a_skip_of_the_last_sentence_leads_to_the_next_exercise(
 
     requests = await send.callback(SKIP)
 
-    [reference] = _sent(requests)
+    reference, summary = _sent(requests)
     assert reference.text == "Вариант перевода:\n<blockquote>Ref 1</blockquote>"
-    assert _buttons(reference) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
+    assert summary.text == RU.lesson_summary.format(correct=0, size=2)
+    assert _buttons(summary) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
 
 
 async def test_a_next_exercise_button_of_another_message_leaves_the_lesson_recall(
@@ -890,7 +899,7 @@ async def test_the_check_uses_the_language_of_the_start(
 
     requests = await send.message("Wir warten.")
 
-    assert _sent(requests)[-2].text == "🟢 Correct!"
+    assert _sent(requests)[-2].text == "✅ Correct!"
 
 
 async def test_the_spans_record_the_generation_and_the_check(
@@ -907,6 +916,7 @@ async def test_the_spans_record_the_generation_and_the_check(
             is_correct=False, explanation=None, correction="Wir warten auf."
         )
         await send.message("Wir warten.")
+        await send.callback(NEXT_SENTENCE)
         check.side_effect = AIGenerationError("model did not call the expected tool")
         await send.message("Ich hoffe.")
         check.side_effect = None
@@ -964,3 +974,110 @@ async def test_a_skip_is_recorded_on_the_update_span(
     mock_trace.get_current_span.return_value.set_attribute.assert_called_once_with(
         "lesson_recall.skipped", True
     )
+
+
+async def test_a_wrong_translation_waits_for_the_learner(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation="После warten нужен auf.", correction=None
+    )
+
+    requests = await send.message("Wir warten für.")
+
+    [result] = _sent(requests)
+    assert _buttons(result) == [(RU.btn_continue, NEXT_SENTENCE)]
+    assert await state.get_state() == LessonRecallState.reading.state
+
+
+async def test_continue_after_a_wrong_translation_shows_the_next_sentence(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation=None, correction=None
+    )
+    await send.message("Wir warten für.")
+
+    requests = await send.callback(NEXT_SENTENCE)
+
+    assert isinstance(requests[0], EditMessageReplyMarkup)
+    assert requests[0].reply_markup is None
+    assert _sent(requests)[-1].text == "2/2 ✍️ Переведите:\nВторая фраза."
+    assert await state.get_state() == LessonRecallState.translating.state
+
+
+async def test_a_message_while_reading_shows_the_next_sentence_unchecked(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation=None, correction=None
+    )
+    await send.message("Wir warten für.")
+
+    requests = await send.message("Ich hoffe.")
+
+    check.assert_called_once()
+    assert any(isinstance(r, EditMessageReplyMarkup) for r in requests)
+    assert _sent(requests)[-1].text == "2/2 ✍️ Переведите:\nВторая фраза."
+    assert await state.get_state() == LessonRecallState.translating.state
+
+
+async def test_continue_on_an_inaccessible_message_does_nothing(
+    send: Any,
+    state: FSMContext,
+    generate: AsyncMock,
+    check: AsyncMock,
+    feed_raw_update: FeedRawUpdate,
+    telegram_user_id: int,
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation=None, correction=None
+    )
+    await send.message("Wir warten für.")
+
+    requests = await feed_raw_update(
+        {
+            "update_id": 5,
+            "callback_query": {
+                "id": "x",
+                "from": {"id": telegram_user_id, "is_bot": False, "first_name": "T"},
+                "chat_instance": "1",
+                "data": NEXT_SENTENCE,
+            },
+        },
+        course=COURSE,
+    )
+
+    assert _sent(requests) == []
+    assert await state.get_state() == LessonRecallState.reading.state
+
+
+async def test_an_old_continue_button_is_answered(send: Any, state: FSMContext) -> None:
+    requests = await send.callback(NEXT_SENTENCE)
+
+    assert any(isinstance(r, AnswerCallbackQuery) for r in requests)
+    assert _sent(requests) == []
+
+
+async def test_the_summary_counts_the_right_translations(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=False, explanation=None, correction=None
+    )
+    await send.message("Wir warten für.")
+    await send.callback(NEXT_SENTENCE)
+    check.return_value = TranslationCheck(
+        is_correct=True, explanation="Отлично, hoffen auf.", correction=None
+    )
+
+    requests = await send.message("Ich hoffe auf.")
+
+    result, summary = _sent(requests)
+    assert result.text == f"{RU.correct_mark} Отлично, hoffen auf."
+    assert summary.text == RU.lesson_summary.format(correct=1, size=2)
