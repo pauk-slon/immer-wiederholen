@@ -263,7 +263,7 @@ async def _call_tool(
     *,
     rules: str,
     guide: str,
-    tool: ToolParam,
+    tool_name: str,
     prompt: str,
     max_tokens: int,
     timeout: float,
@@ -290,7 +290,7 @@ async def _call_tool(
         (
             block
             for block in response.content
-            if isinstance(block, ToolUseBlock) and block.name == tool["name"]
+            if isinstance(block, ToolUseBlock) and block.name == tool_name
         ),
         None,
     )
@@ -364,7 +364,7 @@ async def generate_lesson_recall(
         client,
         rules=_GENERATION_RULES,
         guide=guide,
-        tool=_GENERATION_TOOL,
+        tool_name=_GENERATION_TOOL_NAME,
         prompt=prompt,
         max_tokens=_GENERATION_MAX_TOKENS,
         timeout=_GENERATION_TIMEOUT,
@@ -416,7 +416,7 @@ async def check_translation(
         client,
         rules=_CHECK_RULES,
         guide=guide,
-        tool=_CHECK_TOOL,
+        tool_name=_CHECK_TOOL_NAME,
         prompt=prompt,
         max_tokens=_CHECK_MAX_TOKENS,
         timeout=_CHECK_TIMEOUT,
