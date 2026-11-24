@@ -131,13 +131,14 @@ async def test_generation_sends_the_rules_the_guide_and_the_exercises() -> None:
     assert request["model"] == MODEL
     assert request["tool_choice"] == {"type": "auto"}
     assert request["output_config"] == {"effort": "low"}
-    rules, guide = request["system"]
-    assert "cache_control" not in rules
+    guide, rules = request["system"]
     assert guide == {
         "type": "text",
         "text": GUIDE,
         "cache_control": {"type": "ephemeral"},
     }
+    assert "cache_control" not in rules
+    assert f"Call {_GENERATION_TOOL_NAME} once." in rules["text"]
     prompt = request["messages"][0]["content"]
     assert (
         'The learner\'s language is Russian. Write every "text" in Russian.' in prompt
@@ -338,6 +339,19 @@ async def test_a_check_without_an_explanation_and_a_correction_has_none(
     assert check == TranslationCheck(is_correct=True, explanation=None, correction=None)
 
 
+async def test_a_check_has_the_cached_prefix_of_the_generation() -> None:
+    generation_client = _make_client(_task(_sentence()))
+    check_client = _make_client(_verdict({"correct": True, "explanation": ""}))
+
+    await _generate(generation_client)
+    await _check(check_client)
+
+    generation = _request(generation_client)
+    check = _request(check_client)
+    assert check["tools"] == generation["tools"]
+    assert check["system"][0] == generation["system"][0]
+
+
 async def test_a_check_sends_the_sentence_its_exercises_and_the_answer() -> None:
     client = _make_client(_verdict({"correct": True, "explanation": ""}))
 
@@ -345,7 +359,9 @@ async def test_a_check_sends_the_sentence_its_exercises_and_the_answer() -> None
 
     client.with_options.assert_called_once_with(timeout=_CHECK_TIMEOUT, max_retries=0)
     request = _request(client)
-    assert request["system"][1]["text"] == GUIDE
+    guide, rules = request["system"]
+    assert guide["text"] == GUIDE
+    assert f"Call {_CHECK_TOOL_NAME} once." in rules["text"]
     prompt = request["messages"][0]["content"]
     assert "The sentence:\nНадеюсь на хорошую погоду." in prompt
     assert "word: hoffen" in prompt

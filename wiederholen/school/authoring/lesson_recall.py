@@ -29,7 +29,7 @@ _CHECK_TOOL_NAME: Final = "submit_check"
 
 _GENERATION_RULES: Final = f"""\
 You write a lesson recall: a short translation task for a learner who has
-just finished a lesson of exercises. The course's guide below says how to
+just finished a lesson of exercises. The course's guide above says how to
 write it.
 
 Each sentence of the task has:
@@ -46,7 +46,7 @@ Call {_GENERATION_TOOL_NAME} once."""
 
 _CHECK_RULES: Final = f"""\
 You check a learner's translation in a lesson recall. The course's guide
-below says when a translation is correct and what the explanation says.
+above says when a translation is correct and what the explanation says.
 
 You get the sentence in the learner's language, the exercises that it
 practices, a reference translation and the learner's answer. The reference
@@ -183,10 +183,16 @@ class TranslationCheck:
     correction: str | None
 
 
+# A cached prefix is the tools and the system blocks up to the breakpoint. Both
+# requests send both tools and start with the guide, so a check reads the cache
+# that the generation wrote
+_TOOLS: Final[list[ToolParam]] = [_GENERATION_TOOL, _CHECK_TOOL]
+
+
 def _system(rules: str, guide: str) -> list[TextBlockParam]:
     return [
-        {"type": "text", "text": rules},
         {"type": "text", "text": guide, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": rules},
     ]
 
 
@@ -269,7 +275,7 @@ async def _call_tool(
             model=MODEL,
             max_tokens=max_tokens,
             system=_system(rules, guide),
-            tools=[tool],
+            tools=_TOOLS,
             # Forced tool use would leave Haiku no room to think first
             tool_choice={"type": "auto"},
             output_config={"effort": "low"},
