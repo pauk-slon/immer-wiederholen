@@ -52,6 +52,8 @@ class Locale:
     wrong_mark: str
     correct: str
     wrong: str
+    # A task to write a sentence has ✍️ and the instruction above the text, as
+    # in lesson_recall_sentence
     recall_prompt: str
     recall_wrong: str
     # After a mistake of only extra letters: the learner's text with them
@@ -129,7 +131,7 @@ RU: Final = Locale(
     wrong_mark="❌",
     correct="Правильно!",
     wrong="Правильный ответ: {answer}",
-    recall_prompt="Напишите фразу целиком:\n{recall}",
+    recall_prompt="✍️ Напишите фразу целиком:\n{recall}",
     recall_wrong="Правильный ответ:\n{answer}",
     wrong_extra_letters="{mistake} → {answer}",
     cmd_start="Начать",
@@ -204,7 +206,7 @@ EN: Final = Locale(
     wrong_mark="❌",
     correct="Correct!",
     wrong="The correct answer is: {answer}",
-    recall_prompt="Type the whole sentence:\n{recall}",
+    recall_prompt="✍️ Type the whole sentence:\n{recall}",
     recall_wrong="The correct answer is:\n{answer}",
     wrong_extra_letters="{mistake} → {answer}",
     cmd_start="Start",
