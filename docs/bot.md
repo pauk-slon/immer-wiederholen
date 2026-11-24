@@ -57,7 +57,7 @@ The two marks differ in shape, not only in color, because no word says the verdi
 
 ### Removing the options keyboard
 
-After an answer to a multiple-choice exercise, the options keyboard must go. Only a new message can remove a reply keyboard, and such a message can't have inline buttons, now or later. So `_remove_reply_keyboard()` first sends a short message with `ReplyKeyboardRemove` and without a notification, and deletes it at once. The keyboard stays removed. Then the result comes as one message with its buttons. If the deletion fails, the bot ignores the error, because the learner only sees one extra short message. [ADR 0035](adr/0035-result-of-an-answer-in-one-message.md) describes the other ways that don't work.
+After an answer to a multiple-choice exercise, the options keyboard must go. Only a new message can remove a reply keyboard, and such a message can't have inline buttons, now or later. So `_remove_reply_keyboard()` first sends a short message with `ReplyKeyboardRemove` and without a notification, and deletes it at once. The keyboard stays removed. Then the result comes as one message with its buttons. If the deletion fails for any reason of the Bot API, for example a flood limit or a network error, the bot logs a warning and continues. At this point the answer is already recorded, so the learner must get the result. The only cost is one extra short message in the chat. [ADR 0035](adr/0035-result-of-an-answer-in-one-message.md) describes the other ways that don't work.
 
 The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)). After a wrong answer to a pair that the learner answered before, a recall starts at once. After a right answer, or a wrong first answer to a pair, the learner can choose an optional recall with "Drill" ([ADR 0034](adr/0034-no-required-recall-on-a-new-pair.md)). A wrong recall answer gets the mistake marked in the same way, and the learner can try again.
 
@@ -92,7 +92,7 @@ The message is HTML, so `answer_diff.py` escapes the texts. The web widget has n
 
 An answer to an exercise or a recall is text that doesn't start with `/`. A sticker, a photo or an unknown command such as `/help` isn't an answer, because the learner didn't try to answer. As a wrong answer, it would set the interval of the pair to 0. During an exercise, such a message goes to the [fallback](#other-messages), and its "next" button shows the same exercise again.
 
-During a recall, the bot shows the recall again and doesn't use the fallback. The fallback's button shows the next exercise, so it would skip the recall, and after the last answer of a lesson also the summary and the lesson recall that come after it. To leave a recall on purpose, the learner taps "Skip" if the recall has it, or sends `/wiederholen`.
+During a recall, the bot shows the recall again and doesn't use the fallback. The fallback's button shows the next exercise, so it would skip the recall, and after the last answer of a lesson also the lesson recall that comes after it. To leave a recall on purpose, the learner taps "Skip" if the recall has it, or sends `/wiederholen`.
 
 ## Lessons
 
@@ -101,7 +101,7 @@ The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tut
 In a lesson of several exercises, the learner sees these things:
 
 - **A counter.** The question starts with the position of the exercise in the lesson, for example "3/5".
-- **A summary.** After the last result of the lesson, a message of its own shows the number of right answers, and the streak if the lesson added a day. The buttons go on the summary, not on the result. Otherwise the summary would be lost at the end of a long explanation. The last result is the result of the answer, or the recall result after a recall. After an optional recall, the summary comes after both results.
+- **A summary.** Right after the result of the last answer of the lesson, a message of its own shows the number of right answers, and the streak if the lesson added a day. Otherwise the summary would be lost at the end of a long explanation. The buttons go on the summary, not on the result. If the last answer needs a recall, the summary has no buttons, the recall follows, and the buttons come with the recall result. The recall result doesn't repeat the summary. So the learner sees the summary once, and a "Try again" button never stands on it.
 - **A "Continue" button.** After the summary, the "Next exercise" button says "Continue" and starts the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
 
 A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
@@ -116,7 +116,7 @@ Only a lesson of 4 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_S
 
 The bot takes the size from the counter of the shown exercise ("2/5"). So it decides for the whole lesson at its first exercise. A lesson that gets smaller, for example after `/topics`, gets the optional recall back and no lesson recall.
 
-In a lesson with a lesson recall, the "Continue" button of the lesson summary starts the lesson recall. The summary comes after the last answer, or after the recall result when the last answer needed a recall, so both places have it. The button keeps its text and gets the `LESSON_RECALL` callback instead of `NEXT_EXERCISE`. Such a lesson gets no optional recall, because two kinds of recall would confuse the learner. So a wrong first answer to a pair gets no recall there, and the lesson recall uses it instead. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
+In a lesson with a lesson recall, the "Continue" button starts the lesson recall. This button is on the summary, or on the recall result when the last answer needed a recall or the learner chose one. The button keeps its text and gets the `LESSON_RECALL` callback instead of `NEXT_EXERCISE`. Such a lesson gets no optional recall, because two kinds of recall would confuse the learner. So a wrong first answer to a pair gets no recall there, and the lesson recall uses it instead. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
 A tap starts the generation. Before it, the bot says that a translation task starts, so the learner doesn't take the first sentence for one more exercise of the lesson. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
 

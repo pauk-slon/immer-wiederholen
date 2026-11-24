@@ -1,8 +1,14 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from aiogram import Bot
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import (
+    TelegramAPIError,
+    TelegramBadRequest,
+    TelegramNetworkError,
+    TelegramRetryAfter,
+)
 from aiogram.fsm.context import FSMContext
 from aiogram.methods import DeleteMessage, SendMessage
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
@@ -18,6 +24,8 @@ from wiederholen.bot.commands.wiederholen import (
 )
 from wiederholen.bot.l10n import RU
 from wiederholen.school import Course, Exercise, StudentID, Tutor
+
+_DELETION = DeleteMessage(chat_id=1, message_id=1)
 
 
 class TestHandleAnswer:
@@ -53,29 +61,34 @@ class TestHandleAnswer:
         assert deletion.message_id == 1000
         assert isinstance(result.reply_markup, InlineKeyboardMarkup)
 
+    @pytest.mark.parametrize(
+        "error",
+        [
+            TelegramBadRequest(method=_DELETION, message="message to delete not found"),
+            TelegramRetryAfter(
+                method=_DELETION, message="Too Many Requests", retry_after=3
+            ),
+            TelegramNetworkError(method=_DELETION, message="timeout"),
+        ],
+    )
     async def test_a_failed_deletion_still_shows_the_result(
         self,
         state: FSMContext,
         feed_message: FeedMessage,
         bot: Bot,
+        error: TelegramAPIError,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         exercise = make_exercise()
         await state.set_state(UserState.answering)
         await state.update_data(shown_exercise=exercise.to_dict())
 
-        with patch.object(
-            bot,
-            "delete_message",
-            AsyncMock(
-                side_effect=TelegramBadRequest(
-                    method=DeleteMessage(chat_id=1, message_id=1),
-                    message="message to delete not found",
-                )
-            ),
-        ):
+        with patch.object(bot, "delete_message", AsyncMock(side_effect=error)):
             requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
         assert requests[-1].text.startswith(RU.correct_mark)
+        assert isinstance(requests[-1].reply_markup, InlineKeyboardMarkup)
+        assert "Failed to delete the keyboard removal message" in caplog.text
 
     async def test_wrong_answer_shows_correct_answer(
         self,

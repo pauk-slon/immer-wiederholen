@@ -7,7 +7,7 @@ from collections.abc import AsyncGenerator
 from typing import Final
 
 from aiogram import Bot, F, Router
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -269,8 +269,12 @@ async def _remove_reply_keyboard(message: Message) -> None:
         reply_markup=ReplyKeyboardRemove(),
         disable_notification=True,
     )
-    with contextlib.suppress(TelegramBadRequest):
+    try:
         await message.bot.delete_message(message.chat.id, sent.message_id)
+    except TelegramAPIError:
+        # The answer is already recorded, so the result must come anyway.
+        # The learner only sees the short message
+        logger.warning("Failed to delete the keyboard removal message", exc_info=True)
 
 
 def _get_next_label(finished_lesson: dict | None, language: Language) -> str | None:
@@ -634,10 +638,13 @@ async def handle_answer(
             result_html = f"{wrong_line}\n\n{explanation}"
         if shown_exercise.distractors:
             await _remove_reply_keyboard(message)
+        summary = _format_lesson_summary(finished_lesson, language)
         if recall_mode == RecallMode.required:
-            # The summary comes with the "Next" button, so after a required
-            # recall it comes after the recall
+            # The summary counts the answers of the lesson, so it comes before
+            # the recall, without buttons. The recall result doesn't repeat it
             await message.answer(result_html, parse_mode="HTML")
+            if summary is not None:
+                await message.answer(summary)
             await _start_recall(
                 state,
                 language,
@@ -660,12 +667,7 @@ async def handle_answer(
             state_data,
         ):
             reply_markup = _continue_to_lesson_recall(reply_markup)
-        sent = await send_result(
-            message,
-            result_html,
-            _format_lesson_summary(finished_lesson, language),
-            reply_markup,
-        )
+        sent = await send_result(message, result_html, summary, reply_markup)
         await state.update_data(shown_exercise=state_data["shown_exercise"])
         await remember_buttoned_message(state, sent)
 
@@ -725,11 +727,8 @@ async def handle_recall(
             )
         if continues_to_lesson_recall:
             reply_markup = _continue_to_lesson_recall(reply_markup)
-        sent = await send_result(
-            message,
-            result_html,
-            _format_lesson_summary(finished_lesson, language),
-            reply_markup,
+        sent = await message.answer(
+            result_html, reply_markup=reply_markup, parse_mode="HTML"
         )
     await remember_buttoned_message(state, sent)
 
