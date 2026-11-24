@@ -7,6 +7,7 @@ from collections.abc import AsyncGenerator
 from typing import Final
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -66,6 +67,9 @@ LESSON_RECALL: Final = "__lesson_recall__"
 # _format_question()) falls back to a plain text message instead of a
 # truncated caption; see _answer_with_optional_cue().
 _PHOTO_CAPTION_LIMIT: Final = 1024
+
+# Telegram doesn't send an empty message
+_KEYBOARD_REMOVAL_TEXT: Final = "…"
 
 # The bot's lessons have 5 exercises (#325). The web app keeps
 # Tutor.LESSON_SIZE of 1, so it has no counter and no summary
@@ -224,11 +228,11 @@ def _continue_to_lesson_recall(markup: InlineKeyboardMarkup) -> InlineKeyboardMa
     )
 
 
-def _append_lesson_summary(
-    text: str, finished_lesson: dict | None, language: Language
-) -> str:
+def _format_lesson_summary(
+    finished_lesson: dict | None, language: Language
+) -> str | None:
     if finished_lesson is None:
-        return text
+        return None
     locale = LOCALES[language]
     summary = locale.lesson_summary.format(
         correct=finished_lesson["correct"], size=finished_lesson["size"]
@@ -236,7 +240,37 @@ def _append_lesson_summary(
     if finished_lesson["streak_days"] is not None:
         days = format_count(finished_lesson["streak_days"], "days", language)
         summary += "\n" + locale.streak_text.format(days=days)
-    return f"{text}\n\n{summary}"
+    return summary
+
+
+async def send_result(
+    message: Message,
+    result_html: str,
+    summary: str | None,
+    reply_markup: InlineKeyboardMarkup,
+) -> Message:
+    if summary is None:
+        return await message.answer(
+            result_html, reply_markup=reply_markup, parse_mode="HTML"
+        )
+    await message.answer(result_html, parse_mode="HTML")
+    return await message.answer(summary, reply_markup=reply_markup)
+
+
+async def _remove_reply_keyboard(message: Message) -> None:
+    # A message with ReplyKeyboardRemove can't get inline buttons later (ADR 0035)
+    assert message.bot is not None
+    sent = await message.answer(
+        _KEYBOARD_REMOVAL_TEXT,
+        reply_markup=ReplyKeyboardRemove(),
+        disable_notification=True,
+    )
+    try:
+        await message.bot.delete_message(message.chat.id, sent.message_id)
+    except TelegramAPIError:
+        # The answer is already recorded, so the result must come anyway.
+        # The learner only sees the short message
+        logger.warning("Failed to delete the keyboard removal message", exc_info=True)
 
 
 def _get_next_label(finished_lesson: dict | None, language: Language) -> str | None:
@@ -337,8 +371,8 @@ def _format_question(
 
 
 def _format_wrong(
+    locale: Locale,
     template: str,
-    extra_letters_template: str,
     user_text: str,
     answers: list[str],
     *,
@@ -348,10 +382,12 @@ def _format_wrong(
         user_text, answers, ignore_punctuation=ignore_punctuation
     )
     if correction.mistake is not None:
-        return extra_letters_template.format(
+        text = locale.wrong_extra_letters.format(
             mistake=correction.mistake, answer=correction.answer
         )
-    return template.format(answer=correction.answer)
+    else:
+        text = template.format(answer=correction.answer)
+    return f"{locale.wrong_mark} {text}"
 
 
 def _show_exercise_kwargs(exercise: Exercise, course: Course) -> dict:
@@ -558,7 +594,7 @@ async def handle_answer(
     language = get_language(state_data)
     shown_exercise = Exercise.from_dict(state_data["shown_exercise"])
     locale = LOCALES[language]
-    explanation = shown_exercise.explanation[language]
+    explanation = html.escape(shown_exercise.explanation[language])
     student_id = await student_identity_store.resolve_or_create_student_id(
         "telegram", str(message.chat.id)
     )
@@ -586,42 +622,25 @@ async def handle_answer(
         # Two kinds of recall would confuse the learner
         if has_lesson_recall and recall_mode == RecallMode.optional:
             recall_mode = RecallMode.none
-        result_line = (
-            locale.correct
-            if mark.is_correct
-            else _format_wrong(
+        if mark.is_correct:
+            result_html = f"{locale.correct_mark} {explanation}"
+        else:
+            wrong_line = _format_wrong(
+                locale,
                 locale.wrong,
-                locale.wrong_extra_letters,
                 message.text,
                 course.shown_answers(shown_exercise),
             )
-        )
-        if recall_mode == RecallMode.optional:
-            reply_markup = _make_recall_buttons(locale, locale.btn_recall, next_label)
-        elif recall_mode == RecallMode.none:
-            reply_markup = make_next_button(locale, next_label)
-        else:
-            reply_markup = None
-        # The summary comes with the "Next" button, so after a required
-        # recall it comes after the recall
-        if reply_markup is not None:
-            explanation = _append_lesson_summary(explanation, finished_lesson, language)
-            if offers_lesson_recall(
-                anthropic_client,
-                feature_flags,
-                message.chat.id,
-                finished_lesson,
-                state_data,
-            ):
-                reply_markup = _continue_to_lesson_recall(reply_markup)
-        first_reply_markup = (
-            ReplyKeyboardRemove() if shown_exercise.distractors else None
-        )
-        await message.answer(
-            result_line, reply_markup=first_reply_markup, parse_mode="HTML"
-        )
-        sent_explanation = await message.answer(explanation, reply_markup=reply_markup)
+            result_html = f"{wrong_line}\n\n{explanation}"
+        if shown_exercise.distractors:
+            await _remove_reply_keyboard(message)
+        summary = _format_lesson_summary(finished_lesson, language)
         if recall_mode == RecallMode.required:
+            # The summary counts the answers of the lesson, so it comes before
+            # the recall, without buttons. The recall result doesn't repeat it
+            await message.answer(result_html, parse_mode="HTML")
+            if summary is not None:
+                await message.answer(summary)
             await _start_recall(
                 state,
                 language,
@@ -631,10 +650,22 @@ async def handle_answer(
                 message,
                 course,
             )
+            return
+        if recall_mode == RecallMode.optional:
+            reply_markup = _make_recall_buttons(locale, locale.btn_recall, next_label)
         else:
-            await state.update_data(shown_exercise=state_data["shown_exercise"])
-            if reply_markup is not None:
-                await remember_buttoned_message(state, sent_explanation)
+            reply_markup = make_next_button(locale, next_label)
+        if offers_lesson_recall(
+            anthropic_client,
+            feature_flags,
+            message.chat.id,
+            finished_lesson,
+            state_data,
+        ):
+            reply_markup = _continue_to_lesson_recall(reply_markup)
+        sent = await send_result(message, result_html, summary, reply_markup)
+        await state.update_data(shown_exercise=state_data["shown_exercise"])
+        await remember_buttoned_message(state, sent)
 
 
 @router.message(UserState.recalling, F.text, ~F.text.startswith("/"))
@@ -677,36 +708,24 @@ async def handle_recall(
             shown_recall,
             message.text,
         ):
+            result_html = f"{locale.correct_mark} {locale.correct}"
             reply_markup = make_next_button(locale, next_label)
-            if continues_to_lesson_recall:
-                reply_markup = _continue_to_lesson_recall(reply_markup)
-            sent = await message.answer(
-                _append_lesson_summary(
-                    locale.recall_correct, finished_lesson, language
-                ),
-                reply_markup=reply_markup,
-            )
         else:
+            result_html = _format_wrong(
+                locale,
+                locale.recall_wrong,
+                message.text,
+                [shown_recall.answer[0]],
+                ignore_punctuation=True,
+            )
             reply_markup = _make_recall_buttons(
                 locale, locale.btn_recall_retry, next_label
             )
-            if continues_to_lesson_recall:
-                reply_markup = _continue_to_lesson_recall(reply_markup)
-            sent = await message.answer(
-                _append_lesson_summary(
-                    _format_wrong(
-                        locale.recall_wrong,
-                        locale.recall_wrong_extra_letters,
-                        message.text,
-                        [shown_recall.answer[0]],
-                        ignore_punctuation=True,
-                    ),
-                    finished_lesson,
-                    language,
-                ),
-                reply_markup=reply_markup,
-                parse_mode="HTML",
-            )
+        if continues_to_lesson_recall:
+            reply_markup = _continue_to_lesson_recall(reply_markup)
+        sent = await message.answer(
+            result_html, reply_markup=reply_markup, parse_mode="HTML"
+        )
     await remember_buttoned_message(state, sent)
 
 

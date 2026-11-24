@@ -81,7 +81,7 @@ async def test_an_answer_to_an_exercise_isnt_taken(
     requests = await feed_message("falsch", course=COURSE)
 
     texts = [request.text for request in requests if isinstance(request, SendMessage)]
-    assert texts[0].startswith(RU.wrong.split("{")[0])
+    assert texts[-1].startswith(RU.wrong_mark)
     assert RU.unexpected_message not in texts
 
 

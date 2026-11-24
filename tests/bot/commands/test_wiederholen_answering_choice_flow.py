@@ -1,7 +1,17 @@
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
+import pytest
+from aiogram import Bot
+from aiogram.exceptions import (
+    TelegramAPIError,
+    TelegramBadRequest,
+    TelegramNetworkError,
+    TelegramRetryAfter,
+)
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
+from aiogram.methods import DeleteMessage, SendMessage
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.curriculum import make_exercise
@@ -14,6 +24,8 @@ from wiederholen.bot.commands.wiederholen import (
 )
 from wiederholen.bot.l10n import RU
 from wiederholen.school import Course, Exercise, StudentID, Tutor
+
+_DELETION = DeleteMessage(chat_id=1, message_id=1)
 
 
 class TestHandleAnswer:
@@ -28,8 +40,55 @@ class TestHandleAnswer:
 
         requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
-        assert RU.correct in requests[0].text
-        assert exercise.explanation["ru"] in requests[1].text
+        assert requests[-1].text == f"{RU.correct_mark} {exercise.explanation['ru']}"
+
+    async def test_a_short_message_removes_the_options_and_is_deleted(
+        self,
+        state: FSMContext,
+        feed_message: FeedMessage,
+    ) -> None:
+        exercise = make_exercise()
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=exercise.to_dict())
+
+        requests = await feed_message(exercise.answer[0], course=Course([exercise]))
+
+        removal, deletion, result = requests
+        assert isinstance(removal, SendMessage)
+        assert isinstance(removal.reply_markup, ReplyKeyboardRemove)
+        assert removal.disable_notification is True
+        assert isinstance(deletion, DeleteMessage)
+        assert deletion.message_id == 1000
+        assert isinstance(result.reply_markup, InlineKeyboardMarkup)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            TelegramBadRequest(method=_DELETION, message="message to delete not found"),
+            TelegramRetryAfter(
+                method=_DELETION, message="Too Many Requests", retry_after=3
+            ),
+            TelegramNetworkError(method=_DELETION, message="timeout"),
+        ],
+    )
+    async def test_a_failed_deletion_still_shows_the_result(
+        self,
+        state: FSMContext,
+        feed_message: FeedMessage,
+        bot: Bot,
+        error: TelegramAPIError,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        exercise = make_exercise()
+        await state.set_state(UserState.answering)
+        await state.update_data(shown_exercise=exercise.to_dict())
+
+        with patch.object(bot, "delete_message", AsyncMock(side_effect=error)):
+            requests = await feed_message(exercise.answer[0], course=Course([exercise]))
+
+        assert requests[-1].text.startswith(RU.correct_mark)
+        assert isinstance(requests[-1].reply_markup, InlineKeyboardMarkup)
+        assert "Failed to delete the keyboard removal message" in caplog.text
 
     async def test_wrong_answer_shows_correct_answer(
         self,
@@ -44,8 +103,8 @@ class TestHandleAnswer:
             exercise.distractors[0], course=Course([exercise])
         )
 
-        assert exercise.answer[0] in requests[0].text
-        assert exercise.explanation["ru"] in requests[1].text
+        assert exercise.answer[0] in requests[-1].text
+        assert requests[-1].text.endswith(f"\n\n{exercise.explanation['ru']}")
 
     async def test_wrong_option_underlines_where_it_differs(
         self,
@@ -60,8 +119,8 @@ class TestHandleAnswer:
 
         requests = await feed_message("an dem", course=Course([exercise]))
 
-        assert requests[0].text == "🔴 Неправильно. Правильный ответ: an de<u>n</u>"
-        assert requests[0].parse_mode == "HTML"
+        assert requests[-1].text.startswith("❌ Правильный ответ: an de<u>n</u>\n\n")
+        assert requests[-1].parse_mode == "HTML"
 
     async def test_typed_answer_that_is_not_an_option_is_correct_with_the_setting(
         self,
@@ -77,7 +136,7 @@ class TestHandleAnswer:
 
         requests = await feed_message("an", course=course)
 
-        assert RU.correct in requests[0].text
+        assert requests[-1].text.startswith(RU.correct_mark)
 
 
 class TestNextExerciseButton:
@@ -92,10 +151,10 @@ class TestNextExerciseButton:
 
         requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
-        assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
+        assert isinstance(requests[-1].reply_markup, InlineKeyboardMarkup)
         buttons = [
             btn.callback_data
-            for row in requests[1].reply_markup.inline_keyboard
+            for row in requests[-1].reply_markup.inline_keyboard
             for btn in row
         ]
         assert NEXT_EXERCISE in buttons
@@ -113,10 +172,10 @@ class TestNextExerciseButton:
             exercise.distractors[0], course=Course([exercise])
         )
 
-        assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
+        assert isinstance(requests[-1].reply_markup, InlineKeyboardMarkup)
         buttons = [
             btn.callback_data
-            for row in requests[1].reply_markup.inline_keyboard
+            for row in requests[-1].reply_markup.inline_keyboard
             for btn in row
         ]
         assert NEXT_EXERCISE in buttons
@@ -175,10 +234,10 @@ class TestNextExerciseButton:
 
         requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
-        assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
+        assert isinstance(requests[-1].reply_markup, InlineKeyboardMarkup)
         buttons = [
             btn.callback_data
-            for row in requests[1].reply_markup.inline_keyboard
+            for row in requests[-1].reply_markup.inline_keyboard
             for btn in row
         ]
         assert buttons == [RECALL, NEXT_EXERCISE]

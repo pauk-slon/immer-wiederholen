@@ -1,3 +1,5 @@
+import dataclasses
+
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardRemove
 
@@ -19,8 +21,8 @@ async def test_correct_answer_shows_success_text(
 
     requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
-    assert RU.correct in requests[0].text
-    assert exercise.explanation["ru"] in requests[1].text
+    assert len(requests) == 1
+    assert requests[0].text == f"{RU.correct_mark} {exercise.explanation['ru']}"
 
 
 async def test_wrong_answer_shows_correct_answer(
@@ -33,8 +35,27 @@ async def test_wrong_answer_shows_correct_answer(
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
+    assert len(requests) == 1
+    assert requests[0].text.startswith(RU.wrong_mark)
     assert exercise.answer[0] in requests[0].text
-    assert exercise.explanation["ru"] in requests[1].text
+    assert requests[0].text.endswith(f"\n\n{exercise.explanation['ru']}")
+
+
+async def test_the_explanation_is_escaped(
+    state: FSMContext,
+    feed_message: FeedMessage,
+) -> None:
+    exercise = dataclasses.replace(
+        make_exercise(distractors=[]),
+        explanation={"ru": "auf + <Akk> & mehr", "en": "x"},
+    )
+    await state.set_state(UserState.answering)
+    await state.update_data(shown_exercise=exercise.to_dict())
+
+    requests = await feed_message(exercise.answer[0], course=Course([exercise]))
+
+    assert requests[0].text == f"{RU.correct_mark} auf + &lt;Akk&gt; &amp; mehr"
+    assert requests[0].parse_mode == "HTML"
 
 
 async def test_wrong_answer_shows_every_correct_answer(
@@ -76,7 +97,7 @@ async def test_other_answer_is_correct_with_the_setting(
 
     requests = await feed_message("Die Städte", course=course)
 
-    assert RU.correct in requests[0].text
+    assert requests[0].text.startswith(RU.correct_mark)
 
 
 async def test_next_button_after_correct_answer(
@@ -89,10 +110,10 @@ async def test_next_button_after_correct_answer(
 
     requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
-    assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
+    assert isinstance(requests[0].reply_markup, InlineKeyboardMarkup)
     buttons = [
         btn.callback_data
-        for row in requests[1].reply_markup.inline_keyboard
+        for row in requests[0].reply_markup.inline_keyboard
         for btn in row
     ]
     assert NEXT_EXERCISE in buttons
@@ -108,10 +129,10 @@ async def test_next_button_after_wrong_answer_without_recall(
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
-    assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
+    assert isinstance(requests[0].reply_markup, InlineKeyboardMarkup)
     buttons = [
         btn.callback_data
-        for row in requests[1].reply_markup.inline_keyboard
+        for row in requests[0].reply_markup.inline_keyboard
         for btn in row
     ]
     assert NEXT_EXERCISE in buttons
@@ -120,8 +141,10 @@ async def test_next_button_after_wrong_answer_without_recall(
 async def test_no_button_after_wrong_answer_with_recall(
     state: FSMContext,
     feed_message: FeedMessage,
+    introduce_pairs: IntroducePairs,
 ) -> None:
     exercise = make_exercise(distractors=[], recalls=True)
+    await introduce_pairs([exercise])
     await state.set_state(UserState.answering)
     await state.update_data(shown_exercise=exercise.to_dict())
 
@@ -140,11 +163,11 @@ async def test_a_wrong_first_answer_offers_the_recall(
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
-    assert len(requests) == 2
-    assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
+    assert len(requests) == 1
+    assert isinstance(requests[0].reply_markup, InlineKeyboardMarkup)
     callbacks = [
         button.callback_data
-        for row in requests[1].reply_markup.inline_keyboard
+        for row in requests[0].reply_markup.inline_keyboard
         for button in row
     ]
     assert callbacks == [RECALL, NEXT_EXERCISE]
@@ -163,9 +186,9 @@ async def test_recall_prompt_sent_after_wrong_answer(
 
     requests = await feed_message("falsch", course=Course([exercise]))
 
-    assert len(requests) == 3
+    assert len(requests) == 2
     assert exercise.recalls
-    assert exercise.recalls[0].question in requests[2].text
+    assert exercise.recalls[0].question in requests[1].text
     assert await state.get_state() == UserState.recalling
 
 
@@ -195,10 +218,10 @@ async def test_recall_button_after_correct_answer_with_recall(
 
     requests = await feed_message(exercise.answer[0], course=Course([exercise]))
 
-    assert isinstance(requests[1].reply_markup, InlineKeyboardMarkup)
+    assert isinstance(requests[0].reply_markup, InlineKeyboardMarkup)
     buttons = [
         btn.callback_data
-        for row in requests[1].reply_markup.inline_keyboard
+        for row in requests[0].reply_markup.inline_keyboard
         for btn in row
     ]
     assert buttons == [RECALL, NEXT_EXERCISE]
@@ -214,5 +237,5 @@ async def test_wrong_answer_with_extra_letters_strikes_them_through(
 
     requests = await feed_message("Kinders", course=Course([exercise]))
 
-    assert requests[0].text == "🔴 Неправильно. Kinder<s>s</s> → Kinder"
+    assert requests[0].text.startswith("❌ Kinder<s>s</s> → Kinder\n\n")
     assert requests[0].parse_mode == "HTML"

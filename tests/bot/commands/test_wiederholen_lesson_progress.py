@@ -29,8 +29,12 @@ def _button_texts(request: Any) -> list[str]:
     return [btn.text for row in request.reply_markup.inline_keyboard for btn in row]
 
 
+def _sent(requests: list[Any]) -> list[SendMessage]:
+    return [r for r in requests if isinstance(r, SendMessage)]
+
+
 def _last_text(requests: list[Any]) -> str:
-    text = [r for r in requests if isinstance(r, SendMessage)][-1].text
+    text = _sent(requests)[-1].text
     assert isinstance(text, str)
     return text
 
@@ -86,12 +90,15 @@ async def test_the_last_answer_of_a_lesson_shows_the_summary(
 
     assert RU.lesson_summary.split("!")[0] not in first[-1].text
     assert _button_texts(first[-1]) == [RU.cmd_wiederholen]
-    assert last[-1].text.endswith(
+    result, summary = last[-2:]
+    assert result.text.startswith(RU.wrong_mark)
+    assert result.reply_markup is None
+    assert summary.text == (
         RU.lesson_summary.format(correct=1, size=2)
         + "\n"
         + RU.streak_text.format(days="1 день")
     )
-    assert _button_texts(last[-1]) == ["Продолжить"]
+    assert _button_texts(summary) == ["Продолжить"]
 
 
 async def test_a_lesson_that_adds_no_streak_day_shows_no_streak_line(
@@ -112,7 +119,7 @@ async def test_a_lesson_that_adds_no_streak_day_shows_no_streak_line(
     assert _last_text(last).endswith(RU.lesson_summary.format(correct=2, size=2))
 
 
-async def test_after_a_required_recall_the_summary_comes_with_the_recall_result(
+async def test_before_a_required_recall_the_summary_comes_without_buttons(
     state: FSMContext,
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
@@ -127,17 +134,19 @@ async def test_after_a_required_recall_the_summary_comes_with_the_recall_result(
 
     answer = await feed_message("an", course=course)
     assert await state.get_state() == UserState.recalling
-    assert RU.lesson_summary.split("!")[0] not in answer[-2].text
     recall_result = await feed_message("nonsense", course=course)
 
-    assert RU.lesson_summary.format(correct=0, size=2) in recall_result[-1].text
-    assert _button_texts(recall_result[-1]) == [
-        RU.btn_recall_retry,
-        "Продолжить",
-    ]
+    result, summary, prompt = _sent(answer)[-3:]
+    assert result.text.startswith(RU.wrong_mark)
+    assert summary.text.startswith(RU.lesson_summary.format(correct=0, size=2))
+    assert summary.reply_markup is None
+    assert prompt.text.startswith(RU.recall_prompt.split("{")[0])
+    [result] = _sent(recall_result)
+    assert result.text.startswith(RU.wrong_mark)
+    assert _button_texts(result) == [RU.btn_recall_retry, "Продолжить"]
 
 
-async def test_after_an_optional_recall_the_summary_comes_with_the_explanation(
+async def test_after_an_optional_recall_the_summary_isnt_repeated(
     feed_message: FeedMessage,
     feed_callback_query: FeedCallbackQuery,
 ) -> None:
@@ -150,9 +159,11 @@ async def test_after_an_optional_recall_the_summary_comes_with_the_explanation(
     await feed_callback_query(RECALL, course=course)
     recall_result = await feed_message("Ich warte auf den Bus.", course=course)
 
-    assert RU.lesson_summary.format(correct=2, size=2) in last[-1].text
+    assert last[-1].text.startswith(RU.lesson_summary.format(correct=2, size=2))
     assert _button_texts(last[-1]) == [RU.btn_recall, "Продолжить"]
-    assert _button_texts(recall_result[-1]) == ["Продолжить"]
+    [result] = _sent(recall_result)
+    assert result.text == f"{RU.correct_mark} {RU.correct}"
+    assert _button_texts(result) == ["Продолжить"]
 
 
 @pytest.mark.parametrize("button", [NEXT_EXERCISE, STUDY_MORE])
