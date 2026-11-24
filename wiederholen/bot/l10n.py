@@ -99,6 +99,7 @@ class Locale:
     language_set: str
     # Before the first sentence, so the learner sees a new task begin
     lesson_recall_intro: str
+    lesson_recall_summary: str
     lesson_recall_sentence: str
     btn_lesson_recall_skip: str
     lesson_recall_reference: str
@@ -175,6 +176,7 @@ RU: Final = Locale(
     grammar_class_hint="Так же, как у {word}",
     language_set="🌐 Язык: русский",
     lesson_recall_intro="✍️ Теперь переведите несколько предложений со словами из этого урока",
+    lesson_recall_summary="🏁 Переводы: верно {correct} из {size}",
     lesson_recall_sentence="{position}/{size} ✍️ Переведите:\n{text}",
     btn_lesson_recall_skip="Пропустить",
     lesson_recall_reference="Вариант перевода:\n{reference}",
@@ -248,6 +250,7 @@ EN: Final = Locale(
     grammar_class_hint="Same as for {word}",
     language_set="🌐 Language: English",
     lesson_recall_intro="✍️ Now translate a few sentences with the words from this lesson",
+    lesson_recall_summary="🏁 Translations: {correct} of {size} correct",
     lesson_recall_sentence="{position}/{size} ✍️ Translate:\n{text}",
     btn_lesson_recall_skip="Skip",
     lesson_recall_reference="A possible translation:\n{reference}",

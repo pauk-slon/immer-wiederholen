@@ -216,8 +216,8 @@ async def _send_result_and_go_on(
     if position < size:
         await state.update_data({_POSITION_KEY: position, _ANSWER_KEY: None})
         if wait_for_learner:
-            # The next sentence would push the correction up before the
-            # learner reads it
+            # The next sentence would push the result up before the learner
+            # reads it
             await state.set_state(LessonRecallState.reading)
             sent = await message.answer(
                 result_html,
@@ -241,8 +241,16 @@ async def _send_result_and_go_on(
     sent = await send_result(
         message,
         result_html,
-        locale.lesson_summary.format(correct=data.get(_CORRECT_KEY, 0), size=size),
-        _keyboard([_next_exercise_button(locale)]),
+        locale.lesson_recall_summary.format(
+            correct=data.get(_CORRECT_KEY, 0), size=size
+        ),
+        _keyboard(
+            [
+                InlineKeyboardButton(
+                    text=locale.btn_continue, callback_data=NEXT_EXERCISE
+                )
+            ]
+        ),
     )
     await remember_buttoned_message(state, sent)
 
@@ -407,7 +415,7 @@ async def _check(
         state,
         locale,
         f"{mark} " + "\n\n".join(paragraphs),
-        wait_for_learner=not check.is_correct,
+        wait_for_learner=not check.is_correct or bool(check.explanation),
     )
 
 

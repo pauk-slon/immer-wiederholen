@@ -584,8 +584,8 @@ async def test_the_last_result_leads_to_the_next_exercise(
     result, summary = _sent(requests)
     assert result.text == f"{RU.correct_mark} {RU.correct}"
     assert result.reply_markup is None
-    assert summary.text == RU.lesson_summary.format(correct=2, size=2)
-    assert _buttons(summary) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
+    assert summary.text == RU.lesson_recall_summary.format(correct=2, size=2)
+    assert _buttons(summary) == [(RU.btn_continue, NEXT_EXERCISE)]
     assert await state.get_state() is None
     data = await state.get_data()
     assert "lesson_recall" not in data
@@ -603,8 +603,8 @@ async def test_a_skip_of_the_last_sentence_leads_to_the_next_exercise(
 
     reference, summary = _sent(requests)
     assert reference.text == "Вариант перевода:\n<blockquote>Ref 1</blockquote>"
-    assert summary.text == RU.lesson_summary.format(correct=0, size=2)
-    assert _buttons(summary) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
+    assert summary.text == RU.lesson_recall_summary.format(correct=0, size=2)
+    assert _buttons(summary) == [(RU.btn_continue, NEXT_EXERCISE)]
 
 
 async def test_a_next_exercise_button_of_another_message_leaves_the_lesson_recall(
@@ -1080,4 +1080,20 @@ async def test_the_summary_counts_the_right_translations(
 
     result, summary = _sent(requests)
     assert result.text == f"{RU.correct_mark} Отлично, hoffen auf."
-    assert summary.text == RU.lesson_summary.format(correct=1, size=2)
+    assert summary.text == RU.lesson_recall_summary.format(correct=1, size=2)
+
+
+async def test_a_right_translation_with_an_explanation_waits_for_the_learner(
+    send: Any, state: FSMContext, generate: AsyncMock, check: AsyncMock
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=True, explanation="Верно, warten auf.", correction=None
+    )
+
+    requests = await send.message("Wir warten auf.")
+
+    [result] = _sent(requests)
+    assert result.text == f"{RU.correct_mark} Верно, warten auf."
+    assert _buttons(result) == [(RU.btn_continue, NEXT_SENTENCE)]
+    assert await state.get_state() == LessonRecallState.reading.state
