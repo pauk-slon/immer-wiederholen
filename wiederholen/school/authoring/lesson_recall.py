@@ -183,9 +183,8 @@ class TranslationCheck:
     correction: str | None
 
 
-# A cached prefix is the tools and the system blocks up to the breakpoint. Both
-# requests send both tools and start with the guide, so a check reads the cache
-# that the generation wrote
+# Both requests send both tools, so that they share the cached prefix
+# (docs/authoring.md)
 _TOOLS: Final[list[ToolParam]] = [_GENERATION_TOOL, _CHECK_TOOL]
 
 
