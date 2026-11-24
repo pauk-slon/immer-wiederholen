@@ -29,7 +29,7 @@ _CHECK_TOOL_NAME: Final = "submit_check"
 
 _GENERATION_RULES: Final = f"""\
 You write a lesson recall: a short translation task for a learner who has
-just finished a lesson of exercises. The course's guide below says how to
+just finished a lesson of exercises. The course's guide above says how to
 write it.
 
 Each sentence of the task has:
@@ -46,7 +46,7 @@ Call {_GENERATION_TOOL_NAME} once."""
 
 _CHECK_RULES: Final = f"""\
 You check a learner's translation in a lesson recall. The course's guide
-below says when a translation is correct and what the explanation says.
+above says when a translation is correct and what the explanation says.
 
 You get the sentence in the learner's language, the exercises that it
 practices, a reference translation and the learner's answer. The reference
@@ -183,10 +183,15 @@ class TranslationCheck:
     correction: str | None
 
 
+# Both requests send both tools, so that they share the cached prefix
+# (docs/authoring.md)
+_TOOLS: Final[list[ToolParam]] = [_GENERATION_TOOL, _CHECK_TOOL]
+
+
 def _system(rules: str, guide: str) -> list[TextBlockParam]:
     return [
-        {"type": "text", "text": rules},
         {"type": "text", "text": guide, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": rules},
     ]
 
 
@@ -257,7 +262,7 @@ async def _call_tool(
     *,
     rules: str,
     guide: str,
-    tool: ToolParam,
+    tool_name: str,
     prompt: str,
     max_tokens: int,
     timeout: float,
@@ -269,7 +274,7 @@ async def _call_tool(
             model=MODEL,
             max_tokens=max_tokens,
             system=_system(rules, guide),
-            tools=[tool],
+            tools=_TOOLS,
             # Forced tool use would leave Haiku no room to think first
             tool_choice={"type": "auto"},
             output_config={"effort": "low"},
@@ -284,7 +289,7 @@ async def _call_tool(
         (
             block
             for block in response.content
-            if isinstance(block, ToolUseBlock) and block.name == tool["name"]
+            if isinstance(block, ToolUseBlock) and block.name == tool_name
         ),
         None,
     )
@@ -358,7 +363,7 @@ async def generate_lesson_recall(
         client,
         rules=_GENERATION_RULES,
         guide=guide,
-        tool=_GENERATION_TOOL,
+        tool_name=_GENERATION_TOOL_NAME,
         prompt=prompt,
         max_tokens=_GENERATION_MAX_TOKENS,
         timeout=_GENERATION_TIMEOUT,
@@ -410,7 +415,7 @@ async def check_translation(
         client,
         rules=_CHECK_RULES,
         guide=guide,
-        tool=_CHECK_TOOL,
+        tool_name=_CHECK_TOOL_NAME,
         prompt=prompt,
         max_tokens=_CHECK_MAX_TOKENS,
         timeout=_CHECK_TIMEOUT,
