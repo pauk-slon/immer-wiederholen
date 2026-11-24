@@ -1,6 +1,6 @@
 # 0035. The result of an answer is one message
 
-**Status:** Accepted, 2026-11-24.
+**Status:** Accepted, 2026-11-24 ([#393](https://github.com/pauk-slon/immer-wiederholen/pull/393)).
 
 ## Context
 
