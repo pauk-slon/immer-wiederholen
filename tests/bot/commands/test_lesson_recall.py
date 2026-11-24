@@ -270,8 +270,7 @@ async def test_the_start_sends_the_lesson_and_shows_the_first_sentence(
     assert len(kwargs["wrong_exercise_keys"]) == 1
     assert kwargs["guide"] == GUIDE
     assert kwargs["language"] == "ru"
-    intro, sentence = _sent(requests)
-    assert intro.text == RU.lesson_recall_intro
+    (sentence,) = _sent(requests)
     assert sentence.text == "1/2 ✍️ Переведите:\nПервая фраза."
     assert _buttons(sentence) == [(RU.btn_lesson_recall_skip, SKIP)]
     assert await state.get_state() == LessonRecallState.translating.state
@@ -422,7 +421,7 @@ async def test_a_generation_result_is_dropped_if_the_chat_moved_on(
 
     requests = await send.callback(LESSON_RECALL)
 
-    assert [r.text for r in _sent(requests)] == [RU.lesson_recall_intro]
+    assert _sent(requests) == []
     assert len((await state.get_data())[STARTED_AT_KEY]) == 1
 
 
