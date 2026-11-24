@@ -469,7 +469,7 @@ const STRINGS = {
     // recallRetry is kept distinct from tryAgain above (a different
     // button, for the unrelated network-error-retry case) since the bot's
     // own ru copy for the two differs ("Попробовать ещё раз" vs
-    // "Попробовать снова"). recallInstruction drops recall_prompt's own
+    // "Попробовать снова"). recallInstruction drops recall_prompt's ✍️ and
     // "\n{recall}" — the widget already renders the recall question as
     // its own .question line right below, so only the framing sentence
     // itself is needed here.
