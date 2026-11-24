@@ -217,11 +217,18 @@ def offers_lesson_recall(
 def _offer_lesson_recall(
     markup: InlineKeyboardMarkup, locale: Locale
 ) -> InlineKeyboardMarkup:
-    # A row of its own, because the label is too long to share a row
+    # Right before the "next" button, which ends the lesson. The buttons for
+    # the current exercise, such as "Try again", stay first in a row of their
+    # own, so that a row has at most two buttons
     practice = InlineKeyboardButton(
         text=locale.btn_practice, callback_data=LESSON_RECALL
     )
-    return InlineKeyboardMarkup(inline_keyboard=[[practice], *markup.inline_keyboard])
+    buttons = [button for row in markup.inline_keyboard for button in row]
+    current = [b for b in buttons if b.callback_data != NEXT_EXERCISE]
+    following = [b for b in buttons if b.callback_data == NEXT_EXERCISE]
+    rows = [current] if current else []
+    rows.append([practice, *following])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _format_lesson_summary(

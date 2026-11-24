@@ -22,7 +22,7 @@ The interface uses these words:
 
 A recall of a single exercise gets no noun. The verb on its button is enough. The list is a comment in `l10n.py`, next to the texts.
 
-When the bot can give a lesson recall, the summary of the lesson has two buttons. One starts the practice, and the other starts the next lesson. The practice button has a row of its own, because its text is too long to share a row on a phone. The same applies to the other places where a lesson ends, such as the result of a recall after the last answer.
+When the bot can give a lesson recall, the summary of the lesson has two buttons. One starts the practice, and the other starts the next lesson. The practice button comes right before the next lesson button. A button for the current exercise, such as "Try again", comes first, in a row of its own. Its text and the practice button's text must not start with the same word, so the learner doesn't confuse them. The same applies to the other places where a lesson ends, such as the result of a recall after the last answer.
 
 The texts of the summaries, the buttons and the line before the first sentence use the words of the table.
 

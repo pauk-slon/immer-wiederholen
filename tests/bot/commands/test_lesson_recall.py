@@ -211,11 +211,12 @@ async def test_a_wrong_required_recall_at_the_end_of_a_lesson_offers_practice(
 
     requests = await send.message("falsch", course=course)
 
-    assert _buttons(_sent(requests)[-1]) == [
-        PRACTICE,
-        (RU.btn_recall_retry, RECALL),
-        NEXT_LESSON,
-    ]
+    keyboard = _sent(requests)[-1].reply_markup
+    assert isinstance(keyboard, InlineKeyboardMarkup)
+    assert [
+        [(button.text, button.callback_data) for button in row]
+        for row in keyboard.inline_keyboard
+    ] == [[(RU.btn_recall_retry, RECALL)], [PRACTICE, NEXT_LESSON]]
 
 
 async def test_a_retry_at_the_end_of_a_lesson_offers_practice(
