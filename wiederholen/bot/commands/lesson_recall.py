@@ -307,7 +307,6 @@ async def handle_start(
     await message.edit_reply_markup(reply_markup=None)
     await forget_buttoned_message(state)
     await callback.answer()
-    await message.answer(locale.lesson_recall_intro)
     lesson_recall_id = uuid.uuid4().hex
     await state.update_data({_ID_KEY: lesson_recall_id, _CORRECT_KEY: 0})
     await _start_waiting(state, LessonRecallState.generating)
