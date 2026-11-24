@@ -1,6 +1,6 @@
 # 0036. Practice after a lesson is the learner's choice
 
-**Status:** Accepted, 2026-11-24.
+**Status:** Accepted, 2026-11-24 ([#397](https://github.com/pauk-slon/immer-wiederholen/pull/397)).
 
 ## Context
 
