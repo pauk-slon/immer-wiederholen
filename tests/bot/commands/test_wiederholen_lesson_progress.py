@@ -162,7 +162,7 @@ async def test_after_an_optional_recall_the_summary_isnt_repeated(
     assert last[-1].text.startswith(RU.lesson_summary.format(correct=2, size=2))
     assert _button_texts(last[-1]) == [RU.btn_recall, "Продолжить"]
     [result] = _sent(recall_result)
-    assert result.text == f"{RU.correct_mark} {RU.recall_correct}"
+    assert result.text == f"{RU.correct_mark} {RU.correct}"
     assert _button_texts(result) == ["Продолжить"]
 
 

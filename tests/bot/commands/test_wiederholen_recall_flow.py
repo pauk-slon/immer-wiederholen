@@ -39,7 +39,7 @@ async def test_correct_input_shows_success(
     requests = await feed_message("Ich warte auf den Bus.", course=Course([exercise]))
 
     assert len(requests) == 1
-    assert RU.recall_correct in requests[0].text
+    assert RU.correct in requests[0].text
 
 
 async def test_wrong_input_shows_correct_sentence(
@@ -141,7 +141,7 @@ async def test_normalizes_case_and_whitespace(
     requests = await feed_message("ich warte  auf den bus.", course=Course([exercise]))
 
     assert len(requests) == 1
-    assert RU.recall_correct in requests[0].text
+    assert RU.correct in requests[0].text
 
 
 async def test_accepts_any_of_multiple_answers(
@@ -165,7 +165,7 @@ async def test_accepts_any_of_multiple_answers(
     )
 
     assert len(requests) == 1
-    assert RU.recall_correct in requests[0].text
+    assert RU.correct in requests[0].text
 
 
 async def test_recall_prompt_sent_after_answering(
@@ -247,7 +247,7 @@ async def test_recall_accepted_after_answering(
     )
 
     assert len(requests) == 1
-    assert RU.recall_correct in requests[0].text
+    assert RU.correct in requests[0].text
 
 
 async def test_retry_button_appears_after_wrong_recall(

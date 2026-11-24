@@ -708,7 +708,7 @@ async def handle_recall(
             shown_recall,
             message.text,
         ):
-            result_html = f"{locale.correct_mark} {locale.recall_correct}"
+            result_html = f"{locale.correct_mark} {locale.correct}"
             reply_markup = make_next_button(locale, next_label)
         else:
             result_html = _format_wrong(

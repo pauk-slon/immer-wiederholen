@@ -53,7 +53,6 @@ class Locale:
     correct: str
     wrong: str
     recall_prompt: str
-    recall_correct: str
     recall_wrong: str
     # After a mistake of only extra letters: the learner's text with them
     # struck through, then the answer
@@ -121,7 +120,6 @@ RU: Final = Locale(
     correct="Правильно!",
     wrong="Правильный ответ: {answer}",
     recall_prompt="Напишите фразу целиком:\n{recall}",
-    recall_correct="Правильно!",
     recall_wrong="Правильный ответ:\n{answer}",
     wrong_extra_letters="{mistake} → {answer}",
     cmd_start="Начать",
@@ -195,7 +193,6 @@ EN: Final = Locale(
     correct="Correct!",
     wrong="The correct answer is: {answer}",
     recall_prompt="Type the whole sentence:\n{recall}",
-    recall_correct="Correct!",
     recall_wrong="The correct answer is:\n{answer}",
     wrong_extra_letters="{mistake} → {answer}",
     cmd_start="Start",

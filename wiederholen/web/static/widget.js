@@ -463,8 +463,9 @@ const STRINGS = {
     next: "Дальше",
     correct: "Правильно!",
     wrong: (answer) => `Неправильно. Правильный ответ: ${answer}`,
-    // Mirrors the bot's own l10n.py wording exactly (btn_recall,
-    // btn_recall_retry, btn_recall_skip, recall_correct, recall_wrong, recall_prompt) —
+    // Mirrors the bot's own l10n.py wording (btn_recall, btn_recall_retry,
+    // btn_recall_skip, recall_prompt). The bot shows a mark instead of the
+    // verdict words, the widget keeps them —
     // recallRetry is kept distinct from tryAgain above (a different
     // button, for the unrelated network-error-retry case) since the bot's
     // own ru copy for the two differs ("Попробовать ещё раз" vs
