@@ -122,7 +122,7 @@ The learner chooses the lesson recall ([ADR 0036](adr/0036-practice-after-a-less
 
 Such a lesson gets no optional recall, because two kinds of recall would confuse the learner. So a wrong first answer to a pair gets no recall there, and the lesson recall uses it instead, if the learner chooses the practice. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
-A tap starts the generation. Before it, the bot says that a translation task starts, so the learner doesn't think that the first sentence is one more exercise of the lesson. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button, after the daily limit or without keys, the practice button shows the next exercise, because the learner wants to go on. The sentences are in the interface language at the start.
+A tap starts the generation. The bot sends no message before the first sentence. The learner chose the practice, the lesson summary separates it from the lesson, and the "typing" status shows the wait. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button, after the daily limit or without keys, the practice button shows the next exercise, because the learner wants to go on. The sentences are in the interface language at the start.
 
 ### The daily limit
 
