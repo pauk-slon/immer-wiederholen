@@ -41,6 +41,8 @@ DENKEN = make_exercise(word="denken", answer="an", distractors=["auf", "für", "
 ACHTEN = make_exercise(word="achten", answer="auf")
 COURSE = Course([WARTEN, HOFFEN, DENKEN, ACHTEN], lesson_recall_guide=GUIDE)
 WORDS = ("warten", "hoffen", "denken", "achten")
+PRACTICE = (RU.btn_practice, LESSON_RECALL)
+NEXT_LESSON = (RU.btn_next_lesson, NEXT_EXERCISE)
 
 
 def _lesson_recall(*texts: str, language: Any = "ru") -> LessonRecall:
@@ -156,14 +158,15 @@ async def _start(send: Any, state: FSMContext) -> list[Any]:
     return await send.callback(LESSON_RECALL)
 
 
-async def test_continue_after_the_summary_starts_a_lesson_recall(
+async def test_the_summary_offers_practice_and_the_next_lesson(
     send: Any, state: FSMContext
 ) -> None:
     requests = await _finish_lesson(send, state)
 
     summary = _sent(requests)[-1]
-    assert summary.text is not None and "Верно: 3 из 4" in summary.text
-    assert _buttons(summary) == [(RU.btn_continue, LESSON_RECALL)]
+    assert summary.text is not None
+    assert summary.text.startswith(RU.lesson_summary.format(correct=3, size=4))
+    assert _buttons(summary) == [PRACTICE, NEXT_LESSON]
 
 
 async def test_without_an_api_key_there_is_no_lesson_recall(
@@ -171,7 +174,7 @@ async def test_without_an_api_key_there_is_no_lesson_recall(
 ) -> None:
     requests = await _finish_lesson(send, state, anthropic_client=None)
 
-    assert _buttons(_sent(requests)[-1]) == [(RU.btn_continue, NEXT_EXERCISE)]
+    assert _buttons(_sent(requests)[-1]) == [NEXT_LESSON]
 
 
 async def test_a_lesson_with_a_lesson_recall_gets_no_optional_recall(
@@ -194,10 +197,10 @@ async def test_a_lesson_of_three_exercises_has_no_lesson_recall(
     last = await send.message((await _shown_exercise(state)).answer[0], course=course)
 
     assert RECALL in [data for _, data in _buttons(_sent(first)[-1])]
-    assert (RU.btn_continue, NEXT_EXERCISE) in _buttons(_sent(last)[-1])
+    assert NEXT_LESSON in _buttons(_sent(last)[-1])
 
 
-async def test_continue_after_a_wrong_required_recall_starts_a_lesson_recall(
+async def test_a_wrong_required_recall_at_the_end_of_a_lesson_offers_practice(
     send: Any,
     state: FSMContext,
     introduce_pairs: IntroducePairs,
@@ -208,13 +211,15 @@ async def test_continue_after_a_wrong_required_recall_starts_a_lesson_recall(
 
     requests = await send.message("falsch", course=course)
 
-    assert _buttons(_sent(requests)[-1]) == [
-        (RU.btn_recall_retry, RECALL),
-        (RU.btn_continue, LESSON_RECALL),
-    ]
+    keyboard = _sent(requests)[-1].reply_markup
+    assert isinstance(keyboard, InlineKeyboardMarkup)
+    assert [
+        [(button.text, button.callback_data) for button in row]
+        for row in keyboard.inline_keyboard
+    ] == [[(RU.btn_recall_retry, RECALL)], [PRACTICE, NEXT_LESSON]]
 
 
-async def test_skipping_a_retry_at_the_end_of_a_lesson_starts_a_lesson_recall(
+async def test_a_retry_at_the_end_of_a_lesson_offers_practice(
     send: Any,
     state: FSMContext,
     introduce_pairs: IntroducePairs,
@@ -226,10 +231,13 @@ async def test_skipping_a_retry_at_the_end_of_a_lesson_starts_a_lesson_recall(
 
     requests = await send.callback(RECALL, course=course)
 
-    assert _buttons(_sent(requests)[-1]) == [(RU.btn_recall_skip, LESSON_RECALL)]
+    assert _buttons(_sent(requests)[-1]) == [
+        PRACTICE,
+        (RU.btn_recall_skip, NEXT_EXERCISE),
+    ]
 
 
-async def test_continue_after_a_right_required_recall_starts_a_lesson_recall(
+async def test_a_right_required_recall_at_the_end_of_a_lesson_offers_practice(
     send: Any,
     state: FSMContext,
     introduce_pairs: IntroducePairs,
@@ -241,7 +249,7 @@ async def test_continue_after_a_right_required_recall_starts_a_lesson_recall(
 
     requests = await send.message(recall["answer"][0], course=course)
 
-    assert _buttons(_sent(requests)[-1]) == [(RU.btn_continue, LESSON_RECALL)]
+    assert _buttons(_sent(requests)[-1]) == [PRACTICE, NEXT_LESSON]
 
 
 async def test_the_start_sends_the_lesson_and_shows_the_first_sentence(
@@ -321,7 +329,7 @@ async def test_after_the_daily_limit_continue_shows_the_next_exercise(
     requests = await _finish_lesson(send, state)
     await send.callback(LESSON_RECALL)
 
-    assert _buttons(_sent(requests)[-1]) == [(RU.btn_continue, NEXT_EXERCISE)]
+    assert _buttons(_sent(requests)[-1]) == [NEXT_LESSON]
     generate.assert_not_called()
     assert await state.get_state() == "UserState:answering"
 
@@ -344,7 +352,7 @@ async def test_a_lesson_recall_older_than_a_day_does_not_count(
     requests = await _finish_lesson(send, state)
     await send.callback(LESSON_RECALL)
 
-    assert _buttons(_sent(requests)[-1]) == [(RU.btn_continue, LESSON_RECALL)]
+    assert _buttons(_sent(requests)[-1]) == [PRACTICE, NEXT_LESSON]
     assert len((await state.get_data())[STARTED_AT_KEY]) == 1
 
 
@@ -356,7 +364,7 @@ async def test_a_chat_in_the_unlimited_flag_has_no_daily_limit(
 
     requests = await _finish_lesson(send, state, feature_flags=flags)
 
-    assert _buttons(_sent(requests)[-1]) == [(RU.btn_continue, LESSON_RECALL)]
+    assert _buttons(_sent(requests)[-1]) == [PRACTICE, NEXT_LESSON]
 
 
 async def test_the_daily_limit_is_recorded_on_the_update_span(
@@ -585,7 +593,7 @@ async def test_the_last_result_leads_to_the_next_exercise(
     assert result.text == f"{RU.correct_mark} {RU.correct}"
     assert result.reply_markup is None
     assert summary.text == RU.lesson_recall_summary.format(correct=2, size=2)
-    assert _buttons(summary) == [(RU.btn_continue, NEXT_EXERCISE)]
+    assert _buttons(summary) == [NEXT_LESSON]
     assert await state.get_state() is None
     data = await state.get_data()
     assert "lesson_recall" not in data
@@ -604,7 +612,7 @@ async def test_a_skip_of_the_last_sentence_leads_to_the_next_exercise(
     reference, summary = _sent(requests)
     assert reference.text == "Вариант перевода:\n<blockquote>Ref 1</blockquote>"
     assert summary.text == RU.lesson_recall_summary.format(correct=0, size=2)
-    assert _buttons(summary) == [(RU.btn_continue, NEXT_EXERCISE)]
+    assert _buttons(summary) == [NEXT_LESSON]
 
 
 async def test_a_next_exercise_button_of_another_message_leaves_the_lesson_recall(
@@ -987,7 +995,7 @@ async def test_a_wrong_translation_waits_for_the_learner(
     requests = await send.message("Wir warten für.")
 
     [result] = _sent(requests)
-    assert _buttons(result) == [(RU.btn_continue, NEXT_SENTENCE)]
+    assert _buttons(result) == [(RU.btn_next_sentence, NEXT_SENTENCE)]
     assert await state.get_state() == LessonRecallState.reading.state
 
 
@@ -1095,5 +1103,31 @@ async def test_a_right_translation_with_an_explanation_waits_for_the_learner(
 
     [result] = _sent(requests)
     assert result.text == f"{RU.correct_mark} Верно, warten auf."
-    assert _buttons(result) == [(RU.btn_continue, NEXT_SENTENCE)]
+    assert _buttons(result) == [(RU.btn_next_sentence, NEXT_SENTENCE)]
     assert await state.get_state() == LessonRecallState.reading.state
+
+
+async def test_the_next_lesson_after_the_summary_skips_the_practice(
+    send: Any, state: FSMContext, generate: AsyncMock
+) -> None:
+    await _finish_lesson(send, state)
+
+    await send.callback(NEXT_EXERCISE)
+
+    generate.assert_not_called()
+    assert await state.get_state() == "UserState:answering"
+
+
+async def test_an_offer_of_practice_is_recorded_on_the_update_span(
+    send: Any, state: FSMContext
+) -> None:
+    await _answer_lesson(send, state, [False, True, True])
+    await send.callback(NEXT_EXERCISE)
+
+    with patch(
+        "wiederholen.bot.commands.wiederholen.trace", spec=otel_trace
+    ) as mock_trace:
+        await send.message((await _shown_exercise(state)).answer[0])
+
+    set_attribute = mock_trace.get_current_span.return_value.set_attribute
+    set_attribute.assert_called_once_with("lesson_recall.offered", True)

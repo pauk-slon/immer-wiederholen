@@ -225,7 +225,7 @@ async def _send_result_and_go_on(
                 reply_markup=_keyboard(
                     [
                         InlineKeyboardButton(
-                            text=locale.btn_continue, callback_data=NEXT_SENTENCE
+                            text=locale.btn_next_sentence, callback_data=NEXT_SENTENCE
                         )
                     ]
                 ),
@@ -247,7 +247,7 @@ async def _send_result_and_go_on(
         _keyboard(
             [
                 InlineKeyboardButton(
-                    text=locale.btn_continue, callback_data=NEXT_EXERCISE
+                    text=locale.btn_next_lesson, callback_data=NEXT_EXERCISE
                 )
             ]
         ),
@@ -282,7 +282,8 @@ async def handle_start(
         if key in exercises_by_key
     ]
     message = callback.message
-    # The button says "Continue", so without a lesson recall it continues
+    # An old button or a used-up limit can't start a lesson recall, and the
+    # learner still wants to go on
     if (
         not isinstance(message, Message)
         or not offers_lesson_recall(

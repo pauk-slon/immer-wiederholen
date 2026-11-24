@@ -214,18 +214,21 @@ def offers_lesson_recall(
     )
 
 
-def _continue_to_lesson_recall(markup: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                button.model_copy(update={"callback_data": LESSON_RECALL})
-                if button.callback_data == NEXT_EXERCISE
-                else button
-                for button in row
-            ]
-            for row in markup.inline_keyboard
-        ]
+def _offer_lesson_recall(
+    markup: InlineKeyboardMarkup, locale: Locale
+) -> InlineKeyboardMarkup:
+    # Right before the "next" button, which ends the lesson. The buttons for
+    # the current exercise, such as "Try again", stay first in a row of their
+    # own, so that a row has at most two buttons
+    practice = InlineKeyboardButton(
+        text=locale.btn_practice, callback_data=LESSON_RECALL
     )
+    buttons = [button for row in markup.inline_keyboard for button in row]
+    current = [b for b in buttons if b.callback_data != NEXT_EXERCISE]
+    following = [b for b in buttons if b.callback_data == NEXT_EXERCISE]
+    rows = [current] if current else []
+    rows.append([practice, *following])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _format_lesson_summary(
@@ -277,7 +280,7 @@ def _get_next_label(finished_lesson: dict | None, language: Language) -> str | N
     # After a lesson, the "Next" button starts the next lesson
     if finished_lesson is None:
         return None
-    return LOCALES[language].btn_continue
+    return LOCALES[language].btn_next_lesson
 
 
 async def _start_recall(
@@ -322,10 +325,10 @@ async def _send_recall_prompt(
 
 
 def _make_skip_recall_button(
-    locale: Locale, continues_to_lesson_recall: bool
+    locale: Locale, offers_practice: bool
 ) -> InlineKeyboardMarkup:
     markup = make_next_button(locale, locale.btn_recall_skip)
-    return _continue_to_lesson_recall(markup) if continues_to_lesson_recall else markup
+    return _offer_lesson_recall(markup, locale) if offers_practice else markup
 
 
 def _recall_prompt(recall: Recall, language: Language, locale: Locale) -> str:
@@ -662,7 +665,8 @@ async def handle_answer(
             finished_lesson,
             state_data,
         ):
-            reply_markup = _continue_to_lesson_recall(reply_markup)
+            reply_markup = _offer_lesson_recall(reply_markup, locale)
+            trace.get_current_span().set_attribute("lesson_recall.offered", True)
         sent = await send_result(message, result_html, summary, reply_markup)
         await state.update_data(shown_exercise=state_data["shown_exercise"])
         await remember_buttoned_message(state, sent)
@@ -692,7 +696,7 @@ async def handle_recall(
     )
     next_label = _get_next_label(finished_lesson, language)
     locale = LOCALES[language]
-    continues_to_lesson_recall = offers_lesson_recall(
+    offers_practice = offers_lesson_recall(
         anthropic_client, feature_flags, message.chat.id, finished_lesson, state_data
     )
     # check_recall() doesn't change student_record, unlike request_recall()
@@ -721,8 +725,9 @@ async def handle_recall(
             reply_markup = _make_recall_buttons(
                 locale, locale.btn_recall_retry, next_label
             )
-        if continues_to_lesson_recall:
-            reply_markup = _continue_to_lesson_recall(reply_markup)
+        if offers_practice:
+            reply_markup = _offer_lesson_recall(reply_markup, locale)
+            trace.get_current_span().set_attribute("lesson_recall.offered", True)
         sent = await message.answer(
             result_html, reply_markup=reply_markup, parse_mode="HTML"
         )
@@ -737,7 +742,7 @@ async def show_the_recall_again(
     anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     # Not the fallback: its "next" button would skip the recall, and after
-    # the last answer of a lesson also the summary and the lesson recall
+    # the last answer of a lesson also the offer of the practice
     await clear_stale_buttons(message.bot, message.chat.id, state)
     state_data = await state.get_data()
     language = get_language(state_data)

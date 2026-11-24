@@ -98,7 +98,7 @@ async def test_the_last_answer_of_a_lesson_shows_the_summary(
         + "\n"
         + RU.streak_text.format(days="1 день")
     )
-    assert _button_texts(summary) == ["Продолжить"]
+    assert _button_texts(summary) == [RU.btn_next_lesson]
 
 
 async def test_a_lesson_that_adds_no_streak_day_shows_no_streak_line(
@@ -143,7 +143,7 @@ async def test_before_a_required_recall_the_summary_comes_without_buttons(
     assert prompt.text.startswith(RU.recall_prompt.split("{")[0])
     [result] = _sent(recall_result)
     assert result.text.startswith(RU.wrong_mark)
-    assert _button_texts(result) == [RU.btn_recall_retry, "Продолжить"]
+    assert _button_texts(result) == [RU.btn_recall_retry, RU.btn_next_lesson]
 
 
 async def test_after_an_optional_recall_the_summary_isnt_repeated(
@@ -160,10 +160,10 @@ async def test_after_an_optional_recall_the_summary_isnt_repeated(
     recall_result = await feed_message("Ich warte auf den Bus.", course=course)
 
     assert last[-1].text.startswith(RU.lesson_summary.format(correct=2, size=2))
-    assert _button_texts(last[-1]) == [RU.btn_recall, "Продолжить"]
+    assert _button_texts(last[-1]) == [RU.btn_recall, RU.btn_next_lesson]
     [result] = _sent(recall_result)
     assert result.text == f"{RU.correct_mark} {RU.correct}"
-    assert _button_texts(result) == ["Продолжить"]
+    assert _button_texts(result) == [RU.btn_next_lesson]
 
 
 @pytest.mark.parametrize("button", [NEXT_EXERCISE, STUDY_MORE])
@@ -197,4 +197,4 @@ async def test_the_next_lesson_button_is_in_the_chat_language(
 
     last = await feed_message("auf", course=course)
 
-    assert _button_texts(last[-1]) == ["Continue"]
+    assert _button_texts(last[-1]) == ["Next lesson"]

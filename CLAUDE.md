@@ -61,6 +61,7 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 - Topic selection narrows what's *shown* (`/wiederholen`, next/study-more buttons, reminders), never `/progress` or answer checking.
 - `bot_blocked` is set from both `my_chat_member` and a 403 on send; the reminder skips such chats before touching the record.
 - Feature flags stay in the bot layer; `wiederholen.school` never sees a chat id or flag name.
+- The interface calls a lesson "урок" and a lesson recall "практика" (the list of words is in `l10n.py`, ADR 0036). Practice is the learner's choice: a button of its own next to "next lesson", never the only way on.
 - The lesson recall (`commands/lesson_recall.py`, on when `ANTHROPIC_API_KEY` is set, 3 a day per chat unless the `lesson_recall_unlimited` flag has it, ADR 0033) checks the FSM data again after each model call and drops the result unless its `lesson_recall_id`, state and sentence are still there; its handlers never open `check_out()`.
 
 ## AI-generated content

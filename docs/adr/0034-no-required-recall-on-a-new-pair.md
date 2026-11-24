@@ -1,6 +1,6 @@
 # 0034. A wrong first answer to a pair doesn't require a recall
 
-**Status:** Accepted, 2026-11-23 ([#391](https://github.com/pauk-slon/immer-wiederholen/pull/391)).
+**Status:** Accepted, 2026-11-23 ([#391](https://github.com/pauk-slon/immer-wiederholen/pull/391)). Amended by [0036](0036-practice-after-a-lesson-is-a-choice.md).
 
 ## Context
 
