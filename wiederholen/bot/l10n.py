@@ -92,7 +92,7 @@ class Locale:
     unexpected_message: str
     streak_text: str
     lesson_summary: str
-    # After a lesson, on the "Next exercise" button
+    # After a lesson, the text of the "Next exercise" button
     btn_next_lesson: str
     btn_practice: str
     btn_next_sentence: str
