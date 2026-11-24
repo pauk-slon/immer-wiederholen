@@ -69,6 +69,7 @@ The date is the day of the decision.
 | [0025](0025-second-reminder-for-a-streak.md) | A streak of 2 days or more gets a second reminder | 2026-10-31 | Amended by [0027](0027-streaks-count-finished-lessons.md) |
 | [0029](0029-start-payload-selects-topic-groups.md) | A /start payload can also select the topic groups of a new chat | 2026-11-15 | Accepted |
 | [0035](0035-result-of-an-answer-in-one-message.md) | The result of an answer is one message | 2026-11-24 | Accepted |
+| [0036](0036-practice-after-a-lesson-is-a-choice.md) | Practice after a lesson is the learner's choice | 2026-11-24 | Accepted |
 
 ### Web frontend
 

@@ -104,7 +104,7 @@ In a lesson of several exercises, the learner sees these things:
 
 - **A counter.** The question starts with the position of the exercise in the lesson, for example "3/5".
 - **A summary.** The summary shows the number of right answers, and the streak if the lesson added a day. It is a message of its own, right after the result of the last answer, so it isn't lost at the end of a long explanation. The buttons of the result move to the summary. If the last answer needs a recall, the summary has no buttons, and the recall result doesn't repeat it. So the learner sees the summary once.
-- **A "Continue" button.** After the summary, the "Next exercise" button says "Continue" and starts the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
+- **A "next lesson" button.** On the summary, the button with the `NEXT_EXERCISE` callback says that it starts the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
 
 A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
 
@@ -118,9 +118,9 @@ Only a lesson of 4 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_S
 
 The bot takes the size from the counter of the shown exercise ("2/5"). So it decides for the whole lesson at its first exercise. A lesson that gets smaller, for example after `/topics`, gets the optional recall back and no lesson recall.
 
-In a lesson with a lesson recall, the "Continue" button starts the lesson recall. This button is on the summary, or on the recall result when the last answer needed a recall or the learner chose one. The button keeps its text and gets the `LESSON_RECALL` callback instead of `NEXT_EXERCISE`. Such a lesson gets no optional recall, because two kinds of recall would confuse the learner. So a wrong first answer to a pair gets no recall there, and the lesson recall uses it instead. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
+The learner chooses the lesson recall ([ADR 0036](adr/0036-practice-after-a-lesson-is-a-choice.md)). In a lesson with a lesson recall, the end of the lesson has a practice button with the `LESSON_RECALL` callback, in a row of its own, next to the usual buttons. The "next lesson" button keeps `NEXT_EXERCISE` and skips the practice. The practice button is on the summary, or on the recall result when the last answer needed a recall or the learner chose one. A recall at the end of such a lesson also has it next to "Skip". The interface calls a lesson recall "practice" (see the list of words in `l10n.py`). Such a lesson gets no optional recall, because two kinds of recall would confuse the learner. So a wrong first answer to a pair gets no recall there, and the lesson recall uses it instead. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
-A tap starts the generation. Before it, the bot says that a translation task starts, so the learner doesn't think that the first sentence is one more exercise of the lesson. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
+A tap starts the generation. Before it, the bot says that a translation task starts, so the learner doesn't think that the first sentence is one more exercise of the lesson. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button, after the daily limit or without keys, the practice button shows the next exercise, because the learner wants to go on. The sentences are in the interface language at the start.
 
 ### The daily limit
 
@@ -128,7 +128,7 @@ Each lesson recall costs model calls, so a chat gets 3 lesson recalls in 24 hour
 
 - **The 24 hours move with time.** The bot counts the lesson recalls that started in the last 24 hours, not in a calendar day. The bot doesn't know the learner's time zone, so a calendar day would end at a random time of the learner's day.
 - **Only a generated task counts.** The bot counts a lesson recall after the model wrote the sentences. A failed generation doesn't use up the limit, because the learner got nothing. A task that the chat left during the generation counts, because the call was paid.
-- **A lesson after the limit works as a lesson without a lesson recall.** It gets the optional recall back, and "Continue" shows the next exercise. The bot checks the limit at each answer. If the limit ends during a lesson, the rest of the lesson gets no optional recall, and the lesson gets a lesson recall.
+- **A lesson after the limit works as a lesson without a lesson recall.** It gets the optional recall back, and its summary has no practice button. The bot checks the limit at each answer. If the limit ends during a lesson, the rest of the lesson gets no optional recall, and the lesson gets a lesson recall.
 
 The limit is per chat, because the bot keeps it in the FSM data of the chat. `/reset` doesn't change it.
 
@@ -182,7 +182,7 @@ After a model call, the handler reads the FSM data again. It continues only if t
 
 ### Failures
 
-A failed generation shows an error message with "Next exercise". The learner chose "Continue", so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" sends it to the model again. The learner can also type a new translation or skip the sentence.
+A failed generation shows an error message with "Next exercise". The learner chose the practice and can't get it now, so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" sends it to the model again. The learner can also type a new translation or skip the sentence.
 
 A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same message as after a failed generation or a failed check.
 

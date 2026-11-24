@@ -93,7 +93,9 @@ class Locale:
     streak_text: str
     lesson_summary: str
     # After a lesson, on the "Next exercise" button
-    btn_continue: str
+    btn_next_lesson: str
+    btn_practice: str
+    btn_next_sentence: str
     grammar_class_hint: str
     language_set: str
     # Before the first sentence, so the learner sees a new task begin
@@ -113,6 +115,13 @@ class Locale:
 # The texts address the learner as "вы", in lower case as usual in an
 # interface. A button that names an action uses the infinitive ("Попробовать
 # ещё раз")
+#
+# Words for what the code calls (ADR 0036):
+# | code          | ru       | en       |
+# | exercise      | задание  | exercise |
+# | lesson        | урок     | lesson   |
+# | lesson recall | практика | practice |
+# A recall has no noun, only the verb on its button
 RU: Final = Locale(
     start="Привет! Я буду давать вам короткие задания и возвращаться к ним, пока вы их не запомните.",
     correct_mark="✅",
@@ -169,12 +178,14 @@ RU: Final = Locale(
         "Нажмите кнопку, чтобы продолжить."
     ),
     streak_text="🔥 Серия: {days}",
-    lesson_summary="🏁 Готово! Верно: {correct} из {size}",
-    btn_continue="Продолжить",
+    lesson_summary="🏁 Урок пройден: верно {correct} из {size}",
+    btn_next_lesson="Следующий урок",
+    btn_practice="Попробовать на практике",
+    btn_next_sentence="Следующая фраза",
     grammar_class_hint="Так же, как у {word}",
     language_set="🌐 Язык: русский",
-    lesson_recall_intro="✍️ Теперь переведите несколько предложений со словами из этого урока",
-    lesson_recall_summary="🏁 Переводы: верно {correct} из {size}",
+    lesson_recall_intro="✍️ Практика: переведите несколько фраз на тему урока",
+    lesson_recall_summary="🏁 Практика: верно {correct} из {size}",
     lesson_recall_sentence="{position}/{size} ✍️ Переведите:\n{text}",
     btn_lesson_recall_skip="Пропустить",
     lesson_recall_reference="Вариант перевода:\n{reference}",
@@ -242,12 +253,14 @@ EN: Final = Locale(
         "Tap the button to continue."
     ),
     streak_text="🔥 Streak: {days}",
-    lesson_summary="🏁 Done! Correct: {correct} of {size}",
-    btn_continue="Continue",
+    lesson_summary="🏁 Lesson complete: {correct} of {size} correct",
+    btn_next_lesson="Next lesson",
+    btn_practice="Put it into practice",
+    btn_next_sentence="Next sentence",
     grammar_class_hint="Same as for {word}",
     language_set="🌐 Language: English",
-    lesson_recall_intro="✍️ Now translate a few sentences with the words from this lesson",
-    lesson_recall_summary="🏁 Translations: {correct} of {size} correct",
+    lesson_recall_intro="✍️ Practice: translate a few sentences on the topics of this lesson",
+    lesson_recall_summary="🏁 Practice: {correct} of {size} correct",
     lesson_recall_sentence="{position}/{size} ✍️ Translate:\n{text}",
     btn_lesson_recall_skip="Skip",
     lesson_recall_reference="A possible translation:\n{reference}",
