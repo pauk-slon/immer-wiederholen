@@ -249,8 +249,6 @@ async def send_result(
     summary: str | None,
     reply_markup: InlineKeyboardMarkup,
 ) -> Message:
-    # The summary is a message of its own, so it isn't lost at the end of a
-    # long explanation. The buttons go on the last message
     if summary is None:
         return await message.answer(
             result_html, reply_markup=reply_markup, parse_mode="HTML"
@@ -260,9 +258,7 @@ async def send_result(
 
 
 async def _remove_reply_keyboard(message: Message) -> None:
-    # Only a new message removes a reply keyboard, and Telegram doesn't let
-    # such a message get inline buttons later. So a short message removes the
-    # keyboard and is deleted, and the result comes as one message (ADR 0035)
+    # A message with ReplyKeyboardRemove can't get inline buttons later (ADR 0035)
     assert message.bot is not None
     sent = await message.answer(
         _KEYBOARD_REMOVAL_TEXT,

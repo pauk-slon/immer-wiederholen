@@ -55,15 +55,17 @@ After an answer, the bot sends one message with the result. The message starts w
 
 The two marks differ in shape, not only in color, because no word says the verdict. A learner who doesn't see colors must still tell them apart.
 
-### Removing the options keyboard
-
-After an answer to a multiple-choice exercise, the options keyboard must go. Only a new message can remove a reply keyboard, and such a message can't have inline buttons, now or later. So `_remove_reply_keyboard()` first sends a short message with `ReplyKeyboardRemove` and without a notification, and deletes it at once. The keyboard stays removed. Then the result comes as one message with its buttons. If the deletion fails for any reason of the Bot API, for example a flood limit or a network error, the bot logs a warning and continues. At this point the answer is already recorded, so the learner must get the result. The only cost is one extra short message in the chat. [ADR 0035](adr/0035-result-of-an-answer-in-one-message.md) describes the other ways that don't work.
-
 The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)). After a wrong answer to a pair that the learner answered before, a recall starts at once. After a right answer, or a wrong first answer to a pair, the learner can choose an optional recall with "Drill" ([ADR 0034](adr/0034-no-required-recall-on-a-new-pair.md)). A wrong recall answer gets the mistake marked in the same way, and the learner can try again.
 
 A recall that the learner asked for, with "Drill" or "Try again", has a "Skip" button. The learner can't see the sentence before the tap, so they must be able to change their mind. Only the first attempt of a required recall has no "Skip". "Skip" works as the "next" button after a wrong recall answer. It shows the next exercise. After the last answer of a lesson with a lesson recall, it starts the lesson recall. `recall_is_skippable` in the FSM data keeps the choice, so the bot can show the recall again with the same button.
 
 When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" button. It raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
+
+### Removing the options keyboard
+
+After an answer to a multiple-choice exercise, the bot must remove the options keyboard. Only a new message can remove a reply keyboard, and such a message can't have inline buttons, not even after an edit. So `_remove_reply_keyboard()` first sends a short message with `ReplyKeyboardRemove` and without a notification. Then it deletes this message at once. The keyboard stays removed, and the result comes as one message with its buttons.
+
+If the Bot API refuses the deletion or the call fails, for example because of a flood limit or a network error, the bot logs a warning and continues. At this point the answer is already recorded, so the learner must get the result. The only cost is one extra short message in the chat. [ADR 0035](adr/0035-result-of-an-answer-in-one-message.md) describes the alternatives and why the bot doesn't use them.
 
 ### Marking a mistake
 
@@ -101,7 +103,7 @@ The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tut
 In a lesson of several exercises, the learner sees these things:
 
 - **A counter.** The question starts with the position of the exercise in the lesson, for example "3/5".
-- **A summary.** Right after the result of the last answer of the lesson, a message of its own shows the number of right answers, and the streak if the lesson added a day. Otherwise the summary would be lost at the end of a long explanation. The buttons go on the summary, not on the result. If the last answer needs a recall, the summary has no buttons, the recall follows, and the buttons come with the recall result. The recall result doesn't repeat the summary. So the learner sees the summary once, and a "Try again" button never stands on it.
+- **A summary.** The summary shows the number of right answers, and the streak if the lesson added a day. It is a message of its own, right after the result of the last answer, so it isn't lost at the end of a long explanation. The buttons of the result move to the summary. If the last answer needs a recall, the summary has no buttons, and the recall result doesn't repeat it. So the learner sees the summary once.
 - **A "Continue" button.** After the summary, the "Next exercise" button says "Continue" and starts the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
 
 A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
@@ -118,7 +120,7 @@ The bot takes the size from the counter of the shown exercise ("2/5"). So it dec
 
 In a lesson with a lesson recall, the "Continue" button starts the lesson recall. This button is on the summary, or on the recall result when the last answer needed a recall or the learner chose one. The button keeps its text and gets the `LESSON_RECALL` callback instead of `NEXT_EXERCISE`. Such a lesson gets no optional recall, because two kinds of recall would confuse the learner. So a wrong first answer to a pair gets no recall there, and the lesson recall uses it instead. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
 
-A tap starts the generation. Before it, the bot says that a translation task starts, so the learner doesn't take the first sentence for one more exercise of the lesson. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
+A tap starts the generation. Before it, the bot says that a translation task starts, so the learner doesn't think that the first sentence is one more exercise of the lesson. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button or without keys, the button shows the next exercise. The sentences are in the interface language at the start.
 
 ### The daily limit
 
@@ -139,11 +141,11 @@ The limit is per chat, because the bot keeps it in the FSM data of the chat. `/r
 | `generating` | the model writes the sentences | gets a busy notice |
 | `translating` | the bot shows a sentence with "Skip" | is the translation. A message without text shows the sentence again. A translation that is too long gets a notice and the sentence again |
 | `checking` | the model checks the translation | gets a busy notice |
-| `reading` | the result of a wrong translation waits for "Continue" | shows the next sentence. The learner hasn't seen it, so the message isn't its translation |
+| `reading` | the result of a wrong translation waits for a tap | gets the next sentence. The learner hasn't seen it, so the message isn't its translation |
 
 The bot doesn't send a translation of more than 300 characters (`_MAX_ANSWER_LENGTH`) to the model. The bot counts the characters without the spaces at the ends of the text. The longest reference in test runs had 99 characters, so 300 leaves room for a free translation. The limit protects the result, which repeats the corrected translation. A very long translation would make the result longer than a Telegram message can be, and the model's reply could be cut off.
 
-The result starts with the same marks as the result of an exercise. After a right translation, the bot shows the next sentence at once. After a wrong translation, the result has a "Continue" button, and the next sentence comes only after a tap. The next sentence would push the correction out of view before the learner reads it.
+The result starts with the same marks as the result of an exercise. After a right translation, the bot shows the next sentence at once. After a wrong translation, the next sentence comes only after a tap on the result. Without the pause, the next sentence would push the correction out of view before the learner reads it.
 
 After a wrong translation, the bot shows the correction from the model. The correction keeps what the learner wrote and fixes only the mistakes, so the learner sees how to fix their own sentence. The bot doesn't show the reference too, because the reference and the correction are often the same sentence. If the model gave no correction, or the correction is the same as the answer, the bot shows the reference instead.
 

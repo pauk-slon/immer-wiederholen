@@ -52,7 +52,7 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 
 - Every message sent with an inline keyboard is followed by `remember_buttoned_message()`; a callback handler that removes its own buttons and attaches none calls `forget_buttoned_message()`; every typed command calls `clear_stale_buttons()` first. When editing a message's text, pass `reply_markup=` explicitly.
 - `_format_question()` sends HTML: every piece of authored text goes through `html.escape()`.
-- The result of an answer is one message with the buttons, the lesson summary a message of its own after it. A multiple-choice answer's reply keyboard is removed by a short message that's deleted at once (ADR 0035): a message with `ReplyKeyboardRemove` can't get inline buttons, not even by an edit.
+- The result of an answer is one message with the buttons. The lesson summary is a message of its own right after it, without buttons before a required recall, and a recall result never repeats it. A multiple-choice answer's reply keyboard is removed by a short message that's deleted at once (ADR 0035): a message with `ReplyKeyboardRemove` can't get inline buttons, not even by an edit.
 - A new chat setting, or any FSM key that must outlive one exercise, goes into `_LASTING_CHAT_STATE_KEYS`, or it's lost after every exercise.
 - The reminder decision stays in `Tutor.should_remind()` (pure); `record_reminder_sent()` only after Telegram accepted the message.
 - `/wiederholen` and the "Next exercise"/"Study more" buttons during `answering` show the shown exercise again (unless `/topics` deselected its topic), never the next one: otherwise a lesson can be finished without answers.
