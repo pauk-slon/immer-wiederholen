@@ -114,7 +114,8 @@ class Locale:
 
 # The texts address the learner as "вы", in lower case as usual in an
 # interface. A button that names an action uses the infinitive ("Попробовать
-# ещё раз")
+# ещё раз"). A button that leads to another part of the lesson names it with
+# a noun ("Следующий урок", "Практика")
 #
 # Words for what the code calls (ADR 0036):
 # | code          | ru       | en       |
@@ -180,7 +181,7 @@ RU: Final = Locale(
     streak_text="🔥 Серия: {days}",
     lesson_summary="🏁 Урок пройден: верно {correct} из {size}",
     btn_next_lesson="Следующий урок",
-    btn_practice="Практиковаться",
+    btn_practice="Практика",
     btn_next_sentence="Следующая фраза",
     grammar_class_hint="Так же, как у {word}",
     language_set="🌐 Язык: русский",
