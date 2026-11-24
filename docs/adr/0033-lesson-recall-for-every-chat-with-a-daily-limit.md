@@ -1,6 +1,6 @@
 # 0033. Every chat gets lesson recalls, with a daily limit
 
-**Status:** Accepted, 2026-11-23 ([#382](https://github.com/pauk-slon/immer-wiederholen/pull/382)). It amends [0031](0031-model-writes-and-checks-a-lesson-recall.md).
+**Status:** Accepted, 2026-11-23 ([#382](https://github.com/pauk-slon/immer-wiederholen/pull/382)). It amends [0031](0031-model-writes-and-checks-a-lesson-recall.md). Amended by [0036](0036-practice-after-a-lesson-is-a-choice.md).
 
 ## Context
 

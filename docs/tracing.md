@@ -37,7 +37,7 @@ The model call adds `lesson_recall.input_tokens`, `lesson_recall.output_tokens`,
 
 `lesson_recall.finished` and `lesson_recall.generate` show how many learners stay to the end of a lesson recall. Divide the number of updates with `lesson_recall.finished` by the number of `lesson_recall.generate` spans without `lesson_recall.failure`.
 
-`lesson_recall.offered` and `lesson_recall.generate` show how many learners choose the practice ([ADR 0036](adr/0036-practice-after-a-lesson-is-a-choice.md)). Divide the number of `lesson_recall.generate` spans by the number of updates with `lesson_recall.offered`. A learner can see the offer twice in one lesson, on the result of a wrong recall and on the next one, so the ratio is a lower bound.
+`lesson_recall.offered` and `lesson_recall.generate` show how many learners choose the practice ([ADR 0036](adr/0036-practice-after-a-lesson-is-a-choice.md)). Divide the number of `lesson_recall.generate` spans by the number of updates with `lesson_recall.offered`. A learner can see the offer more than once in one lesson, on the result of each try of a recall at the end of the lesson, so the ratio is a lower bound.
 
 `lesson_recall.limit_reached` shows how often learners reach the daily limit. If many learners reach it, the limit is too low for them.
 

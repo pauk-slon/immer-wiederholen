@@ -1,6 +1,6 @@
 # 0036. Practice after a lesson is the learner's choice
 
-**Status:** Accepted, 2026-11-24 ([#397](https://github.com/pauk-slon/immer-wiederholen/pull/397)).
+**Status:** Accepted, 2026-11-24 ([#397](https://github.com/pauk-slon/immer-wiederholen/pull/397)). It amends [0033](0033-lesson-recall-for-every-chat-with-a-daily-limit.md) and [0034](0034-no-required-recall-on-a-new-pair.md).
 
 ## Context
 
@@ -34,7 +34,7 @@ The texts of the summaries, the buttons and the line before the first sentence u
 
 ## Consequences
 
-- Fewer lesson recalls start, so the model costs less. The update span of an answer gets `lesson_recall.offered` when the summary offers the practice. The number of `lesson_recall.generate` spans divided by the number of offers shows how many learners choose it.
-- A learner who declines the practice also loses the recall of the lesson's mistakes. A lesson with a lesson recall has no optional recall, because the lesson recall used the mistakes ([ADR 0034](0034-no-required-recall-on-a-new-pair.md)). The optional recall can come back to such lessons if `lesson_recall.offered` shows that many learners decline the practice.
+- Fewer lesson recalls start, so the model costs less. The update span of an answer gets `lesson_recall.offered` when the bot offers the practice. The number of `lesson_recall.generate` spans divided by the number of offers shows how many learners choose it.
+- A learner who declines the practice also loses the recall of the lesson's mistakes. A lesson with a lesson recall has no optional recall, because the lesson recall used the mistakes ([ADR 0031](0031-model-writes-and-checks-a-lesson-recall.md), [ADR 0034](0034-no-required-recall-on-a-new-pair.md)). The optional recall can come back to such lessons if `lesson_recall.offered` shows that many learners decline the practice.
 - The "next lesson" button can lead to the reply that nothing is left for today. The bot would need a check of what comes next that doesn't change the lesson, and `Tutor` has no such check yet.
 - A new text that names a lesson or a lesson recall uses the words of the table.
