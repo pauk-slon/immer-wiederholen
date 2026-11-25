@@ -272,7 +272,7 @@ EN: Final = Locale(
     ),
     streak_text="🔥 Streak: {days}",
     lesson_summary="🏁 Lesson complete: {correct} of {size} correct",
-    lesson_recall_limit_text="⏳ Practice is available again in {wait}",
+    lesson_recall_limit_text="⏳ Practice will be available again in {wait}",
     btn_next_lesson="Next lesson",
     btn_practice="Practice",
     btn_next_sentence="Next sentence",
