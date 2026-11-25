@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.methods import EditMessageReplyMarkup, SendMessage
 from aiogram.types import InlineKeyboardMarkup
 
-from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
+from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage, button_styles
 from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import (
     IntroducePairs,
@@ -275,6 +275,7 @@ async def test_retry_button_appears_after_wrong_recall(
         for btn in row
     ]
     assert buttons == [RECALL, NEXT_EXERCISE]
+    assert button_styles(requests[0]) == [None, None]
 
 
 async def test_clicking_retry_starts_recall_again(

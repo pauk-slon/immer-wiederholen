@@ -274,8 +274,9 @@ An inline button can have a `style`: `primary`, `success` or `danger`. The style
 
 - **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. The buttons of the selection itself have no style. An optional step, such as "Drill" or "Try again" of a recall, is never the recommended step. The bot asks for a recall once and then recommends to go on, so that it isn't too pushy. A learner who wants to repeat can.
 - **`DESTRUCTIVE`** marks an action that can't be undone. In a confirmation, the button that cancels comes first, and the `DESTRUCTIVE` button comes after it. So a learner who taps the first button out of habit doesn't do the action.
+- **`success`** would mark an action that confirms a good result. No button has this role now.
 
-The practice is the recommended step of every message that offers it. `success` would mark an action that confirms a good result. No button has this role now.
+The practice is the recommended step of every message that offers it.
 
 ## Pending inline buttons
 
