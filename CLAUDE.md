@@ -50,7 +50,7 @@ What's traced (span names and attributes per process, `Tutor`'s span events), ho
 
 Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/language`), the reminder worker, blocked chats, pending inline buttons, feature flags and grammar-class hints are documented in `docs/bot.md` — read it before touching `wiederholen.bot`. The rules that matter most:
 
-- A button style marks its role (ADR 0037): `RECOMMENDED` (`primary`) for the one recommended step where there's a choice (the practice wins), `DESTRUCTIVE` (`danger`) for what can't be undone, no style otherwise. Use the constants of `button_styles.py`.
+- A button style marks its role (see `docs/bot.md`): `RECOMMENDED` (`primary`) for the one recommended step where there's a choice (the practice wins), `DESTRUCTIVE` (`danger`) for what can't be undone, no style otherwise. Use the constants of `button_styles.py`.
 - Every message sent with an inline keyboard is followed by `remember_buttoned_message()`; a callback handler that removes its own buttons and attaches none calls `forget_buttoned_message()`; every typed command calls `clear_stale_buttons()` first. When editing a message's text, pass `reply_markup=` explicitly.
 - `_format_question()` sends HTML: every piece of authored text goes through `html.escape()`.
 - The result of an answer is one message with the buttons. The lesson summary is a message of its own right after it, without buttons before a required recall, and a recall result never repeats it. A multiple-choice answer's reply keyboard is removed by a short message that's deleted at once (ADR 0035): a message with `ReplyKeyboardRemove` can't get inline buttons, not even by an edit.

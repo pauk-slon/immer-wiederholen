@@ -270,12 +270,12 @@ The flag isn't in `_LASTING_CHAT_STATE_KEYS`, so the end of an exercise would re
 
 ## Button styles
 
-An inline button can have a `style`: `primary`, `success` or `danger`. The style marks the role of the button, and the Telegram app decides how it looks. A button gets a style only if it has that role, so most buttons have none ([ADR 0037](adr/0037-a-button-style-has-a-meaning.md)). Use the constants of [`button_styles.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/button_styles.py).
+An inline button can have a `style`: `primary`, `success` or `danger`. The style marks the role of the button, and the Telegram app decides how it looks. A button gets a style only if it has that role, so most buttons have none. If every button had a style, a style would say nothing. Older Telegram apps ignore the field. Use the constants of [`button_styles.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/button_styles.py).
 
-- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. The buttons of the selection itself have no style. An optional step, such as "Drill" or "Try again" of a recall, is never the recommended step. The bot asks for a recall once and recommends to go on.
+- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. The buttons of the selection itself have no style. An optional step, such as "Drill" or "Try again" of a recall, is never the recommended step. The bot asks for a recall once and then recommends to go on, so that it isn't too pushy. A learner who wants to repeat can.
 - **`DESTRUCTIVE`** marks an action that can't be undone. In a confirmation, the button that cancels comes first, and the `DESTRUCTIVE` button comes after it. So a learner who taps the first button out of habit doesn't do the action.
 
-The practice is the recommended step of every message that offers it.
+The practice is the recommended step of every message that offers it. `success` would mark an action that confirms a good result. No button has this role now.
 
 ## Pending inline buttons
 
@@ -325,4 +325,3 @@ The reminder's tests call `tick()` directly, with no incoming update, so [`tests
 - [Streaks count finished lessons, not answers](adr/0027-streaks-count-finished-lessons.md) (ADR 0027)
 - [The result of an answer is one message](adr/0035-result-of-an-answer-in-one-message.md) (ADR 0035)
 - [Practice after a lesson is the learner's choice](adr/0036-practice-after-a-lesson-is-a-choice.md) (ADR 0036)
-- [A button style has a meaning](adr/0037-a-button-style-has-a-meaning.md) (ADR 0037)
