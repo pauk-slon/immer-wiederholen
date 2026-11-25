@@ -18,7 +18,7 @@ A German grammar course runs on this project. You can try it in Telegram or on t
 - **Recalls.** Some exercises have a recall. In a recall, the learner types a whole sentence with the word. After a wrong answer, the recall is required.
 - **Reminders, topic selection and progress.** The bot can remind a learner to practice, limit exercises to chosen topics and show a progress summary.
 - **The web widget and a standalone web app.** Logging in with Telegram shares progress with the bot. Hints, reminders, topic selection and AI content are only in the bot for now.
-- **Optional AI content.** Sentence exercises can have illustrations. After a lesson, Claude can give a short practice: the learner translates a few sentences with the words of the lesson, and Claude checks the translation. A lesson with a practice has no recalls.
+- **Optional AI content.** Sentence exercises can have illustrations. After a lesson, Claude can give a short practice: the learner translates a few sentences with the words of the lesson, and Claude checks the translation.
 
 ## Quickstart
 
