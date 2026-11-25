@@ -341,6 +341,34 @@ async def test_after_the_daily_limit_continue_shows_the_next_exercise(
     assert await state.get_state() == "UserState:answering"
 
 
+async def test_after_the_daily_limit_the_summary_says_when_practice_returns(
+    send: Any, state: FSMContext
+) -> None:
+    await _use_up_the_daily_limit(state, hours_ago=1)
+
+    requests = await _finish_lesson(send, state)
+
+    summary = _sent(requests)[-1].text
+    assert summary is not None
+    assert summary.endswith(RU.lesson_recall_limit_text.format(wait="23 ч"))
+
+
+async def test_a_day_with_more_lesson_recalls_waits_until_fewer_than_the_limit(
+    send: Any, state: FSMContext
+) -> None:
+    # Six lesson recalls from a time with the unlimited flag: the practice
+    # comes back when the fourth oldest stops counting, 7 hours from now
+    now = time.time()
+    hours_ago = [20, 19, 18, 17, 16, 1]
+    await state.update_data({STARTED_AT_KEY: [now - h * 60 * 60 for h in hours_ago]})
+
+    requests = await _finish_lesson(send, state)
+
+    summary = _sent(requests)[-1].text
+    assert summary is not None
+    assert summary.endswith(RU.lesson_recall_limit_text.format(wait="7 ч"))
+
+
 async def test_after_the_daily_limit_the_optional_recall_comes_back(
     send: Any, state: FSMContext
 ) -> None:
@@ -360,6 +388,7 @@ async def test_a_lesson_recall_older_than_a_day_does_not_count(
     await send.callback(LESSON_RECALL)
 
     assert _buttons(_sent(requests)[-1]) == [PRACTICE, NEXT_LESSON]
+    assert RU.lesson_recall_limit_text.split("{")[0] not in _sent(requests)[-1].text
     assert len((await state.get_data())[STARTED_AT_KEY]) == 1
 
 
@@ -372,6 +401,7 @@ async def test_a_chat_in_the_unlimited_flag_has_no_daily_limit(
     requests = await _finish_lesson(send, state, feature_flags=flags)
 
     assert _buttons(_sent(requests)[-1]) == [PRACTICE, NEXT_LESSON]
+    assert RU.lesson_recall_limit_text.split("{")[0] not in _sent(requests)[-1].text
 
 
 async def test_the_daily_limit_is_recorded_on_the_update_span(

@@ -5,6 +5,10 @@ from typing import Any, Final, Literal
 
 from wiederholen.school import LANGUAGES, Language, Streak
 
+_WAIT_UNITS: Final[dict[str, tuple[str, str]]] = {
+    "ru": ("мин", "ч"),
+    "en": ("min", "h"),
+}
 _RU_UNIT_FORMS: Final[dict[str, tuple[str, str, str]]] = {
     "exercises": ("задание", "задания", "заданий"),
     "words": ("слово", "слова", "слов"),
@@ -41,6 +45,17 @@ def format_count(
         singular, plural = _EN_UNIT_FORMS[unit]
         word = singular if n == 1 else plural
     return f"{n} {word}"
+
+
+def format_wait(seconds: float, language: Language) -> str:
+    """A wait in minutes under two hours, in hours otherwise, rounded up, so
+    that the learner never comes too early. Whole hours would round 61 minutes
+    up to 2 h."""
+    minutes_unit, hours_unit = _WAIT_UNITS[language]
+    minutes = max(1, math.ceil(seconds / 60))
+    if minutes < 120:
+        return f"{minutes} {minutes_unit}"
+    return f"{math.ceil(seconds / 3600)} {hours_unit}"
 
 
 @dataclass(frozen=True)
@@ -94,6 +109,8 @@ class Locale:
     unexpected_message: str
     streak_text: str
     lesson_summary: str
+    # In the summary of a lesson that gets no practice because of the daily limit
+    lesson_recall_limit_text: str
     # After a lesson, the text of the "Next exercise" button
     btn_next_lesson: str
     btn_practice: str
@@ -180,6 +197,7 @@ RU: Final = Locale(
     ),
     streak_text="🔥 Серия: {days}",
     lesson_summary="🏁 Урок пройден: верно {correct} из {size}",
+    lesson_recall_limit_text="⏳ Практика снова будет доступна через {wait}",
     btn_next_lesson="Следующий урок",
     btn_practice="Практика",
     btn_next_sentence="Следующая фраза",
@@ -254,6 +272,7 @@ EN: Final = Locale(
     ),
     streak_text="🔥 Streak: {days}",
     lesson_summary="🏁 Lesson complete: {correct} of {size} correct",
+    lesson_recall_limit_text="⏳ Practice will be available again in {wait}",
     btn_next_lesson="Next lesson",
     btn_practice="Practice",
     btn_next_sentence="Next sentence",
