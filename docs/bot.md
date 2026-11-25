@@ -272,7 +272,7 @@ The flag isn't in `_LASTING_CHAT_STATE_KEYS`, so the end of an exercise would re
 
 An inline button can have a `style`: `primary`, `success` or `danger`. The style marks the role of the button, and the Telegram app decides how it looks. A button gets a style only if it has that role, so most buttons have none ([ADR 0037](adr/0037-a-button-style-has-a-meaning.md)). Use the constants of [`button_styles.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/button_styles.py).
 
-- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. The buttons of the selection itself have no style.
+- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. The buttons of the selection itself have no style. An optional step, such as "Drill", is never the recommended step.
 - **`DESTRUCTIVE`** marks an action that can't be undone. In a confirmation, the button that cancels comes first, and the `DESTRUCTIVE` button comes after it. So a learner who taps the first button out of habit doesn't do the action.
 
 The practice is the recommended step of every message that offers it. `_offer_lesson_recall()` removes the style of the other buttons of the message.

@@ -12,7 +12,7 @@ Bot API 10.4 gives an inline button a `style`: `primary`, `success` or `danger`.
 
 A style marks the role of a button. A button gets a style only if it has that role. Most buttons have no style. The rule is for the inline buttons of the Telegram bot. The web widget has its own buttons and styles.
 
-- `primary` marks the recommended step, and only where the learner has a choice. A message has at most one `primary` button. A message with a single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is a recommended step. The buttons that change the selection aren't.
+- `primary` marks the recommended step, and only where the learner has a choice. A message has at most one `primary` button. A message with a single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is a recommended step. The buttons that change the selection aren't. An optional step, which the learner takes only if they want more, is never `primary`. So "Drill", the optional recall, has no style.
 - `danger` marks an action that can't be undone. In a confirmation, the button that cancels comes first and the `danger` button after it, so that a tap out of habit doesn't do the action.
 - `success` marks an action that confirms a good result. No button of the bot has this role now.
 

@@ -149,14 +149,15 @@ def _format_nothing_due(tutor: Tutor, language: Language) -> str:
 
 
 def _make_recall_buttons(
-    locale: Locale, label: str, next_label: str | None = None
+    locale: Locale,
+    label: str,
+    next_label: str | None = None,
+    style: str | None = None,
 ) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(
-                    text=label, callback_data=RECALL, style=RECOMMENDED
-                ),
+                InlineKeyboardButton(text=label, callback_data=RECALL, style=style),
                 InlineKeyboardButton(
                     text=next_label or locale.cmd_wiederholen,
                     callback_data=NEXT_EXERCISE,
@@ -731,7 +732,7 @@ async def handle_recall(
                 ignore_punctuation=True,
             )
             reply_markup = _make_recall_buttons(
-                locale, locale.btn_recall_retry, next_label
+                locale, locale.btn_recall_retry, next_label, style=RECOMMENDED
             )
         if offers_practice:
             reply_markup = _offer_lesson_recall(reply_markup, locale)
