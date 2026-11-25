@@ -68,8 +68,6 @@ The date is the day of the decision.
 | [0019](0019-start-payload-sets-only-a-new-language.md) | A /start language payload sets only a new chat's language | 2026-10-24 | Amended by [0029](0029-start-payload-selects-topic-groups.md) |
 | [0025](0025-second-reminder-for-a-streak.md) | A streak of 2 days or more gets a second reminder | 2026-10-31 | Amended by [0027](0027-streaks-count-finished-lessons.md) |
 | [0029](0029-start-payload-selects-topic-groups.md) | A /start payload can also select the topic groups of a new chat | 2026-11-15 | Accepted |
-| [0035](0035-result-of-an-answer-in-one-message.md) | The result of an answer is one message | 2026-11-24 | Accepted |
-| [0036](0036-practice-after-a-lesson-is-a-choice.md) | Practice after a lesson is the learner's choice | 2026-11-24 | Accepted |
 
 ### Web frontend
 
@@ -89,5 +87,5 @@ The date is the day of the decision.
 | [0030](0030-cue-field-sets-the-scene-or-turns-it-off.md) | An exercise's `cue` field sets the scene of its illustration or turns it off | 2026-11-15 | Accepted |
 | [0031](0031-model-writes-and-checks-a-lesson-recall.md) | A model writes a lesson recall and checks the translations | 2026-11-22 | Amended by [0033](0033-lesson-recall-for-every-chat-with-a-daily-limit.md) |
 | [0032](0032-ai-mode-removed.md) | The /ai mode is removed | 2026-11-23 | Accepted |
-| [0033](0033-lesson-recall-for-every-chat-with-a-daily-limit.md) | Every chat gets lesson recalls, with a daily limit | 2026-11-23 | Amended by [0036](0036-practice-after-a-lesson-is-a-choice.md) |
-| [0034](0034-no-required-recall-on-a-new-pair.md) | A wrong first answer to a pair doesn't require a recall | 2026-11-23 | Amended by [0036](0036-practice-after-a-lesson-is-a-choice.md) |
+| [0033](0033-lesson-recall-for-every-chat-with-a-daily-limit.md) | Every chat gets lesson recalls, with a daily limit | 2026-11-23 | Accepted |
+| [0034](0034-no-required-recall-on-a-new-pair.md) | A wrong first answer to a pair doesn't require a recall | 2026-11-23 | Accepted |

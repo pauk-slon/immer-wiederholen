@@ -51,13 +51,13 @@ The bot doesn't call `Tutor` to show the exercise again. With `shown_exercise`, 
 
 ## Answering
 
-After an answer, the bot sends one message with the result. The message starts with a mark for a right or a wrong answer. After a wrong answer, the correct answers with the mistake marked follow (see [Marking a mistake](#marking-a-mistake)). In a topic with `show_primary_answer_only`, the bot shows only the primary answer (see [Course format](course-format.md#several-correct-answers)). Then the message has the `explanation` and the buttons. The message is HTML, so the explanation goes through `html.escape()`.
+After an answer, the bot sends one message with the result. The message starts with a mark for a right or a wrong answer. After a wrong answer, the correct answers with the mistake marked follow (see [Marking a mistake](#marking-a-mistake)). In a topic with `show_primary_answer_only`, the bot shows only the primary answer (see [Course format](course-format.md#several-correct-answers)). Then the message has the `explanation` and the buttons. The message is HTML, so the explanation goes through `html.escape()`. One message, not a verdict and then an explanation, because two messages for one answer are noise, and each one can make a notification.
 
 The two marks differ in shape, not only in color, because no word says the verdict. A learner who doesn't see colors must still tell them apart.
 
 The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)). After a wrong answer to a pair that the learner answered before, a recall starts at once. After a right answer, or a wrong first answer to a pair, the learner can choose an optional recall with "Drill" ([ADR 0034](adr/0034-no-required-recall-on-a-new-pair.md)). A wrong recall answer gets the mistake marked in the same way, and the learner can try again.
 
-A recall that the learner asked for, with "Drill" or "Try again", has a "Skip" button. The learner can't see the sentence before the tap, so they must be able to change their mind. Only the first attempt of a required recall has no "Skip". "Skip" works as the "next" button after a wrong recall answer. It shows the next exercise. After the last answer of a lesson with a lesson recall, it starts the lesson recall. `recall_is_skippable` in the FSM data keeps the choice, so the bot can show the recall again with the same button.
+A recall that the learner asked for, with "Drill" or "Try again", has a "Skip" button. The learner can't see the sentence before the tap, so they must be able to change their mind. Only the first attempt of a required recall has no "Skip". "Skip" works as the "next" button after a wrong recall answer. It shows the next exercise. `recall_is_skippable` in the FSM data keeps the choice, so the bot can show the recall again with the same button.
 
 When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" button. It raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
 
@@ -65,7 +65,13 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 
 After an answer to a multiple-choice exercise, the bot must remove the options keyboard. Only a new message can remove a reply keyboard, and such a message can't have inline buttons, not even after an edit. So `_remove_reply_keyboard()` first sends a short message with `ReplyKeyboardRemove` and without a notification. Then it deletes this message at once. The keyboard stays removed, and the result comes as one message with its buttons.
 
-If the Bot API refuses the deletion or the call fails, for example because of a flood limit or a network error, the bot logs a warning and continues. At this point the answer is already recorded, so the learner must get the result. The only cost is one extra short message in the chat. [ADR 0035](adr/0035-result-of-an-answer-in-one-message.md) describes the alternatives and why the bot doesn't use them.
+If the Bot API refuses the deletion or the call fails, for example because of a flood limit or a network error, the bot logs a warning and continues. At this point the answer is already recorded, so the learner must get the result. The only cost is one extra short message in the chat. A test in a real chat showed that the keyboard stays removed after the deletion, on a phone and on a desktop client.
+
+The bot doesn't use other ways ([#393](https://github.com/pauk-slon/immer-wiederholen/pull/393)):
+
+- **Add the buttons to the message that removed the keyboard.** `editMessageReplyMarkup` refuses it with "message can't be edited".
+- **Don't remove the keyboard.** `one_time_keyboard` hides the keyboard after a tap, but not after a typed answer, so the keyboard stays open under the explanation. A hidden keyboard can also be opened again, and a tap on an old option during an optional recall would count as an answer.
+- **Show the options as inline buttons.** Then there is no keyboard to remove. But the answer would come from a callback instead of a message of the learner, which is a larger change of the conversation (see [#320](https://github.com/pauk-slon/immer-wiederholen/issues/320)).
 
 ### Marking a mistake
 
@@ -103,7 +109,7 @@ The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tut
 In a lesson of several exercises, the learner sees these things:
 
 - **A counter.** The question starts with the position of the exercise in the lesson, for example "3/5".
-- **A summary.** The summary shows the number of right answers, and the streak if the lesson added a day. It is a message of its own, right after the result of the last answer, so it isn't lost at the end of a long explanation. The buttons of the result move to the summary. If the last answer needs a recall, the summary has no buttons, and the recall result doesn't repeat it. So the learner sees the summary once.
+- **A summary.** The summary shows the number of right answers, and the streak if the lesson added a day. It is a message of its own, right after the result of the last answer, so it isn't lost at the end of a long explanation. The buttons of the result move to the summary. If a recall or a lesson recall follows the last answer, the summary has no buttons, and the recall result doesn't repeat it. So the learner sees the summary once.
 - **A next lesson button.** On the summary, the "Next exercise" button names the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
 
 A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
@@ -116,13 +122,17 @@ A lesson recall is a short translation task after a lesson (see [ADR 0031](adr/0
 
 Only a lesson of 4 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_SIZE`). A smaller lesson gives too few sentences for the wait of a generation. Small lessons come on the first day, at the end of a day and with few topics in `/topics`. A small lesson works as a lesson without a lesson recall.
 
-The bot takes the size from the counter of the shown exercise ("2/5"). So it decides for the whole lesson at its first exercise. A lesson that gets smaller, for example after `/topics`, gets the optional recall back and no lesson recall.
+The bot takes the size from the counter of the shown exercise ("2/5"). So it decides for the whole lesson at its first exercise. A lesson that gets smaller, for example after `/topics`, gets the recalls after answers back and no lesson recall.
 
-The learner chooses the lesson recall ([ADR 0036](adr/0036-practice-after-a-lesson-is-a-choice.md)). In a lesson with a lesson recall, every message that can end the lesson gets a button of its own with the `LESSON_RECALL` callback. The button with `NEXT_EXERCISE` stays and skips the lesson recall. The interface calls a lesson recall "practice" (see the list of words in `l10n.py`).
+The lesson recall is a part of the lesson, not a choice. The interface calls it "practice" (see the list of words in `l10n.py`). Such a lesson gets no recall after an answer, neither optional nor required. The lesson recall practices the mistakes of the lesson, and a wrong answer makes the pair due again today anyway. The bot ignores the `RecallMode` that `Tutor` returns and shows the "Next exercise" button.
 
-Such a lesson gets no optional recall, because two kinds of recall would confuse the learner. So a wrong first answer to a pair gets no recall there, and the lesson recall uses it instead, if the learner chooses the practice. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
+The lesson recall is required, because a learner who declined it lost the practice of the lesson's mistakes, and few learners chose it. An optional lesson recall had two problems, and a required one avoids them. The task could come as a surprise, so the summary of the lesson now comes first. The learner couldn't get out, so the task is one to three sentences, "Skip" needs no model call, and `/wiederholen` leaves the lesson recall at once. Earlier, the learner chose it with a button of its own ([#397](https://github.com/pauk-slon/immer-wiederholen/pull/397)). A setting for this in `bot.yaml` can come with a second course that wants another method.
 
-A tap starts the generation. The bot sends no message before the first sentence. The learner chose the practice, the lesson summary separates it from the lesson, and the "typing" status shows the wait. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button, after the daily limit or without keys, the practice button shows the next exercise, because the learner wants to go on. The sentences are in the interface language at the start.
+After the last answer, the bot sends the result and the lesson summary without buttons, as before a required recall. Then it starts the generation at once. The bot sends no message before the first sentence. The summary separates the lesson recall from the lesson, and the "typing" status shows the wait. The sentences are in the interface language at the start.
+
+`handle_answer()` starts the generation after `check_out()`, because the model call takes seconds. `commands.lesson_recall` imports `commands.wiederholen`, so the dispatcher gives `start_lesson_recall()` to `handle_answer()` as a parameter. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If no key is left, the bot shows the message of a failed generation.
+
+A practice button from before this change still works. It starts the lesson recall if the chat still gets one, and otherwise shows the next exercise, because the learner wants to go on.
 
 ### The daily limit
 
@@ -130,8 +140,8 @@ Each lesson recall costs model calls, so a chat gets 3 lesson recalls in 24 hour
 
 - **The 24 hours move with time.** The bot counts the lesson recalls that started in the last 24 hours, not in a calendar day. The bot doesn't know the learner's time zone, so a calendar day would end at a random time of the learner's day.
 - **Only a generated task counts.** The bot counts a lesson recall after the model wrote the sentences. A failed generation doesn't use up the limit, because the learner got nothing. A task that the chat left during the generation counts, because the call was paid.
-- **A lesson after the limit works as a lesson without a lesson recall.** It gets the optional recall back, and its summary has no practice button. The bot checks the limit at each answer. If the limit ends during a lesson, the rest of the lesson gets no optional recall, and the lesson gets a lesson recall.
-- **The summary says when the next lesson recall is available.** Without this line, the practice button would disappear without a reason. The time is when the last 24 hours have fewer than 3 lesson recalls. Usually the oldest lesson recall stops counting then. But a chat can have more than 3 in 24 hours, for example if it had the unlimited flag before. The time is in minutes under two hours and in hours otherwise. It is rounded up, so the learner never comes too early. Every such summary has the line, not only the first one. The learner can come back hours later, and the time changes.
+- **A lesson after the limit works as a lesson without a lesson recall.** It gets the recalls after answers back, and no lesson recall starts. The bot checks the limit at each answer. If the limit ends during a lesson, the rest of the lesson gets no recall after an answer, and the lesson gets a lesson recall.
+- **The summary says when the next lesson recall is available.** Without this line, the lesson recall wouldn't come, and the learner wouldn't know why. The time is when the last 24 hours have fewer than 3 lesson recalls. Usually the oldest lesson recall stops counting then. But a chat can have more than 3 in 24 hours, for example if it had the unlimited flag before. The time is in minutes under two hours and in hours otherwise. It is rounded up, so the learner never comes too early. Every such summary has the line, not only the first one. The learner can come back hours later, and the time changes.
 
 The limit is per chat, because the bot keeps it in the FSM data of the chat. `/reset` doesn't change it.
 
@@ -185,7 +195,7 @@ After a model call, the handler reads the FSM data again. It continues only if t
 
 ### Failures
 
-A failed generation shows an error message with "Next exercise". The learner chose the practice and can't get it now, so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" sends it to the model again. The learner can also type a new translation or skip the sentence.
+A failed generation shows an error message with "Next exercise". The learner can't get the lesson recall now, so the bot lets them go on, with no retry loop. The lesson had no recall after its answers, so after a failed generation the learner doesn't practice the lesson's mistakes at once. The pairs with a wrong answer are still due again today, and failures are rare, so the bot doesn't offer a recall instead. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" sends it to the model again. The learner can also type a new translation or skip the sentence.
 
 A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same message as after a failed generation or a failed check.
 
@@ -273,11 +283,9 @@ The flag isn't in `_LASTING_CHAT_STATE_KEYS`, so the end of an exercise would re
 
 An inline button can have a `style`: `primary`, `success` or `danger`. The style marks the role of the button, and the Telegram app decides how it looks. A button gets a style only if it has that role, so most buttons have none. If every button had a style, a style would say nothing. Older Telegram apps ignore the field. Use the constants of [`button_styles.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/button_styles.py).
 
-- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. The buttons of the selection itself have no style. An optional step, such as "Drill" or "Try again" of a recall, is never the recommended step. The bot asks for a recall once and then recommends to go on, so that it isn't too pushy. A learner who wants to repeat can.
+- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. So is "Check again" after a failed check of a translation in a lesson recall. The buttons of the selection itself have no style. An optional step, such as "Drill" or "Try again" of a recall, is never the recommended step. The bot asks for a recall once and then recommends to go on, so that it isn't too pushy. A learner who wants to repeat can.
 - **`DESTRUCTIVE`** marks an action that can't be undone. In a confirmation, the button that cancels comes first, and the `DESTRUCTIVE` button comes after it. So a learner who taps the first button out of habit doesn't do the action.
 - **`success`** would mark an action that confirms a good result. No button has this role now.
-
-The practice is the recommended step of every message that offers it.
 
 ## Pending inline buttons
 
@@ -325,5 +333,3 @@ The reminder's tests call `tick()` directly, with no incoming update, so [`tests
 - [Reminders count from the last session](adr/0011-remind-after-the-last-session.md) (ADR 0011)
 - [A streak of 2 days or more gets a second reminder](adr/0025-second-reminder-for-a-streak.md) (ADR 0025)
 - [Streaks count finished lessons, not answers](adr/0027-streaks-count-finished-lessons.md) (ADR 0027)
-- [The result of an answer is one message](adr/0035-result-of-an-answer-in-one-message.md) (ADR 0035)
-- [Practice after a lesson is the learner's choice](adr/0036-practice-after-a-lesson-is-a-choice.md) (ADR 0036)

@@ -38,6 +38,7 @@ from wiederholen.school import (
     AIGenerationError,
     Course,
     CueStore,
+    Exercise,
     LessonRecall,
     StudentIdentityStore,
     StudentRecordBook,
@@ -266,51 +267,33 @@ async def _show_next_sentence(
     await _send_sentence(message, state, locale)
 
 
-@router.callback_query(F.data == LESSON_RECALL)
-async def handle_start(
-    callback: CallbackQuery,
-    state: FSMContext,
-    course: Course,
-    student_record_book: StudentRecordBook,
-    student_identity_store: StudentIdentityStore,
-    feature_flags: dict[str, frozenset[int]] | None = None,
-    anthropic_client: AsyncAnthropic | None = None,
-    cue_store: CueStore | None = None,
-) -> None:
-    data = await state.get_data()
-    finished_lesson = data.get("finished_lesson")
+def _lesson_exercises(course: Course, finished_lesson: dict | None) -> list[Exercise]:
     exercises_by_key = {exercise.content_key: exercise for exercise in course.exercises}
-    exercises = [
+    return [
         exercises_by_key[key]
         for key in (finished_lesson or {}).get("exercise_keys", [])
         if key in exercises_by_key
     ]
-    message = callback.message
-    # An old button or a used-up limit can't start a lesson recall, and the
-    # learner still wants to go on
-    if (
-        not isinstance(message, Message)
-        or not offers_lesson_recall(
-            anthropic_client, feature_flags, message.chat.id, finished_lesson, data
-        )
-        or not exercises
-    ):
-        await handle_next_exercise(
-            callback,
-            state,
-            course,
-            student_record_book,
-            student_identity_store,
-            cue_store=cue_store,
-        )
-        return
+
+
+async def start_lesson_recall(
+    message: Message,
+    state: FSMContext,
+    course: Course,
+    anthropic_client: AsyncAnthropic | None,
+) -> None:
+    """Starts the lesson recall of the lesson that has just finished. The
+    caller has checked with offers_lesson_recall() that the chat gets one."""
+    data = await state.get_data()
+    finished_lesson = data.get("finished_lesson")
     assert finished_lesson is not None
-    client, guide = _require_setup(anthropic_client, course)
     language = get_language(data)
     locale = LOCALES[language]
-    await message.edit_reply_markup(reply_markup=None)
-    await forget_buttoned_message(state)
-    await callback.answer()
+    exercises = _lesson_exercises(course, finished_lesson)
+    if not exercises:
+        await _report_failed_generation(message, state, locale)
+        return
+    client, guide = _require_setup(anthropic_client, course)
     lesson_recall_id = uuid.uuid4().hex
     await state.update_data({_ID_KEY: lesson_recall_id, _CORRECT_KEY: 0})
     await _start_waiting(state, LessonRecallState.generating)
@@ -353,6 +336,43 @@ async def handle_start(
     )
     await state.set_state(LessonRecallState.translating)
     await _send_sentence(message, state, locale)
+
+
+@router.callback_query(F.data == LESSON_RECALL)
+async def handle_old_practice_button(
+    callback: CallbackQuery,
+    state: FSMContext,
+    course: Course,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    feature_flags: dict[str, frozenset[int]] | None = None,
+    anthropic_client: AsyncAnthropic | None = None,
+    cue_store: CueStore | None = None,
+) -> None:
+    # A practice button from before the practice became required. It starts the practice if the chat still gets it, otherwise the next
+    # exercise, because the learner wants to go on
+    data = await state.get_data()
+    message = callback.message
+    if not isinstance(message, Message) or not offers_lesson_recall(
+        anthropic_client,
+        feature_flags,
+        message.chat.id,
+        data.get("finished_lesson"),
+        data,
+    ):
+        await handle_next_exercise(
+            callback,
+            state,
+            course,
+            student_record_book,
+            student_identity_store,
+            cue_store=cue_store,
+        )
+        return
+    await message.edit_reply_markup(reply_markup=None)
+    await forget_buttoned_message(state)
+    await callback.answer()
+    await start_lesson_recall(message, state, course, anthropic_client)
 
 
 def _record_exercises(
