@@ -10,6 +10,7 @@ from aiogram.types import (
     Message,
 )
 
+from wiederholen.bot.button_styles import RECOMMENDED
 from wiederholen.bot.commands.wiederholen import make_next_button
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 from wiederholen.bot.pending_buttons import (
@@ -41,7 +42,9 @@ def _make_topic_buttons(
         + [
             [
                 InlineKeyboardButton(
-                    text=locale.btn_topics_done, callback_data=TOPICS_DONE
+                    text=locale.btn_topics_done,
+                    callback_data=TOPICS_DONE,
+                    style=RECOMMENDED,
                 )
             ]
         ]

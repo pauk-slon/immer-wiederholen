@@ -2,7 +2,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.methods import EditMessageReplyMarkup, EditMessageText
 from aiogram.types import InlineKeyboardMarkup
 
-from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
+from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage, button_styles
+from wiederholen.bot.button_styles import RECOMMENDED
 from wiederholen.bot.commands.topics import TOGGLE_TOPIC_GROUP_PREFIX, TOPICS_DONE
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
@@ -42,6 +43,7 @@ async def test_lists_every_group_unselected_by_default(
         "⬜ Падежи",
         RU.btn_topics_done,
     ]
+    assert button_styles(requests[0]) == [None, None, RECOMMENDED]
 
 
 async def test_marks_selected_groups(

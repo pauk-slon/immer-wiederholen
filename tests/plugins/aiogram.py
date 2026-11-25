@@ -12,7 +12,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.methods import SendMessage, TelegramMethod
-from aiogram.types import Chat, Message
+from aiogram.types import Chat, InlineKeyboardMarkup, Message
 from opentelemetry.trace import Tracer
 
 from wiederholen.bot import dispatcher as _dp
@@ -23,6 +23,13 @@ from .telegram import CallbackQueryFactory, MessageFactory
 type FeedRawUpdate = Callable[..., Awaitable[list[Any]]]
 type FeedCallbackQuery = Callable[..., Awaitable[list[Any]]]
 type FeedMessage = Callable[..., Awaitable[list[Any]]]
+
+
+def button_styles(request: Any) -> list[str | None]:
+    assert isinstance(request.reply_markup, InlineKeyboardMarkup)
+    return [
+        button.style for row in request.reply_markup.inline_keyboard for button in row
+    ]
 
 
 def _db_override(value: str) -> int | None:

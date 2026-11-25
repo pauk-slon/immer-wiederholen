@@ -24,6 +24,7 @@ from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
 from wiederholen.bot import answer_diff
+from wiederholen.bot.button_styles import RECOMMENDED
 from wiederholen.bot.l10n import (
     LOCALES,
     Locale,
@@ -221,7 +222,7 @@ def _offer_lesson_recall(
     # the current exercise, such as "Try again", stay first in a row of their
     # own, so that a row has at most two buttons
     practice = InlineKeyboardButton(
-        text=locale.btn_practice, callback_data=LESSON_RECALL
+        text=locale.btn_practice, callback_data=LESSON_RECALL, style=RECOMMENDED
     )
     buttons = [button for row in markup.inline_keyboard for button in row]
     current = [b for b in buttons if b.callback_data != NEXT_EXERCISE]
