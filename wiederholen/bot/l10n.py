@@ -48,11 +48,12 @@ def format_count(
 
 
 def format_wait(seconds: float, language: Language) -> str:
-    """A wait in minutes under an hour, in hours otherwise, rounded up, so
-    that the learner never comes too early."""
+    """A wait in minutes under two hours, in hours otherwise, rounded up, so
+    that the learner never comes too early. Whole hours would round 61 minutes
+    up to 2 h."""
     minutes_unit, hours_unit = _WAIT_UNITS[language]
     minutes = max(1, math.ceil(seconds / 60))
-    if minutes < 60:
+    if minutes < 120:
         return f"{minutes} {minutes_unit}"
     return f"{math.ceil(seconds / 3600)} {hours_unit}"
 

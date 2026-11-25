@@ -20,20 +20,25 @@ def _started_in_the_last_day(state_data: dict, now: float) -> list[float]:
     ]
 
 
+def seconds_until_lesson_recall(
+    feature_flags: dict[str, frozenset[int]] | None, chat_id: int, state_data: dict
+) -> float | None:
+    """None if the chat has a lesson recall left. Otherwise, how long until
+    the last day has fewer than DAILY_LESSON_RECALLS of them. The day can have
+    more, for example from a time with the unlimited flag."""
+    if has_feature(feature_flags or {}, LESSON_RECALL_UNLIMITED_FLAG, chat_id):
+        return None
+    now = time.time()
+    started = sorted(_started_in_the_last_day(state_data, now))
+    if len(started) < DAILY_LESSON_RECALLS:
+        return None
+    return started[len(started) - DAILY_LESSON_RECALLS] + _DAY_SECONDS - now
+
+
 def has_lesson_recall_left(
     feature_flags: dict[str, frozenset[int]] | None, chat_id: int, state_data: dict
 ) -> bool:
-    if has_feature(feature_flags or {}, LESSON_RECALL_UNLIMITED_FLAG, chat_id):
-        return True
-    started = _started_in_the_last_day(state_data, time.time())
-    return len(started) < DAILY_LESSON_RECALLS
-
-
-def seconds_until_lesson_recall(state_data: dict) -> float:
-    """How long until the oldest lesson recall of the last day stops counting.
-    Only for a chat that has used up the limit."""
-    now = time.time()
-    return min(_started_in_the_last_day(state_data, now)) + _DAY_SECONDS - now
+    return seconds_until_lesson_recall(feature_flags, chat_id, state_data) is None
 
 
 def count_lesson_recall(state_data: dict) -> dict:

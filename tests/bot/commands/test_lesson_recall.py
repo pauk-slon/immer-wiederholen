@@ -353,6 +353,22 @@ async def test_after_the_daily_limit_the_summary_says_when_practice_returns(
     assert summary.endswith(RU.lesson_recall_limit_text.format(wait="23 ч"))
 
 
+async def test_a_day_with_more_lesson_recalls_waits_until_fewer_than_the_limit(
+    send: Any, state: FSMContext
+) -> None:
+    # Six lesson recalls from a time with the unlimited flag: the practice
+    # comes back when the fourth oldest stops counting, 7 hours from now
+    now = time.time()
+    hours_ago = [20, 19, 18, 17, 16, 1]
+    await state.update_data({STARTED_AT_KEY: [now - h * 60 * 60 for h in hours_ago]})
+
+    requests = await _finish_lesson(send, state)
+
+    summary = _sent(requests)[-1].text
+    assert summary is not None
+    assert summary.endswith(RU.lesson_recall_limit_text.format(wait="7 ч"))
+
+
 async def test_after_the_daily_limit_the_optional_recall_comes_back(
     send: Any, state: FSMContext
 ) -> None:

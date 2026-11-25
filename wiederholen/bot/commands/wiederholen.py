@@ -620,9 +620,10 @@ async def handle_answer(
         await state.update_data(lesson=lesson, finished_lesson=finished_lesson)
         next_label = _get_next_label(finished_lesson, language)
         lesson_counter = state_data.get("shown_lesson_counter")
-        lesson_recall_left = has_lesson_recall_left(
+        seconds_until_practice = seconds_until_lesson_recall(
             feature_flags, message.chat.id, state_data
         )
+        lesson_recall_left = seconds_until_practice is None
         has_lesson_recall = lesson_recall_left and _lesson_recall_is_on(
             anthropic_client, lesson_counter[1] if lesson_counter else None
         )
@@ -652,7 +653,7 @@ async def handle_answer(
         summary = _format_lesson_summary(
             finished_lesson,
             language,
-            seconds_until_lesson_recall(state_data) if limit_reached else None,
+            seconds_until_practice if limit_reached else None,
         )
         if recall_mode == RecallMode.required:
             # The summary counts the answers of the lesson, so it comes before
