@@ -16,6 +16,7 @@ from opentelemetry.trace import Tracer
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage, FeedRawUpdate
 from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import IntroducePairs
+from wiederholen.bot.button_styles import RECOMMENDED
 from wiederholen.bot.commands.lesson_recall import (
     NEXT_SENTENCE,
     RESEND,
@@ -144,6 +145,13 @@ def _sent(requests: list[Any]) -> list[SendMessage]:
     return [r for r in requests if isinstance(r, SendMessage)]
 
 
+def _styles(request: Any) -> list[str | None]:
+    assert isinstance(request.reply_markup, InlineKeyboardMarkup)
+    return [
+        button.style for row in request.reply_markup.inline_keyboard for button in row
+    ]
+
+
 def _buttons(request: Any) -> list[tuple[str, str | None]]:
     assert isinstance(request.reply_markup, InlineKeyboardMarkup)
     return [
@@ -167,6 +175,7 @@ async def test_the_summary_offers_practice_and_the_next_lesson(
     assert summary.text is not None
     assert summary.text.startswith(RU.lesson_summary.format(correct=3, size=4))
     assert _buttons(summary) == [PRACTICE, NEXT_LESSON]
+    assert _styles(summary) == [RECOMMENDED, None]
 
 
 async def test_without_an_api_key_there_is_no_lesson_recall(
@@ -217,6 +226,7 @@ async def test_a_wrong_required_recall_at_the_end_of_a_lesson_offers_practice(
         [(button.text, button.callback_data) for button in row]
         for row in keyboard.inline_keyboard
     ] == [[(RU.btn_recall_retry, RECALL)], [PRACTICE, NEXT_LESSON]]
+    assert _styles(_sent(requests)[-1]) == [None, RECOMMENDED, None]
 
 
 async def test_a_retry_at_the_end_of_a_lesson_offers_practice(
@@ -640,6 +650,7 @@ async def test_a_failed_check_keeps_the_answer_for_another_try(
         (RU.btn_lesson_recall_resend, RESEND),
         (RU.btn_lesson_recall_skip, SKIP),
     ]
+    assert _styles(message) == [RECOMMENDED, None]
     check.side_effect = None
     requests = await send.callback(RESEND)
     assert check.call_args.args[2:] == (0, "Wir warten.")

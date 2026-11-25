@@ -10,6 +10,7 @@ from aiogram.types import (
     Message,
 )
 
+from wiederholen.bot.button_styles import DESTRUCTIVE
 from wiederholen.bot.commands.wiederholen import make_next_button
 from wiederholen.bot.l10n import LOCALES, Locale, get_language
 from wiederholen.bot.pending_buttons import (
@@ -30,7 +31,9 @@ def _make_confirm_buttons(locale: Locale) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=locale.reset_confirm_button, callback_data=RESET_CONFIRM
+                    text=locale.reset_confirm_button,
+                    callback_data=RESET_CONFIRM,
+                    style=DESTRUCTIVE,
                 ),
                 InlineKeyboardButton(
                     text=locale.reset_cancel_button, callback_data=RESET_CANCEL

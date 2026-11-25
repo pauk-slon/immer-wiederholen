@@ -4,6 +4,7 @@ from aiogram.types import InlineKeyboardMarkup
 
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.student_record_book import ReadStudentRecord, SeedStudentRecord
+from wiederholen.bot.button_styles import DESTRUCTIVE
 from wiederholen.bot.commands.reset import RESET_CANCEL, RESET_CONFIRM
 from wiederholen.bot.commands.wiederholen import NEXT_EXERCISE
 from wiederholen.bot.l10n import EN, RU
@@ -17,11 +18,11 @@ async def test_reset_command_asks_for_confirmation(feed_message: FeedMessage) ->
     assert requests[0].text == RU.reset_confirm_prompt
     assert isinstance(requests[0].reply_markup, InlineKeyboardMarkup)
     buttons = [
-        btn.callback_data
+        (btn.callback_data, btn.style)
         for row in requests[0].reply_markup.inline_keyboard
         for btn in row
     ]
-    assert buttons == [RESET_CONFIRM, RESET_CANCEL]
+    assert buttons == [(RESET_CONFIRM, DESTRUCTIVE), (RESET_CANCEL, None)]
 
 
 async def test_reset_command_responds_in_current_language(

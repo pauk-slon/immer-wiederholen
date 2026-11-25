@@ -268,6 +268,15 @@ The Bot API can't tell whether a learner has blocked the bot. Telegram reports i
 
 The flag isn't in `_LASTING_CHAT_STATE_KEYS`, so the end of an exercise would remove it. But a learner who has blocked the bot doesn't answer exercises. If the flag is lost anyway, the worst case is one refused message, and that message sets the flag again.
 
+## Button colors
+
+An inline button can have a color, its `style`. A color tells the learner the role of the button, so most buttons have none ([ADR 0037](adr/0037-a-button-color-has-a-meaning.md)). Use the constants of [`button_styles.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/button_styles.py).
+
+- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style.
+- **`DESTRUCTIVE`** marks an action that can't be undone.
+
+The practice is the recommended step of every message that offers it. `_offer_lesson_recall()` removes the style of the other buttons of the message.
+
 ## Pending inline buttons
 
 A tap on an inline button ("Next exercise", "Drill", "Study more" and others) removes that button, because the callback handler edits its own message. A typed command doesn't remove buttons, because Telegram never tells the bot which earlier message a command replaces. Without extra work, old buttons would stay on their messages forever.
@@ -315,3 +324,5 @@ The reminder's tests call `tick()` directly, with no incoming update, so [`tests
 - [A streak of 2 days or more gets a second reminder](adr/0025-second-reminder-for-a-streak.md) (ADR 0025)
 - [Streaks count finished lessons, not answers](adr/0027-streaks-count-finished-lessons.md) (ADR 0027)
 - [The result of an answer is one message](adr/0035-result-of-an-answer-in-one-message.md) (ADR 0035)
+- [Practice after a lesson is the learner's choice](adr/0036-practice-after-a-lesson-is-a-choice.md) (ADR 0036)
+- [A button color has a meaning](adr/0037-a-button-color-has-a-meaning.md) (ADR 0037)

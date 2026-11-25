@@ -16,6 +16,7 @@ from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
 from wiederholen.bot import answer_diff
+from wiederholen.bot.button_styles import RECOMMENDED
 from wiederholen.bot.commands.wiederholen import (
     LESSON_RECALL,
     NEXT_EXERCISE,
@@ -149,7 +150,9 @@ async def _offer_check_retry(
         reply_markup=_keyboard(
             [
                 InlineKeyboardButton(
-                    text=locale.btn_lesson_recall_resend, callback_data=RESEND
+                    text=locale.btn_lesson_recall_resend,
+                    callback_data=RESEND,
+                    style=RECOMMENDED,
                 ),
                 _skip_button(locale),
             ],

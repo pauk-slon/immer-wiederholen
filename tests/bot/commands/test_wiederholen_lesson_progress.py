@@ -8,6 +8,7 @@ from aiogram.types import InlineKeyboardMarkup
 from tests.plugins.aiogram import FeedCallbackQuery, FeedMessage
 from tests.plugins.curriculum import make_exercise
 from tests.plugins.student_record_book import IntroducePairs
+from wiederholen.bot.button_styles import RECOMMENDED
 from wiederholen.bot.commands.wiederholen import (
     NEXT_EXERCISE,
     RECALL,
@@ -27,6 +28,11 @@ def _course(*words: str, recalls: bool = False) -> Course:
 def _button_texts(request: Any) -> list[str]:
     assert isinstance(request.reply_markup, InlineKeyboardMarkup)
     return [btn.text for row in request.reply_markup.inline_keyboard for btn in row]
+
+
+def _button_styles(request: Any) -> list[str | None]:
+    assert isinstance(request.reply_markup, InlineKeyboardMarkup)
+    return [btn.style for row in request.reply_markup.inline_keyboard for btn in row]
 
 
 def _sent(requests: list[Any]) -> list[SendMessage]:
@@ -161,6 +167,7 @@ async def test_after_an_optional_recall_the_summary_isnt_repeated(
 
     assert last[-1].text.startswith(RU.lesson_summary.format(correct=2, size=2))
     assert _button_texts(last[-1]) == [RU.btn_recall, RU.btn_next_lesson]
+    assert _button_styles(last[-1]) == [RECOMMENDED, None]
     [result] = _sent(recall_result)
     assert result.text == f"{RU.correct_mark} {RU.correct}"
     assert _button_texts(result) == [RU.btn_next_lesson]
