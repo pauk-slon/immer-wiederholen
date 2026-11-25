@@ -14,8 +14,8 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 | `telegram.callback_query` | bot | `telegram.callback_data`, `telegram.handled`, and `telegram.chat_id` and `telegram.language` unless the button belongs to an old message that Telegram no longer returns. `lesson_recall.skipped` for "Skip" in a lesson recall, and `lesson_recall.finished` if it skipped the last sentence |
 | `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.language`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
 | `telegram.update` | bot | `telegram.handled` only (any other kind of update) |
-| `lesson_recall.generate` | bot (child of `telegram.callback_query`) | `lesson_recall.exercises`, `lesson_recall.wrong_exercises`, and `lesson_recall.sentences` or `lesson_recall.failure`. Also the tokens of the model call (see below) |
-| `lesson_recall.check` | bot (child of `telegram.message`, or of `telegram.callback_query` for "Check again") | `lesson_recall.verdict` (`correct` or `wrong`) or `lesson_recall.failure`. For a wrong translation, `lesson_recall.corrected` is `true` if the bot showed the correction and `false` if it showed the reference. Also the tokens of the model call |
+| `lesson_recall.generate` | bot (child of `telegram.callback_query`) | `lesson_recall.exercises`, `lesson_recall.wrong_exercises`, `lesson_recall.topics` (the topic of each exercise of the lesson), and `lesson_recall.sentences` with `lesson_recall.left_out_topics` (the topics of the exercises that no sentence uses) or `lesson_recall.failure`. Also the tokens of the model call (see below) |
+| `lesson_recall.check` | bot (child of `telegram.message`, or of `telegram.callback_query` for "Check again") | `lesson_recall.topics` (the topics of the exercises that the sentence uses), and `lesson_recall.verdict` (`correct` or `wrong`) or `lesson_recall.failure`. For a wrong translation, `lesson_recall.corrected` is `true` if the bot showed the correction and `false` if it showed the reference. Also the tokens of the model call |
 | `reminder.tick` | reminder | none (one sweep over all chats) |
 | `reminder.check_chat` | reminder (child of `reminder.tick`) | `telegram.chat_id`, `reminder.sent` (the reminder went out), `reminder.bot_blocked` (the learner had blocked the bot, or Telegram refused the message for that reason) |
 | an HTTP server span per request | web | the standard HTTP attributes from Litestar's OpenTelemetry plugin, and `client.error.step` and `client.error.status` for `POST /api/client-error` |
@@ -42,6 +42,10 @@ The model call adds `lesson_recall.input_tokens`, `lesson_recall.output_tokens`,
 `lesson_recall.limit_reached` shows how often learners reach the daily limit. If many learners reach it, the limit is too low for them.
 
 `lesson_recall.too_long` shows how often learners write more than the length limit allows. If it happens often, the limit is too low or the sentences are too long.
+
+`lesson_recall.left_out_topics` and `lesson_recall.topics` show which topics the model leaves out of a lesson recall. For a topic, divide the number of `lesson_recall.generate` spans with it in `lesson_recall.left_out_topics` by the number with it in `lesson_recall.topics`. If the guide's rules for a topic are too hard to follow, this ratio is high.
+
+`lesson_recall.topics` and `lesson_recall.verdict` on `lesson_recall.check` show the wrong translations by topic. If a topic gets many more wrong verdicts than the others, the guide may be too strict for it or the task may not show its form.
 
 `lesson_recall.corrected` shows how often a wrong translation gets the reference instead of a correction. If this happens often, the guide's rule for the correction doesn't work well.
 

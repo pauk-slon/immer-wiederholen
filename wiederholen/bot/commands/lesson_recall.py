@@ -318,6 +318,7 @@ async def handle_start(
             "lesson_recall.wrong_exercises": sum(
                 exercise.content_key in wrong_exercise_keys for exercise in exercises
             ),
+            "lesson_recall.topics": [exercise.topic for exercise in exercises],
         },
     ) as span:
         try:
@@ -333,7 +334,12 @@ async def handle_start(
             span.set_attribute("lesson_recall.failure", str(error))
             lesson_recall = None
         else:
-            span.set_attribute("lesson_recall.sentences", len(lesson_recall.sentences))
+            span.set_attributes(
+                {
+                    "lesson_recall.sentences": len(lesson_recall.sentences),
+                    "lesson_recall.left_out_topics": _left_out_topics(lesson_recall),
+                }
+            )
             # Counted even if the chat moved on, because the model call is paid
             await state.update_data(count_lesson_recall(await state.get_data()))
     if not await _is_still_current(
@@ -348,6 +354,19 @@ async def handle_start(
     )
     await state.set_state(LessonRecallState.translating)
     await _send_sentence(message, state, locale)
+
+
+def _left_out_topics(lesson_recall: LessonRecall) -> list[str]:
+    used = {
+        index
+        for sentence in lesson_recall.sentences
+        for index in sentence.exercise_indexes
+    }
+    return [
+        exercise.topic
+        for index, exercise in enumerate(lesson_recall.exercises)
+        if index not in used
+    ]
 
 
 async def _check(
@@ -366,7 +385,15 @@ async def _check(
     await _start_waiting(state, LessonRecallState.checking)
     await state.update_data({_ANSWER_KEY: answer})
     await clear_stale_buttons(_bot(message), message.chat.id, state)
-    with default_tracer.start_as_current_span("lesson_recall.check") as span:
+    practiced = lesson_recall.sentences[position].exercise_indexes
+    with default_tracer.start_as_current_span(
+        "lesson_recall.check",
+        attributes={
+            "lesson_recall.topics": [
+                lesson_recall.exercises[index].topic for index in practiced
+            ]
+        },
+    ) as span:
         try:
             async with show_typing_while(_bot(message), message.chat.id):
                 check = await check_translation(
