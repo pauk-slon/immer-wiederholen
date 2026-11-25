@@ -585,9 +585,9 @@ async def handle_answer(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
+    start_lesson_recall: StartLessonRecall,
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
-    start_lesson_recall: StartLessonRecall | None = None,
 ) -> None:
     assert message.text is not None
     state_data = await state.get_data()
@@ -622,7 +622,7 @@ async def handle_answer(
         if limit_reached:
             trace.get_current_span().set_attribute("lesson_recall.limit_reached", True)
         # The lesson recall practices the mistakes of the lesson, so a lesson
-        # with it gets no recall after an answer (ADR 0037)
+        # with it gets no recall after an answer
         recall_mode = RecallMode.none if has_lesson_recall else mark.recall
         if mark.is_correct:
             result_html = f"{locale.correct_mark} {explanation}"
@@ -657,7 +657,7 @@ async def handle_answer(
                 course,
             )
             return
-        starts_lesson_recall = start_lesson_recall is not None and offers_lesson_recall(
+        starts_lesson_recall = offers_lesson_recall(
             anthropic_client,
             feature_flags,
             message.chat.id,
@@ -679,9 +679,8 @@ async def handle_answer(
             sent = await send_result(message, result_html, summary, reply_markup)
             await state.update_data(shown_exercise=state_data["shown_exercise"])
             await remember_buttoned_message(state, sent)
-    # After check_out(), because the model call takes seconds (ADR 0037)
+    # After check_out(), because the model call takes seconds
     if starts_lesson_recall:
-        assert start_lesson_recall is not None
         await start_lesson_recall(message, state, course, anthropic_client)
 
 
@@ -744,8 +743,7 @@ async def show_the_recall_again(
     message: Message,
     state: FSMContext,
 ) -> None:
-    # Not the fallback: its "next" button would skip the recall, and after
-    # the last answer of a lesson also the offer of the practice
+    # Not the fallback: its "next" button would skip the recall
     await clear_stale_buttons(message.bot, message.chat.id, state)
     state_data = await state.get_data()
     language = get_language(state_data)

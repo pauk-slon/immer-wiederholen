@@ -349,8 +349,7 @@ async def handle_old_practice_button(
     anthropic_client: AsyncAnthropic | None = None,
     cue_store: CueStore | None = None,
 ) -> None:
-    # A practice button from before the practice became required (ADR 0037).
-    # It starts the practice if the chat still gets it, otherwise the next
+    # A practice button from before the practice became required. It starts the practice if the chat still gets it, otherwise the next
     # exercise, because the learner wants to go on
     data = await state.get_data()
     message = callback.message

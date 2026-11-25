@@ -191,7 +191,7 @@ After a model call, the handler reads the FSM data again. It continues only if t
 
 ### Failures
 
-A failed generation shows an error message with "Next exercise". The learner can't get the practice now, so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" sends it to the model again. The learner can also type a new translation or skip the sentence.
+A failed generation shows an error message with "Next exercise". The learner can't get the practice now, so the bot lets them go on, with no retry loop. The lesson had no recall after its answers, so after a failed generation the learner doesn't practice the lesson's mistakes at once. The pairs with a wrong answer are still due again today, and failures are rare, so the bot doesn't offer a recall instead. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" sends it to the model again. The learner can also type a new translation or skip the sentence.
 
 A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same message as after a failed generation or a failed check.
 
