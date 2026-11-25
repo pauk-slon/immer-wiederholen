@@ -120,7 +120,7 @@ A lesson recall is a short translation task after a lesson (see [ADR 0031](adr/0
 
 ### The start
 
-Only a lesson of 3 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_SIZE`). A smaller lesson gives too few sentences for the wait of a generation. A lesson recall has one to three sentences, and a sentence uses one or two exercises, so 3 exercises are enough for a task. Small lessons come on the first day, at the end of a day and with few topics in `/topics`. A small lesson works as a lesson without a lesson recall.
+Only a lesson of 3 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_SIZE`). A lesson of 2 gives one or two short sentences, which aren't worth the wait of a generation. 3 exercises are enough for the one to three sentences that a guide usually asks for. A course whose guide wants more sentences needs a larger minimum. Small lessons come on the first day, at the end of a day and with few topics in `/topics`. A small lesson works as a lesson without a lesson recall.
 
 The bot takes the size from the counter of the shown exercise ("2/5"). So it decides for the whole lesson at its first exercise. A lesson that gets smaller, for example after `/topics`, gets the recalls after answers back and no lesson recall.
 
