@@ -202,14 +202,23 @@ async def test_a_lesson_with_a_lesson_recall_gets_no_optional_recall(
     assert _buttons(_sent(requests)[-1]) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
 
 
-async def test_a_lesson_of_three_exercises_has_no_lesson_recall(
-    send: Any, state: FSMContext
+async def test_a_lesson_of_three_exercises_has_a_lesson_recall(
+    send: Any, state: FSMContext, generate: AsyncMock
 ) -> None:
     course = _course_with_recalls(WORDS[:3])
 
+    await _answer_lesson(send, state, [True, True, True], course=course)
+
+    generate.assert_called_once()
+    assert await state.get_state() == LessonRecallState.translating.state
+
+
+async def test_a_lesson_of_two_exercises_has_no_lesson_recall(
+    send: Any, state: FSMContext
+) -> None:
+    course = _course_with_recalls(WORDS[:2])
+
     first = await _answer_lesson(send, state, [True], course=course)
-    await send.callback(NEXT_EXERCISE, course=course)
-    await send.message((await _shown_exercise(state)).answer[0], course=course)
     await send.callback(NEXT_EXERCISE, course=course)
     last = await send.message((await _shown_exercise(state)).answer[0], course=course)
 
