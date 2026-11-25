@@ -57,7 +57,7 @@ The two marks differ in shape, not only in color, because no word says the verdi
 
 The next step depends on the exercise's recalls (see [Recalls](course-format.md#recalls)). After a wrong answer to a pair that the learner answered before, a recall starts at once. After a right answer, or a wrong first answer to a pair, the learner can choose an optional recall with "Drill" ([ADR 0034](adr/0034-no-required-recall-on-a-new-pair.md)). A wrong recall answer gets the mistake marked in the same way, and the learner can try again.
 
-A recall that the learner asked for, with "Drill" or "Try again", has a "Skip" button. The learner can't see the sentence before the tap, so they must be able to change their mind. Only the first attempt of a required recall has no "Skip". "Skip" works as the "next" button after a wrong recall answer. It shows the next exercise. After the last answer of a lesson with a lesson recall, it starts the lesson recall. `recall_is_skippable` in the FSM data keeps the choice, so the bot can show the recall again with the same button.
+A recall that the learner asked for, with "Drill" or "Try again", has a "Skip" button. The learner can't see the sentence before the tap, so they must be able to change their mind. Only the first attempt of a required recall has no "Skip". "Skip" works as the "next" button after a wrong recall answer. It shows the next exercise. `recall_is_skippable` in the FSM data keeps the choice, so the bot can show the recall again with the same button.
 
 When nothing is left for today, `/wiederholen` and "Next exercise" reply that the day is done. If the learner has a streak, the reply also shows its length (see [Repetition schedule](repetition-schedule.md#streak)). The reply has a "Study more" button. It raises today's limit on new words by 3 (`Tutor.grant_new_word_budget()`, see [Repetition schedule](repetition-schedule.md)) and shows the next exercise. If the learner has answered all available exercises, the limit isn't the reason. In this case the limit stays the same, and the reply says again that the day is done.
 
@@ -65,7 +65,13 @@ When nothing is left for today, `/wiederholen` and "Next exercise" reply that th
 
 After an answer to a multiple-choice exercise, the bot must remove the options keyboard. Only a new message can remove a reply keyboard, and such a message can't have inline buttons, not even after an edit. So `_remove_reply_keyboard()` first sends a short message with `ReplyKeyboardRemove` and without a notification. Then it deletes this message at once. The keyboard stays removed, and the result comes as one message with its buttons.
 
-If the Bot API refuses the deletion or the call fails, for example because of a flood limit or a network error, the bot logs a warning and continues. At this point the answer is already recorded, so the learner must get the result. The only cost is one extra short message in the chat. [ADR 0035](adr/0035-result-of-an-answer-in-one-message.md) describes the alternatives and why the bot doesn't use them.
+If the Bot API refuses the deletion or the call fails, for example because of a flood limit or a network error, the bot logs a warning and continues. At this point the answer is already recorded, so the learner must get the result. The only cost is one extra short message in the chat. A test in a real chat showed that the keyboard stays removed after the deletion, on a phone and on a desktop client.
+
+Other ways don't work ([#393](https://github.com/pauk-slon/immer-wiederholen/pull/393)):
+
+- **Add the buttons to the message that removed the keyboard.** `editMessageReplyMarkup` refuses it with "message can't be edited".
+- **Don't remove the keyboard.** `one_time_keyboard` hides the keyboard after a tap, but not after a typed answer, so the keyboard stays open under the explanation. A hidden keyboard can also be opened again, and a tap on an old option during an optional recall would count as an answer.
+- **Show the options as inline buttons.** Then there is no keyboard to remove. But the answer would come from a callback instead of a message of the learner, which is a larger change of the conversation (see [#320](https://github.com/pauk-slon/immer-wiederholen/issues/320)).
 
 ### Marking a mistake
 
@@ -120,7 +126,7 @@ The bot takes the size from the counter of the shown exercise ("2/5"). So it dec
 
 The lesson recall is a part of the lesson, not a choice. The interface calls it "practice" (see the list of words in `l10n.py`). Such a lesson gets no recall after an answer, neither optional nor required. The lesson recall practices the mistakes of the lesson, and a wrong answer makes the pair due again today anyway. `Tutor` still returns its `RecallMode`, and the bot shows the "Next exercise" button instead.
 
-Earlier the learner chose the lesson recall with a button of its own (ADR 0036, superseded). A learner who declined it lost the practice of the lesson's mistakes, and only the author chose it. A required lesson recall doesn't have the problems that made it optional. The summary of the lesson comes first, so the task isn't a surprise. The task is one to three sentences. "Skip" needs no model call, and `/wiederholen` leaves the lesson recall at once. A setting for this in `bot.yaml` can come with a second course that wants another method.
+Earlier the learner chose the lesson recall with a button of its own ([#397](https://github.com/pauk-slon/immer-wiederholen/pull/397)). A learner who declined it lost the practice of the lesson's mistakes, and only the author chose it. A required lesson recall doesn't have the problems that made it optional. The summary of the lesson comes first, so the task isn't a surprise. The task is one to three sentences. "Skip" needs no model call, and `/wiederholen` leaves the lesson recall at once. A setting for this in `bot.yaml` can come with a second course that wants another method.
 
 After the last answer, the bot sends the result and the lesson summary without buttons, as before a required recall. Then it starts the generation at once. `handle_answer()` starts it after `check_out()`, because the model call takes seconds. `commands.lesson_recall` imports `commands.wiederholen`, so the dispatcher gives `start_lesson_recall()` to `handle_answer()` as a parameter. The bot sends no message before the first sentence. The summary separates the lesson recall from the lesson, and the "typing" status shows the wait. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. A practice button from before this change still works. It starts the lesson recall if the chat still gets one, and otherwise shows the next exercise, because the learner wants to go on. If no key is left in the course, the bot shows the message of a failed generation. The sentences are in the interface language at the start.
 
@@ -323,5 +329,3 @@ The reminder's tests call `tick()` directly, with no incoming update, so [`tests
 - [Reminders count from the last session](adr/0011-remind-after-the-last-session.md) (ADR 0011)
 - [A streak of 2 days or more gets a second reminder](adr/0025-second-reminder-for-a-streak.md) (ADR 0025)
 - [Streaks count finished lessons, not answers](adr/0027-streaks-count-finished-lessons.md) (ADR 0027)
-- [The result of an answer is one message](adr/0035-result-of-an-answer-in-one-message.md) (ADR 0035)
-- [Practice after a lesson is the learner's choice](adr/0036-practice-after-a-lesson-is-a-choice.md) (ADR 0036)

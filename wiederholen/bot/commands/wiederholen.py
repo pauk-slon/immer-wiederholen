@@ -261,7 +261,7 @@ async def send_result(
 
 
 async def _remove_reply_keyboard(message: Message) -> None:
-    # A message with ReplyKeyboardRemove can't get inline buttons later (ADR 0035)
+    # A message with ReplyKeyboardRemove can't get inline buttons later
     assert message.bot is not None
     sent = await message.answer(
         _KEYBOARD_REMOVAL_TEXT,

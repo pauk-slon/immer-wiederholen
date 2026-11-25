@@ -131,9 +131,9 @@ class Locale:
 # The texts address the learner as "вы", in lower case as usual in an
 # interface. A button that names an action uses the infinitive ("Попробовать
 # ещё раз"). A button that leads to another part of the lesson names it with
-# a noun ("Следующий урок", "Практика")
+# a noun ("Следующий урок")
 #
-# Words for what the code calls (ADR 0036):
+# Words for what the code calls:
 # | code          | ru       | en       |
 # | exercise      | задание  | exercise |
 # | lesson        | урок     | lesson   |
