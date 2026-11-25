@@ -26,10 +26,6 @@ dispatcher: Final = Dispatcher(disable_fsm=True)
 dispatcher.update.outer_middleware(TracingMiddleware())
 dispatcher.update.outer_middleware(dispatcher.fsm)
 
-# commands.wiederholen starts a lesson recall, but can't import
-# commands.lesson_recall, which imports it
-dispatcher["start_lesson_recall"] = lesson_recall.start_lesson_recall
-
 dispatcher.include_router(chat_membership_router)
 dispatcher.include_router(start.router)
 dispatcher.include_router(language.router)
