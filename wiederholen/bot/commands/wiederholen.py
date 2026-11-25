@@ -3,7 +3,7 @@ import contextlib
 import html
 import logging
 import random
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator
 from typing import Final
 
 from aiogram import Bot, F, Router
@@ -204,11 +204,16 @@ def _lesson_recall_is_on(
     )
 
 
-# lesson_recall.start_lesson_recall(), given by the dispatcher, because
-# commands.lesson_recall imports this module
-type StartLessonRecall = Callable[
-    [Message, FSMContext, Course, AsyncAnthropic | None], Awaitable[None]
-]
+def _make_practice_button(locale: Locale) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=locale.btn_practice, callback_data=LESSON_RECALL
+                )
+            ]
+        ]
+    )
 
 
 def offers_lesson_recall(
@@ -585,7 +590,6 @@ async def handle_answer(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
-    start_lesson_recall: StartLessonRecall,
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
@@ -657,31 +661,22 @@ async def handle_answer(
                 course,
             )
             return
-        starts_lesson_recall = offers_lesson_recall(
+        if offers_lesson_recall(
             anthropic_client,
             feature_flags,
             message.chat.id,
             finished_lesson,
             state_data,
-        )
-        if starts_lesson_recall:
-            # Like before a required recall, the summary comes without buttons
-            await message.answer(result_html, parse_mode="HTML")
-            if summary is not None:
-                await message.answer(summary)
+        ):
+            # The practice is the only way on. A button says what comes next
+            reply_markup = _make_practice_button(locale)
+        elif recall_mode == RecallMode.optional:
+            reply_markup = _make_recall_buttons(locale, locale.btn_recall, next_label)
         else:
-            if recall_mode == RecallMode.optional:
-                reply_markup = _make_recall_buttons(
-                    locale, locale.btn_recall, next_label
-                )
-            else:
-                reply_markup = make_next_button(locale, next_label)
-            sent = await send_result(message, result_html, summary, reply_markup)
-            await state.update_data(shown_exercise=state_data["shown_exercise"])
-            await remember_buttoned_message(state, sent)
-    # After check_out(), because the model call takes seconds
-    if starts_lesson_recall:
-        await start_lesson_recall(message, state, course, anthropic_client)
+            reply_markup = make_next_button(locale, next_label)
+        sent = await send_result(message, result_html, summary, reply_markup)
+        await state.update_data(shown_exercise=state_data["shown_exercise"])
+        await remember_buttoned_message(state, sent)
 
 
 @router.message(UserState.recalling, F.text, ~F.text.startswith("/"))

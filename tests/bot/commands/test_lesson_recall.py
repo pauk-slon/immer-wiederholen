@@ -48,6 +48,7 @@ ACHTEN = make_exercise(word="achten", answer="auf")
 COURSE = Course([WARTEN, HOFFEN, DENKEN, ACHTEN], lesson_recall_guide=GUIDE)
 WORDS = ("warten", "hoffen", "denken", "achten")
 NEXT_LESSON = (RU.btn_next_lesson, NEXT_EXERCISE)
+PRACTICE = (RU.btn_practice, LESSON_RECALL)
 
 
 def _lesson_recall(*texts: str, language: Any = "ru") -> LessonRecall:
@@ -159,7 +160,8 @@ def _buttons(request: Any) -> list[tuple[str, str | None]]:
 
 
 async def _start(send: Any, state: FSMContext) -> list[Any]:
-    return await _finish_lesson(send, state)
+    await _finish_lesson(send, state)
+    return await send.callback(LESSON_RECALL)
 
 
 def _summary(requests: list[Any]) -> SendMessage:
@@ -171,19 +173,17 @@ def _summary(requests: list[Any]) -> SendMessage:
     return summary
 
 
-async def test_the_summary_comes_without_buttons_and_the_practice_starts(
+async def test_the_summary_has_only_the_practice_button(
     send: Any, state: FSMContext, generate: AsyncMock
 ) -> None:
     requests = await _finish_lesson(send, state)
 
-    result, summary, sentence = _sent(requests)[-3:]
-    assert result.text is not None
-    assert result.text.startswith(RU.correct_mark)
+    summary = _sent(requests)[-1]
     assert summary.text is not None
     assert summary.text.startswith(RU.lesson_summary.format(correct=3, size=4))
-    assert summary.reply_markup is None
-    assert sentence.text == "1/2 ✍️ Переведите:\nПервая фраза."
-    assert await state.get_state() == LessonRecallState.translating.state
+    assert _buttons(summary) == [PRACTICE]
+    assert button_styles(summary) == [None]
+    generate.assert_not_called()
 
 
 async def test_without_an_api_key_there_is_no_lesson_recall(
@@ -207,10 +207,9 @@ async def test_a_lesson_of_three_exercises_has_a_lesson_recall(
 ) -> None:
     course = _course_with_recalls(WORDS[:3])
 
-    await _answer_lesson(send, state, [True, True, True], course=course)
+    requests = await _answer_lesson(send, state, [True, True, True], course=course)
 
-    generate.assert_called_once()
-    assert await state.get_state() == LessonRecallState.translating.state
+    assert _buttons(_sent(requests)[-1]) == [PRACTICE]
 
 
 async def test_a_lesson_of_two_exercises_has_no_lesson_recall(
@@ -240,19 +239,21 @@ async def test_a_lesson_with_a_lesson_recall_gets_no_required_recall(
     for _ in range(2):
         await send.message((await _shown_exercise(state)).answer[0], course=course)
         await send.callback(NEXT_EXERCISE, course=course)
-    await send.message("falsch", course=course)
+    last = await send.message("falsch", course=course)
 
     assert _buttons(_sent(first)[-1]) == [(RU.cmd_wiederholen, NEXT_EXERCISE)]
-    generate.assert_called_once()
-    assert await state.get_state() == LessonRecallState.translating.state
+    assert _buttons(_sent(last)[-1]) == [PRACTICE]
 
 
 async def test_the_start_sends_the_lesson_and_shows_the_first_sentence(
     send: Any, state: FSMContext, generate: AsyncMock, client: Mock
 ) -> None:
-    requests = await _finish_lesson(send, state)
+    await _finish_lesson(send, state)
     finished_lesson = (await state.get_data())["finished_lesson"]
 
+    requests = await send.callback(LESSON_RECALL)
+
+    assert any(isinstance(r, EditMessageReplyMarkup) for r in requests)
     args, kwargs = generate.call_args
     assert args[0] is client
     assert [e.content_key for e in args[1]] == finished_lesson["exercise_keys"]
@@ -262,7 +263,7 @@ async def test_the_start_sends_the_lesson_and_shows_the_first_sentence(
     assert len(kwargs["wrong_exercise_keys"]) == 1
     assert kwargs["guide"] == GUIDE
     assert kwargs["language"] == "ru"
-    sentence = _sent(requests)[-1]
+    (sentence,) = _sent(requests)
     assert sentence.text == "1/2 ✍️ Переведите:\nПервая фраза."
     assert _buttons(sentence) == [(RU.btn_lesson_recall_skip, SKIP)]
     assert await state.get_state() == LessonRecallState.translating.state
@@ -275,20 +276,6 @@ async def test_continue_without_a_finished_lesson_shows_the_next_exercise(
 
     generate.assert_not_called()
     assert await state.get_state() == "UserState:answering"
-
-
-async def test_an_old_practice_button_starts_the_practice(
-    send: Any, state: FSMContext, generate: AsyncMock
-) -> None:
-    # A lesson without a lesson recall leaves finished_lesson, as a lesson
-    # did before the practice became required
-    await _finish_lesson(send, state, anthropic_client=None)
-
-    requests = await send.callback(LESSON_RECALL)
-
-    assert any(isinstance(r, EditMessageReplyMarkup) for r in requests)
-    generate.assert_called_once()
-    assert await state.get_state() == LessonRecallState.translating.state
 
 
 async def test_continue_without_an_api_key_shows_the_next_exercise(
@@ -383,8 +370,9 @@ async def test_a_lesson_recall_older_than_a_day_does_not_count(
     await _use_up_the_daily_limit(state, hours_ago=25)
 
     requests = await _finish_lesson(send, state)
+    await send.callback(LESSON_RECALL)
 
-    generate.assert_called_once()
+    assert _buttons(_summary(requests)) == [PRACTICE]
     assert RU.lesson_recall_limit_text.split("{")[0] not in str(_summary(requests).text)
     assert len((await state.get_data())[STARTED_AT_KEY]) == 1
 
@@ -397,7 +385,7 @@ async def test_a_chat_in_the_unlimited_flag_has_no_daily_limit(
 
     requests = await _finish_lesson(send, state, feature_flags=flags)
 
-    generate.assert_called_once()
+    assert _buttons(_summary(requests)) == [PRACTICE]
     assert RU.lesson_recall_limit_text.split("{")[0] not in str(_summary(requests).text)
 
 
@@ -446,9 +434,10 @@ async def test_a_course_without_the_exercises_of_the_lesson_fails_the_start(
 async def test_a_failed_generation_leads_to_the_next_exercise(
     send: Any, state: FSMContext, generate: AsyncMock
 ) -> None:
+    await _finish_lesson(send, state)
     generate.side_effect = AIGenerationError("boom")
 
-    requests = await _finish_lesson(send, state)
+    requests = await send.callback(LESSON_RECALL)
 
     message = _sent(requests)[-1]
     assert message.text == RU.lesson_recall_generation_failed
@@ -464,10 +453,11 @@ async def test_a_generation_result_is_dropped_if_the_chat_moved_on(
         return _lesson_recall("Фраза.")
 
     generate.side_effect = move_on
+    await _finish_lesson(send, state)
 
-    requests = await _finish_lesson(send, state)
+    requests = await send.callback(LESSON_RECALL)
 
-    assert _sent(requests)[-1] is _summary(requests)
+    assert _sent(requests) == []
     assert len((await state.get_data())[STARTED_AT_KEY]) == 1
 
 

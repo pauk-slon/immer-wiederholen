@@ -276,14 +276,12 @@ def _lesson_exercises(course: Course, finished_lesson: dict | None) -> list[Exer
     ]
 
 
-async def start_lesson_recall(
+async def _start(
     message: Message,
     state: FSMContext,
     course: Course,
     anthropic_client: AsyncAnthropic | None,
 ) -> None:
-    """Starts the lesson recall of the lesson that has just finished. The
-    caller has checked with offers_lesson_recall() that the chat gets one."""
     data = await state.get_data()
     finished_lesson = data.get("finished_lesson")
     assert finished_lesson is not None
@@ -339,7 +337,7 @@ async def start_lesson_recall(
 
 
 @router.callback_query(F.data == LESSON_RECALL)
-async def handle_old_practice_button(
+async def handle_start(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
@@ -349,8 +347,8 @@ async def handle_old_practice_button(
     anthropic_client: AsyncAnthropic | None = None,
     cue_store: CueStore | None = None,
 ) -> None:
-    # A practice button from before the practice became required. It starts the practice if the chat still gets it, otherwise the next
-    # exercise, because the learner wants to go on
+    # An old button or a used-up limit can't start a lesson recall, and the
+    # learner still wants to go on
     data = await state.get_data()
     message = callback.message
     if not isinstance(message, Message) or not offers_lesson_recall(
@@ -372,7 +370,7 @@ async def handle_old_practice_button(
     await message.edit_reply_markup(reply_markup=None)
     await forget_buttoned_message(state)
     await callback.answer()
-    await start_lesson_recall(message, state, course, anthropic_client)
+    await _start(message, state, course, anthropic_client)
 
 
 def _record_exercises(
