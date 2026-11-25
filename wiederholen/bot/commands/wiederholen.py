@@ -80,7 +80,7 @@ _KEYBOARD_REMOVAL_TEXT: Final = "…"
 # Tutor.LESSON_SIZE of 1, so it has no counter and no summary
 _LESSON_SIZE: Final = 5
 # A smaller lesson gives too few sentences for the wait of a generation
-_MIN_LESSON_RECALL_SIZE: Final = 4
+_MIN_LESSON_RECALL_SIZE: Final = 3
 
 
 class UserState(StatesGroup):
