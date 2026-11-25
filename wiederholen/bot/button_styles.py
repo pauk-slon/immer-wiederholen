@@ -1,5 +1,5 @@
-"""The colors of inline buttons. A color has a meaning, see docs/bot.md
-and ADR 0037."""
+"""The styles of inline buttons. A style marks the role of a button, see
+docs/bot.md and ADR 0037."""
 
 from typing import Final
 

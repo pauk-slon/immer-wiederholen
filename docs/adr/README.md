@@ -70,7 +70,7 @@ The date is the day of the decision.
 | [0029](0029-start-payload-selects-topic-groups.md) | A /start payload can also select the topic groups of a new chat | 2026-11-15 | Accepted |
 | [0035](0035-result-of-an-answer-in-one-message.md) | The result of an answer is one message | 2026-11-24 | Accepted |
 | [0036](0036-practice-after-a-lesson-is-a-choice.md) | Practice after a lesson is the learner's choice | 2026-11-24 | Accepted |
-| [0037](0037-a-button-color-has-a-meaning.md) | A button color has a meaning | 2026-11-25 | Accepted |
+| [0037](0037-a-button-style-has-a-meaning.md) | A button style has a meaning | 2026-11-25 | Accepted |
 
 ### Web frontend
 
