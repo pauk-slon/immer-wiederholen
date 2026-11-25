@@ -146,6 +146,11 @@ class LessonRecall:
     sentences: tuple[LessonRecallSentence, ...]
     language: Language
 
+    def used_exercise_indexes(self) -> frozenset[int]:
+        return frozenset(
+            index for sentence in self.sentences for index in sentence.exercise_indexes
+        )
+
     def to_dict(self) -> dict:
         return {
             "exercises": [exercise.to_dict() for exercise in self.exercises],

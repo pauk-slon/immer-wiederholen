@@ -14,6 +14,7 @@ from aiogram.types import (
 )
 from anthropic import AsyncAnthropic
 from opentelemetry import trace
+from opentelemetry.trace import Span
 
 from wiederholen.bot import answer_diff
 from wiederholen.bot.commands.wiederholen import (
@@ -318,7 +319,6 @@ async def handle_start(
             "lesson_recall.wrong_exercises": sum(
                 exercise.content_key in wrong_exercise_keys for exercise in exercises
             ),
-            "lesson_recall.topics": [exercise.topic for exercise in exercises],
         },
     ) as span:
         try:
@@ -334,12 +334,8 @@ async def handle_start(
             span.set_attribute("lesson_recall.failure", str(error))
             lesson_recall = None
         else:
-            span.set_attributes(
-                {
-                    "lesson_recall.sentences": len(lesson_recall.sentences),
-                    "lesson_recall.left_out_topics": _left_out_topics(lesson_recall),
-                }
-            )
+            span.set_attribute("lesson_recall.sentences", len(lesson_recall.sentences))
+            _record_exercises(span, lesson_recall, wrong_exercise_keys)
             # Counted even if the chat moved on, because the model call is paid
             await state.update_data(count_lesson_recall(await state.get_data()))
     if not await _is_still_current(
@@ -356,17 +352,20 @@ async def handle_start(
     await _send_sentence(message, state, locale)
 
 
-def _left_out_topics(lesson_recall: LessonRecall) -> list[str]:
-    used = {
-        index
-        for sentence in lesson_recall.sentences
-        for index in sentence.exercise_indexes
-    }
-    return [
-        exercise.topic
-        for index, exercise in enumerate(lesson_recall.exercises)
-        if index not in used
-    ]
+def _record_exercises(
+    span: Span, lesson_recall: LessonRecall, wrong_exercise_keys: frozenset[str]
+) -> None:
+    used = lesson_recall.used_exercise_indexes()
+    for index, exercise in enumerate(lesson_recall.exercises):
+        span.add_event(
+            "LessonRecallExercise",
+            attributes={
+                "word": exercise.word,
+                "topic": exercise.topic,
+                "used": index in used,
+                "answered_wrong": exercise.content_key in wrong_exercise_keys,
+            },
+        )
 
 
 async def _check(
@@ -389,7 +388,7 @@ async def _check(
     with default_tracer.start_as_current_span(
         "lesson_recall.check",
         attributes={
-            "lesson_recall.topics": [
+            "lesson_recall.sentence_topics": [
                 lesson_recall.exercises[index].topic for index in practiced
             ]
         },
