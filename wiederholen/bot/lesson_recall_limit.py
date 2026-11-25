@@ -29,6 +29,13 @@ def has_lesson_recall_left(
     return len(started) < DAILY_LESSON_RECALLS
 
 
+def seconds_until_lesson_recall(state_data: dict) -> float:
+    """How long until the oldest lesson recall of the last day stops counting.
+    Only for a chat that has used up the limit."""
+    now = time.time()
+    return min(_started_in_the_last_day(state_data, now)) + _DAY_SECONDS - now
+
+
 def count_lesson_recall(state_data: dict) -> dict:
     """The FSM data update that counts a new lesson recall."""
     now = time.time()

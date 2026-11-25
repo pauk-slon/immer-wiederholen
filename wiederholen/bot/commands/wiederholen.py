@@ -30,9 +30,14 @@ from wiederholen.bot.l10n import (
     Locale,
     append_streak_line,
     format_count,
+    format_wait,
     get_language,
 )
-from wiederholen.bot.lesson_recall_limit import STARTED_AT_KEY, has_lesson_recall_left
+from wiederholen.bot.lesson_recall_limit import (
+    STARTED_AT_KEY,
+    has_lesson_recall_left,
+    seconds_until_lesson_recall,
+)
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     forget_buttoned_message,
@@ -233,7 +238,9 @@ def _offer_lesson_recall(
 
 
 def _format_lesson_summary(
-    finished_lesson: dict | None, language: Language
+    finished_lesson: dict | None,
+    language: Language,
+    seconds_until_practice: float | None,
 ) -> str | None:
     if finished_lesson is None:
         return None
@@ -244,6 +251,9 @@ def _format_lesson_summary(
     if finished_lesson["streak_days"] is not None:
         days = format_count(finished_lesson["streak_days"], "days", language)
         summary += "\n" + locale.streak_text.format(days=days)
+    if seconds_until_practice is not None:
+        wait = format_wait(seconds_until_practice, language)
+        summary += "\n" + locale.lesson_recall_limit_text.format(wait=wait)
     return summary
 
 
@@ -616,11 +626,12 @@ async def handle_answer(
         has_lesson_recall = lesson_recall_left and _lesson_recall_is_on(
             anthropic_client, lesson_counter[1] if lesson_counter else None
         )
-        if (
+        limit_reached = (
             not lesson_recall_left
             and finished_lesson is not None
             and _lesson_recall_is_on(anthropic_client, finished_lesson["size"])
-        ):
+        )
+        if limit_reached:
             trace.get_current_span().set_attribute("lesson_recall.limit_reached", True)
         recall_mode = mark.recall
         # Two kinds of recall would confuse the learner
@@ -638,7 +649,11 @@ async def handle_answer(
             result_html = f"{wrong_line}\n\n{explanation}"
         if shown_exercise.distractors:
             await _remove_reply_keyboard(message)
-        summary = _format_lesson_summary(finished_lesson, language)
+        summary = _format_lesson_summary(
+            finished_lesson,
+            language,
+            seconds_until_lesson_recall(state_data) if limit_reached else None,
+        )
         if recall_mode == RecallMode.required:
             # The summary counts the answers of the lesson, so it comes before
             # the recall, without buttons. The recall result doesn't repeat it

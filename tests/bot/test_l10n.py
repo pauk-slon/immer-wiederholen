@@ -2,8 +2,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from wiederholen.bot.l10n import RU, append_streak_line, format_count
-from wiederholen.school import Streak
+from wiederholen.bot.l10n import RU, append_streak_line, format_count, format_wait
+from wiederholen.school import Language, Streak
 
 
 @pytest.mark.parametrize(
@@ -95,3 +95,23 @@ def test_append_streak_line_rounds_the_hours_up_to_at_least_one(
     assert text == "text\n\n" + RU.reminder_streak_text.format(
         days="3 дня", hours=hours
     )
+
+
+@pytest.mark.parametrize(
+    ("seconds", "language", "expected"),
+    [
+        (10, "ru", "1 мин"),
+        (40 * 60, "ru", "40 мин"),
+        (40 * 60 + 1, "ru", "41 мин"),
+        (59 * 60, "ru", "59 мин"),
+        (59 * 60 + 1, "ru", "1 ч"),
+        (3 * 3600, "ru", "3 ч"),
+        (3 * 3600 + 1, "ru", "4 ч"),
+        (40 * 60, "en", "40 min"),
+        (23 * 3600, "en", "23 h"),
+    ],
+)
+def test_format_wait_rounds_up(
+    seconds: float, language: Language, expected: str
+) -> None:
+    assert format_wait(seconds, language) == expected
