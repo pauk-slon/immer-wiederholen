@@ -113,7 +113,6 @@ class Locale:
     lesson_recall_limit_text: str
     # After a lesson, the text of the "Next exercise" button
     btn_next_lesson: str
-    btn_practice: str
     btn_next_sentence: str
     grammar_class_hint: str
     language_set: str
@@ -199,7 +198,6 @@ RU: Final = Locale(
     lesson_summary="🏁 Урок пройден: верно {correct} из {size}",
     lesson_recall_limit_text="⏳ Практика снова будет доступна через {wait}",
     btn_next_lesson="Следующий урок",
-    btn_practice="Практика",
     btn_next_sentence="Следующая фраза",
     grammar_class_hint="Так же, как у {word}",
     language_set="🌐 Язык: русский",
@@ -274,7 +272,6 @@ EN: Final = Locale(
     lesson_summary="🏁 Lesson complete: {correct} of {size} correct",
     lesson_recall_limit_text="⏳ Practice will be available again in {wait}",
     btn_next_lesson="Next lesson",
-    btn_practice="Practice",
     btn_next_sentence="Next sentence",
     grammar_class_hint="Same as for {word}",
     language_set="🌐 Language: English",

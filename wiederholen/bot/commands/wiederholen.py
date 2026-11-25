@@ -3,7 +3,7 @@ import contextlib
 import html
 import logging
 import random
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Final
 
 from aiogram import Bot, F, Router
@@ -24,7 +24,6 @@ from anthropic import AsyncAnthropic
 from opentelemetry import trace
 
 from wiederholen.bot import answer_diff
-from wiederholen.bot.button_styles import RECOMMENDED
 from wiederholen.bot.l10n import (
     LOCALES,
     Locale,
@@ -205,6 +204,13 @@ def _lesson_recall_is_on(
     )
 
 
+# lesson_recall.start_lesson_recall(), given by the dispatcher, because
+# commands.lesson_recall imports this module
+type StartLessonRecall = Callable[
+    [Message, FSMContext, Course, AsyncAnthropic | None], Awaitable[None]
+]
+
+
 def offers_lesson_recall(
     anthropic_client: AsyncAnthropic | None,
     feature_flags: dict[str, frozenset[int]] | None,
@@ -218,23 +224,6 @@ def offers_lesson_recall(
         and _lesson_recall_is_on(anthropic_client, finished_lesson["size"])
         and has_lesson_recall_left(feature_flags, chat_id, state_data)
     )
-
-
-def _offer_lesson_recall(
-    markup: InlineKeyboardMarkup, locale: Locale
-) -> InlineKeyboardMarkup:
-    # Right before the "next" button, which ends the lesson. The buttons for
-    # the current exercise, such as "Try again", stay first in a row of their
-    # own, so that a row has at most two buttons
-    practice = InlineKeyboardButton(
-        text=locale.btn_practice, callback_data=LESSON_RECALL, style=RECOMMENDED
-    )
-    buttons = [button for row in markup.inline_keyboard for button in row]
-    current = [b for b in buttons if b.callback_data != NEXT_EXERCISE]
-    following = [b for b in buttons if b.callback_data == NEXT_EXERCISE]
-    rows = [current] if current else []
-    rows.append([practice, *following])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _format_lesson_summary(
@@ -335,11 +324,8 @@ async def _send_recall_prompt(
         await remember_buttoned_message(state, sent)
 
 
-def _make_skip_recall_button(
-    locale: Locale, offers_practice: bool
-) -> InlineKeyboardMarkup:
-    markup = make_next_button(locale, locale.btn_recall_skip)
-    return _offer_lesson_recall(markup, locale) if offers_practice else markup
+def _make_skip_recall_button(locale: Locale) -> InlineKeyboardMarkup:
+    return make_next_button(locale, locale.btn_recall_skip)
 
 
 def _recall_prompt(recall: Recall, language: Language, locale: Locale) -> str:
@@ -601,6 +587,7 @@ async def handle_answer(
     student_identity_store: StudentIdentityStore,
     feature_flags: dict[str, frozenset[int]] | None = None,
     anthropic_client: AsyncAnthropic | None = None,
+    start_lesson_recall: StartLessonRecall | None = None,
 ) -> None:
     assert message.text is not None
     state_data = await state.get_data()
@@ -634,10 +621,9 @@ async def handle_answer(
         )
         if limit_reached:
             trace.get_current_span().set_attribute("lesson_recall.limit_reached", True)
-        recall_mode = mark.recall
-        # Two kinds of recall would confuse the learner
-        if has_lesson_recall and recall_mode == RecallMode.optional:
-            recall_mode = RecallMode.none
+        # The lesson recall practices the mistakes of the lesson, so a lesson
+        # with it gets no recall after an answer (ADR 0037)
+        recall_mode = RecallMode.none if has_lesson_recall else mark.recall
         if mark.is_correct:
             result_html = f"{locale.correct_mark} {explanation}"
         else:
@@ -671,22 +657,32 @@ async def handle_answer(
                 course,
             )
             return
-        if recall_mode == RecallMode.optional:
-            reply_markup = _make_recall_buttons(locale, locale.btn_recall, next_label)
-        else:
-            reply_markup = make_next_button(locale, next_label)
-        if offers_lesson_recall(
+        starts_lesson_recall = start_lesson_recall is not None and offers_lesson_recall(
             anthropic_client,
             feature_flags,
             message.chat.id,
             finished_lesson,
             state_data,
-        ):
-            reply_markup = _offer_lesson_recall(reply_markup, locale)
-            trace.get_current_span().set_attribute("lesson_recall.offered", True)
-        sent = await send_result(message, result_html, summary, reply_markup)
-        await state.update_data(shown_exercise=state_data["shown_exercise"])
-        await remember_buttoned_message(state, sent)
+        )
+        if starts_lesson_recall:
+            # Like before a required recall, the summary comes without buttons
+            await message.answer(result_html, parse_mode="HTML")
+            if summary is not None:
+                await message.answer(summary)
+        else:
+            if recall_mode == RecallMode.optional:
+                reply_markup = _make_recall_buttons(
+                    locale, locale.btn_recall, next_label
+                )
+            else:
+                reply_markup = make_next_button(locale, next_label)
+            sent = await send_result(message, result_html, summary, reply_markup)
+            await state.update_data(shown_exercise=state_data["shown_exercise"])
+            await remember_buttoned_message(state, sent)
+    # After check_out(), because the model call takes seconds (ADR 0037)
+    if starts_lesson_recall:
+        assert start_lesson_recall is not None
+        await start_lesson_recall(message, state, course, anthropic_client)
 
 
 @router.message(UserState.recalling, F.text, ~F.text.startswith("/"))
@@ -696,8 +692,6 @@ async def handle_recall(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
-    feature_flags: dict[str, frozenset[int]] | None = None,
-    anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     assert message.text is not None
     await clear_stale_buttons(message.bot, message.chat.id, state)
@@ -713,9 +707,6 @@ async def handle_recall(
     )
     next_label = _get_next_label(finished_lesson, language)
     locale = LOCALES[language]
-    offers_practice = offers_lesson_recall(
-        anthropic_client, feature_flags, message.chat.id, finished_lesson, state_data
-    )
     # check_recall() doesn't change student_record, unlike request_recall()
     # in _start_recall() above — open() detects that nothing changed and
     # skips the write on its own, no separate read-only path needed here.
@@ -742,9 +733,6 @@ async def handle_recall(
             reply_markup = _make_recall_buttons(
                 locale, locale.btn_recall_retry, next_label
             )
-        if offers_practice:
-            reply_markup = _offer_lesson_recall(reply_markup, locale)
-            trace.get_current_span().set_attribute("lesson_recall.offered", True)
         sent = await message.answer(
             result_html, reply_markup=reply_markup, parse_mode="HTML"
         )
@@ -755,8 +743,6 @@ async def handle_recall(
 async def show_the_recall_again(
     message: Message,
     state: FSMContext,
-    feature_flags: dict[str, frozenset[int]] | None = None,
-    anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     # Not the fallback: its "next" button would skip the recall, and after
     # the last answer of a lesson also the offer of the practice
@@ -764,16 +750,7 @@ async def show_the_recall_again(
     state_data = await state.get_data()
     language = get_language(state_data)
     skip_markup = (
-        _make_skip_recall_button(
-            LOCALES[language],
-            offers_lesson_recall(
-                anthropic_client,
-                feature_flags,
-                message.chat.id,
-                state_data.get("finished_lesson"),
-                state_data,
-            ),
-        )
+        _make_skip_recall_button(LOCALES[language])
         if state_data.get("recall_is_skippable")
         else None
     )
@@ -949,8 +926,6 @@ async def handle_recall_request(
     course: Course,
     student_record_book: StudentRecordBook,
     student_identity_store: StudentIdentityStore,
-    feature_flags: dict[str, frozenset[int]] | None = None,
-    anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     state_data = await state.get_data()
     language = get_language(state_data)
@@ -959,16 +934,7 @@ async def handle_recall_request(
     if isinstance(callback.message, Message):
         # The learner asked for this recall, after an optional offer or after
         # a wrong attempt, which already offered to go on
-        skip_markup = _make_skip_recall_button(
-            locale,
-            offers_lesson_recall(
-                anthropic_client,
-                feature_flags,
-                callback.message.chat.id,
-                state_data.get("finished_lesson"),
-                state_data,
-            ),
-        )
+        skip_markup = _make_skip_recall_button(locale)
         await callback.message.edit_reply_markup(reply_markup=None)
         await forget_buttoned_message(state)
         student_id = await student_identity_store.resolve_or_create_student_id(

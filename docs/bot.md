@@ -118,11 +118,11 @@ Only a lesson of 4 or more exercises gets a lesson recall (`_MIN_LESSON_RECALL_S
 
 The bot takes the size from the counter of the shown exercise ("2/5"). So it decides for the whole lesson at its first exercise. A lesson that gets smaller, for example after `/topics`, gets the optional recall back and no lesson recall.
 
-The learner chooses the lesson recall ([ADR 0036](adr/0036-practice-after-a-lesson-is-a-choice.md)). In a lesson with a lesson recall, every message that can end the lesson gets a button of its own with the `LESSON_RECALL` callback. The button with `NEXT_EXERCISE` stays and skips the lesson recall. The interface calls a lesson recall "practice" (see the list of words in `l10n.py`).
+The lesson recall is a part of the lesson, not a choice. The interface calls it "practice" (see the list of words in `l10n.py`). Such a lesson gets no recall after an answer, neither optional nor required. The lesson recall practices the mistakes of the lesson, and a wrong answer makes the pair due again today anyway. `Tutor` still returns its `RecallMode`, and the bot shows the "Next exercise" button instead.
 
-Such a lesson gets no optional recall, because two kinds of recall would confuse the learner. So a wrong first answer to a pair gets no recall there, and the lesson recall uses it instead, if the learner chooses the practice. `Tutor` still returns `RecallMode.optional`, and the bot shows the "Next exercise" button instead.
+Earlier the learner chose the lesson recall with a button of its own (ADR 0036, superseded). A learner who declined it lost the practice of the lesson's mistakes, and only the author chose it. A required lesson recall doesn't have the problems that made it optional. The summary of the lesson comes first, so the task isn't a surprise. The task is one to three sentences. "Skip" needs no model call, and `/wiederholen` leaves the lesson recall at once. A setting for this in `bot.yaml` can come with a second course that wants another method.
 
-A tap starts the generation. The bot sends no message before the first sentence. The learner chose the practice, the lesson summary separates it from the lesson, and the "typing" status shows the wait. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. If the bot can't start a lesson recall, for example from an old button, after the daily limit or without keys, the practice button shows the next exercise, because the learner wants to go on. The sentences are in the interface language at the start.
+After the last answer, the bot sends the result and the lesson summary without buttons, as before a required recall. Then it starts the generation at once. `handle_answer()` starts it after `check_out()`, because the model call takes seconds. `commands.lesson_recall` imports `commands.wiederholen`, so the dispatcher gives `start_lesson_recall()` to `handle_answer()` as a parameter. The bot sends no message before the first sentence. The summary separates the lesson recall from the lesson, and the "typing" status shows the wait. `finished_lesson` has the keys of the exercises of the lesson and of the wrong answers. The bot takes the exercises from the course by these keys. It skips keys that the course no longer has. A practice button from before this change still works. It starts the lesson recall if the chat still gets one, and otherwise shows the next exercise, because the learner wants to go on. If no key is left in the course, the bot shows the message of a failed generation. The sentences are in the interface language at the start.
 
 ### The daily limit
 
@@ -130,8 +130,8 @@ Each lesson recall costs model calls, so a chat gets 3 lesson recalls in 24 hour
 
 - **The 24 hours move with time.** The bot counts the lesson recalls that started in the last 24 hours, not in a calendar day. The bot doesn't know the learner's time zone, so a calendar day would end at a random time of the learner's day.
 - **Only a generated task counts.** The bot counts a lesson recall after the model wrote the sentences. A failed generation doesn't use up the limit, because the learner got nothing. A task that the chat left during the generation counts, because the call was paid.
-- **A lesson after the limit works as a lesson without a lesson recall.** It gets the optional recall back, and its summary has no practice button. The bot checks the limit at each answer. If the limit ends during a lesson, the rest of the lesson gets no optional recall, and the lesson gets a lesson recall.
-- **The summary says when the next lesson recall is available.** Without this line, the practice button would disappear without a reason. The time is when the last 24 hours have fewer than 3 lesson recalls. Usually the oldest lesson recall stops counting then. But a chat can have more than 3 in 24 hours, for example if it had the unlimited flag before. The time is in minutes under two hours and in hours otherwise. It is rounded up, so the learner never comes too early. Every such summary has the line, not only the first one. The learner can come back hours later, and the time changes.
+- **A lesson after the limit works as a lesson without a lesson recall.** It gets the recalls after answers back, and no lesson recall starts. The bot checks the limit at each answer. If the limit ends during a lesson, the rest of the lesson gets no optional recall, and the lesson gets a lesson recall.
+- **The summary says when the next lesson recall is available.** Without this line, the practice wouldn't come, and the learner wouldn't know why. The time is when the last 24 hours have fewer than 3 lesson recalls. Usually the oldest lesson recall stops counting then. But a chat can have more than 3 in 24 hours, for example if it had the unlimited flag before. The time is in minutes under two hours and in hours otherwise. It is rounded up, so the learner never comes too early. Every such summary has the line, not only the first one. The learner can come back hours later, and the time changes.
 
 The limit is per chat, because the bot keeps it in the FSM data of the chat. `/reset` doesn't change it.
 
@@ -185,7 +185,7 @@ After a model call, the handler reads the FSM data again. It continues only if t
 
 ### Failures
 
-A failed generation shows an error message with "Next exercise". The learner chose the practice and can't get it now, so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" sends it to the model again. The learner can also type a new translation or skip the sentence.
+A failed generation shows an error message with "Next exercise". The learner can't get the practice now, so the bot lets them go on, with no retry loop. After a failed check, the answer stays in `lesson_recall_answer`, and "Check again" sends it to the model again. The learner can also type a new translation or skip the sentence.
 
 A restart of the bot during a model call loses the call, and the chat stays in `generating` or `checking`. If a message comes more than 60 seconds after the call started, the bot treats the call as lost. 60 seconds is longer than both model timeouts. The bot then shows the same message as after a failed generation or a failed check.
 
@@ -273,11 +273,9 @@ The flag isn't in `_LASTING_CHAT_STATE_KEYS`, so the end of an exercise would re
 
 An inline button can have a `style`: `primary`, `success` or `danger`. The style marks the role of the button, and the Telegram app decides how it looks. A button gets a style only if it has that role, so most buttons have none. If every button had a style, a style would say nothing. Older Telegram apps ignore the field. Use the constants of [`button_styles.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/button_styles.py).
 
-- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. The buttons of the selection itself have no style. An optional step, such as "Drill" or "Try again" of a recall, is never the recommended step. The bot asks for a recall once and then recommends to go on, so that it isn't too pushy. A learner who wants to repeat can.
+- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. So is "Check again" after a failed check of a translation in a lesson recall. The buttons of the selection itself have no style. An optional step, such as "Drill" or "Try again" of a recall, is never the recommended step. The bot asks for a recall once and then recommends to go on, so that it isn't too pushy. A learner who wants to repeat can.
 - **`DESTRUCTIVE`** marks an action that can't be undone. In a confirmation, the button that cancels comes first, and the `DESTRUCTIVE` button comes after it. So a learner who taps the first button out of habit doesn't do the action.
 - **`success`** would mark an action that confirms a good result. No button has this role now.
-
-The practice is the recommended step of every message that offers it.
 
 ## Pending inline buttons
 

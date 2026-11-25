@@ -50,10 +50,10 @@ What's traced (span names and attributes per process, `Tutor`'s span events), ho
 
 Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/language`), the reminder worker, blocked chats, pending inline buttons, feature flags and grammar-class hints are documented in `docs/bot.md` — read it before touching `wiederholen.bot`. The rules that matter most:
 
-- A button style marks its role (see `docs/bot.md`): `RECOMMENDED` (`primary`) for the step we expect where there's a choice (the practice, "Done" in `/topics`), `DESTRUCTIVE` (`danger`) for what can't be undone, no style otherwise. An optional step, such as "Drill" or "Try again" of a recall, never gets a style. Use the constants of `button_styles.py`.
+- A button style marks its role (see `docs/bot.md`): `RECOMMENDED` (`primary`) for the step we expect where there's a choice ("Done" in `/topics`, "Check again" in a lesson recall), `DESTRUCTIVE` (`danger`) for what can't be undone, no style otherwise. An optional step, such as "Drill" or "Try again" of a recall, never gets a style. Use the constants of `button_styles.py`.
 - Every message sent with an inline keyboard is followed by `remember_buttoned_message()`; a callback handler that removes its own buttons and attaches none calls `forget_buttoned_message()`; every typed command calls `clear_stale_buttons()` first. When editing a message's text, pass `reply_markup=` explicitly.
 - `_format_question()` sends HTML: every piece of authored text goes through `html.escape()`.
-- The result of an answer is one message with the buttons. The lesson summary is a message of its own right after it, without buttons before a required recall, and a recall result never repeats it. A multiple-choice answer's reply keyboard is removed by a short message that's deleted at once (ADR 0035): a message with `ReplyKeyboardRemove` can't get inline buttons, not even by an edit.
+- The result of an answer is one message with the buttons. The lesson summary is a message of its own right after it, without buttons before a required recall or a lesson recall, and a recall result never repeats it. A multiple-choice answer's reply keyboard is removed by a short message that's deleted at once (ADR 0035): a message with `ReplyKeyboardRemove` can't get inline buttons, not even by an edit.
 - A new chat setting, or any FSM key that must outlive one exercise, goes into `_LASTING_CHAT_STATE_KEYS`, or it's lost after every exercise.
 - The reminder decision stays in `Tutor.should_remind()` (pure); `record_reminder_sent()` only after Telegram accepted the message.
 - `/wiederholen` and the "Next exercise"/"Study more" buttons during `answering` show the shown exercise again (unless `/topics` deselected its topic), never the next one: otherwise a lesson can be finished without answers.
@@ -62,7 +62,7 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 - Topic selection narrows what's *shown* (`/wiederholen`, next/study-more buttons, reminders), never `/progress` or answer checking.
 - `bot_blocked` is set from both `my_chat_member` and a 403 on send; the reminder skips such chats before touching the record.
 - Feature flags stay in the bot layer; `wiederholen.school` never sees a chat id or flag name.
-- The interface calls a lesson "урок" and a lesson recall "практика" (the list of words is in `l10n.py`, ADR 0036). Practice is the learner's choice: a button of its own next to "next lesson", never the only way on.
+- The interface calls a lesson "урок" and a lesson recall "практика" (the list of words is in `l10n.py`, ADR 0036). Practice is a part of the lesson: it starts by itself after the summary (`start_lesson_recall()`, given to `handle_answer()` by the dispatcher), and a lesson with it gets no recall after an answer.
 - The lesson recall (`commands/lesson_recall.py`, on when `ANTHROPIC_API_KEY` is set, 3 a day per chat unless the `lesson_recall_unlimited` flag has it, ADR 0033) checks the FSM data again after each model call and drops the result unless its `lesson_recall_id`, state and sentence are still there; its handlers never open `check_out()`.
 
 ## AI-generated content
