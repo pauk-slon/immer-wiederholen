@@ -22,7 +22,7 @@ async def test_reset_command_asks_for_confirmation(feed_message: FeedMessage) ->
         for row in requests[0].reply_markup.inline_keyboard
         for btn in row
     ]
-    assert buttons == [(RESET_CONFIRM, DESTRUCTIVE), (RESET_CANCEL, None)]
+    assert buttons == [(RESET_CANCEL, None), (RESET_CONFIRM, DESTRUCTIVE)]
 
 
 async def test_reset_command_responds_in_current_language(

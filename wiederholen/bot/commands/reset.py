@@ -31,12 +31,12 @@ def _make_confirm_buttons(locale: Locale) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
+                    text=locale.reset_cancel_button, callback_data=RESET_CANCEL
+                ),
+                InlineKeyboardButton(
                     text=locale.reset_confirm_button,
                     callback_data=RESET_CONFIRM,
                     style=DESTRUCTIVE,
-                ),
-                InlineKeyboardButton(
-                    text=locale.reset_cancel_button, callback_data=RESET_CANCEL
                 ),
             ]
         ]

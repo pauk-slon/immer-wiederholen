@@ -10,10 +10,10 @@ Bot API 10.4 gives an inline button a `style`. It can be `primary` (blue), `succ
 
 ## Decision
 
-A color tells the learner the role of a button. Most buttons have no style.
+A color tells the learner the role of a button. Most buttons have no style. The rule is for the inline buttons of the Telegram bot. The web widget has its own buttons and styles.
 
-- `primary` marks the recommended step, and only where the learner has a choice. A message has at most one `primary` button. A message with a single button gets no style.
-- `danger` marks an action that can't be undone.
+- `primary` marks the recommended step, and only where the learner has a choice. A message has at most one `primary` button. A message with a single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is a recommended step. The buttons that change the selection aren't.
+- `danger` marks an action that can't be undone. In a confirmation, the button that cancels comes first and the `danger` button after it, so that a tap out of habit doesn't do the action.
 - `success` isn't used. In the bot, green means a correct answer (✅), so a green button looks like a right answer.
 
 The two styles are constants in `wiederholen/bot/button_styles.py`, `RECOMMENDED` and `DESTRUCTIVE`. Code uses the constants, not the strings.

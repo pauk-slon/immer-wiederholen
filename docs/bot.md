@@ -272,8 +272,8 @@ The flag isn't in `_LASTING_CHAT_STATE_KEYS`, so the end of an exercise would re
 
 An inline button can have a color, its `style`. A color tells the learner the role of the button, so most buttons have none ([ADR 0037](adr/0037-a-button-color-has-a-meaning.md)). Use the constants of [`button_styles.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/button_styles.py).
 
-- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style.
-- **`DESTRUCTIVE`** marks an action that can't be undone.
+- **`RECOMMENDED`** marks the step that we recommend, only where the learner has a choice. A message has at most one such button. A single button gets no style. The button that ends a selection, such as "Done" in `/topics`, is the recommended step. The buttons of the selection itself have no style.
+- **`DESTRUCTIVE`** marks an action that can't be undone. In a confirmation, the button that cancels comes first, and the `DESTRUCTIVE` button comes after it. So a learner who taps the first button out of habit doesn't do the action.
 
 The practice is the recommended step of every message that offers it. `_offer_lesson_recall()` removes the style of the other buttons of the message.
 
