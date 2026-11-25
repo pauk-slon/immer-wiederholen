@@ -149,15 +149,12 @@ def _format_nothing_due(tutor: Tutor, language: Language) -> str:
 
 
 def _make_recall_buttons(
-    locale: Locale,
-    label: str,
-    next_label: str | None = None,
-    style: str | None = None,
+    locale: Locale, label: str, next_label: str | None = None
 ) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text=label, callback_data=RECALL, style=style),
+                InlineKeyboardButton(text=label, callback_data=RECALL),
                 InlineKeyboardButton(
                     text=next_label or locale.cmd_wiederholen,
                     callback_data=NEXT_EXERCISE,
@@ -223,16 +220,11 @@ def _offer_lesson_recall(
 ) -> InlineKeyboardMarkup:
     # Right before the "next" button, which ends the lesson. The buttons for
     # the current exercise, such as "Try again", stay first in a row of their
-    # own, so that a row has at most two buttons. The practice is the one
-    # recommended step
+    # own, so that a row has at most two buttons
     practice = InlineKeyboardButton(
         text=locale.btn_practice, callback_data=LESSON_RECALL, style=RECOMMENDED
     )
-    buttons = [
-        button.model_copy(update={"style": None})
-        for row in markup.inline_keyboard
-        for button in row
-    ]
+    buttons = [button for row in markup.inline_keyboard for button in row]
     current = [b for b in buttons if b.callback_data != NEXT_EXERCISE]
     following = [b for b in buttons if b.callback_data == NEXT_EXERCISE]
     rows = [current] if current else []
@@ -732,7 +724,7 @@ async def handle_recall(
                 ignore_punctuation=True,
             )
             reply_markup = _make_recall_buttons(
-                locale, locale.btn_recall_retry, next_label, style=RECOMMENDED
+                locale, locale.btn_recall_retry, next_label
             )
         if offers_practice:
             reply_markup = _offer_lesson_recall(reply_markup, locale)
