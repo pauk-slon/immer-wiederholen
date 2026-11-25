@@ -217,6 +217,21 @@ async def test_an_exercise_listed_twice_counts_once() -> None:
     assert sentences[0].exercise_indexes == (1, 0)
 
 
+def test_the_used_exercises_are_those_of_any_sentence() -> None:
+    lesson_recall = LessonRecall(
+        exercises=(WARTEN, HOFFEN, WARTEN),
+        sentences=(
+            LessonRecallSentence(text="Раз.", reference="Eins.", exercise_indexes=(2,)),
+            LessonRecallSentence(
+                text="Два.", reference="Zwei.", exercise_indexes=(0, 2)
+            ),
+        ),
+        language="ru",
+    )
+
+    assert lesson_recall.used_exercise_indexes() == {0, 2}
+
+
 async def test_sentences_beyond_the_number_of_exercises_are_dropped() -> None:
     client = _make_client(_task(*(_sentence(text=f"Фраза {i}.") for i in range(4))))
 

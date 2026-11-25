@@ -14,6 +14,7 @@ from aiogram.types import (
 )
 from anthropic import AsyncAnthropic
 from opentelemetry import trace
+from opentelemetry.trace import Span
 
 from wiederholen.bot import answer_diff
 from wiederholen.bot.commands.wiederholen import (
@@ -334,6 +335,7 @@ async def handle_start(
             lesson_recall = None
         else:
             span.set_attribute("lesson_recall.sentences", len(lesson_recall.sentences))
+            _record_exercises(span, lesson_recall, wrong_exercise_keys)
             # Counted even if the chat moved on, because the model call is paid
             await state.update_data(count_lesson_recall(await state.get_data()))
     if not await _is_still_current(
@@ -348,6 +350,22 @@ async def handle_start(
     )
     await state.set_state(LessonRecallState.translating)
     await _send_sentence(message, state, locale)
+
+
+def _record_exercises(
+    span: Span, lesson_recall: LessonRecall, wrong_exercise_keys: frozenset[str]
+) -> None:
+    used = lesson_recall.used_exercise_indexes()
+    for index, exercise in enumerate(lesson_recall.exercises):
+        span.add_event(
+            "LessonRecallExercise",
+            attributes={
+                "word": exercise.word,
+                "topic": exercise.topic,
+                "used": index in used,
+                "answered_wrong": exercise.content_key in wrong_exercise_keys,
+            },
+        )
 
 
 async def _check(
@@ -366,7 +384,15 @@ async def _check(
     await _start_waiting(state, LessonRecallState.checking)
     await state.update_data({_ANSWER_KEY: answer})
     await clear_stale_buttons(_bot(message), message.chat.id, state)
-    with default_tracer.start_as_current_span("lesson_recall.check") as span:
+    practiced = lesson_recall.sentences[position].exercise_indexes
+    with default_tracer.start_as_current_span(
+        "lesson_recall.check",
+        attributes={
+            "lesson_recall.sentence_topics": [
+                lesson_recall.exercises[index].topic for index in practiced
+            ]
+        },
+    ) as span:
         try:
             async with show_typing_while(_bot(message), message.chat.id):
                 check = await check_translation(

@@ -917,6 +917,21 @@ async def test_the_spans_record_the_generation_and_the_check(
     tracer: Tracer,
     exporter: InMemorySpanExporter,
 ) -> None:
+    def echo_exercises(_client: Any, exercises: Any, **_kwargs: Any) -> LessonRecall:
+        return LessonRecall(
+            exercises=tuple(exercises),
+            sentences=(
+                LessonRecallSentence(
+                    text="Раз.", reference="Eins.", exercise_indexes=(0,)
+                ),
+                LessonRecallSentence(
+                    text="Два.", reference="Zwei.", exercise_indexes=(0, 2)
+                ),
+            ),
+            language="ru",
+        )
+
+    generate.side_effect = echo_exercises
     with patch("wiederholen.bot.commands.lesson_recall.default_tracer", tracer):
         await _start(send, state)
         check.return_value = TranslationCheck(
@@ -939,17 +954,26 @@ async def test_the_spans_record_the_generation_and_the_check(
         "lesson_recall.wrong_exercises": 1,
         "lesson_recall.sentences": 2,
     }
+    exercises = [event.attributes or {} for event in generation.events]
+    assert [event.name for event in generation.events] == ["LessonRecallExercise"] * 4
+    assert sorted(str(e["word"]) for e in exercises) == sorted(WORDS)
+    assert [e["used"] for e in exercises] == [True, False, True, False]
+    assert all(e["topic"] == "government" for e in exercises)
+    assert sum(bool(e["answered_wrong"]) for e in exercises) == 1
     assert corrected.name == "lesson_recall.check"
     assert dict(corrected.attributes or {}) == {
+        "lesson_recall.sentence_topics": ("government",),
         "lesson_recall.verdict": "wrong",
         "lesson_recall.corrected": True,
     }
     assert dict(uncorrected.attributes or {}) == {
+        "lesson_recall.sentence_topics": ("government", "government"),
         "lesson_recall.verdict": "wrong",
         "lesson_recall.corrected": False,
     }
     assert dict(failure.attributes or {}) == {
-        "lesson_recall.failure": "model did not call the expected tool"
+        "lesson_recall.sentence_topics": ("government", "government"),
+        "lesson_recall.failure": "model did not call the expected tool",
     }
 
 
