@@ -404,8 +404,6 @@ async def _record_mistakes(
     span.set_attribute("lesson_recall.mistakes", len(check.mistakes))
     if not check.mistakes:
         return
-    # The mistakes are only for traces, so a failure here never costs the
-    # learner the verdict
     try:
         student_id = await student_identity_store.resolve_or_create_student_id(
             "telegram", str(chat_id)
@@ -456,6 +454,15 @@ async def _check(
             span.set_attribute(
                 "lesson_recall.verdict", "correct" if check.is_correct else "wrong"
             )
+            if not check.is_correct:
+                span.set_attribute(
+                    "lesson_recall.corrected",
+                    _shown_correction(check, answer) is not None,
+                )
+        is_current = await _is_still_current(
+            state, lesson_recall_id, LessonRecallState.checking, position=position
+        )
+        if check is not None and is_current:
             await _record_mistakes(
                 span,
                 check,
@@ -464,14 +471,7 @@ async def _check(
                 student_identity_store,
                 message.chat.id,
             )
-            if not check.is_correct:
-                span.set_attribute(
-                    "lesson_recall.corrected",
-                    _shown_correction(check, answer) is not None,
-                )
-    if not await _is_still_current(
-        state, lesson_recall_id, LessonRecallState.checking, position=position
-    ):
+    if not is_current:
         return
     if check is None:
         await _offer_check_retry(message, state, locale)

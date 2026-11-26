@@ -816,6 +816,35 @@ async def test_a_check_result_is_dropped_if_the_chat_moved_on(
     assert _sent(requests) == []
 
 
+async def test_a_dropped_check_result_records_no_mistakes(
+    send: Any,
+    state: FSMContext,
+    generate: AsyncMock,
+    check: AsyncMock,
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    await _start(send, state)
+
+    async def move_on(*args, **kwargs) -> TranslationCheck:
+        await state.set_state(None)
+        return TranslationCheck(
+            is_correct=False,
+            explanation=None,
+            correction=None,
+            mistakes=(Pair(word="warten", topic="government"),),
+        )
+
+    check.side_effect = move_on
+
+    with patch("wiederholen.bot.commands.lesson_recall.default_tracer", tracer):
+        await send.message("Wir warten.")
+
+    (span,) = exporter.get_finished_spans()
+    assert "lesson_recall.mistakes" not in (span.attributes or {})
+    assert span.events == ()
+
+
 async def test_a_button_while_checking_asks_to_wait(
     send: Any, state: FSMContext, generate: AsyncMock
 ) -> None:

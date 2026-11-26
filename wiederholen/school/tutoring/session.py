@@ -509,8 +509,6 @@ class Tutor:
         return is_correct
 
     def report_lesson_recall_mistakes(self, mistakes: Iterable[Pair]) -> None:
-        # Only reported for a review by hand. The schedule doesn't change yet
-        # (#411)
         for mistake in mistakes:
             emit(
                 LessonRecallMistake(

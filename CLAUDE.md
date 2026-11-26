@@ -30,7 +30,7 @@ Spaced-repetition scheduling — `Tutor`/`StudentRecord`/`Lesson`, `SelectablePa
 
 `StudentRecordBook` (the per-student record `Tutor` works on), aiogram's FSM storage (everything else per Telegram chat), and `StudentIdentityStore` (login → `StudentID`) are documented in `docs/storage.md`, including the test setup against real Redis — read it before touching any store or adding per-chat or per-student state. The invariants that matter most:
 
-- Every handler opens exactly one `async with student_record_book.check_out(student_id) as student_record:` per request and does its replies inside it; `check_out()` saves only if the record changed, in a `finally`, so there's no explicit save anywhere.
+- Every handler opens exactly one `async with student_record_book.check_out(student_id) as student_record:` per request and does its replies inside it (the lesson recall, which only reads the record for traces, is the exception); `check_out()` saves only if the record changed, in a `finally`, so there's no explicit save anywhere.
 - Every bot handler gets its `student_id` from `student_identity_store.resolve_or_create_student_id("telegram", str(chat_id))` (callback handlers: `str(callback.from_user.id)`, the same value in a private chat).
 - The student record holds only learning state; lasting chat state (such as settings) and exercise state stay in FSM data. Anything in FSM data that must outlive one exercise belongs in `_LASTING_CHAT_STATE_KEYS`.
 - `Tutor` never touches a store — it gets a plain `dict` for the record and another for the lesson. The lesson is conversation state, not learning state: the bot keeps it in FSM data (`lesson` in `_LASTING_CHAT_STATE_KEYS`), the web app in `WebSessionStore`, each its own (ADR 0026).
@@ -63,7 +63,7 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 - `bot_blocked` is set from both `my_chat_member` and a 403 on send; the reminder skips such chats before touching the record.
 - Feature flags stay in the bot layer; `wiederholen.school` never sees a chat id or flag name.
 - The interface calls a lesson "урок" and a lesson recall "практика" (the list of words is in `l10n.py`). Practice is required: the summary of a lesson with it has only the "Practice" button, and such a lesson gets no recall after an answer.
-- The lesson recall (`commands/lesson_recall.py`, on when `ANTHROPIC_API_KEY` is set, 3 a day per chat unless the `lesson_recall_unlimited` flag has it, ADR 0033) checks the FSM data again after each model call and drops the result unless its `lesson_recall_id`, state and sentence are still there; its handlers never change a student record. Only a check with mistakes opens `check_out()`, to read the record for `Tutor.report_lesson_recall_mistakes()`, and a failure there never costs the learner the verdict.
+- The lesson recall (`commands/lesson_recall.py`, on when `ANTHROPIC_API_KEY` is set, 3 a day per chat unless the `lesson_recall_unlimited` flag has it, ADR 0033) checks the FSM data again after each model call and drops the result unless its `lesson_recall_id`, state and sentence are still there; its handlers never change a student record. Only a check with mistakes opens `check_out()`, to read the record for `Tutor.report_lesson_recall_mistakes()`, and an error there never costs the learner the verdict.
 
 ## AI-generated content
 

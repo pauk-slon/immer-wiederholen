@@ -206,8 +206,6 @@ class TranslationCheck:
     is_correct: bool
     explanation: str | None
     correction: str | None
-    # The pairs in which the course's guide finds a mistake. The engine only
-    # records them for now (#411)
     mistakes: tuple[Pair, ...] = ()
 
 
@@ -466,8 +464,6 @@ async def check_translation(
 
 
 def _parse_mistakes(raw: object) -> tuple[Pair, ...]:
-    # A malformed mistake is dropped, not a failed check, because the mistakes
-    # don't change the verdict that the learner waits for
     if not isinstance(raw, list):
         return ()
     mistakes: list[Pair] = []
