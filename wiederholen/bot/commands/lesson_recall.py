@@ -1,4 +1,5 @@
 import html
+import logging
 import time
 import uuid
 from typing import Final
@@ -41,13 +42,15 @@ from wiederholen.school import (
     Exercise,
     LessonRecall,
     StudentIdentityStore,
-    StudentRecord,
     StudentRecordBook,
     TranslationCheck,
+    Tutor,
     check_translation,
     generate_lesson_recall,
 )
 from wiederholen.tracing import default_tracer
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -398,30 +401,20 @@ async def _record_mistakes(
     student_identity_store: StudentIdentityStore,
     chat_id: int,
 ) -> None:
-    # Only recorded for a review by hand. The schedule doesn't change yet (#411)
     span.set_attribute("lesson_recall.mistakes", len(check.mistakes))
     if not check.mistakes:
         return
-    course_pairs = {(exercise.word, exercise.topic) for exercise in course.exercises}
-    course_topics = {topic for _word, topic in course_pairs}
-    student_id = await student_identity_store.resolve_or_create_student_id(
-        "telegram", str(chat_id)
-    )
-    async with student_record_book.check_out(student_id) as data:
-        student_record = StudentRecord(data)
-        for pair in check.mistakes:
-            in_course = (pair.word, pair.topic) in course_pairs
-            attributes: dict[str, str | bool] = {
-                "in_course": in_course,
-                "introduced": student_record.is_introduced(pair.word, pair.topic),
-            }
-            # A word or a topic that the course doesn't have can come from the
-            # learner's text, which never goes to traces
-            if in_course:
-                attributes["word"] = pair.word
-            if pair.topic in course_topics:
-                attributes["topic"] = pair.topic
-            span.add_event("LessonRecallMistake", attributes=attributes)
+    # The mistakes are only for traces, so a failure here never costs the
+    # learner the verdict
+    try:
+        student_id = await student_identity_store.resolve_or_create_student_id(
+            "telegram", str(chat_id)
+        )
+        async with student_record_book.check_out(student_id) as student_record:
+            Tutor(course, student_record).report_lesson_recall_mistakes(check.mistakes)
+    except Exception as error:
+        span.record_exception(error)
+        logger.warning("Failed to record lesson recall mistakes", exc_info=True)
 
 
 async def _check(

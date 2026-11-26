@@ -6,7 +6,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import Tracer
 
 from tests.plugins.curriculum import make_exercise
-from wiederholen.school.curriculum import Course
+from wiederholen.school.curriculum import Course, Pair
 from wiederholen.school.tutoring import Tutor
 
 
@@ -560,4 +560,56 @@ def test_a_recall_for_an_exercise_without_its_answer_reports_no_mode(
                 "question": "Ich ___ (der Bus).",
             },
         ),
+    ]
+
+
+def test_lesson_recall_mistakes_report_only_the_words_and_topics_of_the_course(
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+) -> None:
+    warten = make_exercise(word="warten", answer="auf")
+    hoffen = make_exercise(word="hoffen", answer="auf")
+    tutor = Tutor(Course([warten, hoffen]), {})
+    tutor.check_answer(warten, "auf")
+
+    with tracer.start_as_current_span("test-span"):
+        tutor.report_lesson_recall_mistakes(
+            [
+                Pair(word="warten", topic="government"),
+                Pair(word="hoffen", topic="government"),
+                Pair(word="warten", topic="genus"),
+                Pair(word="Kino", topic="government"),
+                Pair(word="Kino", topic="genus"),
+            ]
+        )
+
+    span = exporter.get_finished_spans()[0]
+    assert _events(span) == [
+        (
+            "LessonRecallMistake",
+            {
+                "in_course": True,
+                "introduced": True,
+                "word": "warten",
+                "topic": "government",
+            },
+        ),
+        (
+            "LessonRecallMistake",
+            {
+                "in_course": True,
+                "introduced": False,
+                "word": "hoffen",
+                "topic": "government",
+            },
+        ),
+        (
+            "LessonRecallMistake",
+            {"in_course": False, "introduced": False, "word": "warten"},
+        ),
+        (
+            "LessonRecallMistake",
+            {"in_course": False, "introduced": False, "topic": "government"},
+        ),
+        ("LessonRecallMistake", {"in_course": False, "introduced": False}),
     ]

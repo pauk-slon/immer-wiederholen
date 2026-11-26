@@ -96,6 +96,18 @@ class RecallAnswered:
     attempt: int | None
 
 
+@dataclass(frozen=True)
+class LessonRecallMistake:
+    # The course has an exercise of the pair
+    in_course: bool
+    # The learner has answered the pair
+    introduced: bool
+    # Only a word or a topic that the course has. The model can take others
+    # from the learner's translation, which never goes to traces
+    word: str | None
+    topic: str | None
+
+
 TutoringEvent = (
     ExerciseAnswered
     | ExerciseSelected
@@ -107,6 +119,7 @@ TutoringEvent = (
     | LessonFinished
     | RecallRequested
     | RecallAnswered
+    | LessonRecallMistake
 )
 
 

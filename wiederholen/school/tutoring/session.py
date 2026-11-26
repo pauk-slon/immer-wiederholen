@@ -1,14 +1,16 @@
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import cached_property
 from typing import Final, Literal
 
-from wiederholen.school.curriculum import Course, Exercise, Recall, fold_case
+from wiederholen.school.curriculum import Course, Exercise, Pair, Recall, fold_case
 from wiederholen.school.tutoring.events import (
     ExerciseAnswered,
     ExerciseSelected,
     LessonFinished,
+    LessonRecallMistake,
     LessonStarted,
     NoExerciseAvailable,
     RecallAnswered,
@@ -144,6 +146,10 @@ class Tutor:
             for word, topics in self._exercises_by_word_topic.items()
             for topic in topics
         }
+
+    @cached_property
+    def _course_topics(self) -> set[str]:
+        return {topic for _word, topic in self._course_pairs}
 
     def _get_words_introduced_today(self) -> set[str]:
         course_words = {word for word, _ in self._course_pairs}
@@ -501,6 +507,25 @@ class Tutor:
             )
         )
         return is_correct
+
+    def report_lesson_recall_mistakes(self, mistakes: Iterable[Pair]) -> None:
+        # Only reported for a review by hand. The schedule doesn't change yet
+        # (#411)
+        for mistake in mistakes:
+            emit(
+                LessonRecallMistake(
+                    in_course=(mistake.word, mistake.topic) in self._course_pairs,
+                    introduced=self._student_record.is_introduced(
+                        mistake.word, mistake.topic
+                    ),
+                    word=mistake.word
+                    if mistake.word in self._exercises_by_word_topic
+                    else None,
+                    topic=mistake.topic
+                    if mistake.topic in self._course_topics
+                    else None,
+                )
+            )
 
     def request_recall(self, exercise: Exercise) -> Recall:
         last_exercise = self._get_last_exercise_of(exercise)

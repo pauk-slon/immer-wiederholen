@@ -425,6 +425,7 @@ async def test_a_check_sends_the_sentence_its_exercises_and_the_answer() -> None
     guide, rules = request["system"]
     assert guide["text"] == GUIDE
     assert f"Call {_CHECK_TOOL_NAME} once." in rules["text"]
+    assert "The list of mistakes is separate." in rules["text"]
     prompt = request["messages"][0]["content"]
     assert "The sentence:\nНадеюсь на хорошую погоду." in prompt
     assert "word: hoffen" in prompt

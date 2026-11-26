@@ -4,7 +4,7 @@ This page describes how `wiederholen.school.tutoring` decides what a learner pra
 
 The repetition engine consists of three classes in [`tutoring/`](https://github.com/pauk-slon/immer-wiederholen/tree/main/wiederholen/school/tutoring):
 
-- **`Tutor`** (`session.py`) makes the decisions with `next_exercise()`, `check_answer()`, `request_recall()`, `check_recall()`, `should_remind()`, `progress()`, `streak()` and `get_hint()`. The frontend creates it for each request as `Tutor(course, student_record, lesson=lesson)`.
+- **`Tutor`** (`session.py`) makes the decisions with `next_exercise()`, `check_answer()`, `request_recall()`, `check_recall()`, `should_remind()`, `progress()`, `streak()` and `get_hint()`. The frontend creates it for each request as `Tutor(course, student_record, lesson=lesson)`. One more method, `report_lesson_recall_mistakes()`, decides nothing. It only reports the mistakes of a lesson recall translation as span events (see [Tracing](tracing.md#events-from-the-repetition-engine)).
 - **`StudentRecord`** (`student_record.py`) reads and writes the learner's record. The record is a plain dict that the frontend loaded from storage (see [Storage and identity](storage.md#student-records)). `StudentRecord` knows nothing about the course.
 - **`Lesson`** (`lesson.py`) reads and writes the learner's current lesson. The lesson is also a plain dict, but it is the frontend's conversation state, not part of the record (see [Lessons](#lessons)).
 

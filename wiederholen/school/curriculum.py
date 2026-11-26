@@ -82,7 +82,7 @@ class Recall:
 
 @dataclass(frozen=True)
 class Pair:
-    """A word and a topic. The schedule has an entry for each pair."""
+    """A word and a topic, as the exercises of the course write them."""
 
     word: str
     topic: str

@@ -20,7 +20,7 @@ from tests.plugins.aiogram import (
     button_styles,
 )
 from tests.plugins.curriculum import make_exercise
-from tests.plugins.student_record_book import IntroducePairs
+from tests.plugins.student_record_book import IntroducePairs, ReadStudentRecord
 from wiederholen.bot.button_styles import RECOMMENDED
 from wiederholen.bot.commands.lesson_recall import (
     NEXT_SENTENCE,
@@ -38,6 +38,8 @@ from wiederholen.school import (
     LessonRecall,
     LessonRecallSentence,
     Pair,
+    StudentID,
+    StudentRecordBook,
     TranslationCheck,
 )
 
@@ -1025,19 +1027,19 @@ async def test_the_check_span_records_the_mistakes(
     tracer: Tracer,
     exporter: InMemorySpanExporter,
     introduce_pairs: IntroducePairs,
+    read_student_record: ReadStudentRecord,
+    student_id: StudentID,
 ) -> None:
     await _start(send, state)
-    # Only warten is introduced, although the lesson introduced every pair
     await introduce_pairs([WARTEN])
+    student_record = await read_student_record(student_id)
     check.return_value = TranslationCheck(
         is_correct=False,
         explanation=None,
         correction=None,
         mistakes=(
             Pair(word="warten", topic="government"),
-            Pair(word="hoffen", topic="government"),
-            Pair(word="Kino", topic="government"),
-            Pair(word="Film", topic="genus"),
+            Pair(word="Kino", topic="genus"),
         ),
     )
 
@@ -1045,24 +1047,51 @@ async def test_the_check_span_records_the_mistakes(
         await send.message("Wir warten.")
 
     (span,) = exporter.get_finished_spans()
-    assert (span.attributes or {})["lesson_recall.mistakes"] == 4
-    assert [event.name for event in span.events] == ["LessonRecallMistake"] * 4
-    assert [dict(event.attributes or {}) for event in span.events] == [
-        {
-            "in_course": True,
-            "introduced": True,
-            "word": "warten",
-            "topic": "government",
-        },
-        {
-            "in_course": True,
-            "introduced": False,
-            "word": "hoffen",
-            "topic": "government",
-        },
-        {"in_course": False, "introduced": False, "topic": "government"},
-        {"in_course": False, "introduced": False},
+    assert (span.attributes or {})["lesson_recall.mistakes"] == 2
+    assert [(event.name, dict(event.attributes or {})) for event in span.events] == [
+        (
+            "LessonRecallMistake",
+            {
+                "in_course": True,
+                "introduced": True,
+                "word": "warten",
+                "topic": "government",
+            },
+        ),
+        ("LessonRecallMistake", {"in_course": False, "introduced": False}),
     ]
+    assert await read_student_record(student_id) == student_record
+
+
+async def test_a_failure_to_record_the_mistakes_keeps_the_verdict(
+    send: Any,
+    state: FSMContext,
+    generate: AsyncMock,
+    check: AsyncMock,
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+    student_record_book: StudentRecordBook,
+) -> None:
+    await _start(send, state)
+    check.return_value = TranslationCheck(
+        is_correct=True,
+        explanation=None,
+        correction=None,
+        mistakes=(Pair(word="warten", topic="government"),),
+    )
+
+    with (
+        patch("wiederholen.bot.commands.lesson_recall.default_tracer", tracer),
+        patch.object(
+            student_record_book, "check_out", side_effect=ConnectionError("down")
+        ),
+    ):
+        requests = await send.message("Wir warten.")
+
+    assert _sent(requests)[0].text == f"{RU.correct_mark} {RU.correct}"
+    (span,) = exporter.get_finished_spans()
+    assert (span.attributes or {})["lesson_recall.mistakes"] == 1
+    assert [event.name for event in span.events] == ["exception"]
 
 
 async def test_the_last_sentence_is_recorded_on_the_update_span(
