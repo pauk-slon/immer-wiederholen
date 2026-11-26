@@ -12,6 +12,7 @@ Each command has its own module under [`wiederholen/bot/commands/`](https://gith
 | `/wiederholen` | `wiederholen` | shows the next exercise, or the current one again if it has no answer yet. The same module handles answers, recalls and the "next" and "study more" buttons |
 | `/progress` | `progress` | shows today's counts (due, new, answered), how many words the learner is learning or has mastered and, if there is one, the streak (see [Repetition schedule](repetition-schedule.md)) |
 | `/topics` | `topics` | lets the learner choose the topic groups to practice (see [Topic selection](#topic-selection)) |
+| `/lesson` | `lesson` | lets the learner choose the size of a lesson (see [The /lesson setting](#the-lesson-setting)) |
 | `/reminders` | `reminders` | lets the learner choose how long after the last session the bot sends a reminder (see [Reminders](#reminders)) |
 | `/language` | `language` | switches between Russian and English |
 | `/reset` | `reset` | deletes the learner's schedule and today's answer counts after a confirmation. The streak stays |
@@ -104,7 +105,7 @@ During a recall, the bot shows the recall again and doesn't use the fallback. Th
 
 ## Lessons
 
-The bot gives lessons of 5 exercises (`_LESSON_SIZE`). It gives the size to `Tutor` as `lesson_size`. The web app keeps lessons of one exercise, so it shows no counter and no summary (see [Lessons](repetition-schedule.md#lessons) and [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)). A day of the streak needs a finished lesson (see [Repetition schedule](repetition-schedule.md#streak)).
+The bot gives lessons of 5 or 7 exercises, as the learner chooses (see [The /lesson setting](#the-lesson-setting)). The web app keeps lessons of one exercise, so it shows no counter and no summary (see [Lessons](repetition-schedule.md#lessons) and [#325](https://github.com/pauk-slon/immer-wiederholen/issues/325)). A day of the streak needs a finished lesson (see [Repetition schedule](repetition-schedule.md#streak)).
 
 In a lesson of several exercises, the learner sees these things:
 
@@ -113,6 +114,17 @@ In a lesson of several exercises, the learner sees these things:
 - **A next lesson button.** On the summary of a lesson without a lesson recall, the "Next exercise" button names the next lesson. It doesn't show the size of the next lesson. The next lesson can be shorter if less material is left, and if nothing is left, the button leads to the end of the day. A count would promise more than the bot then gives. If nothing is left for today, the reply says that the day is done, as after any other exercise.
 
 A lesson is shorter when fewer exercises are available, for example at the end of the day or with few topics in `/topics`. The counter then shows the real size, for example "1/3". A lesson of one exercise gets no counter and no summary.
+
+### The /lesson setting
+
+`/lesson` offers lessons of 5 or 7 exercises. The default is 5. The bot stores the choice in the FSM key `lesson_size`. If the stored value is no longer offered, [`lesson_settings.py`](https://github.com/pauk-slon/immer-wiederholen/blob/main/wiederholen/bot/lesson_settings.py) uses the default. The bot gives the size to `Tutor` as the parameter `lesson_size`. `Tutor` uses the parameter only when it starts a lesson, because the lesson stores its own size. So a new size applies from the next lesson, and the counter of the current lesson stays correct.
+
+The options have these reasons:
+
+- **5 is the default.** A day of the [streak](repetition-schedule.md#streak) needs a finished lesson. A longer lesson makes this bar higher for every learner, also for a learner who has only a few minutes.
+- **7 is for a learner who wants more practice in one lesson.** The learner chooses it and accepts the higher bar for a streak day.
+- **There is no smaller option, such as 3.** A lesson of 3 gets a [lesson recall](#lesson-recall), so a lesson recall would come after every 3 answers. The [daily limit](#the-daily-limit) would then end after 9 exercises.
+- **There is no larger option, such as 10.** A guide usually asks for one to three sentences in a lesson recall. After a lesson of 10, the lesson recall practices a small part of the lesson.
 
 ## Lesson recall
 
@@ -201,9 +213,10 @@ A restart of the bot during a model call loses the call, and the chat stays in `
 |---|---|---|---|
 | language | `language` | `/language`, a `/start` deep link in a new chat | every reply, the reminder |
 | topic groups | `topic_groups` | `/topics`, a `/start` deep link in a new chat | the choice of what to show, the reminder (see below) |
+| lesson size | `lesson_size` | `/lesson` | the choice of a new lesson (see [The /lesson setting](#the-lesson-setting)) |
 | reminder interval | `remind_after_hours` | `/reminders` | the reminder (see [The /reminders setting](#the-reminders-setting)) |
 
-The settings are lasting chat state (see [Storage and identity](storage.md#chat-state)). `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists all three settings, the current lesson and the start times of the lesson recalls (see [The daily limit](#the-daily-limit)). When an exercise ends, the bot clears the exercise state but keeps the keys in this tuple. **Add a new setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored a setting by hand after each exercise. One of four call sites missed it, and the setting silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
+The settings are lasting chat state (see [Storage and identity](storage.md#chat-state)). `_LASTING_CHAT_STATE_KEYS` in `commands/wiederholen.py` lists all four settings, the current lesson and the start times of the lesson recalls (see [The daily limit](#the-daily-limit)). When an exercise ends, the bot clears the exercise state but keeps the keys in this tuple. **Add a new setting to this tuple**, or the setting is lost after every exercise. Before the tuple, the code restored a setting by hand after each exercise. One of four call sites missed it, and the setting silently switched off after one exercise. `/reset` doesn't change settings (see [Storage and identity](storage.md#chat-state)).
 
 ### Topic selection
 
@@ -293,7 +306,7 @@ A tap on an inline button ("Next exercise", "Drill", "Study more" and others) re
 - **`forget_buttoned_message(state)`.** Call it when a callback handler removed its own buttons and attached no new ones.
 - **`clear_stale_buttons(bot, chat_id, state)`.** It removes the buttons from the remembered message, if there is one, and forgets the message. It ignores a `TelegramBadRequest`, which means that the message was already edited, deleted or is too old.
 
-Every command that the learner types calls `clear_stale_buttons()` first. These commands are `/start`, `/wiederholen`, `/progress`, `/topics`, `/reminders`, `/language` and `/reset`. The reminder calls it right before it sends a message. `clear_stale_buttons()` takes a bot and a chat id, not a `Message`, because the reminder has no incoming message.
+Every command that the learner types calls `clear_stale_buttons()` first. These commands are `/start`, `/wiederholen`, `/progress`, `/topics`, `/lesson`, `/reminders`, `/language` and `/reset`. The reminder calls it right before it sends a message. `clear_stale_buttons()` takes a bot and a chat id, not a `Message`, because the reminder has no incoming message.
 
 When you edit the text of a message, pass `reply_markup=` explicitly, with a new keyboard or `None`. If you edit only the text, the message keeps its old keyboard.
 

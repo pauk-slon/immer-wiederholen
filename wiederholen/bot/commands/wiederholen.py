@@ -37,6 +37,7 @@ from wiederholen.bot.lesson_recall_limit import (
     has_lesson_recall_left,
     seconds_until_lesson_recall,
 )
+from wiederholen.bot.lesson_settings import get_lesson_size
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
     forget_buttoned_message,
@@ -76,9 +77,6 @@ _PHOTO_CAPTION_LIMIT: Final = 1024
 # Telegram doesn't send an empty message
 _KEYBOARD_REMOVAL_TEXT: Final = "…"
 
-# The bot's lessons have 5 exercises (#325). The web app keeps
-# Tutor.LESSON_SIZE of 1, so it has no counter and no summary
-_LESSON_SIZE: Final = 5
 # A smaller lesson gives too few sentences for the wait of a generation
 _MIN_LESSON_RECALL_SIZE: Final = 3
 
@@ -95,6 +93,7 @@ _LASTING_CHAT_STATE_KEYS: Final = (
     "language",
     "topic_groups",
     "remind_after_hours",
+    "lesson_size",
     # Not a setting: the lesson lasts for several exercises (see
     # wiederholen.school.tutoring.lesson)
     "lesson",
@@ -553,7 +552,7 @@ async def command_wiederholen(
             course,
             student_record,
             lesson=lesson,
-            lesson_size=_LESSON_SIZE,
+            lesson_size=get_lesson_size(data),
         )
         exercise = tutor.next_exercise()
         if exercise is None:
@@ -857,7 +856,7 @@ async def handle_next_exercise(
             course,
             student_record,
             lesson=lesson,
-            lesson_size=_LESSON_SIZE,
+            lesson_size=get_lesson_size(state_data),
         )
         await _respond_with_next_exercise(
             callback,
@@ -897,7 +896,7 @@ async def handle_study_more(
             course,
             student_record,
             lesson=lesson,
-            lesson_size=_LESSON_SIZE,
+            lesson_size=get_lesson_size(state_data),
         )
         tutor.grant_new_word_budget()
         await _respond_with_next_exercise(
