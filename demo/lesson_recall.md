@@ -44,7 +44,7 @@ Correct a wrong translation with the smallest changes that fix every mistake. Ke
 
 ## The list of mistakes
 
-List only the mistakes of the topics below, and name the topic as below. Leave out a mistake if the learner may have meant another word.
-
 - `partizip_ii`: a wrong Partizip II form, such as "gesingt". The word is the infinitive of the verb, such as `singen`.
 - `verb_preposition`: a wrong preposition or a wrong case after the preposition of a verb, such as "warten für den Zug" or "warten auf dem Zug". The word is the infinitive of the verb, such as `warten`.
+
+Leave out a mistake if the learner may have meant another word.
