@@ -195,7 +195,7 @@ All keys except `lesson_recall_started_at` are exercise state (see [Chat state](
 | `lesson_recall_waiting_since` | the start of the current model call |
 | `lesson_recall_started_at` | the start times of the lesson recalls of the last 24 hours, for the daily limit |
 
-The handlers don't open `check_out()`, because a lesson recall doesn't change the learning state.
+A lesson recall doesn't change the learning state, so the handlers never change the student record. Only a check that lists mistakes, and only for a result that the bot shows, opens `check_out()`. So a dropped result gets no mistakes in traces. The handler reads the record, so that `Tutor.report_lesson_recall_mistakes()` can say which pairs the learner has answered (see [Tracing](tracing.md#events-from-the-repetition-engine)). The block changes nothing, so `check_out()` doesn't save the record. The mistakes are only for traces. So if reading the record raises an error, the bot records it on the span and still sends the verdict.
 
 ### Late results
 

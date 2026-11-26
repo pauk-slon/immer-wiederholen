@@ -12,6 +12,7 @@ from wiederholen.school.cue_store import CachedCueStore, CueStore, R2CueStore
 from wiederholen.school.curriculum import (
     Course,
     Exercise,
+    Pair,
     Recall,
     Topic,
     shuffle_word_bank,
@@ -54,6 +55,7 @@ __all__ = [
     "LessonRecall",
     "LessonRecallSentence",
     "Mark",
+    "Pair",
     "Progress",
     "R2CueStore",
     "Recall",

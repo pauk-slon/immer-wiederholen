@@ -1,4 +1,5 @@
 import html
+import logging
 import time
 import uuid
 from typing import Final
@@ -43,10 +44,13 @@ from wiederholen.school import (
     StudentIdentityStore,
     StudentRecordBook,
     TranslationCheck,
+    Tutor,
     check_translation,
     generate_lesson_recall,
 )
 from wiederholen.tracing import default_tracer
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -389,10 +393,34 @@ def _record_exercises(
         )
 
 
+async def _record_mistakes(
+    span: Span,
+    check: TranslationCheck,
+    course: Course,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
+    chat_id: int,
+) -> None:
+    span.set_attribute("lesson_recall.mistakes", len(check.mistakes))
+    if not check.mistakes:
+        return
+    try:
+        student_id = await student_identity_store.resolve_or_create_student_id(
+            "telegram", str(chat_id)
+        )
+        async with student_record_book.check_out(student_id) as student_record:
+            Tutor(course, student_record).report_lesson_recall_mistakes(check.mistakes)
+    except Exception as error:
+        span.record_exception(error)
+        logger.warning("Failed to record lesson recall mistakes", exc_info=True)
+
+
 async def _check(
     message: Message,
     state: FSMContext,
     course: Course,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     anthropic_client: AsyncAnthropic | None,
     answer: str,
 ) -> None:
@@ -431,9 +459,19 @@ async def _check(
                     "lesson_recall.corrected",
                     _shown_correction(check, answer) is not None,
                 )
-    if not await _is_still_current(
-        state, lesson_recall_id, LessonRecallState.checking, position=position
-    ):
+        is_current = await _is_still_current(
+            state, lesson_recall_id, LessonRecallState.checking, position=position
+        )
+        if check is not None and is_current:
+            await _record_mistakes(
+                span,
+                check,
+                course,
+                student_record_book,
+                student_identity_store,
+                message.chat.id,
+            )
+    if not is_current:
         return
     if check is None:
         await _offer_check_retry(message, state, locale)
@@ -471,6 +509,8 @@ async def handle_translation(
     message: Message,
     state: FSMContext,
     course: Course,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     assert message.text is not None
@@ -483,7 +523,15 @@ async def handle_translation(
         )
         await _send_sentence(message, state, locale)
         return
-    await _check(message, state, course, anthropic_client, message.text)
+    await _check(
+        message,
+        state,
+        course,
+        student_record_book,
+        student_identity_store,
+        anthropic_client,
+        message.text,
+    )
 
 
 @router.callback_query(LessonRecallState.translating, F.data == RESEND)
@@ -491,6 +539,8 @@ async def handle_resend(
     callback: CallbackQuery,
     state: FSMContext,
     course: Course,
+    student_record_book: StudentRecordBook,
+    student_identity_store: StudentIdentityStore,
     anthropic_client: AsyncAnthropic | None = None,
 ) -> None:
     answer = (await state.get_data()).get(_ANSWER_KEY)
@@ -501,7 +551,15 @@ async def handle_resend(
     await message.edit_reply_markup(reply_markup=None)
     await forget_buttoned_message(state)
     await callback.answer()
-    await _check(message, state, course, anthropic_client, answer)
+    await _check(
+        message,
+        state,
+        course,
+        student_record_book,
+        student_identity_store,
+        anthropic_client,
+        answer,
+    )
 
 
 @router.callback_query(LessonRecallState.translating, F.data == SKIP)

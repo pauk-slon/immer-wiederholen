@@ -81,6 +81,14 @@ class Recall:
 
 
 @dataclass(frozen=True)
+class Pair:
+    """A word and a topic, as the exercises of the course write them."""
+
+    word: str
+    topic: str
+
+
+@dataclass(frozen=True)
 class Exercise:
     word: str
     topic: Topic

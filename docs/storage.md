@@ -26,6 +26,8 @@ async with student_record_book.check_out(student_id) as student_record:
     await message.answer(...)
 ```
 
+The lesson recall is the one exception. It only reads the record for traces, so its handlers reply outside the block (see [Telegram bot](bot.md#lesson-recall)).
+
 The method is called `check_out`, not `open`. `book.open(id)` would read as if it opens the book itself. A library checkout borrows one item and returns it, and the block does the same with a record.
 
 ### Saved only when changed

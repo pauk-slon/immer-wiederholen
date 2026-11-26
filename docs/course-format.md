@@ -241,6 +241,9 @@ The model gets the whole file as text, so write it for the model, in English. Th
 - when a translation is correct
 - what the explanation of a wrong translation says, and in which form it addresses the learner
 - how to correct a wrong translation, for example with the smallest changes to the learner's answer
+- the topics whose mistakes the check lists, in a separate section
+
+The check lists each mistake as a pair of a word and a topic of the course. The model doesn't get the list of the course's topics. So the section names each topic as `exercises.yaml` writes it and says which mistakes belong to it. It also says how to write the word, for example as the infinitive of a verb. The engine tells the model to list only the mistakes of these topics, and that the list doesn't narrow the explanation or the correction. A guide without such a section gets no mistakes. For now the bot only records them in traces ([#411](https://github.com/pauk-slon/immer-wiederholen/issues/411)). Call the section "The list of mistakes", because the engine's rules use this term for it.
 
 The engine adds the rest. It gives the model the exercises of the lesson, which of them the learner answered wrong, and the learner's language. It also sets the structure of the reply, and it checks only this structure. So the guide doesn't describe the reply or say which language the learner speaks. The engine has no rule about the content of a sentence. So a guide without a rule against copies can get sentences that copy the exercises.
 

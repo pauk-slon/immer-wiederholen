@@ -15,7 +15,7 @@ Each unit of work has one root span. Redis calls inside it become child spans, a
 | `telegram.my_chat_member` | bot | `telegram.chat_id`, `telegram.handled`, `telegram.language`, `telegram.chat_member.status` (`kicked` when the learner blocks the bot, `member` when they unblock it) |
 | `telegram.update` | bot | `telegram.handled` only (any other kind of update) |
 | `lesson_recall.generate` | bot (child of `telegram.callback_query`) | `lesson_recall.exercises`, `lesson_recall.wrong_exercises`, and `lesson_recall.sentences` with a `LessonRecallExercise` event for each exercise of the lesson (see below), or `lesson_recall.failure`. Also the tokens of the model call |
-| `lesson_recall.check` | bot (child of `telegram.message`, or of `telegram.callback_query` for "Check again") | `lesson_recall.sentence_topics` (the topics of the exercises that the sentence uses, one or more), and `lesson_recall.verdict` (`correct` or `wrong`) or `lesson_recall.failure`. For a wrong translation, `lesson_recall.corrected` is `true` if the bot showed the correction and `false` if it showed the reference. Also the tokens of the model call |
+| `lesson_recall.check` | bot (child of `telegram.message`, or of `telegram.callback_query` for "Check again") | `lesson_recall.sentence_topics` (the topics of the exercises that the sentence uses, one or more), and `lesson_recall.verdict` (`correct` or `wrong`) or `lesson_recall.failure`. For a wrong translation, `lesson_recall.corrected` is `true` if the bot showed the correction and `false` if it showed the reference. After a verdict that the learner sees, also `lesson_recall.mistakes` (see below). Also the tokens of the model call |
 | `reminder.tick` | reminder | none (one sweep over all chats) |
 | `reminder.check_chat` | reminder (child of `reminder.tick`) | `telegram.chat_id`, `reminder.sent` (the reminder went out), `reminder.bot_blocked` (the learner had blocked the bot, or Telegram refused the message for that reason) |
 | an HTTP server span per request | web | the standard HTTP attributes from Litestar's OpenTelemetry plugin, and `client.error.step` and `client.error.status` for `POST /api/client-error` |
@@ -47,6 +47,8 @@ A successful `lesson_recall.generate` has a `LessonRecallExercise` event for eac
 
 `lesson_recall.corrected` shows how often a wrong translation gets the reference instead of a correction. If this happens often, the guide's rule for the correction doesn't work well.
 
+`lesson_recall.mistakes` is the number of mistakes that the check listed, each as a pair of a word and a topic (see [AI-generated content](authoring.md#lesson-recalls)). It is set only for a result that the learner sees, also when it is 0. `Tutor` reports a `LessonRecallMistake` event for each of them (see [Events from the repetition engine](#events-from-the-repetition-engine)). The events are for a review by hand before the mistakes change the schedule ([#411](https://github.com/pauk-slon/immer-wiederholen/issues/411)). If the bot can't read the student record for them, the span gets the exception instead of the events, and the learner still gets the verdict.
+
 `telegram.handled` is `false` when no handler matched the update. For a button press, this means that the learner got no reply. A message from the learner always has a handler, because the fallback takes it if no other handler does. Service messages and some other kinds, such as a location, still get `false`. Some updates need no reply, but they also get `false`. An edited message is one example. It gets a `telegram.message` span too, so the span name doesn't separate the two cases. A handler that raises an exception leaves the attribute unset.
 
 `telegram.fallback` marks the messages that only the fallback took (see [Other messages](bot.md#other-messages)). It shows how often learners write to the bot outside an exercise, and with the following spans of the chat, what they do next.
@@ -67,6 +69,14 @@ A successful `lesson_recall.generate` has a `LessonRecallExercise` event for eac
 | `LessonFinished` | the answer to the last exercise of a lesson | `size`, the number of exercises in the lesson, and `correct`, the number of correct answers in it. `size` is smaller than in `LessonStarted` if the lesson skipped exercises that the course no longer has |
 | `RecallRequested` | `request_recall()` picks a recall, also after "Try again" (see [Course format](course-format.md#recalls)) | `word`, `topic`, `question` (the text of the recall), `recall_mode` (the mode of the answer's `ExerciseAnswered`), `attempt` (1 for the first recall after an answer, 2 or more after "Try again"). `recall_mode` and `attempt` are not set if the learner answered another exercise in the other frontend after the recall (see [Repetition schedule](repetition-schedule.md#recalls)) |
 | `RecallAnswered` | every `check_recall()` | `word`, `topic`, `question`, `is_correct`, `recall_mode`, `attempt`. `recall_mode` and `attempt` are not set in the same case |
+| `LessonRecallMistake` | `report_lesson_recall_mistakes()`, once for each mistake that the check of a lesson recall translation listed | `in_course` (the course has an exercise of the pair), `introduced` (the learner has answered the pair), `word` (only if the course has the word) and `topic` (only if the course has the topic) |
+
+A word or a topic of a `LessonRecallMistake` that the course doesn't have can come from the learner's translation, so the event leaves it out. An event with `in_course` false has one of these sets of attributes:
+
+- `word` and `topic`. The course has the word and the topic, but not as a pair.
+- Only `word`. The course has no such topic. The guide probably names the topic differently from `exercises.yaml`.
+- Only `topic`. The model wrote the word in a form other than that of the exercises, for example a Partizip instead of the infinitive. Or the course doesn't have the word, for example a verb that the learner used on their own. The traces can't tell these two causes apart, so check them by hand before you change the guide.
+- Neither. The course has neither the word nor the topic.
 
 `ExerciseSelected` records the exercise that `Tutor` took from the lesson. To find where a learner stopped, look for their last `ExerciseSelected` without an `ExerciseAnswered` after it.
 

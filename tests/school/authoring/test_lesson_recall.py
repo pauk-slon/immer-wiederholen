@@ -23,6 +23,7 @@ from wiederholen.school.authoring.lesson_recall import (
     check_translation,
     generate_lesson_recall,
 )
+from wiederholen.school.curriculum import Pair
 from wiederholen.school.i18n import LANGUAGES
 
 GUIDE = "# Guide\n\nWrite two sentences."
@@ -354,6 +355,53 @@ async def test_a_check_without_an_explanation_and_a_correction_has_none(
     assert check == TranslationCheck(is_correct=True, explanation=None, correction=None)
 
 
+async def test_a_check_returns_the_mistakes() -> None:
+    client = _make_client(
+        _verdict(
+            {
+                "correct": False,
+                "explanation": "",
+                "mistakes": [
+                    {"word": " Film ", "topic": "genus"},
+                    {"word": "Film", "topic": "genus"},
+                    {"word": "hoffen", "topic": "verb_preposition"},
+                ],
+            }
+        )
+    )
+
+    check = await _check(client)
+
+    assert check.mistakes == (
+        Pair(word="Film", topic="genus"),
+        Pair(word="hoffen", topic="verb_preposition"),
+    )
+
+
+@pytest.mark.parametrize(
+    "mistakes",
+    [
+        None,
+        "Film:genus",
+        [
+            "Film",
+            {"word": "Film"},
+            {"word": "Film", "topic": 1},
+            {"word": " ", "topic": "genus"},
+        ],
+    ],
+    ids=["null", "not a list", "malformed items"],
+)
+async def test_a_check_drops_malformed_mistakes(mistakes: object) -> None:
+    client = _make_client(
+        _verdict({"correct": True, "explanation": "", "mistakes": mistakes})
+    )
+
+    check = await _check(client)
+
+    assert check == TranslationCheck(is_correct=True, explanation=None, correction=None)
+
+
 async def test_a_check_has_the_cached_prefix_of_the_generation() -> None:
     generation_client = _make_client(_task(_sentence()))
     check_client = _make_client(_verdict({"correct": True, "explanation": ""}))
@@ -377,6 +425,7 @@ async def test_a_check_sends_the_sentence_its_exercises_and_the_answer() -> None
     guide, rules = request["system"]
     assert guide["text"] == GUIDE
     assert f"Call {_CHECK_TOOL_NAME} once." in rules["text"]
+    assert "The list of mistakes is separate." in rules["text"]
     prompt = request["messages"][0]["content"]
     assert "The sentence:\nНадеюсь на хорошую погоду." in prompt
     assert "word: hoffen" in prompt
