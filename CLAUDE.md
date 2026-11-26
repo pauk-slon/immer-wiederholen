@@ -63,7 +63,7 @@ Commands, how a question is rendered, chat settings (`/topics`, `/reminders`, `/
 - `bot_blocked` is set from both `my_chat_member` and a 403 on send; the reminder skips such chats before touching the record.
 - Feature flags stay in the bot layer; `wiederholen.school` never sees a chat id or flag name.
 - The interface calls a lesson "урок" and a lesson recall "практика" (the list of words is in `l10n.py`). Practice is required: the summary of a lesson with it has only the "Practice" button, and such a lesson gets no recall after an answer.
-- The lesson recall (`commands/lesson_recall.py`, on when `ANTHROPIC_API_KEY` is set, 3 a day per chat unless the `lesson_recall_unlimited` flag has it, ADR 0033) checks the FSM data again after each model call and drops the result unless its `lesson_recall_id`, state and sentence are still there; its handlers never change a student record. Only a check with mistakes opens `check_out()`, to read the record for `Tutor.report_lesson_recall_mistakes()`, and an error there never costs the learner the verdict.
+- The lesson recall (`commands/lesson_recall.py`, on when `ANTHROPIC_API_KEY` is set, 3 a day per chat unless the `lesson_recall_unlimited` flag has it, ADR 0033) checks the FSM data again after each model call and drops the result unless its `lesson_recall_id`, state and sentence are still there; its handlers never change a student record. Only a check with mistakes, for a result that the learner sees, opens `check_out()`, to read the record for `Tutor.report_lesson_recall_mistakes()`, and an error there never costs the learner the verdict.
 
 ## AI-generated content
 

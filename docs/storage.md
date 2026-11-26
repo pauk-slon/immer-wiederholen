@@ -13,7 +13,7 @@ A **student record** holds the learner's repetition schedule and progress. It is
 - **`check_out(student_id)`** is an async context manager. It loads the record, gives it to the caller to change in place, and saves it when the block ends.
 - **Iteration.** `async for student_id in student_record_book` yields the id of each learner with a stored record. Like the iteration of a `dict`, it yields only keys. To read a record, use `check_out()`. Today only the tests use iteration. The reminder finds learners through their Telegram logins instead (see [Student identity](#student-identity)).
 
-Every handler that uses a record opens exactly one `check_out()` per request. It does all its work inside the block, including the replies. The lesson recall is the one exception. It only reads the record for traces, so its handlers reply outside the block (see [Telegram bot](bot.md#lesson-recall)):
+Every handler that uses a record opens exactly one `check_out()` per request. It does all its work inside the block, including the replies:
 
 ```python
 student_id = await student_identity_store.resolve_or_create_student_id(
@@ -25,6 +25,8 @@ async with student_record_book.check_out(student_id) as student_record:
     mark = tutor.check_answer(exercise, message.text)
     await message.answer(...)
 ```
+
+The lesson recall is the one exception. It only reads the record for traces, so its handlers reply outside the block (see [Telegram bot](bot.md#lesson-recall)).
 
 The method is called `check_out`, not `open`. `book.open(id)` would read as if it opens the book itself. A library checkout borrows one item and returns it, and the block does the same with a record.
 
