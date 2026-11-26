@@ -91,6 +91,10 @@ class Locale:
     topics_all_selected: str
     # After the greeting, when a link selected topic groups (#345)
     topics_change_hint: str
+    cmd_lesson: str
+    lesson_size_prompt: str
+    btn_lesson_size: str
+    lesson_size_set: str
     cmd_reminders: str
     reminders_prompt: str
     btn_remind_after: str
@@ -165,6 +169,10 @@ RU: Final = Locale(
     topics_selected="✅ Темы: {topics}",
     topics_all_selected="✅ Задания будут по всем темам",
     topics_change_hint="Выбрать другие темы: /topics",
+    cmd_lesson="Размер урока",
+    lesson_size_prompt="Сколько заданий давать в одном уроке?",
+    btn_lesson_size="{size}",
+    lesson_size_set="✅ В уроке будет {count}, начиная со следующего урока",
     cmd_reminders="Напоминания",
     reminders_prompt="Через сколько после последнего занятия напомнить позаниматься?",
     btn_remind_after="{hours} ч",
@@ -240,6 +248,10 @@ EN: Final = Locale(
     topics_selected="✅ Topics: {topics}",
     topics_all_selected="✅ Exercises will cover all topics",
     topics_change_hint="Choose other topics: /topics",
+    cmd_lesson="Lesson size",
+    lesson_size_prompt="How many exercises should a lesson have?",
+    btn_lesson_size="{size}",
+    lesson_size_set="✅ Lessons will have {count}, starting with the next lesson",
     cmd_reminders="Reminders",
     reminders_prompt="How long after your last session should I remind you to practice?",
     btn_remind_after="{hours} h",
