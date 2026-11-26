@@ -1621,7 +1621,6 @@ dependencies = [
     { name = "opentelemetry-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
-    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
@@ -1648,7 +1647,6 @@ requires-dist = [
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
     { name = "pydantic", specifier = "~=2.14.2" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "typing-extensions", specifier = ">=4.16.0" },
 ]
 
 [package.metadata.requires-dev]

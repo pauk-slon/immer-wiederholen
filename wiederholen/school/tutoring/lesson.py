@@ -12,15 +12,11 @@ class Lesson:
     # exercise that is no longer in the (possibly restricted) course is
     # skipped instead of shown in an outdated form.
     _ACTIVE_AT_KEY: Final = "active_at"
-    # A lesson saved before ADR 0028 has a date instead of active_at
-    _LEGACY_DATE_KEY: Final = "date"
     _SIZE_KEY: Final = "size"
     _EXERCISE_KEYS_KEY: Final = "exercise_keys"
     # The keys that the lesson gave and the keys of the wrong answers, for a
     # lesson recall (ADR 0031). take_exercise_key() removes the keys that it
-    # gives from exercise_keys, so the lesson keeps them here. A lesson
-    # started without these lists, before they existed, never gets them, so
-    # it doesn't report a part of its exercises as all of them
+    # gives from exercise_keys, so the lesson keeps them here
     _GIVEN_EXERCISE_KEYS_KEY: Final = "given_exercise_keys"
     _WRONG_EXERCISE_KEYS_KEY: Final = "wrong_exercise_keys"
     _FINISHED_KEY: Final = "finished"
@@ -36,10 +32,7 @@ class Lesson:
         self._now = now
 
     def _is_started(self) -> bool:
-        # A lesson in the old format is started but expired: it gives no
-        # more exercises, but the answer to the one that it gave still
-        # finishes it, so that answer still counts for the streak
-        return self._ACTIVE_AT_KEY in self._data or self._LEGACY_DATE_KEY in self._data
+        return self._ACTIVE_AT_KEY in self._data
 
     def _touch(self) -> None:
         self._data[self._ACTIVE_AT_KEY] = self._now.isoformat()
@@ -64,10 +57,7 @@ class Lesson:
         return self._get_keys(self._EXERCISE_KEYS_KEY)
 
     def _append_key(self, data_key: str, key: str) -> None:
-        # Only to a list that start() created. A new list, as in
-        # take_exercise_key()
-        if not isinstance(self._data.get(data_key), list):
-            return
+        # A new list, as in take_exercise_key()
         keys = self._get_keys(data_key)
         if key not in keys:
             self._data[data_key] = [*keys, key]

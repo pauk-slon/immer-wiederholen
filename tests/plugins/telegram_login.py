@@ -2,10 +2,9 @@ import hashlib
 import hmac
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import NotRequired, Unpack
+from typing import NotRequired, TypedDict, Unpack
 
 import pytest
-from typing_extensions import TypedDict
 
 
 class TelegramLoginPayload(TypedDict, closed=True):
