@@ -127,8 +127,8 @@ A lesson isn't part of the student record. Each frontend keeps its own lesson ne
 | `active_at` | the time of the last activity of the lesson |
 | `size` | the number of exercises in the lesson |
 | `exercise_keys` | the keys of the exercises that the lesson hasn't given yet |
-| `given_exercise_keys` | the keys of the exercises that the lesson gave, the shown one included. It is absent in a lesson started before it |
-| `wrong_exercise_keys` | the keys of the given exercises with a wrong answer. It is absent in a lesson started before it |
+| `given_exercise_keys` | the keys of the exercises that the lesson gave, the shown one included |
+| `wrong_exercise_keys` | the keys of the given exercises with a wrong answer |
 | `correct` | the number of correct answers in the lesson. It is absent before the first correct answer |
 | `finished` | `true` after the answer to the last exercise. It is absent before |
 

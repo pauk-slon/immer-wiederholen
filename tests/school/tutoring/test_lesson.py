@@ -285,14 +285,6 @@ def test_a_lesson_with_a_malformed_time_is_not_current() -> None:
     assert not Lesson({"active_at": naive}, now=now).is_current()
 
 
-def test_a_lesson_from_before_the_ttl_is_not_current() -> None:
-    # A lesson saved with a date, before ADR 0028, starts again
-    now = datetime.now(UTC)
-    lesson = {"date": now.date().isoformat(), "size": 1, "exercise_keys": ["x"]}
-
-    assert not Lesson(lesson, now=now).is_current()
-
-
 def test_content_key_tells_apart_exercises_with_the_same_question() -> None:
     with_bruder = make_exercise(word="für", answer="meinen Bruder")
     with_mutter = make_exercise(word="für", answer="meine Mutter")
@@ -401,47 +393,6 @@ def test_a_skipped_exercise_leaves_the_lesson_size(
     assert _lesson_events(span) == [("LessonFinished", {"size": 2, "correct": 2})]
 
 
-def test_the_last_answer_finishes_a_lesson_from_before_the_ttl() -> None:
-    # Shown before the deployment, answered after it: the answer still
-    # finishes the lesson and counts for the streak
-    exercise = make_exercise()
-    lesson = {"date": "2026-11-14", "size": 1, "exercise_keys": []}
-    student_record: dict = {}
-
-    mark = Tutor(Course([exercise]), student_record, lesson=lesson).check_answer(
-        exercise, exercise.answer[0]
-    )
-
-    assert mark.finished_lesson == FinishedLesson(
-        size=1,
-        correct=1,
-        extends_streak=True,
-        given_exercise_keys=(),
-        wrong_exercise_keys=(),
-    )
-
-
-def test_a_lesson_started_before_the_given_keys_reports_none() -> None:
-    # Started before the deployment, finished after it: the lesson has no
-    # list of the keys that it gave before, so it reports no keys at all
-    # rather than only the last ones
-    warten = make_exercise(word="warten")
-    hoffen = make_exercise(word="hoffen")
-    lesson = _started_lesson(warten, hoffen)
-    del lesson["given_exercise_keys"], lesson["wrong_exercise_keys"]
-    course = Course([warten, hoffen])
-    student_record: dict = {}
-    marks = []
-    for _ in range(2):
-        tutor = Tutor(course, student_record, lesson=lesson)
-        marks.append(tutor.check_answer(_next(tutor), "nonsense"))
-
-    finished_lesson = marks[1].finished_lesson
-    assert finished_lesson is not None
-    assert finished_lesson.given_exercise_keys == ()
-    assert finished_lesson.wrong_exercise_keys == ()
-
-
 def test_a_lesson_keeps_the_given_and_wrong_keys_after_taking_them() -> None:
     now = datetime.now(UTC)
     data: dict = {}
@@ -471,6 +422,7 @@ def test_a_malformed_list_of_given_keys_counts_as_empty() -> None:
         now=now,
     )
 
-    assert lesson.take_exercise_key() == "a"
     assert lesson.given_exercise_keys == []
     assert lesson.wrong_exercise_keys == []
+    assert lesson.take_exercise_key() == "a"
+    assert lesson.given_exercise_keys == ["a"]

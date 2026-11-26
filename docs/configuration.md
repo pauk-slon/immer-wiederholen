@@ -80,7 +80,7 @@ If `ANTHROPIC_API_KEY` is set, the bot doesn't start without the course's `lesso
 
 `BOT_FEATURE_FLAGS` holds flags separated by `;`, each with its chat ids, such as `lesson_recall_unlimited:123,456`. `lesson_recall_unlimited` removes the daily limit of lesson recalls for its chats. The bot doesn't start if this flag has a chat but `ANTHROPIC_API_KEY` is missing, because the flag would have no effect.
 
-The reminder worker and the web app don't make these checks. The lesson recall sets its own timeouts (see [AI-generated content](authoring.md#lesson-recalls)). The bot ignores a flag that it doesn't know, such as `lesson_recall`, `lessons` or `ai_exercises` from an older configuration.
+The reminder worker and the web app don't make these checks. The lesson recall sets its own timeouts (see [AI-generated content](authoring.md#lesson-recalls)). The bot ignores a flag that it doesn't know.
 
 After you change the variable, restart the bot.
 

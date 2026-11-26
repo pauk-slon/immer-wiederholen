@@ -131,7 +131,7 @@ async def test_a_lesson_outlives_a_new_shown_exercise(
     web_session_store: WebSessionStore,
 ) -> None:
     student_id = WebStudentID.generate()
-    lesson = {"date": "2026-11-14", "size": 1, "exercise_keys": []}
+    lesson = {"active_at": "2026-11-14T18:05:12+00:00", "size": 1, "exercise_keys": []}
 
     await web_session_store.set_lesson(student_id, ["government"], lesson)
     await web_session_store.set_shown_exercise(
