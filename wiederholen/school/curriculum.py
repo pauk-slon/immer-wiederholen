@@ -81,6 +81,14 @@ class Recall:
 
 
 @dataclass(frozen=True)
+class Pair:
+    """A word and a topic. The schedule has an entry for each pair."""
+
+    word: str
+    topic: str
+
+
+@dataclass(frozen=True)
 class Exercise:
     word: str
     topic: Topic

@@ -10,7 +10,7 @@ from anthropic.types import Message, TextBlockParam, ToolParam, ToolUseBlock
 from opentelemetry import trace
 
 from wiederholen.school.authoring.errors import AIGenerationError
-from wiederholen.school.curriculum import Exercise
+from wiederholen.school.curriculum import Exercise, Pair
 from wiederholen.school.i18n import Language
 
 MODEL: Final = "claude-haiku-5-5"
@@ -127,6 +127,21 @@ _CHECK_TOOL: Final[ToolParam] = {
                 "An empty string if the answer is correct or the guide gives no "
                 "correction for it.",
             },
+            "mistakes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "word": {"type": "string"},
+                        "topic": {"type": "string"},
+                    },
+                    "required": ["word", "topic"],
+                },
+                "description": "The mistakes that the guide asks you to list "
+                "for this answer, each as a pair of a word and a topic, as the "
+                "exercises of the course write them. An empty list if the guide "
+                "asks for none.",
+            },
         },
         "required": ["correct", "explanation", "correction"],
     },
@@ -186,6 +201,9 @@ class TranslationCheck:
     is_correct: bool
     explanation: str | None
     correction: str | None
+    # The pairs in which the course's guide finds a mistake. The engine only
+    # records them for now (#411)
+    mistakes: tuple[Pair, ...] = ()
 
 
 # Both requests send both tools, so that they share the cached prefix
@@ -438,4 +456,24 @@ async def check_translation(
         is_correct=is_correct,
         explanation=explanation.strip() or None,
         correction=correction.strip() or None,
+        mistakes=_parse_mistakes(tool_input.get("mistakes")),
     )
+
+
+def _parse_mistakes(raw: object) -> tuple[Pair, ...]:
+    # A malformed mistake is dropped, not a failed check, because the mistakes
+    # don't change the verdict that the learner waits for
+    if not isinstance(raw, list):
+        return ()
+    mistakes: list[Pair] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        word = item.get("word")
+        topic = item.get("topic")
+        if not isinstance(word, str) or not isinstance(topic, str):
+            continue
+        pair = Pair(word=word.strip(), topic=topic.strip())
+        if pair.word and pair.topic and pair not in mistakes:
+            mistakes.append(pair)
+    return tuple(mistakes)

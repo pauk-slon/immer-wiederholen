@@ -37,6 +37,7 @@ from wiederholen.school import (
     Exercise,
     LessonRecall,
     LessonRecallSentence,
+    Pair,
     TranslationCheck,
 )
 
@@ -1001,17 +1002,67 @@ async def test_the_spans_record_the_generation_and_the_check(
     assert dict(corrected.attributes or {}) == {
         "lesson_recall.sentence_topics": ("government",),
         "lesson_recall.verdict": "wrong",
+        "lesson_recall.mistakes": 0,
         "lesson_recall.corrected": True,
     }
     assert dict(uncorrected.attributes or {}) == {
         "lesson_recall.sentence_topics": ("government", "government"),
         "lesson_recall.verdict": "wrong",
+        "lesson_recall.mistakes": 0,
         "lesson_recall.corrected": False,
     }
     assert dict(failure.attributes or {}) == {
         "lesson_recall.sentence_topics": ("government", "government"),
         "lesson_recall.failure": "model did not call the expected tool",
     }
+
+
+async def test_the_check_span_records_the_mistakes(
+    send: Any,
+    state: FSMContext,
+    generate: AsyncMock,
+    check: AsyncMock,
+    tracer: Tracer,
+    exporter: InMemorySpanExporter,
+    introduce_pairs: IntroducePairs,
+) -> None:
+    await _start(send, state)
+    # Only warten is introduced, although the lesson introduced every pair
+    await introduce_pairs([WARTEN])
+    check.return_value = TranslationCheck(
+        is_correct=False,
+        explanation=None,
+        correction=None,
+        mistakes=(
+            Pair(word="warten", topic="government"),
+            Pair(word="hoffen", topic="government"),
+            Pair(word="Kino", topic="government"),
+            Pair(word="Film", topic="genus"),
+        ),
+    )
+
+    with patch("wiederholen.bot.commands.lesson_recall.default_tracer", tracer):
+        await send.message("Wir warten.")
+
+    (span,) = exporter.get_finished_spans()
+    assert (span.attributes or {})["lesson_recall.mistakes"] == 4
+    assert [event.name for event in span.events] == ["LessonRecallMistake"] * 4
+    assert [dict(event.attributes or {}) for event in span.events] == [
+        {
+            "in_course": True,
+            "introduced": True,
+            "word": "warten",
+            "topic": "government",
+        },
+        {
+            "in_course": True,
+            "introduced": False,
+            "word": "hoffen",
+            "topic": "government",
+        },
+        {"in_course": False, "introduced": False, "topic": "government"},
+        {"in_course": False, "introduced": False},
+    ]
 
 
 async def test_the_last_sentence_is_recorded_on_the_update_span(

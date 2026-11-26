@@ -23,6 +23,7 @@ from wiederholen.school.authoring.lesson_recall import (
     check_translation,
     generate_lesson_recall,
 )
+from wiederholen.school.curriculum import Pair
 from wiederholen.school.i18n import LANGUAGES
 
 GUIDE = "# Guide\n\nWrite two sentences."
@@ -350,6 +351,53 @@ async def test_a_check_without_an_explanation_and_a_correction_has_none(
     tool_input: dict,
 ) -> None:
     check = await _check(_make_client(_verdict(tool_input)))
+
+    assert check == TranslationCheck(is_correct=True, explanation=None, correction=None)
+
+
+async def test_a_check_returns_the_mistakes() -> None:
+    client = _make_client(
+        _verdict(
+            {
+                "correct": False,
+                "explanation": "",
+                "mistakes": [
+                    {"word": " Film ", "topic": "genus"},
+                    {"word": "Film", "topic": "genus"},
+                    {"word": "hoffen", "topic": "verb_preposition"},
+                ],
+            }
+        )
+    )
+
+    check = await _check(client)
+
+    assert check.mistakes == (
+        Pair(word="Film", topic="genus"),
+        Pair(word="hoffen", topic="verb_preposition"),
+    )
+
+
+@pytest.mark.parametrize(
+    "mistakes",
+    [
+        None,
+        "Film:genus",
+        [
+            "Film",
+            {"word": "Film"},
+            {"word": "Film", "topic": 1},
+            {"word": " ", "topic": "genus"},
+        ],
+    ],
+    ids=["null", "not a list", "malformed items"],
+)
+async def test_a_check_drops_malformed_mistakes(mistakes: object) -> None:
+    client = _make_client(
+        _verdict({"correct": True, "explanation": "", "mistakes": mistakes})
+    )
+
+    check = await _check(client)
 
     assert check == TranslationCheck(is_correct=True, explanation=None, correction=None)
 

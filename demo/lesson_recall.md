@@ -38,6 +38,10 @@ Write the explanation in the learner's language. In Russian, address the learner
 - If the learner translated around the practiced form in correct German, say that the translation is correct and name the form that the lesson practiced.
 - No praise and no summary.
 
+## The mistakes
+
+List a wrong Partizip II as a mistake: the pair of the verb's infinitive and `partizip_ii`, for example `singen` and `partizip_ii` for "gesingt". List it only if the form can't be a slip in another word. List no other mistakes.
+
 ## The correction
 
 Correct a wrong translation with the smallest changes that fix every mistake. Keep the words and the word order of the learner where they are correct.
