@@ -153,7 +153,7 @@ class Locale:
 # | lesson        | урок     | lesson   |
 # | lesson recall | практика | practice |
 # A recall has no noun, only the verb on its button
-# A sentence of a lesson recall is an exercise too
+# A sentence of a lesson recall is an exercise too ("Следующее задание")
 RU: Final = Locale(
     start="Привет! Я буду давать вам короткие задания и возвращаться к ним, пока вы их не запомните.",
     correct_mark="✅",
