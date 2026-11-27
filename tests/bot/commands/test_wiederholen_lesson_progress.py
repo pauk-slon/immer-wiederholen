@@ -14,7 +14,7 @@ from wiederholen.bot.commands.wiederholen import (
     STUDY_MORE,
     UserState,
 )
-from wiederholen.bot.l10n import RU
+from wiederholen.bot.l10n import RU, format_score
 from wiederholen.school import Course, Exercise
 
 _WORDS = ("warten", "hoffen", "denken", "achten", "zählen")
@@ -88,13 +88,13 @@ async def test_the_last_answer_of_a_lesson_shows_the_summary(
 
     last = await feed_message("an", course=course)
 
-    assert RU.lesson_summary.split("!")[0] not in first[-1].text
+    assert RU.lesson_summary.split("{")[0] not in first[-1].text
     assert _button_texts(first[-1]) == [RU.cmd_wiederholen]
     result, summary = last[-2:]
     assert result.text.startswith(RU.wrong_mark)
     assert result.reply_markup is None
     assert summary.text == (
-        RU.lesson_summary.format(correct=1, size=2)
+        RU.lesson_summary.format(score=format_score(1, 2, "ru"))
         + "\n"
         + RU.streak_text.format(days="1 день")
     )
@@ -116,7 +116,9 @@ async def test_a_lesson_that_adds_no_streak_day_shows_no_streak_line(
 
     last = await feed_message("auf", course=course)
 
-    assert _last_text(last).endswith(RU.lesson_summary.format(correct=2, size=2))
+    assert _last_text(last).endswith(
+        RU.lesson_summary.format(score=format_score(2, 2, "ru"))
+    )
 
 
 async def test_before_a_required_recall_the_summary_comes_without_buttons(
@@ -138,7 +140,9 @@ async def test_before_a_required_recall_the_summary_comes_without_buttons(
 
     result, summary, prompt = _sent(answer)[-3:]
     assert result.text.startswith(RU.wrong_mark)
-    assert summary.text.startswith(RU.lesson_summary.format(correct=0, size=2))
+    assert summary.text.startswith(
+        RU.lesson_summary.format(score=format_score(0, 2, "ru"))
+    )
     assert summary.reply_markup is None
     assert prompt.text.startswith(RU.recall_prompt.split("{")[0])
     [result] = _sent(recall_result)
@@ -159,7 +163,9 @@ async def test_after_an_optional_recall_the_summary_isnt_repeated(
     await feed_callback_query(RECALL, course=course)
     recall_result = await feed_message("Ich warte auf den Bus.", course=course)
 
-    assert last[-1].text.startswith(RU.lesson_summary.format(correct=2, size=2))
+    assert last[-1].text.startswith(
+        RU.lesson_summary.format(score=format_score(2, 2, "ru"))
+    )
     assert _button_texts(last[-1]) == [RU.btn_recall, RU.btn_next_lesson]
     assert button_styles(last[-1]) == [None, None]
     [result] = _sent(recall_result)

@@ -29,6 +29,7 @@ from wiederholen.bot.l10n import (
     Locale,
     append_streak_line,
     format_count,
+    format_score,
     format_wait,
     get_language,
 )
@@ -239,7 +240,9 @@ def _format_lesson_summary(
         return None
     locale = LOCALES[language]
     summary = locale.lesson_summary.format(
-        correct=finished_lesson["correct"], size=finished_lesson["size"]
+        score=format_score(
+            finished_lesson["correct"], finished_lesson["size"], language
+        )
     )
     if finished_lesson["streak_days"] is not None:
         days = format_count(finished_lesson["streak_days"], "days", language)

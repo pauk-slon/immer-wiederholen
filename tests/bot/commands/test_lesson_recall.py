@@ -29,7 +29,7 @@ from wiederholen.bot.commands.lesson_recall import (
     LessonRecallState,
 )
 from wiederholen.bot.commands.wiederholen import LESSON_RECALL, NEXT_EXERCISE, RECALL
-from wiederholen.bot.l10n import RU
+from wiederholen.bot.l10n import RU, format_score
 from wiederholen.bot.lesson_recall_limit import DAILY_LESSON_RECALLS, STARTED_AT_KEY
 from wiederholen.school import (
     AIGenerationError,
@@ -183,7 +183,9 @@ async def test_the_summary_has_only_the_practice_button(
 
     summary = _sent(requests)[-1]
     assert summary.text is not None
-    assert summary.text.startswith(RU.lesson_summary.format(correct=3, size=4))
+    assert summary.text.startswith(
+        RU.lesson_summary.format(score=format_score(3, 4, "ru"))
+    )
     assert _buttons(summary) == [PRACTICE]
     assert button_styles(summary) == [None]
     generate.assert_not_called()
@@ -630,7 +632,9 @@ async def test_the_last_result_leads_to_the_next_exercise(
     result, summary = _sent(requests)
     assert result.text == f"{RU.correct_mark} {RU.correct}"
     assert result.reply_markup is None
-    assert summary.text == RU.lesson_recall_summary.format(correct=2, size=2)
+    assert summary.text == RU.lesson_recall_summary.format(
+        score=format_score(2, 2, "ru")
+    )
     assert _buttons(summary) == [NEXT_LESSON]
     assert await state.get_state() is None
     data = await state.get_data()
@@ -649,7 +653,9 @@ async def test_a_skip_of_the_last_sentence_leads_to_the_next_exercise(
 
     reference, summary = _sent(requests)
     assert reference.text == "Вариант перевода:\n<blockquote>Ref 1</blockquote>"
-    assert summary.text == RU.lesson_recall_summary.format(correct=0, size=2)
+    assert summary.text == RU.lesson_recall_summary.format(
+        score=format_score(0, 2, "ru")
+    )
     assert _buttons(summary) == [NEXT_LESSON]
 
 
@@ -1257,7 +1263,9 @@ async def test_the_summary_counts_the_right_translations(
 
     result, summary = _sent(requests)
     assert result.text == f"{RU.correct_mark} Отлично, hoffen auf."
-    assert summary.text == RU.lesson_recall_summary.format(correct=1, size=2)
+    assert summary.text == RU.lesson_recall_summary.format(
+        score=format_score(1, 2, "ru")
+    )
 
 
 async def test_a_right_translation_with_an_explanation_waits_for_the_learner(

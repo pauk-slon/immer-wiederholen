@@ -28,7 +28,7 @@ from wiederholen.bot.commands.wiederholen import (
     send_result,
     show_typing_while,
 )
-from wiederholen.bot.l10n import LOCALES, Locale, get_language
+from wiederholen.bot.l10n import LOCALES, Locale, format_score, get_language
 from wiederholen.bot.lesson_recall_limit import count_lesson_recall
 from wiederholen.bot.pending_buttons import (
     clear_stale_buttons,
@@ -251,7 +251,7 @@ async def _send_result_and_go_on(
         message,
         result_html,
         locale.lesson_recall_summary.format(
-            correct=data.get(_CORRECT_KEY, 0), size=size
+            score=format_score(data.get(_CORRECT_KEY, 0), size, lesson_recall.language)
         ),
         _keyboard(
             [
