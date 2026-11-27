@@ -2,7 +2,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from wiederholen.bot.l10n import RU, append_streak_line, format_count, format_wait
+from wiederholen.bot.l10n import (
+    LOCALES,
+    RU,
+    append_streak_line,
+    format_count,
+    format_score,
+    format_wait,
+)
 from wiederholen.school import Language, Streak
 
 
@@ -70,6 +77,39 @@ def test_format_count_en_words(n: int, expected: str) -> None:
 )
 def test_format_count_en_exercises(n: int, expected: str) -> None:
     assert format_count(n, "exercises", "en") == expected
+
+
+@pytest.mark.parametrize(
+    ("size", "expected"),
+    [
+        (1, "1 из 1 задания"),
+        (2, "1 из 2 заданий"),
+        (5, "1 из 5 заданий"),
+        (11, "1 из 11 заданий"),
+        (21, "1 из 21 задания"),
+    ],
+)
+def test_format_score_ru(size: int, expected: str) -> None:
+    assert format_score(1, size, "ru") == expected
+
+
+@pytest.mark.parametrize(
+    ("size", "expected"),
+    [(1, "1 of 1 exercise"), (2, "1 of 2 exercises")],
+)
+def test_format_score_en(size: int, expected: str) -> None:
+    assert format_score(1, size, "en") == expected
+
+
+@pytest.mark.parametrize("language", sorted(LOCALES))
+def test_the_summaries_of_a_lesson_and_a_lesson_recall_differ(
+    language: Language,
+) -> None:
+    locale = LOCALES[language]
+    assert (
+        locale.lesson_summary.split("{")[0]
+        != (locale.lesson_recall_summary.split("{")[0])
+    )
 
 
 def test_append_streak_line_leaves_the_text_without_a_streak() -> None:

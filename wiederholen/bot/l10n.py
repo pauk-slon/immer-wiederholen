@@ -47,6 +47,15 @@ def format_count(
     return f"{n} {word}"
 
 
+def format_score(correct: int, size: int, language: Language) -> str:
+    if language == "ru":
+        # After "из", the noun is in the genitive: "из 1 задания", "из 5 заданий"
+        word = _ru_plural(size, "задания", "заданий", "заданий")
+        return f"{correct} из {size} {word}"
+    singular, plural = _EN_UNIT_FORMS["exercises"]
+    return f"{correct} of {size} {singular if size == 1 else plural}"
+
+
 def format_wait(seconds: float, language: Language) -> str:
     """A wait in minutes under two hours, in hours otherwise, rounded up, so
     that the learner never comes too early. Whole hours would round 61 minutes
@@ -144,6 +153,7 @@ class Locale:
 # | lesson        | урок     | lesson   |
 # | lesson recall | практика | practice |
 # A recall has no noun, only the verb on its button
+# A sentence of a lesson recall is an exercise too
 RU: Final = Locale(
     start="Привет! Я буду давать вам короткие задания и возвращаться к ним, пока вы их не запомните.",
     correct_mark="✅",
@@ -204,14 +214,14 @@ RU: Final = Locale(
         "Нажмите кнопку, чтобы продолжить."
     ),
     streak_text="🔥 Серия: {days}",
-    lesson_summary="🏁 Урок пройден: верно {correct} из {size}",
+    lesson_summary="📝 {score} верно",
     lesson_recall_limit_text="⏳ Практика снова будет доступна через {wait}",
     btn_next_lesson="Следующий урок",
     btn_practice="Практика",
-    btn_next_sentence="Следующая фраза",
+    btn_next_sentence="Следующее задание",
     grammar_class_hint="Так же, как у {word}",
     language_set="🌐 Язык: русский",
-    lesson_recall_summary="🏁 Практика: верно {correct} из {size}",
+    lesson_recall_summary="🏁 {score} верно",
     lesson_recall_sentence="{position}/{size} ✍️ Переведите:\n{text}",
     btn_lesson_recall_skip="Пропустить",
     lesson_recall_reference="Вариант перевода:\n{reference}",
@@ -283,14 +293,14 @@ EN: Final = Locale(
         "Tap the button to continue."
     ),
     streak_text="🔥 Streak: {days}",
-    lesson_summary="🏁 Lesson complete: {correct} of {size} correct",
+    lesson_summary="📝 {score} correct",
     lesson_recall_limit_text="⏳ Practice will be available again in {wait}",
     btn_next_lesson="Next lesson",
     btn_practice="Practice",
-    btn_next_sentence="Next sentence",
+    btn_next_sentence="Next exercise",
     grammar_class_hint="Same as for {word}",
     language_set="🌐 Language: English",
-    lesson_recall_summary="🏁 Practice: {correct} of {size} correct",
+    lesson_recall_summary="🏁 {score} correct",
     lesson_recall_sentence="{position}/{size} ✍️ Translate:\n{text}",
     btn_lesson_recall_skip="Skip",
     lesson_recall_reference="A possible translation:\n{reference}",
